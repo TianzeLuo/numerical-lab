@@ -27,7 +27,7 @@ packages = ["numcore", "server", "tools"]
 minversion = "8.0"
 testpaths = ["tests"]
 pythonpath = ["."]
-addopts = "-ra --strict-markers --strict-config"
+addopts = "-ra --strict-markers --strict-config --import-mode=importlib"
 markers = [
     "assert_a: A 类断言 —— 解析对拍（收敛阶必须等于理论阶 ±0.1）",
     "assert_b: B 类断言 —— 不变量（守恒 / 正交 / 对称 / 单调）",

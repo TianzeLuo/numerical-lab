@@ -260,17 +260,75 @@ def run_pytest(root: pathlib.Path, report: pathlib.Path, pytest_args: list[str])
     return proc.returncode
 
 
+def _recount(chapters: dict[str, Any]) -> dict[str, Any]:
+    """按各章 items 重算 totals（``--merge`` 用；口径与 ``analyse`` 读的一致）。"""
+    totals: dict[str, Any] = {"A": 0, "B": 0, "C": 0, "total": 0, "passed": 0, "failed": 0, "unmeasured": 0}
+    for blk in chapters.values():
+        for item in blk.get("items", []) or []:
+            kind = str(item.get("kind", "?")).upper()
+            totals["total"] += 1
+            if kind in totals:
+                totals[kind] += 1
+            if item.get("measured") is None:
+                totals["unmeasured"] += 1
+            if item.get("passed"):
+                totals["passed"] += 1
+            else:
+                totals["failed"] += 1
+    return totals
+
+
+def merge_reports(root: pathlib.Path, aggregate: pathlib.Path, partial: pathlib.Path) -> int:
+    """把局部报告并入聚合报告：只替换它涉及的章，其余章原样保留。"""
+    if not partial.exists():
+        print(f"[错误] 要合并的报告不存在：{partial}")
+        return 1
+    part = json.loads(partial.read_text(encoding="utf-8"))
+    part_ch = part.get("chapters") or {}
+    if not part_ch:
+        print(f"[错误] {partial} 里没有章节块（--merge 需要 NUMCORE_REPORT 形式的分章报告）")
+        return 1
+    agg: dict[str, Any] = {}
+    if aggregate.exists():
+        agg = json.loads(aggregate.read_text(encoding="utf-8"))
+    chapters = dict(agg.get("chapters") or {})
+    replaced = sorted(part_ch)
+    for cid, blk in part_ch.items():
+        chapters[cid] = blk
+    agg["chapters"] = chapters
+    agg["totals"] = _recount(chapters)
+    agg["generated_at"] = part.get("generated_at", agg.get("generated_at"))
+    agg.pop("gate", None)  # gate 由 --no-run 重新分析后写回
+    aggregate.parent.mkdir(parents=True, exist_ok=True)
+    aggregate.write_text(json.dumps(agg, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    t = agg["totals"]
+    print(
+        f"已合并 {', '.join(replaced)} → {_display_path(aggregate, root)}"
+        f"（现有 {len(chapters)} 章、{t['total']} 条断言；A{t['A']} B{t['B']} C{t['C']}）"
+    )
+    return 0
+
+
 def main(argv: Iterable[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="跑断言、对账声明、生成报告（G3 门）")
     ap.add_argument("--no-run", action="store_true", help="不跑 pytest，直接分析现有报告")
     ap.add_argument("--report", type=pathlib.Path, default=DEFAULT_REPORT)
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--allow-empty", action="store_true", help="报告缺失时不算失败（仅供工具自测）")
+    ap.add_argument(
+        "--merge",
+        type=pathlib.Path,
+        help="把一份局部报告（例如 NUMCORE_REPORT=/tmp/rep-2.5.json 的单章报告）并入 --report "
+        "指定的聚合报告：只替换它涉及的章节块，totals 按全部章节重算。并发写章节时用它，"
+        "比手工改聚合报告安全（以前每个 agent 都要自己手搓一遍，容易把别人的块抹掉）。",
+    )
     ap.add_argument("pytest_args", nargs="*", help="透传给 pytest 的参数")
     args = ap.parse_args(list(argv) if argv is not None else None)
 
     root = ROOT
     report = args.report if args.report.is_absolute() else root / args.report
+    if args.merge is not None:
+        return merge_reports(root, report, args.merge if args.merge.is_absolute() else root / args.merge)
     rc = 0
     if not args.no_run:
         rc = run_pytest(root, report, list(args.pytest_args))

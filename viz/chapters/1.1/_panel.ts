@@ -17,7 +17,7 @@
  */
 
 import type { AxisSpecJson } from "../../shared/src/manifest.js";
-import { text, type TextSpec } from "../../shared/src/scene.js";
+import { text, textBoxOf, type TextSpec } from "../../shared/src/scene.js";
 import { textWidthUnits } from "../../shared/src/model.js";
 
 /** 面板内说明文字的字号（与 1.2 / 0.0 章一致）。 */
@@ -200,4 +200,53 @@ export function constantArray(n: number, value: number): Float64Array {
   const out = new Float64Array(Math.max(0, n));
   out.fill(value);
   return out;
+}
+
+/**
+ * 消解文本块重叠：按 y 序保留先到者，与已保留块重叠的**丢弃**并在画布顶部如实计数。
+ *
+ * 为什么需要它：模型里几块说明各自按"自己的行数"估算下一块的起点（例如
+ * `midTop + mid.length * 15 + 4`），而**真实占几行**取决于 `maxWidth` 处的折行——
+ * 画布变窄（480px）时每块都会多折出一两行，于是下一块就压上来了。规则 8 的
+ * "文本互相压住"在 960px 下全绿、在 480px 下报 3 处，就是这么来的。
+ *
+ * 这里用**共享的盒子量法**（`textBoxOf`：折行 + `size + 4` 行高）而不是自己数行：
+ * 与校验器同一把尺子，判完就一定不再重叠。为什么不"下移"而是"丢弃"：下移会推进
+ * 下一条轴的装饰带（刻度/轴名由渲染层自己画，模型看不见），那是另一条规则 8 违规。
+ * 诚实口径：宁可少说，不可叠着说，也不可压着轴说。
+ */
+export function avoidTextOverlap(layers: TextSpec[], rect: readonly [number, number, number, number]): TextSpec[] {
+  // 只丢、不移：往下推会推进下一条轴的装饰带（刻度与轴名由渲染层自己画，模型看不见），
+  // 那是另一条规则 8 违规。丢掉的块数如实写在画布顶部一行短注里（不静默）。
+  const kept: TextSpec[] = [];
+  let dropped = 0;
+  const sorted = [...layers].sort((a, b) => (a.y ?? 0) - (b.y ?? 0));
+  for (const layer of sorted) {
+    const box = textBoxOf({ ...layer, y: layer.y ?? 0 });
+    if (!box.ok || box.y + box.h > rect[1] + rect[3]) {
+      dropped += 1;
+      continue;
+    }
+    const hit = kept.some((prev) => {
+      const a = textBoxOf({ ...prev, y: prev.y ?? 0 });
+      const ox = Math.min(a.x + a.w, box.x + box.w) - Math.max(a.x, box.x);
+      const oy = Math.min(a.y + a.h, box.y + box.h) - Math.max(a.y, box.y);
+      return ox > 2 && oy > 2;
+    });
+    if (hit) {
+      dropped += 1;
+      continue;
+    }
+    kept.push(layer);
+  }
+  if (dropped > 0) {
+    kept.push(
+      text(rect[0], rect[1], `窄画布：${dropped} 行说明未显示（完整口径见 960×600）`, {
+        role: "note",
+        size: 11,
+        color: "#718096",
+      }),
+    );
+  }
+  return kept;
 }

@@ -28,7 +28,10 @@ import {
   newScene,
   overflowBadge,
   series,
+  text,
+  textBoxOf,
   textWidthUnits,
+  type TextSpec,
 } from "./scene.js";
 // 这两个是"文本宽度尺子"的公开入口：多章模型从 `model.ts` 取（历史原因），
 // 实现在 `scene.ts`（与校验器同一份）。
@@ -646,4 +649,54 @@ export function degradedBadge(items: readonly string[], slot: number, width: num
   const head = items.slice(0, 2).join("；");
   const rest = items.length > 2 ? `；等 ${items.length} 项` : "";
   return placeBadge(badge("status", clipBadgeText(`${DEGRADED_PREFIX}${head}${rest}`), BADGE_LAYOUT.x, BADGE_LAYOUT.top), slot, width);
+}
+
+/**
+ * 消解文本层之间的重叠：按 y 序保留先到者，与已保留块重叠的**丢弃**并如实计数。
+ *
+ * 为什么放在共享层：模型里几块说明通常各自按"自己的行数"排下一块的起点
+ * （`top + lines.length * 15`），而**真实占几行**取决于 `maxWidth` 处的折行——
+ * 画布变窄或帧里的说明变长时，每块都会多折出一两行，下一块就压上来了。
+ * 规则 8 的"文本互相压住"由两侧校验器（`tools/raster.py::_text_deco_issues` 与
+ * `scene.ts::validateScene`）当场拒绝，所以模型必须自己保证不重叠。
+ *
+ * 为什么只丢不移：往下推会推进下一条轴的**装饰带**（刻度与轴名由渲染层自己画，
+ * 模型看不见），那是另一条规则 8 违规。诚实口径：宁可少说，不可叠着说、也不可压着轴说。
+ * 丢弃数量写在画布顶部一行短注里，不静默（防误导七条第一条）。
+ */
+export function resolveTextOverlaps(
+  layers: TextSpec[],
+  rect: readonly [number, number, number, number],
+): TextSpec[] {
+  const kept: TextSpec[] = [];
+  let dropped = 0;
+  const limit = rect[1] + rect[3];
+  for (const layer of [...layers].sort((a, b) => (a.y ?? 0) - (b.y ?? 0))) {
+    const box = textBoxOf({ ...layer, y: layer.y ?? 0 });
+    if (!box.ok || box.y + box.h > limit) {
+      dropped += 1;
+      continue;
+    }
+    const hit = kept.some((prev) => {
+      const a = textBoxOf({ ...prev, y: prev.y ?? 0 });
+      const ox = Math.min(a.x + a.w, box.x + box.w) - Math.max(a.x, box.x);
+      const oy = Math.min(a.y + a.h, box.y + box.h) - Math.max(a.y, box.y);
+      return ox > 2 && oy > 2;
+    });
+    if (hit) {
+      dropped += 1;
+      continue;
+    }
+    kept.push(layer);
+  }
+  if (dropped > 0 && rect[1] >= 20) {
+    kept.push(
+      text(rect[0], 8, `窄画布：${dropped} 行说明未显示（完整口径见 960×600 默认画布）`, {
+        role: "note",
+        size: 11,
+        color: "#718096",
+      }),
+    );
+  }
+  return kept;
 }

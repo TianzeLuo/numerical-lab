@@ -31,6 +31,7 @@ import { formatNumber, niceLimits } from "../../shared/src/axes.js";
 import { countNonFinite } from "../../shared/src/geometry.js";
 import type { Frame } from "../../shared/src/frame.js";
 import {
+  resolveTextOverlaps,
   applyOverflow,
   canvasSize,
   clipBadgeText,
@@ -55,6 +56,7 @@ import {
   type SceneModel,
 } from "../../shared/src/model.js";
 import {
+  textBoxOf,
   axisModeBadge,
   badge,
   criticalBadge,
@@ -114,8 +116,15 @@ export const heatFtcsModel: SceneModel = (frame, opts) => {
   const dt = metaNumber(frame, "dt");
   const tActual = metaNumber(frame, "t_actual");
   const nSteps = metaNumber(frame, "n_steps");
-  if (dt === undefined) degraded.push("帧 meta 缺 dt：不判断请求时刻是否到达");
-  if (tActual === undefined) degraded.push("帧 meta 缺 t_actual：不比对时刻（不假设相等）");
+  // 两条降级必须合并成**一条**：降级角标走 clipBadgeText（约 84 单位），拆成两条时
+  // 后一条会被截掉——"帧里到底缺了什么"就说不全了（测试正好守这条：两个字段名都要在）。
+  if (dt === undefined && tActual === undefined) {
+    degraded.push("帧 meta 缺 dt 与 t_actual：不判断请求时刻是否到达、也不比对时刻（不假设相等）");
+  } else if (dt === undefined) {
+    degraded.push("帧 meta 缺 dt：不判断请求时刻是否到达");
+  } else if (tActual === undefined) {
+    degraded.push("帧 meta 缺 t_actual：不比对时刻（不假设相等）");
+  }
   if (nSteps === undefined) degraded.push("帧 meta 缺 n_steps：不显示步数");
   const r = metaNumber(frame, "r");
   if (r === undefined) degraded.push("帧 meta 缺 r：不标 r 的临界值（不猜）");
@@ -222,10 +231,16 @@ export const heatFtcsModel: SceneModel = (frame, opts) => {
   // 请求时刻 vs 到达时刻：**只在真的不等时**出现（超过 dt/2）。
   const mismatch = tActual !== undefined && dt !== undefined && Math.abs(tActual - tNow) > dt / 2;
   if (mismatch) {
+    // 位置按**上一块的真实盒子**算，不写死 +26：帧里的参数说明一变长就会多折一行，
+    // 写死的偏移会把这条"请求时刻 ≠ 实际到达时刻"的警告压住（规则 8 的文本重叠当场报过）。
+    const summaryBox = scene.texts[scene.texts.length - 1];
+    const warnY = summaryBox === undefined
+      ? panels.main[1] + 26
+      : textBoxOf({ ...summaryBox, y: summaryBox.y ?? 0 }).y + textBoxOf({ ...summaryBox, y: summaryBox.y ?? 0 }).h + 4;
     scene.texts.push(
       text(
         panels.main[0] + 6,
-        panels.main[1] + 26,
+        warnY,
         `⚠ 请求 t=${formatNumber(tNow, 4)} ≠ 实际到达 t_actual=${formatNumber(tActual, 4)}` +
           `（相差 ${formatNumber(Math.abs(tActual - tNow), 3)} > dt/2=${formatNumber(dt / 2, 3)}）：` +
           `曲线是 t_actual 时刻的解，不是请求时刻的。`,
@@ -280,6 +295,10 @@ export const heatFtcsModel: SceneModel = (frame, opts) => {
   // 规则 1：越界 + 非有限值（u / exact / error 一起算）。
   requireDrawableLayers(scene);
   applyOverflow(scene, countNonFinite(u) + countNonFinite(exact) + nBadError, { slot: SLOT.overflow, width });
+  // 文本块之间不许重叠（规则 8，两侧校验器都查）：模型里各块按自己的行数排位，
+  // 帧里的说明一变长就会多折一行压住下一块（fixture 里 t=0.5 的标记真压过参数行 49×8px）。
+  scene.texts = resolveTextOverlaps(scene.texts, [8, 24, width - 16, height - 8]);
+
   return scene;
 };
 

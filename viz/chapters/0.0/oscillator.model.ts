@@ -32,6 +32,7 @@
 import { formatNumber, niceLimits } from "../../shared/src/axes.js";
 import { countNonFinite, dataToPixel } from "../../shared/src/geometry.js";
 import {
+  resolveTextOverlaps,
   applyOverflow,
   canvasSize,
   clamp,
@@ -272,6 +273,10 @@ export const oscillatorModel: SceneModel = (frame, opts) => {
   requireDrawableLayers(scene);
   // 规则 1：图层越界 + 帧内非有限值，两者都要进 overflow 与角标。
   applyOverflow(scene, countNonFinite(tt) + countNonFinite(x) + countNonFinite(residual), { slot: SLOT.overflow, width });
+  // 文本块之间不许重叠（规则 8，两侧校验器都查）：模型里各块按自己的行数排位，
+  // 帧里的说明一变长就会多折一行压住下一块（fixture 里 t=0.5 的标记真压过参数行 49×8px）。
+  scene.texts = resolveTextOverlaps(scene.texts, [8, 24, width - 16, height - 8]);
+
   return scene;
 };
 
