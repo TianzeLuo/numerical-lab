@@ -148,12 +148,40 @@ def _run(nx: int, scheme: str, r: float, n_steps: int, bc: str, initial_key: str
 #: nx=101、r=0.05 除外，那里顶部特征值挤在一起，估计量只能到 1e-4——如实写进 radius_note）。
 _GROWTH_MAX_ITER = 3000
 _GROWTH_RTOL = 1.0e-9
+_GROWTH_SEED = 20261018
 
 
 @functools.lru_cache(maxsize=256)
 def _growth(nx: int, scheme: str, r: float, bc: str) -> float:
-    """实测谱半径（幂迭代，缓存）。"""
-    return heat.explicit_growth(r * np.ones(nx), nx=nx, bc=bc, rtol=_GROWTH_RTOL, max_iter=_GROWTH_MAX_ITER)
+    """实测谱半径（幂迭代，缓存）——**必须是这个 scheme 的算子**。
+
+    这里踩过一次真坑：FTCS 有现成的 `heat.explicit_growth`，于是早期版本无条件调它，
+    结果 btcs/cn 的帧把 FTCS 的谱半径当成"实测值"报出去（btcs r=50 报 198.69，
+    真值 0.76437；cn r=500 报 1995.9，真值 0.99793），`radius_note` 还把差异归错原因。
+    现在按 `scheme_theta` 取 θ，用 `theta_step` 做同一种归一化幂迭代（隐式那一步是
+    三对角求解，代价与显式同阶），并缓存。
+    """
+    if scheme == "ftcs":
+        return heat.explicit_growth(r * np.ones(nx), nx=nx, bc=bc, rtol=_GROWTH_RTOL, max_iter=_GROWTH_MAX_ITER)
+    theta = heat.scheme_theta(scheme, None)
+    dx = 1.0 / nx
+    dt = r * dx * dx  # 定常系数下 alpha=1，r = dt/dx^2
+    rng = np.random.default_rng(_GROWTH_SEED)
+    x = rng.standard_normal(nx)
+    x /= np.linalg.norm(x)
+    lam = 1.0
+    for _ in range(_GROWTH_MAX_ITER):
+        y = heat.theta_step(x, r=r, theta=theta, dx=dx, dt=dt, bc=bc)
+        ny = float(np.linalg.norm(y))
+        if ny == 0.0:
+            return 0.0
+        x = y / ny
+        lam_new = ny
+        if abs(lam_new - lam) <= _GROWTH_RTOL * max(1.0, abs(lam_new)):
+            lam = lam_new
+            break
+        lam = lam_new
+    return float(lam)
 
 
 def _analytic_radius(scheme: str, r: float, nx: int, bc: str) -> float:
