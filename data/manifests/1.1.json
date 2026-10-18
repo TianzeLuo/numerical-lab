@@ -1,0 +1,351 @@
+{
+  "chapter": "1.1",
+  "part": "I",
+  "summary": "从浮点网格的间距，到抵消放大的有效位损失，再到 κ(A) 决定的前向误差界：把「精度」「稳定性」「条件数」这三件常被混为一谈的事分开，并让每件都能被测量。",
+  "title": "浮点数、误差传播与问题条件",
+  "vizzes": [
+    {
+      "axes": [
+        {
+          "autoscaled": false,
+          "id": "ladder",
+          "title": "浮点梯子：中心窗口与最近的 2 的幂窗口（横轴 = 距各自中心的 ulp 偏移）",
+          "ylabel": "间距 / 该窗口中心的 ulp"
+        },
+        {
+          "autoscaled": true,
+          "id": "residual",
+          "scale": "log",
+          "title": "0.1 累加 k 次与 k/10 的残差（0 以地板显示）",
+          "ylabel": "|fl(Σ0.1) − k/10|"
+        }
+      ],
+      "dataSource": "backend",
+      "description": "数轴放大到 u 量级：主图画**两条梯子**——以参数中心为中心的浮点梯子（实线，横轴是距中心的 ulp 偏移），以及以最近的 2 的幂为中心的梯子（虚线，跨过它间距减半，这就是网格不均匀的直接证据）。红点标出 0.1+0.2 的真实落点与数学上的 0.3；副轴是 0.1 累加 k 次与精确值 k/10 的残差（对数，0 以地板显示）。",
+      "id": "float_zoom",
+      "params": [
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": -1,
+          "label": "放大中心（10 的幂）",
+          "max": 16,
+          "min": -16,
+          "name": "center_log10",
+          "type": "int"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": 3.0,
+          "label": "放大中心的尾数",
+          "max": 9.9,
+          "min": 1.0,
+          "name": "mantissa",
+          "step": 0.1,
+          "type": "float"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": 1.3,
+          "label": "放大倍数 log10（显示的相邻浮点数个数）",
+          "max": 3.0,
+          "min": 0.0,
+          "name": "zoom_log10",
+          "step": 0.05,
+          "type": "float"
+        }
+      ],
+      "pitfalls": "其一：把纵轴当成「间距随位置变化」的连续曲线——它其实是阶梯，每个 2 的幂处掉一半，放大倍数不够时会看成一条水平线，误以为网格是均匀的。其二：把红点的位置当成「0.1+0.2 算错了」——它恰好落在 0.3 的**上一个** double（差 1 个 ulp），这是表示误差 + 一次舍入的必然结果，不是 bug；反过来，若把放大中心设到 1e16，会看到 1e16+1 与 1e16 重合，那是因为 ulp(1e16)=2、加 1 落在中点被 ties-to-even 舍回，图上「看起来没变」不是画错。副轴用对数，残差**恰好为 0** 的点（k=0,1,2…）会被地板 u/2·|k/10| 抬起，不能读成「误差不为零」。",
+      "requiredAux": [
+        "residual"
+      ],
+      "theory": [
+        "fl(x) = x(1+δ)，|δ| ≤ u = 2^-53；ulp(x) 在每个 binade 边界减半（网格不均匀）",
+        "0.1+0.2 = 0.30000000000000004，与 0.3 恰差 1 个 ulp；0.1+0.2−0.3 = 5.55e-17",
+        "累加 k 次 0.1 的残差 ~ k·u/2，误差随项数线性增长（Wilkinson 求和界）"
+      ],
+      "time": {
+        "dt": 1.0,
+        "label": "0.1 的累加次数 k",
+        "mode": "scrub",
+        "tMax": 64.0
+      },
+      "title": "数轴放大镜：浮点网格与 0.1+0.2 的落点"
+    },
+    {
+      "axes": [
+        {
+          "autoscaled": false,
+          "id": "digits",
+          "title": "剩余有效位数（固定 0..16）",
+          "ylabel": "位数"
+        },
+        {
+          "autoscaled": true,
+          "id": "error",
+          "scale": "log",
+          "title": "结果的相对误差（0 以 u/2 显示）",
+          "ylabel": "相对误差"
+        }
+      ],
+      "dataSource": "backend",
+      "description": "拖 a、b 相互靠近：主轴是「剩余有效位数」的整数计数（线性，固定 0..16），副轴（对数）是输入扰动被放大后的相对误差与理论上界 u(|a|+|b|)/|a−b|；另画一条恒为 0 的「减法舍入误差」曲线作对照——减法本身是精确的。",
+      "id": "cancellation",
+      "params": [
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": 1.0,
+          "label": "被减数 a",
+          "max": 2.0,
+          "min": 0.5,
+          "name": "a",
+          "step": 0.001,
+          "type": "float"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": 0.999999,
+          "label": "减数 b（拖到与 a 靠近）",
+          "max": 2.0,
+          "min": 0.5,
+          "name": "b",
+          "step": 0.001,
+          "type": "float"
+        },
+        {
+          "beyond": "below",
+          "critical": [
+            15.95
+          ],
+          "criticalNote": "d = 15.95 = log10(2^53) 是 binary64 能可靠表达的十进制位数上限；把 d 调到它以下，图上的「剩余位数」与理论上界会同步变差——这就是把「机器单位舍入 u」与「输入有 d 位有效数字」混为一谈的代价。",
+          "default": 16,
+          "label": "输入自带的十进制有效位数 d",
+          "max": 16,
+          "min": 2,
+          "name": "input_digits",
+          "type": "int"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": 1,
+          "label": "输入扰动（ulp）",
+          "max": 8,
+          "min": 0,
+          "name": "perturb_ulps",
+          "type": "int"
+        }
+      ],
+      "pitfalls": "其一：把副轴上爆炸的曲线读成「减法算错了」——a−b 在 Sterbenz 条件下**精确**，那条恒为地板的曲线才是减法本身的舍入误差（实测 0）；被放大的是**输入自带**的误差，任何算法都救不回来。其二：把主轴的整数计数当成对具体这一次计算的误差测量——它是先验估计 log10(|a−b|/(δ_in·M))，真正的实测误差要看副轴；当计数显示「还剩 3 位」时，a 与 b 中至少有 13 位是噪声，此时图上那两个数本身就不该被相信。另外：b 拖到与 a 完全相等时程序会取下一个 ulp 代替并置 degenerate 标记，否则 log(0) 会让整张图消失。",
+      "requiredAux": [
+        "error"
+      ],
+      "theory": [
+        "减法的条件数 cond(a−b) = (|a|+|b|)/|a−b|；相对误差 ≤ cond·δ_in",
+        "Sterbenz 引理：b/2 ≤ a ≤ 2b 时 fl(a−b) 精确，误差全部来自输入",
+        "剩余有效位数 ≈ log10(|a−b|/(δ_in·max(|a|,|b|)))，每抵消 10 倍少一位"
+      ],
+      "time": {
+        "dt": 0.25,
+        "label": "损失位数 t = log10(M/|a−b|)",
+        "mode": "scrub",
+        "tMax": 16.0
+      },
+      "title": "灾难性抵消：有效位一位一位消失"
+    },
+    {
+      "axes": [
+        {
+          "autoscaled": false,
+          "id": "geometry",
+          "title": "单位圆与它的像（固定 ±3）",
+          "ylabel": "y"
+        },
+        {
+          "autoscaled": true,
+          "id": "error",
+          "scale": "log",
+          "title": "实测放大比与理论上界 κ（对数）",
+          "ylabel": "相对误差放大比"
+        }
+      ],
+      "dataSource": "backend",
+      "description": "单位圆（灰）在 A 下变成椭圆（蓝），半轴之比就是 κ₂；右端项 b 被扰动 δb 后，解从 x 跳到 x+Δx（紫）。副轴（对数）是实测放大比随 κ 的曲线，与理论上界 κ 一起画；主轴固定在 ±3，冲出画面由 overflow 标记。",
+      "id": "cond_ellipsoid",
+      "params": [
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": "shear",
+          "label": "矩阵族",
+          "name": "family",
+          "options": [
+            "shear",
+            "diagonal",
+            "rotation",
+            "graded",
+            "triangular"
+          ],
+          "type": "enum"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": 0.8,
+          "label": "剪切强度 s（仅 shear 族）",
+          "max": 2.0,
+          "min": 0.0,
+          "name": "shear",
+          "step": 0.05,
+          "type": "float"
+        },
+        {
+          "beyond": "below",
+          "critical": [
+            1.1e-16
+          ],
+          "criticalNote": "δb 低于单位舍入 u = 1.11e-16 时，扰动在 float64 里根本表示不出来，实测放大比会退化成舍入噪声；滑块下限取 u 量级正是为了让这件事可见。",
+          "default": 1e-12,
+          "label": "右端项相对扰动 ‖δb‖/‖b‖",
+          "max": 0.01,
+          "min": 1e-16,
+          "name": "delta_b",
+          "step": 1e-16,
+          "type": "float"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": 30.0,
+          "label": "右端项方向（度）",
+          "max": 360.0,
+          "min": 0.0,
+          "name": "b_angle",
+          "step": 5.0,
+          "type": "float"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": "2",
+          "label": "范数",
+          "name": "norm",
+          "options": [
+            "1",
+            "2",
+            "inf",
+            "fro"
+          ],
+          "type": "enum"
+        }
+      ],
+      "pitfalls": "其一：主轴固定 ±3，κ 大时椭圆会冲出画面——看不见不等于不存在，overflow 标记会说明；反过来把轴改成自适应，κ=1e16 的细椭圆会被拉成和单位圆一样「圆」，条件数被视觉抹平。其二：副轴的实测放大比总是**低于**理论上界 κ（本图默认约 0.3κ），因为 δb 的方向一般不在最坏方向上；把「实测 < κ」读成「界太松」是误读，界是对所有方向的保证。另有一条：κ ≳ 1/u ≈ 9e15 之后 A 在 float64 里已经和奇异矩阵无法区分，此时实测曲线与椭圆都只是舍入的产物，图上会标 kappa_u ≥ 1。",
+      "requiredAux": [
+        "error"
+      ],
+      "theory": [
+        "单位球在 A 下的像半轴 = σmin/σmax，半轴之比 = κ₂(A) = ‖A‖₂‖A⁻¹‖₂",
+        "前向误差界 ‖Δx‖/‖x‖ ≤ κ(A)·(δA+δb)/(1−κ·δA)，本图 δA = 0",
+        "κ₁/κ₂/κ∞/κ_F 可以相差一个 n 因子，图上必须标注用的是哪个范数"
+      ],
+      "time": {
+        "dt": 0.25,
+        "label": "log10 κ（目标）",
+        "mode": "scrub",
+        "tMax": 16.0
+      },
+      "title": "条件数椭球：单位圆的像与解 x 的跳变"
+    },
+    {
+      "axes": [
+        {
+          "autoscaled": true,
+          "id": "terms",
+          "title": "项序列（前 64 项，big 在最前）",
+          "ylabel": "x_i"
+        },
+        {
+          "autoscaled": true,
+          "id": "error",
+          "scale": "log",
+          "title": "各求和顺序的实测绝对误差与两条理论界（0 以地板显示）",
+          "ylabel": "|fl(Σx) − Σx|"
+        }
+      ],
+      "dataSource": "backend",
+      "description": "项序列是 big + small + small + …（可视前 64 项）。副轴（对数）画各求和顺序的**实测绝对误差**随部分和长度 k 的演化：朴素、成对、排序，以及按参数选择的补偿归约（串行 / 置换 / 8 段并行 / 64 段并行）；同时画出 n·u·Σ|x| 与 2u·Σ|x| 两条理论界。拖动时间轴 k 看游标与真实的部分和：串行 Kahan 贴住 u 级界，并行分段（段间朴素合并）会退回 n·u 量级——把 small 拖到 1e-3 量级最容易看见。",
+      "id": "summation_order",
+      "params": [
+        {
+          "critical": [
+            9007199254740992.0
+          ],
+          "criticalNote": "big > 1/u ≈ 9.0e15 时，1.0 这个「小项」已经落在 big 的半个 ulp 之内，朴素求和会把它整项丢掉；这正是 1e16+1+1+… 的经典场景。",
+          "default": 1e+16,
+          "label": "大项 big",
+          "max": 1e+16,
+          "min": 1.0,
+          "name": "big",
+          "step": 1.0,
+          "type": "float"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": 1.0,
+          "label": "小项 small",
+          "max": 1.0,
+          "min": 1e-18,
+          "name": "small",
+          "step": 0.001,
+          "type": "float"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": 512,
+          "label": "项数 n",
+          "max": 4096,
+          "min": 8,
+          "name": "n_terms",
+          "type": "int"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": "serial",
+          "label": "补偿求和的归约方式",
+          "name": "compensated",
+          "options": [
+            "serial",
+            "shuffled",
+            "parallel8",
+            "parallel64"
+          ],
+          "type": "enum"
+        }
+      ],
+      "pitfalls": "其一：把「乱序会让 Kahan 失效」当成定理——**纯置换不会**（误差界对任意顺序都成立，实测串行与置换两条曲线重合在 u 级）；真正失效的是**并行归约**：分段 Kahan + 段间朴素合并会把小段的和整个丢掉（big=1e16、small=1e-3、n=4096 时串行误差 9.5e-2，8 段并行变成 4.1）。其二：把「补偿方法的曲线贴着地板」读成「一开始就准」——对数轴上误差恰为 0 的点被地板抬起，0 与地板值在图上同一个高度；判据是曲线相对n·u·Σ|x| 界的斜率，不是它离底边多近。另：small=1 时并行与串行**看不出差别**（段和恰好是能被大数吸收的偶数倍），此时「没差别」是真结论，别硬找差异。",
+      "requiredAux": [
+        "error"
+      ],
+      "theory": [
+        "朴素左折叠：|Δ| ≤ n·u·Σ|x_i|（误差随项数线性增长）",
+        "Kahan 补偿：|Δ| ≤ (2u + O(nu²))·Σ|x_i|（与 n、与顺序都无关，但不能分段后朴素合并）",
+        "成对求和：|Δ| ≤ u·⌈log2 n⌉·Σ|x_i|；排序后朴素求和有同量级的界",
+        "并行分段补偿：误差退化为 P·u·Σ|段和|，段间那一次朴素加法是瓶颈"
+      ],
+      "time": {
+        "dt": 16.0,
+        "label": "部分和长度 k",
+        "mode": "scrub",
+        "tMax": 4096.0
+      },
+      "title": "求和顺序：朴素 vs Kahan vs 成对 vs 排序"
+    }
+  ]
+}

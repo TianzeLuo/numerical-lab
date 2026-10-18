@@ -1,0 +1,391 @@
+% 1.1 章 · 浮点数、误差传播与问题条件
+% 这一章的笔记要把"算得准不准"拆成三件互相独立的事：
+%   1) 表示与舍入（单位舍入 u、ulp 的阶梯结构）；
+%   2) 误差在算法里的传播（求和顺序、抵消）；
+%   3) 问题本身的条件（kappa、椭球、前向误差界）。
+% 断言附表由 tools/build_book.py 从实际运行结果生成，\input 进来，不手抄。
+
+\numlabchapter{浮点数、误差传播与问题条件}{1.1}
+
+\section{这一章要解决什么}
+
+浮点数不是"实数的小数近似"这么简单：它是一个\textbf{不均匀的网格}，网格上的每一次运算
+都会引入一个新的相对误差，而某些运算会把\textbf{输入自带}的误差放大成千上万倍。
+工程上真正要回答的是三个互相独立的问题：
+
+\begin{enumerate}
+  \item \textbf{网格有多细？} 相邻可表示数的间距 $\mathrm{ulp}(x)$ 在每个 $2$ 的幂处减半；
+        单位舍入 $u=2^{-53}$ 是"一次舍入"的相对误差上界。
+  \item \textbf{误差在算法里怎么被放大？} 求和的误差随项数线性增长（朴素）、几乎不增长
+        （补偿/成对），而减法在抵消时会放大输入的相对误差——这与算法无关。
+  \item \textbf{问题本身有多难？} 条件数 $\kappa(A)$ 决定前向误差的界；
+        $\kappa u\gtrsim1$ 时问题在 float64 下\textbf{不可解}。
+\end{enumerate}
+
+把这三件事混起来，就会得出"$u$ 就是精度""Kahan 是万能药""减法不稳定""$\kappa$ 大所以
+算法差"这类错误结论。本章四个可视化分别把它们摆到台面上，所有结论都有实测数字支撑。
+
+记号：$u=2^{-53}$ 是单位舍入（round-to-nearest），$\varepsilon_{\text{mach}}=2u=2^{-52}$
+是机器 epsilon（两者差一倍，是最常见的记法陷阱）；$\mathrm{fl}(\cdot)$ 表示浮点结果；
+$\kappa_p(A)=\|A\|_p\|A^{-1}\|_p$；$\|\cdot\|$ 缺省指 $2$ 范数。
+
+\section{浮点数的算术模型}
+
+\subsection{单位舍入与 ulp}
+
+\begin{definition}[单位舍入]
+$u$ 是满足下式的最小正数：对任意实数 $x$（在规格化范围内、不发生上溢下溢），
+$\mathrm{fl}(x)=x(1+\delta)$ 且 $|\delta|\le u$。binary64 取 round-to-nearest 时 $u=2^{-53}$。
+\end{definition}
+
+\begin{definition}[ulp]
+$\mathrm{ulp}(x)$ 是 $x$ 所在 binade 内相邻可表示数的间距：
+若 $2^{e}\le|x|<2^{e+1}$，则 $\mathrm{ulp}(x)=2^{e-52}$。
+\end{definition}
+
+\begin{theorem}[舍入模型]
+\label{thm:rounding}
+对任意实数 $x$（$|x|$ 在规格化范围内），存在 $|\delta|\le u$ 使
+$\mathrm{fl}(x)=x(1+\delta)$；且 $|\mathrm{fl}(x)-x|\le\tfrac12\mathrm{ulp}(x)$。
+\end{theorem}
+
+\begin{proof}
+设 $x\in[2^e,2^{e+1})$，其余情形由符号对称性同理。把 $x$ 写成 $x=m\cdot2^{e-52}$，
+其中 $m\in[2^{52},2^{53})$。round-to-nearest 把 $m$ 舍入到最近的整数 $\hat m$，
+于是 $\mathrm{fl}(x)=\hat m\cdot2^{e-52}$ 且 $|\hat m-m|\le\tfrac12$。
+因此
+\[
+  |\mathrm{fl}(x)-x|=\left|\hat m-m\right|2^{e-52}\le\tfrac12\,2^{e-52}=\tfrac12\,\mathrm{ulp}(x).
+\]
+又因为 $\hat m\ge2^{52}\ge\tfrac12\cdot2^{53}$，有 $|\hat m-m|/|\hat m|\le\tfrac12/2^{52}=2^{-53}=u$，
+故
+\[
+  \frac{|\mathrm{fl}(x)-x|}{|x|}\le\frac{|\hat m-m|/|\hat m|}{1-|\hat m-m|/|\hat m|}\cdot\frac{|\hat m|}{|x|}
+  \le u\cdot\frac{|\hat m|}{|x|}(1+O(u))
+  \le u(1+O(u)),
+\]
+把 $O(u^2)$ 项并入 $\delta$（$\delta$ 的定义容许 $|\delta|\le u$ 的高阶修正）即得结论。
+$\hat m$ 是整数意味着 $m$ 的舍入误差单调、无二次累积，这正是 round-to-nearest 比
+round-toward-zero 少一半误差的原因。
+\end{proof}
+
+\begin{theorem}[ulp 的阶梯结构]
+\label{thm:staircase}
+$\mathrm{ulp}$ 在每个 $2$ 的幂处\textbf{恰好减半}：
+$\mathrm{ulp}(2^{e})=\tfrac12\mathrm{ulp}(2^{e}-\text{1 ulp}\,)$；
+而在同一个 binade 内部它是常数。
+\end{theorem}
+
+\begin{proof}
+$2^e-1$ 个 ulp 落在 binade $[2^{e-1},2^{e})$ 内（$e\ge1$ 时 $2^e-2^{e-53}>2^{e-1}$），
+所以由定义 $\mathrm{ulp}(2^e-\text{1 ulp})=2^{(e-1)-52}=2^{e-53}$；
+而 $\mathrm{ulp}(2^e)=2^{e-52}=2\cdot2^{e-53}$。两者之比恰好为 $2$。
+binade 内部 $e$ 不变，故 $\mathrm{ulp}$ 为常数。
+\end{proof}
+
+\begin{remark}[为什么放大镜必须用"ulp 偏移"作横轴]
+$0.3$ 附近相邻两个 double 相差 $5.55\times10^{-17}$，而 $0.3$ 本身是 $0.3$：
+屏幕上一像素对应 $10^{-3}$ 量级，用真实坐标画会把整条梯子压成一个点。
+本章 \texttt{float\_zoom} 的主轴因此是"距中心的 ulp 偏移"，
+并用"以最近的 $2$ 的幂为中心"的第二条梯子把定理 \ref{thm:staircase} 画出来：
+实测 $\mathrm{ulp}(1.0)/\mathrm{ulp}(1.0-\text{1 ulp})=2.0$（$7$ 个 binade 边界逐一验证）。
+\end{remark}
+
+\begin{remark}[$0.1+0.2$ 落在这个网格的哪里]
+$\mathrm{fl}(0.1)+\mathrm{fl}(0.2)=0.30000000000000004$，它比 $\mathrm{fl}(0.3)$ 大
+$5.551115123125783\times10^{-17}$，恰好是 $1$ 个 $\mathrm{ulp}(0.3)$
+（帧里 \texttt{meta.residual\_0102\_03\_ulps = 1}）。
+但同一个和与\textbf{数学上的} $3/10$ 的差是 $4.4408920985006264\times10^{-17}$——
+差的那 $1.11\times10^{-17}$ 是 $\mathrm{fl}(0.3)$ 自己的表示误差。
+这说明："残差"这个词必须带上"相对谁算"。
+\end{remark}
+
+\section{误差传播 I：求和}
+
+\begin{theorem}[Wilkinson 求和界]
+\label{thm:wilkinson}
+设 $\hat s_k$ 是朴素左折叠求和的部分和（$\hat s_1=\mathrm{fl}(x_1)$，
+$\hat s_k=\mathrm{fl}(\hat s_{k-1}+x_k)$），则当 $(n-1)u<1$ 时
+\[
+  \left|\hat s_n-\sum_{i=1}^{n}x_i\right|\le\frac{(n-1)u}{1-(n-1)u}\sum_{i=1}^{n}|x_i|
+  \;\le\;n\,u\sum_{i=1}^{n}|x_i|\,\bigl(1+O(nu)\bigr).
+\]
+\end{theorem}
+
+\begin{proof}
+令 $S_k=\sum_{i\le k}x_i$，$\hat e_k=\hat s_k-S_k$。每次加法引入一次相对误差：
+$\hat s_k=(\hat s_{k-1}+x_k)(1+\delta_k)$，$|\delta_k|\le u$。于是
+\[
+  \hat s_k-S_k=(\hat s_{k-1}+x_k-S_k)+(\hat s_{k-1}+x_k)\delta_k
+  =\hat e_{k-1}+(\hat s_{k-1}+x_k)\delta_k .
+\]
+由归纳假设 $|\hat e_{k-1}|\le E_{k-1}\sum_{i<k}|x_i|$（$E_1=0$），有
+$|\hat s_{k-1}|\le\sum_{i<k}|x_i|(1+E_{k-1})$，故
+$|\hat s_{k-1}+x_k|\le\sum_{i\le k}|x_i|(1+E_{k-1})$，代入得
+\[
+  |\hat e_k|\le E_{k-1}\sum_{i<k}|x_i|+u(1+E_{k-1})\sum_{i\le k}|x_i|
+  \le\bigl(E_{k-1}(1+u)+u\bigr)\sum_{i\le k}|x_i|.
+\]
+于是 $E_k\le E_{k-1}(1+u)+u$，$E_1=0$，解得 $E_n\le\frac{(1+u)^n-1}{1+u-1}\cdot u\le(n-1)u(1+O(nu))$，
+即得第一条不等式。第二条由 $\frac{(n-1)u}{1-(n-1)u}\le nu$（$nu\le\tfrac12$ 时）得到。
+\end{proof}
+
+\begin{theorem}[补偿求和的误差界]
+\label{thm:kahan}
+设 $s_k,c_k$ 由无分支屏蔽求和（Kahan--Babuska）产生：
+\[
+  b_k=\mathrm{fl}(x_k-c_{k-1}),\quad t_k=\mathrm{fl}(s_{k-1}+b_k),\quad
+  c_k=\mathrm{fl}\bigl(\mathrm{fl}(t_k-s_{k-1})-b_k\bigr),\quad s_k=t_k .
+\]
+若每步的快速求和条件成立（$|s_{k-1}|\ge|b_k|$，此时第三步无舍入），且 $nu<1$，则
+\[
+  |s_n+c_n-\sum_{i=1}^n x_i|\le\Bigl(3u+O(nu^2)\Bigr)\sum_{i=1}^n|x_i| .
+\]
+误差界\textbf{不含因子 $n$}——这正是补偿求和的全部意义。
+\end{theorem}
+
+\begin{proof}
+记 $T_k=\sum_{i\le k}x_i$，$S_k=\sum_{i\le k}|x_i|$，$\hat s_k+\hat c_k=\sum_{i\le k}x_i+\theta_k$。
+
+\emph{第一步（补偿量本身很小）}：设第三步无舍入，则
+$c_k=(t_k-s_{k-1}-b_k)(1+\varepsilon)$，$|\varepsilon|\le u$，而
+$t_k-s_{k-1}-b_k=(s_{k-1}+b_k)\delta_k$（$\delta_k$ 是第二步的舍入），故
+$|c_k|\le u(1+u)|s_{k-1}+b_k|\le u(1+u)\bigl(S_{k-1}+|b_k|\bigr)$，
+而 $|b_k|\le(1+u)(|x_k|+|c_{k-1}|)$。对 $k$ 归纳可得
+\begin{equation}
+\label{eq:c-bound}
+  |c_k|\le u\,S_k\,(1+O(ku)).
+\end{equation}
+
+\emph{第二步（把 $\theta$ 递推出来）}：由第一步的三条舍入关系，
+\[
+  s_k+c_k=t_k+c_k=(s_{k-1}+b_k)\bigl(1+2\delta_k+O(u^2)\bigr),
+\]
+又 $b_k=(x_k-c_{k-1})(1+\varepsilon_1)$，代入并按 $T_k=s_{k-1}+c_{k-1}+x_k$ 整理：
+\[
+  \theta_k=\theta_{k-1}-c_{k-1}+(x_k-c_{k-1})\varepsilon_1+2\delta_k\,(s_{k-1}+b_k)+O(u^2)\bigl(S_k+|T_k|\bigr).
+\]
+用 \eqref{eq:c-bound} 消去 $-c_{k-1}$（它自身是 $O(uS_{k-1})$ 的量），并用
+$|s_{k-1}+b_k|\le S_k(1+O(ku))$、$|T_k|\le S_k$，得
+\[
+  |\theta_k|\le|\theta_{k-1}|+u|x_k|+u|c_{k-1}|+2u\,S_k+O(u^2)k\,S_k
+  \le|\theta_{k-1}|+\bigl(3u+O(ku^2)\bigr)S_k .
+\]
+从 $\theta_0=0$ 累加即得 $|\theta_n|\le(3u+O(nu^2))S_n$。
+\end{proof}
+
+\begin{remark}[常数不是重点]
+文献中更精细的记账（Higham 2002, \S4.3）把常数压到 $2u$，本章的
+\texttt{summation\_order} 就画 $(2u+nu^2)\sum|x_i|$ 这条参考界
+（size 上它是上面定理的界的一个下界，故两者都成立）。
+关键是界里\textbf{没有 $n$}：实测 $big=10^{16}$、$n=4096$ 时朴素误差
+$4095$（界 $4547.47$）、Kahan 误差 $1.0$（界 $2.22$）。
+\end{remark}
+
+\begin{remark}[成对求和与并行归约]
+按二叉树深度 $d$ 归纳可得：成对求和的误差 $\le u\lceil\log_2 n\rceil\sum|x_i|(1+O(u))$
+——它只需要 $O(\log n)$ 的额外上界，但可以并行。
+反过来，把 Kahan 分段（段内补偿、段间\textbf{朴素}相加）后误差退化为主项
+$P\,u\sum|\hat s_p|$：实测 $big=10^{16}$、$small=10^{-3}$、$n=4096$ 时串行 $0.095$、
+$8$ 段并行 $4.095$（$43$ 倍），而 $small=1$ 时两者都是 $1$——\textbf{看不出差别}不代表
+并行没问题，只代表这组数据不够刁。
+\end{remark}
+
+\section{误差传播 II：灾难性抵消}
+
+\begin{theorem}[Sterbenz 引理]
+\label{thm:sterbenz}
+若 $b/2\le a\le 2b$（同号），则 $\mathrm{fl}(a-b)=a-b$，即减法\textbf{精确}。
+\end{theorem}
+
+\begin{proof}
+由符号对称性设 $0<b\le a\le 2b$。写 $a=m_a2^{e_a}$，$b=m_b2^{e_b}$，$m_a,m_b\in[1,2)$。
+
+\emph{指数只能差 $1$}：若 $e_a<e_b-1$，则 $a<2^{e_b-1}\le b/2$，与 $a\ge b/2$ 矛盾；
+若 $e_a>e_b$，则 $a\ge2^{e_b+1}>2b$，与 $a\le2b$ 矛盾。故 $e_a\in\{e_b-1,e_b\}$。
+
+\emph{情形 $e_a=e_b$}：$a-b=(m_a-m_b)2^{e_b}$。$m_a,m_b$ 都是 $2^{-52}$ 的整数倍且都在 $[1,2)$，
+故 $m_a-m_b$ 是 $2^{-52}$ 的整数倍且 $|m_a-m_b|\le1$，即 $a-b$ 是 $2^{e_b-52}$ 的整数倍、
+绝对值不超过 $2^{e_b}$——恰好落在 binade $[0,2^{e_b}]$ 的 $53$ 位网格上，可表示。
+
+\emph{情形 $e_a=e_b-1$}：$a-b=(m_a/2-m_b)2^{e_b}$，其中 $m_a/2\in[\tfrac12,1)$ 是 $2^{-53}$ 的
+整数倍，$m_b$ 是 $2^{-52}$ 的整数倍，故 $m_a/2-m_b$ 是 $2^{-53}$ 的整数倍且绝对值 $\le1$，
+同样可表示（最多 $53$ 位）。
+
+两种情形下精确的 $a-b$ 都是可表示数，而浮点减法的结果就是"精确值舍入到最近的可表示数"，
+既然精确值本身可表示，舍入不产生误差：$\mathrm{fl}(a-b)=a-b$。
+\end{proof}
+
+\begin{theorem}[减法的条件数与有效位损失]
+\label{thm:cancellation}
+设输入各带相对不确定度 $\delta_{\rm in}$（即 $\tilde a=a(1+\delta_a)$，
+$|\delta_a|,|\delta_b|\le\delta_{\rm in}$），$r=a-b\ne0$。则结果的相对误差满足
+\[
+  \frac{|\Delta r|}{|r|}\le\frac{|a|+|b|}{|a-b|}\,\delta_{\rm in}+u ,
+\]
+并且结果中可信的十进制位数约为
+\[
+  d_{\text{eff}}\approx\log_{10}\frac{|a-b|}{\delta_{\rm in}\max(|a|,|b|)} .
+\]
+\end{theorem}
+
+\begin{proof}
+由 $\Delta r=\Delta a-\Delta b$ 与 $|\Delta a|\le\delta_{\rm in}|a|$、$|\Delta b|\le\delta_{\rm in}|b|$
+得 $|\Delta r|\le\delta_{\rm in}(|a|+|b|)$，除以 $|r|$ 即得第一条；把浮点减法自身的
+相对误差 $u$ 用三角不等式加上去。
+
+第二条：令 $M=\max(|a|,|b|)$，注意 $|a|+|b|\le2M$，于是相对误差
+$\le2\delta_{\rm in}M/|a-b|$，其负对数（相对误差每降一个数量级多一位有效数字）给出
+$-d_{\text{eff}}\approx\log_{10}(2\delta_{\rm in}M/|a-b|)$，即
+$d_{\text{eff}}\approx\log_{10}(|a-b|/(\delta_{\rm in}M))-\log_{10}2$；
+把 $O(1)$ 常数吸收进"约"字即得所述形式。若用 $\mathrm{ulp}$ 而不是 $\delta_{\rm in}M$
+（即输入误差只来自表示），则 $d_{\text{eff}}=\log_{10}(|a-b|/(\mathrm{ulp}(a)+\mathrm{ulp}(b)))$
+是无常数的\textbf{恒等式}——本章断言里两种写法都对拍过（偏差分别 $\le0.02$ 与 $\le0.7$ 位）。
+\end{proof}
+
+\begin{remark}[这一节的实测数字]
+$a=1$、$b=0.999999$：$\delta_{\rm in}=5\times10^{-16}$（$16$ 位十进制输入），
+$|a-b|=10^{-6}$，$\kappa_{\text{sub}}=(|a|+|b|)/|a-b|\approx2\times10^{6}$。
+把 $a$、$b$ 各推 $1$ 个 ulp 实测放大后的相对误差 $3.33\times10^{-10}$，
+剩余有效位 $9.30$ 位；而减法\textbf{本身}的舍入误差实测为 $0$（Sterbenz）。
+结论：抵消放大的是输入误差，任何算法都救不回来。
+\end{remark}
+
+\section{问题的条件：$\kappa$ 与椭球}
+
+\begin{definition}[条件数]
+对可逆矩阵 $A$ 与范数 $p$，$\kappa_p(A)=\|A\|_p\|A^{-1}\|_p$。
+分量型条件数则定义为 $\kappa_{\text{comp}}(A)=\bigl\||A^{-1}||A|\bigr\|_\infty$。
+\end{definition}
+
+\begin{theorem}[前向误差界]
+\label{thm:forward}
+设 $Ax=b$、$(A+\Delta A)(x+\Delta x)=b+\Delta b$，且
+$\kappa(A)\|\Delta A\|/\|A\|<1$。则
+\[
+  \frac{\|\Delta x\|}{\|x\|}
+  \le\frac{\kappa(A)}{1-\kappa(A)\|\Delta A\|/\|A\|}
+  \left(\frac{\|\Delta A\|}{\|A\|}+\frac{\|\Delta b\|}{\|b\|}\right).
+\]
+\end{theorem}
+
+\begin{proof}
+展开第二个方程并消去 $Ax$：
+\[
+  A\,\Delta x=\Delta b-\Delta A\,x-\Delta A\,\Delta x .
+\]
+左乘 $A^{-1}$ 并取范数，用 $\|A^{-1}\Delta A\|\le\|A^{-1}\|\|\Delta A\|=\kappa(A)\|\Delta A\|/\|A\|$：
+\[
+  \|\Delta x\|\le\|A^{-1}\|\bigl(\|\Delta b\|+\|\Delta A\|\|x\|\bigr)
+  +\frac{\kappa(A)\|\Delta A\|}{\|A\|}\|\Delta x\| .
+\]
+把最后一项移到左边、两边除以 $1-\kappa\|\Delta A\|/\|A\|$，再除以 $\|x\|$：
+\[
+  \frac{\|\Delta x\|}{\|x\|}\le\frac{\kappa(A)}{1-\kappa\|\Delta A\|/\|A\|}
+  \left(\frac{\|\Delta b\|}{\|A\|\|x\|}+\frac{\|\Delta A\|}{\|A\|}\right).
+\]
+最后用 $\|b\|=\|Ax\|\le\|A\|\|x\|$ 把第一项放大成 $\|\Delta b\|/\|b\|$ 即得。
+\end{proof}
+
+\begin{theorem}[单位球的像与 $\kappa_2$]
+\label{thm:ellipse}
+设 $A$ 可逆，奇异值分解 $A=U\Sigma V^{\mathsf T}$，$\sigma_1\ge\sigma_2>0$。
+则单位圆（球）在 $A$ 下的像是半轴为 $\sigma_1,\sigma_2$ 的椭圆（椭球），
+且半轴之比恰为 $\kappa_2(A)=\sigma_1/\sigma_2$。
+对 $2\times2$ 矩阵还有闭式
+\[
+  \sigma_{1,2}=\frac{\sqrt{\|A\|_F^2+2|\det A|}\pm\sqrt{\|A\|_F^2-2|\det A|}}{2}.
+\]
+\end{theorem}
+
+\begin{proof}
+$A=U\Sigma V^{\mathsf T}$ 中 $U,V$ 正交，故单位球 $\{v:\|v\|_2=1\}$ 在 $V^{\mathsf T}$ 下不变，
+在 $\Sigma$ 下变成半轴 $\sigma_1,\sigma_2$ 的轴对齐椭圆，再经正交变换 $U$ 仍是同一个椭圆
+（只被旋转/反射）。又 $\|A\|_2=\sigma_1$、$\|A^{-1}\|_2=1/\sigma_2$，故
+$\kappa_2=\sigma_1/\sigma_2$。
+
+闭式：$\sigma_1^2+\sigma_2^2=\mathrm{tr}(A^{\mathsf T}A)=\|A\|_F^2$，
+$\sigma_1\sigma_2=|\det A|$，于是
+$(\sigma_1\pm\sigma_2)^2=\|A\|_F^2\pm2|\det A|$，开方后相加相减即得两式。
+这个式子只用乘加与开方（\textbf{没有相减相消}），所以是稳定算法——
+本章 \texttt{cond\_ellipsoid} 的 $2\times2$ 半轴就用它。
+\end{proof}
+
+\begin{theorem}[正规方程把条件数平方]
+\label{thm:gram}
+$\kappa_2(A^{\mathsf T}A)=\kappa_2(A)^2$。
+\end{theorem}
+
+\begin{proof}
+$A=U\Sigma V^{\mathsf T}$ 时 $A^{\mathsf T}A=V\Sigma^2V^{\mathsf T}$，
+故 $A^{\mathsf T}A$ 的奇异值（对称正定矩阵的特征值）为 $\sigma_i^2$，
+于是 $\kappa_2(A^{\mathsf T}A)=\sigma_1^2/\sigma_2^2=\kappa_2(A)^2$。
+\end{proof}
+
+\begin{remark}[$\kappa$ 的三条使用纪律]
+\begin{enumerate}
+  \item $\kappa\ge1$ 恒成立（$\|I\|=\|AA^{-1}\|\le\|A\|\|A^{-1}\|$），
+        正交阵取等号；$\kappa$ 与整体缩放无关（$\kappa(cA)=\kappa(A)$）。
+  \item $\kappa_1/\kappa_2/\kappa_\infty/\kappa_F$ 可以差一个 $n$ 因子，
+        所以"$\kappa$ 是多少"必须连范数一起说。转置只对 $2$ 与 $F$ 范数不变：
+        实测 $\kappa_1(A)=4.6649$、$\kappa_1(A^{\mathsf T})=6.5224=\kappa_\infty(A)$。
+  \item $\kappa u\gtrsim1$ 时问题在 float64 下不可解：帧里
+        \texttt{meta.kappa\_u} 超过 $1$ 时会显式提示，而不是继续画"更细的椭圆"。
+\end{enumerate}
+\end{remark}
+
+\section{四个可视化该怎么看}
+
+\begin{enumerate}
+  \item \textbf{float\_zoom}：横轴是"距中心的 ulp 偏移"，不是真实坐标（真实坐标画不出
+        $5.55\times10^{-17}$ 的差别）。看着中心梯子"很均匀"时，去看那条以 $2$ 的幂为中心的
+        梯子——它在中心处掉一半，这才是网格的真面目。红点是 $0.1+0.2$ 的落点
+        （比 $0.3$ 大 $1$ 个 ulp），副轴是 $0.1$ 累加 $k$ 次的残差；
+        对数轴上的 $0$ 按地板显示，不要读成"误差不为零"。
+  \item \textbf{cancellation}：把 $b$ 拖向 $a$，看主轴"剩余有效位数"一位一位掉下去。
+        副轴上三条线要一起读：实测误差、理论上界、以及恒为地板的"减法自身舍入误差"。
+        后者恒为 $0$ 是 Sterbenz 引理的直接后果——抵消不是减法的错。
+  \item \textbf{cond\_ellipsoid}：主轴固定 $\pm3$（不许自适应），灰圆变蓝椭圆，
+        半轴比就是 $\kappa_2$。副轴是"实测放大比 vs 理论上界 $\kappa$"：
+        实测通常远小于界（默认帧约 $0.3\kappa$），因为随机方向不在最坏方向上。
+        把 $\log_{10}\kappa$ 拖到 $16$，注意 $\kappa u$ 已经接近 $1$。
+  \item \textbf{summation\_order}：四条误差曲线加两条理论界，全部画在对数轴上。
+        把 \texttt{compensated} 从 \texttt{serial} 切到 \texttt{parallel8}、
+        同时把 \texttt{small} 从 $1$ 调到 $10^{-3}$：串行 Kahan 贴着 $u$ 级界不动，
+        分段并行则退回到 $n u$ 量级——"Kahan 不能直接并行"这句话的定量版本。
+\end{enumerate}
+
+\input{chapters/1.1/asserts_table}
+
+\section{它会怎样骗你（本章版）}
+
+\begin{enumerate}
+  \item \textbf{把 $u$ 与 $\varepsilon_{\text{mach}}$ 混为一谈}：$\varepsilon_{\text{mach}}=2u=2^{-52}$，
+        两者差一倍；"机器精度 $2.2\times10^{-16}$"说的是后者。
+  \item \textbf{把 $1e16+1=1e16$ 当成渲染 bug}：$\mathrm{ulp}(10^{16})=2$，加 $1$ 落在中点，
+        ties-to-even 舍回偶数格点。图上"看起来没变"是正确结果。
+  \item \textbf{残差不写"相对谁"}：$(0.1+0.2)-\mathrm{fl}(0.3)=5.55\times10^{-17}$，
+        而 $(0.1+0.2)-3/10=4.44\times10^{-17}$。两个都对，对象不同。
+  \item \textbf{把对数轴上的 $0$ 读成"很小的正数"}：本章所有对数轴都有显式地板
+        （$u/2$ 或 $u/2\cdot|k/10|$），并在 \texttt{strings} 里说明有几步是精确 $0$。
+  \item \textbf{把"抵消"读成"减法不稳定"}：Sterbenz 区内减法\textbf{精确}
+        （实测 $2000$ 例误差 $0$）；被放大的是输入自带的 $\delta_{\rm in}$。
+  \item \textbf{同量级数据上看不出结合律破坏}：$3000$ 组 $\mathrm{uniform}(-1,1)$ 的三元组里
+        $2940$ 组两个结合顺序逐位相同；把量级铺开到 $2^{-30}\sim2^{0}$，$654$ 组不同、
+        最大偏差达到界的 $0.9969$ 倍。样本不刁，结论无效。
+  \item \textbf{把"乱序会让 Kahan 失效"当定理}：纯置换实测比值 $1.000$；
+        真正失效的是\textbf{分段并行}（$0.095\to4.095$）。而 $small=1$ 时两者都是 $1$，
+        "看不出差别"同样不是证据。
+  \item \textbf{把区间的宽度当成界 $b$}：\texttt{sum\_error\_interval} 给的是 $\pm b$，
+        宽度约 $2b$，再加两个端点各一个 ulp；$10^{12}$ 量级时端点 ulp（$1.22\times10^{-4}$）
+        与 Kahan 界（$2.22\times10^{-4}$）同量级，宽度 $7.32\times10^{-4}$ 主要来自端点。
+  \item \textbf{把 $\kappa$ 的目标值当实测值}：\texttt{shear} 族 target $10^8$ 实测
+        $5.877\times10^7$；\texttt{graded} 族实测约 $4\kappa$；\texttt{rotation} 恒为 $1$。
+        帧里两个都写。
+  \item \textbf{用采样量 $\kappa$}：$361$ 个采样点时，$\kappa$ 从 $10^4$ 涨到 $10^8$
+        量出来全是 $239.6$（分辨率饱和）。采样只能用来画图，不能用来报数。
+  \item \textbf{把"后向稳定"当成"解准"}：本章 shear 族上前向误差从 $1.3\times10^{-16}$
+        涨到 $1.4\times10^{-4}$（实测阶 $1$），后向误差始终 $\le0.1u$ 且与 $\kappa$ 无关。
+  \item \textbf{把 $\kappa\gtrsim1/u$ 的区域当可解}：$\kappa=5.9\times10^{13}$ 时
+        $\kappa u=6.5\times10^{-3}$，再往上椭圆与实测曲线都只是舍入的产物。
+\end{enumerate}

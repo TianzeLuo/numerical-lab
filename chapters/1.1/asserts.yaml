@@ -1,0 +1,134 @@
+# 1.1 章断言清单（真源：`tests/1.1/test_fp.py` 与 `tests/1.1/test_cond.py`）
+#
+# 本章的 A/B 分工：
+#
+# * **A 类（解析对拍）**——凡是能用闭式或高精度参考算出来的量，都必须对拍：
+#   u = 2^-53 与 np.finfo、ulp 与 np.spacing/位运算、朴素求和误差的 n 斜率、
+#   Kahan 的 u 级界、0.1+0.2−0.3 的精确值（Fraction/mpmath 双路径）、
+#   抵消位数模型、κ_p 与 SciPy/NumPy、前向误差 ∝ κu、采样椭球半径的 O(Δθ²)。
+# * **B 类（不变量）**——算法/接口必须永远满足的形状与界：结合律偏差界、
+#   2 的幂缩放不变性、binade 边界间距减半、区间必含精确和、κ ≥ 1、
+#   求逆/转置恒等式、分量型条件数的行缩放不变性、帧契约。
+#
+# 本章**不声明 C 类断言**：这里没有需要二分的阈值型结论（阈值型结论在 3.2/3.3 章）。
+# min_counts 记的是**记录条数**（一个测试函数可以登记多条实测）。
+chapter: "1.1"
+title: 浮点数、误差传播与问题条件
+required_kinds: [A, B]
+
+min_counts:
+  A: 18
+  B: 13
+
+tests:
+  # ---------------- tests/1.1/test_fp.py：浮点侧 ----------------
+  - name: test_rounding_unit_matches_ieee754_model
+    kind: A
+    what: 4000 个有理数样本上 sup|fl(x)−x|/(u|x|)，以及 fl(1+u)=1、fl(1+2u)>1
+    theory: u = 2^-53 = ε_mach/2；|δ| ≤ u（舍入到最近的 1/2 ulp 界）
+  - name: test_spacing_and_nextafter_match_numpy
+    kind: A
+    what: 228 个点（含 0、次正规、2^k 边界）上自研位运算 spacing/next_float 与 np.spacing/np.nextafter 的偏差
+    theory: ulp(x) 与相邻数由位模式唯一确定，两套实现必须逐点相等
+  - name: test_naive_sum_error_grows_linearly
+    kind: A
+    what: 1e16+1+1+…（n=4..1024）的朴素误差**恰好**是 n−1，双对数斜率 1，且 ≤ n·u·Σ|x|
+    theory: 误差 ∝ n·u·Σ|x|（Wilkinson 求和界）
+  - name: test_kahan_error_is_u_level_not_n_u
+    kind: A
+    what: 同一数据族上 Kahan 误差/(u·Σ|x|) 的最大值（n=16..4096），以及 Kahan/朴素 的比值
+    theory: Kahan ≤ (2u+n·u²)Σ|x|，与 n 无关
+  - name: test_zero_point_one_plus_zero_point_two_residual_is_exact
+    kind: A
+    what: (fl(0.1)+fl(0.2))−fl(0.3) 的精确值、ulp 距离、精确十进制展开，以及数学实数域里为 0
+    theory: 残差 = ulp(0.3) = 5.551115123125783e-17（Fraction/mpmath 双路径）
+  - name: test_cancellation_digits_follow_log_model
+    kind: A
+    what: 把 a、b 各推 1 ulp 实测放大比：对 1/|a−b| 的阶、剩余位数对 log10|a−b| 的斜率、与两种预测的偏差
+    theory: 放大比 ∝ 1/|a−b|（阶 −1）；位数 = log10(|a−b|/(u·M))（斜率 1，偏差 ≤ 0.7 位）
+  - name: test_sterbenz_subtraction_is_exact
+    kind: A
+    what: 区内 2000 例减法相对误差的最大值；区外样本的最大值（≤ u）
+    theory: Sterbenz 引理 b/2 ≤ a ≤ 2b ⟹ fl(a−b) 精确；区外误差 ≤ u
+  - name: test_two_sum_and_two_product_are_exact
+    kind: A
+    what: 1500 对随机数上 |(s+e)−(a+b)| 与 |(p+e)−a·b| 的最大值（有理数精确比较）
+    theory: Fast2Sum/Dekker 的误差项是精确的
+  - name: test_associativity_deviation_is_roundoff_sized
+    kind: B
+    what: 3000 组跨量级三元组的 |fl(fl(a+b)+c)−fl(a+(b+c))| / (2uΣ|x|+4u²|和|)
+    theory: 结合律偏差 ≤ 2u(|a|+|b|+|c|)（浮点加法不结合，但只差舍入量级）
+  - name: test_kahan_is_invariant_under_power_of_two_scaling
+    kind: B
+    what: 21 个 2^k 缩放下 Kahan 结果是否逐位等于 2^k·结果
+    theory: fl(2^k x) = 2^k fl(x) ⟹ 整个补偿迭代逐位同构
+  - name: test_spacing_staircase_halves_at_powers_of_two
+    kind: B
+    what: 7 个 binade 边界处的 ulp 比、binade 内的恒定性、ulp 关于 |x| 的单调性
+    theory: 跨过 2 的幂间距恰好减半（网格不均匀的根源）
+  - name: test_intervals_contain_exact_sum_and_respect_bounds
+    kind: B
+    what: 30 组数据 × 4 种方法的区间包含性与宽度/(2b+端点 ulp) 的最大值
+    theory: 误差区间必含精确和，宽度 = 2b 加端点向外舍入的 1 个 ulp
+  - name: test_compensated_reduction_variants_respect_their_bounds
+    kind: B
+    what: big=1e16、small=1e-3、n=4096 时 serial/shuffled/parallel8/parallel64 的实测误差
+    theory: 串行与置换 ≤ 2u·Σ|x|；分段并行 ≤ n·u·Σ|x| 且退化到朴素水平
+  - name: test_pure_permutation_does_not_break_kahan
+    kind: B
+    what: 6 个种子下置换 Kahan 误差 / 串行 Kahan 误差 的最大比值
+    theory: Kahan 的界对任意顺序成立——"乱序会失效"是错的，并行分段才会
+  - name: test_float_grid_matches_neighbourhood_chain
+    kind: B
+    what: 4 个中心点上 float_grid 与 neighborhood 的自洽性（相邻 ulp 距离恒为 1）与超限报错
+    theory: 区间枚举 = 相邻链；超过 max_points 必须显式报错而不是静默截断
+  - name: test_all_chapter_frames_are_well_formed
+    kind: B
+    what: 四个 viz 在 t=0/t½/t_max 上的 requiredAux 齐备性、meta 标量性、数组非空
+    theory: 帧契约（server/frames.py 的 strict 体检同一口径）
+
+  # ---------------- tests/1.1/test_cond.py：条件数侧 ----------------
+  - name: test_condition_numbers_match_reference
+    kind: A
+    what: 7 个矩阵上 κ₁/κ₂/κ∞/κ_F 与参考实现的最大相对偏差
+    theory: κ_p = ‖A‖_p·‖A⁻¹‖_p（1/∞/F ≤ 1e-8；κ₂ 走幂迭代 ≤ 1e-6）
+  - name: test_forward_error_follows_kappa_times_roundoff
+    kind: A
+    what: shear 族 κ=1e2..1e14：前向误差/(κu) 的最大值与实测阶、后向误差/u 的最大值
+    theory: 前向误差 ∝ κu（阶 1）；后向误差 ≈ u 且与 κ 无关（稳定 ≠ 准）
+  - name: test_rhs_amplification_is_below_kappa
+    kind: A
+    what: 720 个方向上 (‖Δx‖/‖x‖)/(‖δb‖/‖b‖) 与 κ₂ 的比值（最大、中位数）
+    theory: 实测放大比 ≤ κ（上界是对所有方向的保证，实测通常远小于它）
+  - name: test_gram_condition_number_is_kappa_squared
+    kind: A
+    what: "|κ(AᵀA)/κ(A)²−1| 的最大值（8 个 κ ≤ 1e4 的矩阵）"
+    theory: κ(AᵀA) = κ(A)²（正规方程把条件数平方）
+  - name: test_orthogonal_and_diagonal_conditions_are_exact
+    kind: A
+    what: 正交阵 κ₂−1（5 个旋转 + 10 个正交阵）与对角阵 κ₁ 的相对偏差（20 个）
+    theory: 正交 κ₂ = 1；对角 κ₁ = max|d|/min|d|（对角阵求逆无舍入）
+  - name: test_sampled_ellipse_radii_converge_quadratically
+    kind: A
+    what: κ=30 时采样半径误差对 Δθ 的实测阶（32 个整格平移取平均，n=128..8192）
+    theory: O(Δθ²)（σmin 被系统性高估；κΔθ ≳ 1 时退化成线性，实测阶 1.71）
+  - name: test_kappa_is_at_least_one_and_scale_invariant
+    kind: B
+    what: 40 个矩阵的最小 κ、|κ(cA)/κ(A)−1| 的最大值、κ(7.5I)−1
+    theory: κ ≥ 1；κ(cA) = κ(A)（c > 0，含 2 的幂与非 2 的幂）
+  - name: test_kappa_of_inverse_and_transpose_agree
+    kind: B
+    what: κ₁(A⁻¹)/κ₁(A)−1、κ₁(Aᵀ)/κ∞(A)−1、κ₂(Aᵀ)/κ₂(A)−1、κ_F(Aᵀ)/κ_F(A)−1 的最大值
+    theory: 求逆不变；转置把 κ₁ 与 κ∞ 互换（"转置不变"只对 2/F 范数成立）
+  - name: test_componentwise_condition_is_row_scaling_invariant
+    kind: B
+    what: 20 个矩阵在随机行缩放下的 κ_comp 相对变化与 κ∞ 的相对变化
+    theory: κ_comp = ‖|A⁻¹||A|‖∞ 对行缩放不变；κ∞ 会变（用哪个 κ 必须连模型一起说）
+  - name: test_condition_number_rejects_bad_input
+    kind: B
+    what: 5 类非法输入（未知范数键、非方阵、κ<1、未知矩阵族、奇异矩阵求逆）的显式报错计数
+    theory: 边界必须报错，不能静默回退到某个范数
+  - name: test_sampled_radii_bracket_singular_values
+    kind: B
+    what: 4 个 κ × 5 种采样密度下 σmin−r_min 与 r_max−σmax 的最大值
+    theory: 采样只会错过极值方向：r_min ≥ σmin、r_max ≤ σmax（任意 n_θ）

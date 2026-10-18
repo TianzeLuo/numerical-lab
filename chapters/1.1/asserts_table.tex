@@ -1,0 +1,46 @@
+% 本文件由 tools/build_book.py 从 dist/reports/assertions.json 生成，请勿手改。
+\begin{longtable}{@{}p{0.06\textwidth}p{0.32\textwidth}p{0.22\textwidth}p{0.16\textwidth}@{}}
+\caption{章节 1.1 数值断言（生成时间 2026-10-18T14:06:40-0400）}\\
+\toprule
+类别 & 断言 & 理论值 & 实测值 \\
+\midrule
+\endfirsthead
+\toprule
+类别 & 断言 & 理论值 & 实测值 \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+
+A & $\kappa$\_\allowbreak{}p 与参考实现的最大相对偏差 & $\le$ 1e-8(\allowbreak{}1/\allowbreak{}$\infty$/\allowbreak{}F，逐点)；$\le$ 1e-6(\allowbreak{}2，幂迭代) & 1: 9.62e-15，2: 1.94e-09，inf: 8.53e-15，F: 8.10e-15(\allowbreak{}7 个矩阵) \checkmark \\
+A & 前向误差 $\propto$ $\kappa$ 的实测阶 & 1 & 0.962531 \checkmark \\
+A & 前向误差/($\kappa$u) 与后向误差/u & 前向 $\le$ 0.5$\kappa$u(\allowbreak{}实测阶 1)；后向 $\le$ 10u & max 前向/\allowbreak{}(\allowbreak{}$\kappa$u)=\allowbreak{}0.0128(\allowbreak{}阶 0.9625，R$^2$=\allowbreak{}0.9933)；max 后向/\allowbreak{}u=\allowbreak{}0.095 \checkmark \\
+A & 实测放大比 / $\kappa$(720 个方向) & $\le$ 1(\allowbreak{}上界是保证，不是估计) & max 0.999974，中位数 0.1948 \checkmark \\
+A & |$\kappa$(A$^{\mathsf T}$A)/$\kappa$(A)$^2$ $-$ 1| & $\le$ 1e-6(\allowbreak{}舍入量级) & 3.80e-14(\allowbreak{}8 个矩阵；例 $\kappa$=\allowbreak{}3.921 $\to$ $\kappa$(\allowbreak{}A$^{\mathsf T}$A)=\allowbreak{}15.38) \checkmark \\
+A & 正交 $\kappa$$_2$ 与对角 $\kappa$$_1$ 的相对偏差 & 正交 $\le$ 1e-12(\allowbreak{}幂迭代容差)；对角 $\le$ 1e-15(\allowbreak{}求逆无舍入) & 正交 max 2.22e-16(\allowbreak{}5 个旋转 + 10 个正交阵)；对角 max 1.75e-16(\allowbreak{}20 个) \checkmark \\
+A & 采样半径误差 $\propto$ $\Delta$$\theta$$^2$ 的实测阶 & 2 & 2.00215 \checkmark \\
+A & 椭球采样半径的相对误差阶 & 2(\allowbreak{}O(\allowbreak{}$\Delta$$\theta$$^2$)，32 个整格平移取平均，$\kappa$=\allowbreak{}30) & 阶 2.0022(\allowbreak{}R$^2$=\allowbreak{}1.00000)；n=\allowbreak{}128$\to$7.84e-03，n=\allowbreak{}8192$\to$1.90e-06 \checkmark \\
+B & |$\kappa$(cA)/$\kappa$(A) $-$ 1| & $\le$ 1.00000e-12 & 0 \checkmark \\
+B & max($\kappa$$_1$(A$^{-1}$)/$\kappa$$_1$(A)$-$1, $\kappa$$_1$(A$^{\mathsf T}$)/$\kappa$$\infty$(A)$-$1, $\kappa$$_2$(A$^{\mathsf T}$)/$\kappa$$_2$(A)$-$1, $\kappa$\_\allowbreak{}F(A$^{\mathsf T}$)/$\kappa$\_\allowbreak{}F(A)$-$1) & $\le$ 1.00000e-09 & $1.277\times 10^{-14}$ \checkmark \\
+B & 行缩放下的 $\kappa$\_\allowbreak{}comp / $\kappa$$\infty$ 相对变化 & $\kappa$\_comp 不变(\allowbreak{}$\le$1e-9)；$\kappa$$\infty$ 会变(\allowbreak{}这是预期的，不是 bug) & $\kappa$\_comp 最大变化 3.33e-15；$\kappa$$\infty$ 最大变化 1.39e+04 \checkmark \\
+B & 非法输入的显式报错计数 & 5/\allowbreak{}5 & 5/\allowbreak{}5 \checkmark \\
+B & 采样半径越界量($\sigma$min$-$r\_\allowbreak{}min、r\_\allowbreak{}max$-$$\sigma$max 的最大值) & $\le$ 0(\allowbreak{}只会错过，不会越过) & 低端 0.0e+00，高端 0.0e+00(\allowbreak{}4 个 $\kappa$ $\times$ 5 种采样密度) \checkmark \\
+A & sup |fl(x)-x|/(u|x|) & $\le$ 1(\allowbreak{}1/\allowbreak{}2 ulp 舍入界) & 0.969242(\allowbreak{}4000 个有理数样本) \checkmark \\
+A & spacing/next\_\allowbreak{}float 与 numpy 的最大偏差 & 0(\allowbreak{}逐点相等) & spacing 0.0e+00，nextafter 0.0e+00(\allowbreak{}228 个点) \checkmark \\
+A & 朴素求和误差 $\propto$ n 的斜率 & 1 & 1.04056 \checkmark \\
+A & 朴素误差/(n$\cdot$u$\cdot$$\Sigma$|x|) & $\le$ 1 & 0.8998(\allowbreak{}斜率 1.040557，R$^2$=\allowbreak{}0.999189) \checkmark \\
+A & Kahan 误差/(u$\cdot$$\Sigma$|x|) 与 Kahan/朴素 & $\le$ 2；且 Kahan/\allowbreak{}朴素 $\to$ 0 随 n 增大 & max Kahan/\allowbreak{}(\allowbreak{}u$\cdot$$\Sigma$|x|)=\allowbreak{}0.9007；n=\allowbreak{}4096 时 Kahan=\allowbreak{}1、\allowbreak{}朴素=\allowbreak{}4095、\allowbreak{}比值=\allowbreak{}2.44e-04 \checkmark \\
+A & (fl(0.1)+fl(0.2))$-$fl(0.3) & 5.551115123125783e-17 =\allowbreak{} ulp(\allowbreak{}0.3)(\allowbreak{}精确值) & 5.55111512312578270e-17；ulp 距离 1；精确十进制 0.000000000000000055511151231257827021 \checkmark \\
+A & 抵消放大比 $\propto$ 1/|a$-$b| & -1 & -1 \checkmark \\
+A & 抵消：放大比阶 / 位数斜率 / 与两种预测的偏差 & 放大比阶 =\allowbreak{} $-$1；位数对 log10|a$-$b| 斜率 =\allowbreak{} 1；实测$-$ulp 预测 $\le$ 0.02 位；实测$-$u$\cdot$M 预测 $\le$ 0.7 位 & 放大比阶 -1.000000；位数斜率 1.000000(\allowbreak{}最大残差 7.54e-09 位)；dev\_ulp=\allowbreak{}0.0000，dev\_u=\allowbreak{}0.4771 \checkmark \\
+A & Sterbenz 区内减法相对误差 / 区外上界 & 区内 =\allowbreak{} 0；区外 $\le$ u & 区内 2000 例最大 0.0e+00；区外 1490 例最大 0.000e+00(\allowbreak{}u=\allowbreak{}1.110e-16) \checkmark \\
+A & |(s+e)$-$(a+b)| 与 |(p+e)$-$a$\cdot$b| 的最大值 & 0(\allowbreak{}精确复原) & two\_sum 0.0e+00，two\_product 0.0e+00(\allowbreak{}各 1500 对) \checkmark \\
+B & 结合律偏差 / (2u$\Sigma$|x| + 4u$^2$|和|) & $\le$ 1 & 0.996893 \checkmark \\
+B & 2\textasciicircum{}k 缩放下 Kahan 结果的逐位一致性 & 全部逐位相等(\allowbreak{}21 个 k) & 不一致 0 个；kahan(\allowbreak{}原)=\allowbreak{}10000000000000512 \checkmark \\
+B & binade 边界处的间距比 / 单调性 & 边界处恰好 2；binade 内恒定 1；整体单调不减 & 边界比 [2.0,\allowbreak{} 2.0,\allowbreak{} 2.0,\allowbreak{} 2.0,\allowbreak{} 2.0,\allowbreak{} 2.0,\allowbreak{} 2.0]；binade 内 max/\allowbreak{}min =\allowbreak{} 1.0 \checkmark \\
+B & 区间宽度 / (2b + 端点 ulp) & $\le$ 1(\allowbreak{}区间必含精确和，且宽度不超过界的两倍加端点舍入) & 0.999980(\allowbreak{}120 次检查，全部包含精确和) \checkmark \\
+B & 补偿归约误差(serial/shuffled/parallel8/parallel64) & 前两者 $\le$ 2u$\cdot$$\Sigma$|x|=\allowbreak{}2.22；后两者 $\le$ n$\cdot$u$\cdot$$\Sigma$|x|=\allowbreak{}4.55e+03 且 $\gg$ 串行 & serial=\allowbreak{}0.095,\allowbreak{} shuffled=\allowbreak{}0.095,\allowbreak{} parallel8=\allowbreak{}4.09,\allowbreak{} parallel64=\allowbreak{}4.09 \checkmark \\
+B & 置换 Kahan 误差 / 串行 Kahan 误差 & 量级不变(\allowbreak{}个位数倍) & 最大比值 1.000(\allowbreak{}6 个种子；串行误差 1) \checkmark \\
+B & 网格构造器自洽性 & 相邻点 ulp 距离恒为 1；超上限抛错 & 4 个中心点全通过；max\_points 截断保护生效 \checkmark \\
+B & 1.1 章帧契约 & 每个 viz 的 requiredAux 齐备、\allowbreak{}meta 全标量、\allowbreak{}数组非空 & float\_zoom: 19 数组；cancellation: 12 数组；cond\_ellipsoid: 15 数组；summation\_order: 14 数组 \checkmark \\
+\end{longtable}
