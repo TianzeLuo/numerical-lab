@@ -7,8 +7,15 @@
 防误导分析。规模与逐章清单见 [`docs/CHAPTERS.md`](docs/CHAPTERS.md)，完成度见
 [`docs/PROGRESS.md`](docs/PROGRESS.md)。
 
-当前状态：**M0 骨架已完成**（提交 `1b0c6c8`，模板章 0.0 端到端跑通，十道门禁全绿），
-28 章正文尚未开始。里程碑计划见 [`docs/ROADMAP.md`](docs/ROADMAP.md)。
+当前状态（逐章数字以 [`docs/PROGRESS.md`](docs/PROGRESS.md) 为准，那份文件由 `tools/gen_progress.py`
+生成、G10 守着不许漂移）：**框架（M0）已完成**——模板章 0.0 端到端跑通、十道门禁全绿；
+**章节正在按"前端/后端两层并行"推进**：内核 + 帧 + 断言 + 笔记（Python 层）与
+`model.ts` + 基线（前端层）分别落地、逐章提交。里程碑计划见 [`docs/ROADMAP.md`](docs/ROADMAP.md)。
+
+每章的验收口径不是"跑起来了"，而是：`.nlf` 帧契约测试（全仓 500+ 帧，含每个参数角落与
+非有限值扫描）、断言报告与 `asserts.yaml` 的**对账**（声明数与实测数必须一致）、
+LaTeX 单章编译（**0 缺字形**、0 未定义引用）、以及**无浏览器**的逐像素视觉回归
+（Python 光栅器画同一份 `Scene`，与基线比对）。
 
 ---
 
