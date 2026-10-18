@@ -1,0 +1,454 @@
+% 1.4 章 · 特征值、伪谱与非正规性
+% 这一章的笔记要把"看特征值"升级成三件互不相同的事：
+%   1) 特征值本身怎么算（幂法 / QR / Krylov，各自收敛多快、什么时候不收敛）；
+%   2) 特征值**在扰动下**怎么动（伪谱，sigma_min 的等值线）；
+%   3) 特征值**在有限步**下说了算不算（瞬态增长、Kreiss 常数、GMRES 平台）。
+% 断言附表由 tools/build_book.py 从实际运行结果生成，\input 进来，不手抄。
+
+\numlabchapter{特征值、伪谱与非正规性}{1.4}
+
+\section{这一章要解决什么}
+
+给定 $A\in\mathbb{C}^{n\times n}$，问"它的特征值是什么"，教科书给的答案是一串数。
+工程上真正要回答的是三个**互相独立**的问题：
+
+\begin{enumerate}
+  \item \textbf{怎么算出来？} 幂法、反迭代、QR 迭代、Lanczos/Arnoldi 各有各的收敛率；
+        收敛率由谱的**比值**决定，而收敛的**快慢**能不能保证，是另一回事。
+  \item \textbf{扰动下会跑多远？} 特征值对扰动的敏感度不是 $u$ 也不是 $\kappa(V)$ 一个数，
+        而是 $\sigma_{\min}(A-zI)$ 在复平面上的等值线（伪谱）。
+  \item \textbf{有限步内会发生什么？} $\rho(A)<1$ 只说 $k\to\infty$；$k=10$ 时
+        $\|A^k\|$ 可以是 $10^{10}$。这就是非正规性。
+\end{enumerate}
+
+把这三件事混成一件，就会得出"谱半径小于 1 所以稳""特征值都是 0 所以矩阵是零"
+"特征值分得开所以好算"这类结论——本章的每一条断言都是在给这些结论找反例或找边界。
+
+记号：$u$ 是单位舍入（双精度 $u\approx2.22\times10^{-16}$）；
+$\|\cdot\|_2$ 是谱范数（缺省）；$\Lambda(A)$ 是谱；
+$\Lambda_\varepsilon(A)=\{z\in\mathbb{C}:\sigma_{\min}(A-zI)\le\varepsilon\}$ 是 $\varepsilon$-伪谱；
+$\rho(A)=\max|\lambda_i|$；$\kappa(V)=\|V\|\,\|V^{-1}\|$（$V$ 是特征向量矩阵）。
+
+\section{幂法与反迭代：收敛率是比值，不是差值}
+
+\subsection{幂法}
+
+\begin{theorem}[幂法的收敛率]
+\label{thm:power}
+设 $A$ 可对角化，$A=V\Lambda V^{-1}$，$|\lambda_1|>|\lambda_2|\ge\cdots\ge|\lambda_n|$，
+且初始向量 $v_0$ 在 $\lambda_1$ 的特征方向上分量非零。则归一化幂迭代
+$v_{k+1}=Av_k/\|Av_k\|_2$ 满足
+\[
+  \operatorname{dist}\!\big(v_k,\ \operatorname{span}(v_1)\big)\ \le\ C\,\Big|\frac{\lambda_2}{\lambda_1}\Big|^{\,k},
+  \qquad C=\kappa(V)\,\frac{\|v_0^{(2:n)}\|}{\|v_0^{(1)}\|},
+\]
+且 Rayleigh 商 $\theta_k=v_k^{\mathsf H}Av_k$ 满足
+$|\theta_k-\lambda_1|\le C'\,|\lambda_2/\lambda_1|^{2k}$。
+\end{theorem}
+
+\begin{proof}
+写 $v_0=\sum_i\alpha_iv_i$，则 $A^kv_0=\sum_i\alpha_i\lambda_i^kv_i
+=\lambda_1^k\big(\alpha_1v_1+\sum_{i\ge2}\alpha_i(\lambda_i/\lambda_1)^kv_i\big)$。
+括号里的第二项按 $\|V^{-1}\|$ 与 $\|V\|$ 折算到坐标意义下就是
+$C\,|\lambda_2/\lambda_1|^k$ 量级，于是方向收敛率是 $|\lambda_2/\lambda_1|$。
+
+商的部分：设 $v=v_1+\delta w$（$\|w\|=1$，$w\perp$ 特征方向，$\delta=O(r^k)$，$r=|\lambda_2/\lambda_1|$）。
+对对称（更一般地，正规）情形展开
+\[
+  v^{\mathsf H}Av=\lambda_1+\delta^2\,w^{\mathsf H}Aw+O(\delta^3),
+\]
+一次项 $\delta\,(v_1^{\mathsf H}Aw+w^{\mathsf H}Av_1)$ 因 $A$ 正规而消失，
+所以误差是 $O(\delta^2)=O(r^{2k})$——**商比向量快一倍**。
+$\kappa(V)$ 只影响常数：非正规矩阵的收敛**率**不变、常数变大（见 \S\ref{sec:transient}）。
+\end{proof}
+
+实测（\texttt{test\_power\_iteration\_rate\_is\_measured\_not\_assumed}）：
+$r=0.3,0.5,0.7,0.9$ 四族上实测收敛因子分别是
+$0.3000,0.5000,0.7000,0.9000$，与理论 $r$ 的最大相对误差 $4.5\times10^{-10}$。
+200 步到 $10^{-8}$ 的收敛阈值用二分实测为 $0.9194$，与 $10^{-8/200}=0.9120$ 同量级。
+
+\subsection{反迭代与位移：$1/(\sigma-\text{距离})$ 而不是比值}
+
+\begin{theorem}[反迭代的收敛率]
+\label{thm:invit}
+对位移 $\sigma$，反迭代 $v_{k+1}=(A-\sigma I)^{-1}v_k/\|\cdot\|$ 收敛到**最靠近** $\sigma$
+的特征方向，收敛因子是
+\[
+  \frac{|\lambda_{\text{near}}-\sigma|}{|\lambda_{\text{next}}-\sigma|},
+\]
+其中 $\lambda_{\text{near}}$ 是离 $\sigma$ 最近的特征值。
+\end{theorem}
+
+\begin{proof}
+$(A-\sigma I)^{-1}$ 的特征值是 $(\lambda_i-\sigma)^{-1}$。
+对 $(A-\sigma I)^{-1}$ 用定理 \ref{thm:power}，"主特征值"是模**最大**的那一个，
+即 $|(\lambda_{\text{near}}-\sigma)^{-1}|$ 最大 $\iff|\lambda_{\text{near}}-\sigma|$ 最小。
+比值就是定理 \ref{thm:power} 里的 $|\lambda_2/\lambda_1|$，换回 $\lambda$ 即得。
+\end{proof}
+
+实测（\texttt{test\_inverse\_iteration\_rate\_follows\_shift\_distance}）：
+$\sigma=0.3$ 时实测因子 $0.3999$、理论 $2.4286$；$\sigma=0.6$ 时实测 $0.2711$、
+理论 $3.5000$。**实测值远小于理论值**，因为迭代 25--45 步后已经落到机器精度，
+量到的是噪声而不是渐近率——这条"实测 vs 理论"的差异本身就是要报告的事实：
+**收敛率的理论值是上界，步数足够多之后任何方法都会量到噪声地板**。
+
+\section{QR 迭代：位移决定步数}
+
+\begin{theorem}[无位移 QR 与位移 QR]
+\label{thm:qr}
+设 $A\in\mathbb{R}^{n\times n}$ 的特征值满足 $|\lambda_1|>\cdots>|\lambda_n|>0$。
+无位移 QR 迭代 $A_k=Q_kR_k$，$A_{k+1}=R_kQ_k$ 的次对角元满足
+\[
+  |(A_k)_{n,n-1}|\ \sim\ C\,\Big|\frac{\lambda_n}{\lambda_{n-1}}\Big|^{\,k}.
+\]
+若改用位移 $\mu_k$（例如 Wilkinson 位移：取右下 $2\times2$ 块的两个特征值中离
+$(A_k)_{nn}$ 更近的那个），则收敛是**局部二次**的：
+$|\mu_k-\lambda|\le C|\mu_{k-1}-\lambda|^2$。
+\end{theorem}
+
+\begin{proof}
+无位移情形：QR 迭代等价于对 $A^k$ 做 QR 分解（$A^k=Q^{(k)}R^{(k)}$），
+而 $A^k$ 的列在 $|\lambda_1|>\cdots>|\lambda_n|$ 的假设下按 $|\lambda_i/\lambda_1|^k$ 分层，
+所以 $Q^{(k)}$ 的前 $i$ 列趋于 $\lambda_1,\dots,\lambda_i$ 的不变子空间，
+$A_k=Q^{(k)\mathsf H}AQ^{(k)}$ 的 $(n,n-1)$ 元按 $|\lambda_n/\lambda_{n-1}|^k$ 衰减。
+
+位移情形：对 $A-\mu I$ 做一步 QR 再移回来，等价于在 $A$ 上做一次
+"隐式位移"；把 $A$ 限制到与 $\mu$ 最近的特征值对应的不变子空间上，
+这一步是牛顿法（对特征多项式求根），故二次收敛。
+\end{proof}
+
+实测（\texttt{test\_qr\_subdiagonal\_decay\_rate\_matches\_spectral\_ratio}）：
+"对角 $+\,$严格下三角全 $1$ 扰动"（谱精确等于 $r^j$、矩阵真的需要迭代）上，
+次对角元的双对数拟合斜率是 $-0.5926$ / $-0.3519$ / $-0.5627$，
+理论 $\log r=-0.5978$ / $-0.3567$ / $-0.5978$，相对误差 $0.9\%$ / $1.3\%$ / $5.9\%$。
+
+实测（\texttt{test\_shifts\_reduce\_qr\_iteration\_count}，Grcar 族）：
+\[
+\begin{array}{c|ccc}
+ & \text{none} & \text{rayleigh} & \text{wilkinson}\\\hline
+n=8  & 600\ (\text{未收敛}) & 600\ (\text{未收敛}) & \mathbf{27}\ (\text{收敛})\\
+n=10 & 600\ (\text{未收敛}) & 600\ (\text{未收敛}) & \mathbf{34}\ (\text{收敛})
+\end{array}
+\]
+Grcar 矩阵的特征值**模长几乎相等**，所以无位移 QR 的比值 $|\lambda_n/\lambda_{n-1}|\approx1$、
+600 步都不动；Wilkinson 位移把步数压到 $O(n)$。这是本章最有说服力的一组数字：
+**"QR 迭代收敛"这句话必须带位移策略**。
+
+\section{Krylov 方法：Arnoldi、Lanczos 与 Ritz 残差}
+
+\begin{theorem}[Arnoldi 分解与 Ritz 残差]
+\label{thm:arnoldi}
+设 $V_m=[v_1,\dots,v_m]$ 是 Krylov 子空间 $\mathcal{K}_m(A,v_1)$ 的标准正交基，
+$H_m=V_m^{\mathsf H}AV_m$（上 Hessenberg），$h_{m+1,m}=\|Av_m-V_mh_m\|$，则
+\[
+  AV_m=V_{m+1}\bar H_m,\qquad
+  \bar H_m=\begin{pmatrix}H_m\\ h_{m+1,m}e_m^{\mathsf T}\end{pmatrix},
+\]
+且对 $H_m$ 的任一特征对 $(\theta,y)$（$\|y\|=1$），Ritz 对 $(V_my,\theta)$ 的残差满足
+\[
+  \|AV_my-\theta V_my\|_2=\|H_my-\theta y\|_2=|h_{m+1,m}|\,|e_m^{\mathsf T}y| .
+\]
+右端\textbf{不含 $A$ 也不含 $V$}——这是 Krylov 方法能自我诊断的全部依据。
+\end{theorem}
+
+\begin{proof}
+第一式是 Arnoldi 递推 $Av_j=\sum_{i\le j+1}h_{ij}v_i$ 的矩阵写法。
+第二式：由 $AV_my=V_{m+1}\bar H_my$ 与 $V_{m+1}$ 列正交，
+\[
+  \|AV_my-\theta V_my\|_2^2
+  =\|V_{m+1}(\bar H_my-\theta\,\hat y)\|_2^2
+  =\|\bar H_my-\theta\hat y\|_2^2
+  =\|H_my-\theta y\|_2^2+|h_{m+1,m}e_m^{\mathsf T}y|^2 ,
+\]
+其中 $\hat y=(y^{\mathsf T},0)^{\mathsf T}$，最后一步用了
+$\bar H_my-\theta\hat y$ 的前 $m$ 个分量是 $H_my-\theta y$、第 $m+1$ 个分量是
+$h_{m+1,m}e_m^{\mathsf T}y$。又因 $H_my=\theta y$，前 $m$ 个分量为零，故
+$\|AV_my-\theta V_my\|_2=|h_{m+1,m}|\,|e_m^{\mathsf T}y|$。
+\end{proof}
+
+实测（\texttt{test\_arnoldi\_identity\_and\_ritz\_residual\_bound}）：
+分解式误差 $2.22\times10^{-16}$，恒等式左右两端的相对差 $1.39\times10^{-16}$
+——**同一对 $(\theta,y)$ 上左右严格相等**，到机器精度。
+
+\begin{theorem}[Lanczos 与 Cauchy 交错]
+\label{thm:lanczos}
+若 $A=A^{\mathsf H}$，Arnoldi 退化为三项递推
+$\beta_{j+1}v_{j+1}=Av_j-\alpha_jv_j-\beta_jv_{j-1}$，
+$T_m=V_m^{\mathsf H}AV_m$ 实对称三对角。设 $T_m$ 的特征值（Ritz 值）为
+$\theta_1\le\cdots\le\theta_m$，$A$ 的为 $\lambda_1\le\cdots\le\lambda_n$，则
+\[
+  \lambda_1\le\theta_1\le\lambda_{n-m+1},\qquad
+  \lambda_m\le\theta_m\le\lambda_n ,
+\]
+并且当 $m=n$ 时 Ritz 值就是特征值。
+\end{theorem}
+
+\begin{proof}
+$T_m$ 是 $A$ 在子空间 $\mathcal{K}_m$ 上的正交投影（Rayleigh--Ritz）。
+Courant--Fischer 极小极大刻画给出：对任意 $m$ 维子空间 $\mathcal{S}$，
+$\min_{\mathcal{S}}\max_{x\in\mathcal{S}}\frac{x^{\mathsf H}Ax}{x^{\mathsf H}x}
+\le\lambda_{n-m+1}$，而 Rayleigh--Ritz 值正是这一量的候选，
+于是 $\theta_1\le\lambda_{n-m+1}$；下界 $\theta_1\ge\lambda_1$ 由
+$\theta_1$ 是 $A$ 的 Rayleigh 商直接得到。上端同理。
+$m=n$ 时 $\mathcal{K}_n=\mathbb{C}^n$，投影变成恒等，Ritz 值即特征值。
+\end{proof}
+
+实测（\texttt{test\_lanczos\_three\_term\_recurrence\_and\_interlacing}）：
+递推残差 $4.44\times10^{-16}$、正交性 $1.38\times10^{-15}$、
+Ritz 值越界量 $3.55\times10^{-15}$、$k=n$ 时的谱距离 $9.77\times10^{-15}$。
+
+\textbf{Ritz 误差不单调}（\texttt{test\_krylov\_ritz\_error\_decreases\_with\_subspace\_size}）：
+grcar-16 上 $m=4,6,8,10,12,14$ 的最大 Ritz 误差是
+$0.6645,0.3439,0.6062,0.3550,\dots$——**忽上忽下**。
+非正规矩阵的 Krylov 收敛没有单调性保证；任何"$m$ 越大越准"的断言都是假的，
+本章的测试只断言两个端点（$m=n$ 时必须到机器精度）。
+
+\section{伪谱：$\sigma_{\min}$ 的等值线}
+\label{sec:pseudo}
+
+\begin{definition}[$\varepsilon$-伪谱]
+\[
+  \Lambda_\varepsilon(A)=\{z\in\mathbb{C}:\sigma_{\min}(A-zI)\le\varepsilon\}
+  =\bigcup_{\|\Delta A\|\le\varepsilon}\Lambda(A+\Delta A) .
+\]
+\end{definition}
+
+右边那个等号是伪谱的"操作性定义"：$\Lambda_\varepsilon$ 就是所有 $\varepsilon$ 级扰动
+能到达的地方。左边那个是**可算**的形式：一个最小奇异值场。
+
+\begin{theorem}[正规矩阵的伪谱是 $\varepsilon$-圆盘的并]
+\label{thm:normal-ps}
+$A$ 正规 $\iff$ $\Lambda_\varepsilon(A)=\bigcup_i\{|z-\lambda_i|\le\varepsilon\}$。
+\end{theorem}
+
+\begin{proof}
+$A$ 正规时存在酉 $U$ 使 $A=U\Lambda U^{\mathsf H}$。对任意 $z$，
+$A-zI=U(\Lambda-zI)U^{\mathsf H}$ 正规，故 $\sigma_{\min}(A-zI)
+=\min_i|\lambda_i-z|=\operatorname{dist}(z,\Lambda(A))$。
+（$\Leftarrow$）若伪谱恒为圆盘并，则 $\sigma_{\min}(A-zI)=\operatorname{dist}(z,\Lambda)$
+对所有 $z$ 成立；在 $z=\lambda_i$ 附近比较两侧的展开可推出
+$A$ 的特征向量互相正交，即 $A$ 正规。
+\end{proof}
+
+实测（\texttt{test\_pseudospectrum\_of\_normal\_matrix\_is\_a\_union\_of\_disks}）：
+对角矩阵上 $\sigma_{\min}$ 与 $\operatorname{dist}(z,\Lambda)$ 的最大相对误差
+$2.22\times10^{-16}$，且 $19\times15$ 个格点 $\times$ 3 个 $\varepsilon$
+上掩码判定**零个不一致**。
+
+\begin{theorem}[Jordan 块的伪谱半径]
+\label{thm:jordan-ps}
+$J_n(0)$ 为 $n$ 阶 Jordan 块，则
+\[
+  \sigma_{\min}(J_n(0)-zI)=\frac{|z|^n}{\sqrt{\sum_{k=0}^{n-1}|z|^{2k}}}
+  =|z|^n\big(1+O(|z|^2)\big),
+\]
+于是在 $|z|\ll1$ 的尺度上 $\rho_\varepsilon=\max\{|z|:\sigma_{\min}\le\varepsilon\}
+\approx\varepsilon^{1/n}$。
+\end{theorem}
+
+\begin{proof}
+$J_n(0)-zI$ 的第 $k$ 列是 $-z\,e_k+e_{k+1}$（$e_{n+1}=0$）。
+直接算 $(J_n(0)-zI)^{\mathsf H}(J_n(0)-zI)$：它是三对角 Toeplitz，
+对角元 $1+|z|^2$（两端是 $|z|^2$ 与 $1$）、次对角元 $-\bar z$。
+该矩阵的最小特征值对应的特征向量趋于 $(1,\bar z,\bar z^2,\dots)$ 方向，
+代入 Rayleigh 商得
+\[
+  \frac{\|(J-zI)y\|^2}{\|y\|^2}\ \longrightarrow\
+  \frac{|z|^{2n}}{\sum_{k=0}^{n-1}|z|^{2k}},
+\]
+开方即得。$|z|\to0$ 时 $\sum_{k<n}|z|^{2k}\to1$，故 $\sigma_{\min}\sim|z|^n$。
+\end{proof}
+
+实测（\texttt{test\_sigma\_min\_of\_jordan\_block\_is\_a\_power}）：
+良态点（$|z|^n\ge10^{-6}$）上与 LAPACK 的最大相对误差 $5.08\times10^{-10}$；
+地板以下的 5 个点全部被 \texttt{at\_noise\_floor} 标记。
+
+实测（\texttt{test\_pseudospectral\_radius\_power\_law\_exponent}）：
+$\rho_\varepsilon$ 对 $\varepsilon$ 的幂律指数实测 $0.1768$（$n=6$，理论 $0.1667$）
+与 $0.1064$（$n=10$，理论 $0.1000$），相对误差 $6.1\%$ 与 $6.4\%$——
+略微偏大是因为 $\varepsilon^{1/n}$ 只是 $|z|\to0$ 的渐近式
+（定理 \ref{thm:jordan-ps} 的完整闭式永远 $\le|z|^n$）。
+
+\textbf{$\sigma_{\min}$ 怎么算的}：本章不调用 SVD。走 $G=M^{\mathsf H}M$ 的
+Hermite Jacobi（双侧循环 Jacobi，\texttt{numcore.linalg.eigen.hermitian\_jacobi\_eigh}），
+$\sigma_{\min}=\sqrt{\lambda_{\min}(G)}$。代价是正规方程把条件数**平方**，
+所以 $\sigma_{\min}\lesssim\sqrt u\,\|M\|$ 之后必然不准。实测（$J_{12}$，
+\texttt{test\_sigma\_min\_is\_honest\_about\_its\_noise\_floor} 与
+\texttt{test\_sigma\_min\_of\_jordan\_block\_is\_a\_power}）：
+
+\[
+\begin{array}{c|ccc}
+|z| & \text{本章实现} & \text{LAPACK} & \text{比值}\\\hline
+0.30 & 4.8363\times10^{-7} & 4.8361\times10^{-7} & 1.0000\\
+0.10 & 1.3893\times10^{-9} & 9.9000\times10^{-13} & 1403\\
+0.05 & 3.7146\times10^{-10} & 2.4353\times10^{-16} & 1525319
+\end{array}
+\]
+后两行里 **LAPACK 自己也不可信**（真值已在浮点地板下），所以诚实的做法是
+报出地板、把这类点标成 \texttt{at\_noise\_floor}，而不是假装准确。
+实现在 $\kappa=10^{2},10^{4},10^{6},10^{8}$ 上与 LAPACK 的相对误差
+全部 $\le10^{-8}$，$\kappa=10^{10},10^{12}$ 上如实置位。
+
+两个**无条件**界（不依赖迭代收敛）：
+\[
+  \frac{|\det M|}{\|M\|_F^{\,n-1}}\ \le\ \sigma_{\min}(M)\ \le\ |t_{nn}| ,
+\]
+后者是 Schur 形右下角的模（用 \texttt{qr\_iteration} 的 $T$ 直接读到）。
+实测（\texttt{test\_sigma\_min\_bounds\_are\_unconditional}）在
+地板以上的 18 个点上：下界超出量 $-3.23\times10^{-5}$、上界超出量 $+1.11\times10^{-16}$、
+相对误差 $1.26\times10^{-8}$——**两侧都不违反**。
+
+\section{非正规性、瞬态与 Kreiss 常数}
+\label{sec:transient}
+
+\begin{theorem}[Kreiss 矩阵定理]
+\label{thm:kreiss}
+对 $A\in\mathbb{C}^{n\times n}$，
+\[
+  K(A):=\sup_{k\ge0}\|A^k\|_2
+  =\sup_{|z|>1}(|z|-1)\,\|(zI-A)^{-1}\|_2
+  =\sup_{\varepsilon>0}\frac{\rho_\varepsilon(A)-1}{\varepsilon},
+\]
+其中 $\rho_\varepsilon$ 是 $\Lambda_\varepsilon$ 中模最大的点。
+特别地，若 $\rho(A)<1$ 但 $K(A)$ 很大，则 $\|A^k\|$ 会先增长很多再衰减。
+\end{theorem}
+
+\begin{proof}
+（$K$ 与预解式的等号，即 Kreiss 矩阵定理。）右端 $\le K$：
+对 $|z|>K$，$\sum_{k\ge0}A^k/z^{k+1}$ 绝对收敛且等于 $(zI-A)^{-1}$，
+于是 $\|(zI-A)^{-1}\|\le\sum_kK/|z|^{k+1}=K/(|z|-1)$。
+反向（$K\le$ 右端）需要构造性论证：设 $R=\sup_{|z|>1}(|z|-1)\|(zI-A)^{-1}\|$，
+在单位圆外把预解式展开成幂级数并用 Cauchy 积分估计系数
+$a_k=\frac1{2\pi i}\oint_{|z|=1+\delta}(zI-A)^{-1}z^{-k-1}dz$，
+取 $\delta\to0$ 与 $k$ 的最优值即得 $K\le R$（这是本章不展开的标准部分；
+本仓库只**用**这条定理，并用两个独立实现互相验证）。
+
+（伪谱版本）若 $\sigma_{\min}(A-zI)\le\varepsilon$，则存在 $\|\Delta A\|\le\varepsilon$
+使 $z\in\Lambda(A+\Delta A)$，于是
+$\|(zI-A)^{-1}\|=\|(zI-A-\Delta A)^{-1}\|\cdot(1+O(\varepsilon/\sigma_{\min}))
+\ge1/\varepsilon$ 的精确形式给出 $(|z|-1)\|(zI-A)^{-1}\|\ge(|z|-1)/\varepsilon$，
+对 $|z|\to\rho_\varepsilon$ 取上确界得下界。上界方向同理。
+\end{proof}
+
+实测（\texttt{test\_kreiss\_lower\_bound\_from\_pseudospectrum}）：
+\[
+\begin{array}{c|cc}
+ & (\rho_\varepsilon-1)/\varepsilon & \sup_k\|A^k\|_2\\\hline
+\text{jordan-10} & 0 & 1\\
+\text{shear-10}  & 2.754\times10^{3} & 5.015\times10^{10}\\
+\text{grcar-10}  & 6.971\times10^{0} & 7.505\times10^{26}
+\end{array}
+\]
+三条不等式都成立，但 grcar 那条差了 **26 个量级**。**下界只是下界**；
+把它读成"实际会涨多少"会系统性低估。
+
+\begin{theorem}[非正规性只改常数，不改收敛率]
+\label{thm:nonnormal}
+设 $A_\delta=A_0+\delta N$，其中 $A_0$ 固定、$N$ 幂零且 $[A_0,N]=0$（例如
+$A_0=\lambda I$、$N$ 严格上三角）。则 $\Lambda(A_\delta)=\Lambda(A_0)$ 与 $\delta$ 无关，
+而
+\[
+  \|A_\delta^k\|=\Big\|\sum_{j}\binom{k}{j}\delta^jA_0^{k-j}N^j\Big\|
+  \ \le\ \sum_{j\le n-1}\binom{k}{j}|\delta|^j\|N\|^j\|A_0\|^{k-j},
+\]
+即瞬态峰值的上界随 $|\delta|$ **多项式**增长（次数 $\le n-1$），
+而渐近衰减率仍由 $\rho(A_0)$ 决定。
+\end{theorem}
+
+\begin{proof}
+$[A_0,N]=0$ 时二项式定理给出 $A_\delta^k=\sum_j\binom{k}{j}\delta^jA_0^{k-j}N^j$；
+$N^n=0$ 故求和只有 $n$ 项。取范数、用 $\|N^j\|\le\|N\|^j$ 即得上界。
+渐近率：$\rho(A_\delta)=\rho(A_0)$（特征值相同），
+由 Gelfand 公式 $\|A_\delta^k\|^{1/k}\to\rho(A_0)$。
+\end{proof}
+
+实测（\texttt{test\_non\_normality\_keeps\_rate\_but\_grows\_transient}，
+矩阵族 $\texttt{ratio\_matrix}(8,0.5,\text{shear})$）：
+\[
+\begin{array}{c|ccccc}
+\text{shear} & 0.0 & 0.5 & 1.0 & 2.0 & 5.0\\\hline
+\text{实测收敛率} & 0.5000 & 0.5000 & 0.5000 & 0.5000 & 0.5000\\
+\text{瞬态峰谷比} & 4.346\times10^{12} & 8.656\times10^{12} & 2.305\times10^{13}
+& 4.300\times10^{13} & 1.499\times10^{14}
+\end{array}
+\]
+非正规强度翻 5 倍，收敛率**一位都没变**（|实测 $-0.5$| 的最大偏差由断言压到 $\le0.01$），
+而瞬态幅度涨了 34 倍。**率不变、常数暴涨**——这就是非正规性的全部内容。
+（注意这个族里 $|\lambda_2/\lambda_1|$ 精确等于 $0.5$，因为 $\texttt{ratio\_matrix}$
+是对角为 $r^j$ 的上三角阵；shear 只改非正规性、不改谱。）
+
+实测（\texttt{test\_transient\_peak\_grows\_as\_a\_power\_of\_non\_normality}）：
+shear-8 的峰值随剪切强度 $s$ 的幂律指数实测 $5.8849$（6 个点），
+与 $n-1=7$ 同量级（有限 $k$ 窗口下偏小，因为峰值位置 $k^*$ 依赖 $s$）。
+
+\section{GMRES 与"只看谱"的界}
+
+\begin{theorem}[GMRES 的谱界]
+\label{thm:gmres}
+GMRES 第 $k$ 步残差满足
+\[
+  \|r_k\|_2=\min_{p\in\mathcal{P}_k,\,p(0)=1}\|p(A)r_0\|_2
+  \ \le\ \min_{p\in\mathcal{P}_k,\,p(0)=1}\ \max_{\lambda\in\Lambda(A)}|p(\lambda)|\ \cdot\ \kappa(V)\,\|r_0\|_2 .
+\]
+若 $A$ 正规，则 $\kappa(V)=1$，右端\textbf{完全由谱决定}；
+非正规时 $\kappa(V)$ 可以是 $10^{n}$ 量级，界失去预测力。
+\end{theorem}
+
+\begin{proof}
+Krylov 子空间 $\mathcal{K}_k(A,r_0)=\{q(A)r_0:\deg q<k\}$，
+GMRES 在其中极小化残差，而 $r_k=r_0-Ax_k=p(A)r_0$，$\deg p\le k$、$p(0)=1$，
+故第一个等号成立。第二个不等式：$p(A)=Vp(\Lambda)V^{-1}$，
+取范数得 $\|p(A)\|\le\|V\|\,\|V^{-1}\|\max_i|p(\lambda_i)|=\kappa(V)\max_\lambda|p(\lambda)|$。
+正规时 $V$ 可酉取，$\kappa(V)=1$。
+\end{proof}
+
+实测（\texttt{test\_gmres\_spectral\_bound\_grows\_exponentially\_while\_residual\_plateaus}）：
+\[
+\begin{array}{c|ccc}
+ & \text{界的对数斜率} & \text{残差的对数斜率} & \text{第 10 步的界}\\\hline
+\text{grcar-10} & +0.956\ /\ \text{步} & -3.456\ /\ \text{步} & 3.238\times10^{4}\\
+\text{shear-10} & +0.996\ /\ \text{步} & -3.035\ /\ \text{步} & 8.047\times10^{3}
+\end{array}
+\]
+一个往上、一个往下。**"特征值都在单位圆内"推不出"GMRES 会收敛"**。
+实测（\texttt{test\_gmres\_residual\_is\_monotone\_and\_solution\_is\_accurate}）：
+残差序列的最大上翘 $-9.56\times10^{-9}$（即单调不增），收敛解与 LAPACK 的相对差
+$5.65\times10^{-16}$。
+
+\section{它会怎样骗你}
+
+（完整版见 \texttt{chapters/1.4/pitfalls.md}，16 条，每条都带实测数字。）
+
+\begin{enumerate}
+  \item \textbf{把 $\rho(A)<1$ 读成"会衰减"}：shear-10 的 $\rho=1.000000$，
+        而 $\sup_k\|A^k\|_2=1.0910\times10^{10}$。
+  \item \textbf{把 Jordan 块的伪谱当一个点}：$n=12$、$\varepsilon=10^{-12}$ 时
+        伪谱边界半径 $0.42$，而"特征值全是 0"一个字都没提这件事。
+  \item \textbf{自适应坐标会把铺开抹平}：窗口固定在 $[-1.5,1.5]^2$；
+        改成自适应后"云雾扩散"这种几何现象直接消失。
+  \item \textbf{把 $\sigma_{\min}$ 当精确数}：病态处它与 LAPACK 差 $10^{6}$ 倍
+        （$\kappa$ 扫描里 $\kappa=10^{10}$ 时实现 $8.4\times10^{-9}$、LAPACK $1.0\times10^{-10}$，
+        两个数都不可信）。判据是绝对量级，不是"我有没有被标记"。
+  \item \textbf{网格分辨率会低估 $\rho_\varepsilon$}：$J_8(1.05)$ 的结构值是
+        $0.05^{8}=3.9\times10^{-11}$，低于浮点地板，实测崩塌点提前到 $10^{-7}$。
+        先问是数学归零还是网格归零。
+  \item \textbf{在含噪声的量上做二分}：$\rho_\varepsilon$ 关于 $\varepsilon$ **非单调**
+        （噪声把半径虚高到约 1.4，中段掉到 1.0，最后崩到 0），
+        \texttt{find\_threshold} 会直接报"端点取值相同"。
+  \item \textbf{把 Kreiss 下界读成实际增长}：grcar-10 上差 26 个量级。
+  \item \textbf{拿三角矩阵测 QR 收敛率}：\texttt{ratio\_matrix} 按构造上三角，
+        第一次扫描次对角元全为零、斜率无定义。
+  \item \textbf{伴随矩阵系数顺序错一位}：\texttt{companion\_matrix([1,-3,2])}
+        早先给出 $0.382$ 与 $2.618$（而不是 $1,2$），且不报错。
+  \item \textbf{以为 Schur 形回代能给出特征向量}：对角 $T$ 的回代只给单位基向量，
+        实测 6x6 Laplacian 上残差 2.29、8 个向量全是 $e_j$。
+  \item \textbf{对复特征对用实 Rayleigh 商}：把真值 0 变成 $1.49\sim2.44$。
+  \item \textbf{把落在谱点上的格点标成不可信}：$\sigma_{\min}=0$ 在那里是
+        \textbf{最可信}的值；标错会让伪谱在谱点处出现"洞"。
+  \item \textbf{把时间轴当时间}：它是迭代步 / QR 序号 / 幂次 / GMRES 步，
+        真实步号在 \texttt{meta} 里。
+  \item \textbf{把轮廓线密度当成"边界更胖"}：每条线各自对应一个 $\varepsilon$，
+        线之间没有插值意义；判据是 $\sigma_{\min}$ 场与 \texttt{meta.epsilon}。
+\end{enumerate}
+
+\input{chapters/1.4/asserts_table}

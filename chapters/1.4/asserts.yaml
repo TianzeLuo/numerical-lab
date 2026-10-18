@@ -1,0 +1,170 @@
+# 1.4 章断言清单（真源：`tests/1.4/` 下的两个文件）
+#
+# 这一章把"特征值"升级成"伪谱与瞬态"，所以断言按三层组织：
+#   * A 类（解析对拍，21 条）：凡有闭式答案的地方都拿闭式或 LAPACK 对拍——
+#     Jordan 块 σ_min = |z|^n/√(Σ|z|^{2k})、正规矩阵伪谱 = ε-圆盘并、
+#     幂零块的 ‖A^k‖ = 1、复数 LU 的机器精度残差；
+#   * C 类（收敛率/阈值实测，19 条）：幂法收敛因子、QR 次对角衰减斜率、
+#     位移带来的步数下降、ρ_ε 的幂律指数、噪声地板导致的崩塌点、
+#     GMRES 与"只看谱"的界的落差；全部用 fit_order / find_threshold 实测；
+#   * B 类（不变量，1 条）：由 numcore.verify 的 assert_* 辅助函数在
+#     test_non_normality_keeps_rate_but_grows_transient 里登记。
+#
+# 声明里**只列 A 与 C**（docs/chapters.yaml 要求这两类必测）；B 类那一条由辅助函数
+# 自动登记，不出现在下面的 tests 里，但仍会被 run_asserts.py 计入报告。
+chapter: "1.4"
+title: 特征值、伪谱与非正规性
+required_kinds: [A, C]
+
+min_counts:
+  A: 21
+  C: 19
+
+tests:
+  # ------------------------------------------------------------------ A 类
+  - name: test_power_iteration_matches_analytic_spectrum
+    kind: A
+    what: 幂法收敛因子与残差；与闭式谱对拍，并检查主特征向量方向
+    theory: 收敛因子 |λ₂/λ₁|；残差 ‖Av−θv‖ → u·‖A‖
+  - name: test_closed_form_spectra_of_structured_matrices
+    kind: A
+    what: Laplacian / Jordan 块 / 比例矩阵的谱与闭式对照（集合意义下的 Hausdorff 距离）
+    theory: λ_j(Laplacian_n) = 2 − 2cos(jπ/(n+1))；J_n 的谱 = {0}
+  - name: test_hessenberg_reduction_is_orthogonal_similarity
+    kind: A
+    what: Hessenberg 化的严格下三角为零、QᵀQ − I 的 ∞ 范数、谱距离
+    theory: 酉相似不改变谱；正交性误差 ~ u
+  - name: test_arnoldi_identity_and_ritz_residual_bound
+    kind: A
+    what: AV_m − V_{m+1}H_bar_m 的逐项误差；‖AV_my−θV_my‖ 与 |h_{m+1,m}||e_mᵀy| 的左右恒等式
+    theory: 分解式 = 0；残差恒等式两端相等（同一对 (θ,y)）
+  - name: test_lanczos_three_term_recurrence_and_interlacing
+    kind: A
+    what: 三项递推残差、V 的正交性、Ritz 值是否越界、k=n 时的谱距离
+    theory: Lanczos 三项递推；Cauchy 交错把 Ritz 值夹在 [λ_min, λ_max] 内
+  - name: test_qr_iteration_preserves_the_spectrum
+    kind: A
+    what: 6 族矩阵 × 3 种位移策略共 18 例的谱距离与容许误差
+    theory: QR 迭代是正交相似，谱不变；误差 ≲ κ(V)·u
+  - name: test_rayleigh_quotient_is_quadratically_accurate
+    kind: A
+    what: Rayleigh 商与闭式 λ₁ + (λ₂−λ₁)sin²θ 的偏差
+    theory: Rayleigh 商误差 O(sin²θ)（比特征向量误差快一阶）
+  - name: test_jacobi_svd_matches_reference
+    kind: A
+    what: 自研单边 Jacobi SVD 的全部奇异值与 σ_min 与 LAPACK 的相对差（实/复、含 κ=1e6）
+    theory: 奇异值相对误差 ≲ n·u·κ
+  - name: test_smallest_singular_value_survives_ill_conditioning
+    kind: A
+    what: 单边 Jacobi 的 σ_min vs √λ_min(MᵀM) vs LAPACK（κ = 1e2…1e14）
+    theory: 单边 Jacobi 不做正规方程，κ 大时仍保有相对精度
+  - name: test_sigma_min_equals_distance_to_spectrum_for_diagonal
+    kind: A
+    what: 对角（正规）矩阵上 σ_min(A−zI) 与 min|z−λ_i| 及 LAPACK 的三方对照
+    theory: 正规矩阵 σ_min(A−zI) = dist(z, Λ(A))（精确）
+  - name: test_sigma_min_of_jordan_block_is_a_power
+    kind: A
+    what: J_n(0) 上 σ_min 与 LAPACK 的相对误差、σ_min ≤ |z|^n、地板标记数
+    theory: σ_min(J_n(0)−zI) = |z|^n/√(Σ_{k<n}|z|^{2k}) ≤ |z|^n
+  - name: test_pseudospectrum_of_normal_matrix_is_a_union_of_disks
+    kind: A
+    what: 正规矩阵上 σ_min 场与距离场的逐格点相对差；伪谱掩码不一致格点数（跳过 ε 边界）
+    theory: Λ_ε(A) = ∪{|z−λ_i| ≤ ε} 当且仅当 A 正规
+  - name: test_sigma_min_bounds_are_unconditional
+    kind: A
+    what: 地板以上各点上 |det M|/‖M‖_F^{n−1} ≤ σ_min ≤ |t_nn| 的违反量
+    theory: Hadamard 型下界与 Schur 上界无条件成立
+  - name: test_sigma_min_is_honest_about_its_noise_floor
+    kind: A
+    what: κ = 1e2…1e12 的扫描：良态点与 LAPACK 的一致性与 at_noise_floor 的标记情况
+    theory: σ_min ≳ √u·‖M‖ 才可信；以下必须被标记而不是假装准确
+  - name: test_complex_lu_solves_accurately
+    kind: A
+    what: 自研复数 LU 的相对残差与与 LAPACK 解的最大差
+    theory: ‖Mx−b‖∞ ≤ u·n·‖M‖∞‖x‖∞
+  - name: test_kreiss_lower_bound_from_pseudospectrum
+    kind: A
+    what: 由伪谱半径算出的 (ρ_ε−1)/ε 与直接乘出来的 sup_k‖A^k‖₂ 的对照
+    theory: (ρ_ε−1)/ε ≤ K(A) = sup_k‖A^k‖₂
+  - name: test_kreiss_constant_equals_sup_of_powers
+    kind: A
+    what: kreiss_constant 与 transient_growth 的峰值（两条接口、同一份幂序列）
+    theory: K(A) = sup_k‖A^k‖₂（含 k=0）
+  - name: test_gmres_residual_is_monotone_and_solution_is_accurate
+    kind: A
+    what: GMRES 残差序列的最大上翘量、收敛解与 LAPACK 的差
+    theory: Krylov 子空间逐维扩大 ⇒ ‖r_k‖ 单调不增
+  - name: test_marching_squares_contour_is_geometrically_consistent
+    kind: A
+    what: 轮廓线段端点上的双线性重建值偏离 level 的最大量、零长线段、越界端点
+    theory: 线性插值端点精确落在 σ_min = ε 的等值线上
+  - name: test_transient_growth_of_a_nilpotent_jordan_block
+    kind: A
+    what: 幂零 Jordan 块的 ‖A^k‖ 序列与 1 / 0 的偏差
+    theory: ‖J_n(0)^k‖₂ = 1 (1≤k≤n−1)，= 0 (k≥n)；ρ = 0
+  - name: test_trusted_mask_semantics_and_grid_refinement
+    kind: A
+    what: trusted 掩码语义（σ_min ≫ √u·‖M‖ ⇒ 必须可信）与两个网格上的可信比例
+    theory: 地板判据 σ_min ≤ √u·‖M‖；可信比例保持 > 0.95
+
+  # ------------------------------------------------------------------ C 类
+  - name: test_power_iteration_rate_is_measured_not_assumed
+    kind: C
+    what: r = 0.3/0.5/0.7/0.9 四族上幂法收敛因子的实测值与理论 r 的对照（含汇总条目）
+    theory: 实测因子 = |λ₂/λ₁| = r（相对误差 ≤ 5%）
+  - name: test_power_iteration_convergence_threshold_is_measured
+    kind: C
+    what: 二分实测"200 步内到 1e-8"的收敛阈值；2×2 旋转块永不收敛且报告 is_complex_pair
+    theory: 阈值 = 10^(−8/200)；复主特征对时残差是常数
+  - name: test_qr_subdiagonal_decay_rate_matches_spectral_ratio
+    kind: C
+    what: 对角 + 严格下三角扰动上，无位移 QR 次对角元的双对数拟合斜率
+    theory: 斜率 = log|λ_n/λ_{n−1}|（相对误差 ≤ 10%）
+  - name: test_shifts_reduce_qr_iteration_count
+    kind: C
+    what: Grcar 族上 none / rayleigh / wilkinson 三种位移的 QR 迭代步数
+    theory: 位移把步数从"不收敛"压到 O(n) 量级
+  - name: test_inverse_iteration_rate_follows_shift_distance
+    kind: C
+    what: 反迭代：位移 σ 下实测收敛因子与理论 |λ_next−σ|/|λ_near−σ|
+    theory: 收敛因子 = 到次近特征值的距离之比
+  - name: test_rayleigh_quotient_decays_twice_as_fast_as_residual
+    kind: C
+    what: Rayleigh 商误差斜率与残差斜率的实测比值
+    theory: 商误差 ~ 残差² ⇒ 对数斜率之比 = 2
+  - name: test_non_normality_keeps_rate_but_grows_transient
+    kind: C
+    what: 非正规强度递增时收敛率（应不变）与瞬态峰谷比（应增大）的实测序列
+    theory: 收敛率只由谱决定；瞬态幅度由非正规性决定
+  - name: test_krylov_ritz_error_decreases_with_subspace_size
+    kind: C
+    what: Arnoldi Ritz 误差随子空间维数的端点行为（非正规矩阵不单调，如实记录）
+    theory: m = n 时 Ritz 值就是特征值（误差 → 0）；中间不保证单调
+  - name: test_pseudospectral_radius_power_law_exponent
+    kind: C
+    what: fit_order 实测 ρ_ε 对 ε 的幂律指数（n = 6, 10）
+    theory: 指数 = 1/n（相对误差 ≤ 8%）
+  - name: test_pseudospectral_radius_collapse_is_noise_limited_for_large_n
+    kind: C
+    what: 扫描实测 J_n(1.05) 的 ρ_ε 崩塌点，与结构值 0.05^n 对照（n = 4, 6, 8）
+    theory: 结构值 0.05^n；低于浮点地板时实测提前崩塌（噪声决定）
+  - name: test_transient_peak_grows_as_a_power_of_non_normality
+    kind: C
+    what: 剪切强度 s 变化时峰值 sup_k‖A^k‖ 的幂律指数（有限 k 窗口实测）
+    theory: 峰值 ∝ s^p，p 与 n−1 同量级（有限窗口下偏小，如实报出）
+  - name: test_gmres_spectral_bound_grows_exponentially_while_residual_plateaus
+    kind: C
+    what: 只看谱的 GMRES 界的实测指数增长率 vs 实测残差下降率（grcar / shear）
+    theory: 非正规问题上界指数膨胀（增长率 > 0）而残差下降（≤ 0）
+  - name: test_sigma_min_grid_is_deterministic
+    kind: C
+    what: σ_min 网格场两次调用是否逐位相同；相邻格点的最大跳变与场动态范围之比
+    theory: Hermite Jacobi 路线无随机起点 ⇒ 逐位可复现；场连续
+  - name: test_gmres_iterations_grow_with_pseudospectral_spread
+    kind: C
+    what: 非正规强度 s → GMRES 步数与伪谱半径（端点比较）
+    theory: 非正规性越强，预解式越大，GMRES 越慢
+  - name: test_jordan_boundary_radius_limits
+    kind: C
+    what: ε^{1/n} 随 n 的单调性与与闭式的逐位一致性
+    theory: ε = 1e-12 时 n=32 给 ≈0.42、n=64 给 ≈0.65
