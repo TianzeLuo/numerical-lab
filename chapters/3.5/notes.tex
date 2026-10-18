@@ -1,0 +1,601 @@
+% 3.5 章 · 动力系统、分岔与混沌
+% 这一章的任务只有一个：把"混沌"这三个字换成**可以量出来的数**。
+%   1) 指数分离率（Lyapunov 指数）——配"重正交化 QR + 变分方程"的口径与步长证据；
+%   2) 分岔结构（周期倍增、Feigenbaum 常数、周期窗口）——配参数网格分辨率；
+%   3) 几何（吸引子、Poincare 截面、零倾线）——配"轨道数、丢弃的暂态、投影参数"。
+% 三条都要给出**实测数字**，并且都要能回答"这个数字凭什么不是数值噪声"。
+% 断言附表由 tools/build_book.py 从实际运行结果生成，\input 进来，不手抄。
+
+\numlabchapter{动力系统、分岔与混沌}{3.5}
+
+\section{这一章要解决什么}
+
+"混沌"这个词的危险之处在于它听起来像一个形容词。本章把它拆成三件可测量的事：
+
+\begin{enumerate}
+  \item \textbf{指数分离率}。两条初值相差 $\varepsilon$ 的轨道，平均而言按
+        $d(t)\approx\varepsilon e^{\lambda_1 t}$ 分开。$\lambda_1>0$ 就是"对初值敏感"，
+        它是本章第一个可以直接报数的量。
+  \item \textbf{分岔结构}。参数连续变化时，周期轨在什么参数值上出现、失稳、倍增、
+        消失。这些都是方程（乘子 $=+1$ 或 $-1$）的根，可以算到机器精度。
+  \item \textbf{几何}。吸引子长什么样、轨道多久回来一次、零倾线把平面切成几块。
+        这一部分只能用图来说，但图上的每个点仍然必须来自解出来的方程，
+        而不是"颜色看着像"。
+\end{enumerate}
+
+贯穿全章的一条纪律：\textbf{任何"混沌"结论都必须附一条数值证据链}。
+本章用的是三条腿：散度恒等式（$\sum\lambda_i=\langle\nabla\!\cdot\!f\rangle$）、
+步长减半（$h\to h/2$ 后结论不变）、以及"解析对拍"（能闭式的一律对拍）。
+记号：$u=\tfrac12\varepsilon_{\text{mach}}=2^{-53}\approx1.11\times10^{-16}$；
+本章所有"实测"数字都来自 \texttt{tests/3.5/} 的断言报告，
+"本仓实测"指的是固定口径下的复现结果，口径随数字一起给出。
+
+\section{Lyapunov 指数：把"敏感"变成一个数}
+
+\begin{definition}[流的 Lyapunov 指数]
+设 $f$ 生成流 $\varphi_t$，$D\varphi_t(y_0)$ 是沿轨道 $y(t)=\varphi_t(y_0)$ 的变分（切）映射，
+即 $D\varphi_t$ 满足
+\begin{equation}
+  \frac{d}{dt}D\varphi_t=J(y(t))\,D\varphi_t,\qquad D\varphi_0=I ,
+  \label{eq:variational}
+\end{equation}
+其中 $J=\partial f/\partial y$。把 $D\varphi_t$ 的奇异值记为 $\sigma_1(t)\ge\sigma_2(t)\ge\dots$，
+则第 $i$ 个 Lyapunov 指数定义为
+\begin{equation}
+  \lambda_i=\lim_{t\to\infty}\frac1t\log\sigma_i(t).
+  \label{eq:lyap}
+\end{equation}
+$\lambda_1>0$ 时称轨道（在该不变集上）是混沌的。
+\end{definition}
+
+对映射 $x_{n+1}=g(x_n)$，把 $D\varphi_t$ 换成 $\prod_{k=0}^{n-1}Dg(x_k)$ 即可，
+下文所有结论对映射逐字成立。
+
+\begin{theorem}[指数之和等于散度的时间平均]
+\label{thm:sum-div}
+对 $\mathbb{R}^d$ 上由 $f$ 生成的流，
+\begin{equation}
+  \sum_{i=1}^{d}\lambda_i=\lim_{T\to\infty}\frac1T\int_0^T\nabla\!\cdot\!f(y(t))\,dt .
+  \label{eq:sumdiv}
+\end{equation}
+特别地，若 $\nabla\!\cdot\!f$ 是常数 $c$，则 $\sum_i\lambda_i=c$。
+对映射，$\sum_i\lambda_i=\lim_{n\to\infty}\frac1n\sum_{k<n}\log|\det Dg(x_k)|$。
+\end{theorem}
+
+\begin{proof}
+设 $M(t)=D\varphi_t$。由 \eqref{eq:variational} 与 Jacobi 公式
+$\frac{d}{dt}\det M=(\operatorname{tr}J)\det M$（在 $\det M>0$ 的邻域上对
+$\log\det M$ 求导即可），得
+\[
+  \det D\varphi_t=\exp\!\Bigl(\int_0^t\nabla\!\cdot\!f(y(s))\,ds\Bigr).
+\]
+另一方面 $\det D\varphi_t=\prod_i\sigma_i(t)$，于是
+\[
+  \frac1t\log\bigl|\det D\varphi_t\bigr|=\sum_i\frac1t\log\sigma_i(t)
+  =\frac1t\int_0^t\nabla\!\cdot\!f(y(s))\,ds .
+\]
+两边令 $t\to\infty$，左边逐项收敛到 $\sum_i\lambda_i$，右边收敛到散度的时间平均。
+常数散度的情形立刻得到。映射的情形把行列式换成乘积、把积分换成求和即可
+（$\log|\det\prod Dg|=\sum_k\log|\det Dg(x_k)|$）。
+\end{proof}
+
+这条定理是本章的\textbf{第一根支柱}，因为它给出一个不依赖任何文献值的标尺：
+
+\begin{itemize}
+  \item Lorenz 的散度处处是 $-\left(\sigma+1+\beta\right)$。取 $\sigma=10$、$\beta=8/3$ 得
+        $-13.6666666667$。本仓实测（$T=2000$、$h=0.01$、QR 每 $10$ 步、暂态 $50$）
+        两条初值的 $\sum\lambda$ 与它的差都小于 $5\times10^{-4}$。
+  \item Henon 映射的 $|\det Dg|=|b|$ 处处常数，$b=0.3$ 时
+        $\sum\lambda=\log 0.3=-1.2039728043259361$。本仓实测
+        $\lambda=(0.4193,-1.6233)$，和与闭式的差小于 $10^{-12}$。
+\end{itemize}
+
+\begin{theorem}[Benettin 的重正交化 QR 给出全部指数]
+\label{thm:benettin}
+设 $Q_nR_n=D\varphi_{n\Delta t}$ 是每 $\Delta t$ 步做一次 QR 分解的结果，
+$R_n$ 取正对角。则
+\begin{equation}
+  \lambda_i=\lim_{n\to\infty}\frac{1}{n\Delta t}\sum_{k=1}^{n}\log (R_k)_{ii},
+  \label{eq:benettin}
+\end{equation}
+且该极限与每次 QR 的间隔 $\Delta t$、与正交化的具体算法（Gram--Schmidt 或 Householder）
+无关。
+\end{theorem}
+
+\begin{proof}[证明要点]
+把 $D\varphi_{n\Delta t}$ 写成相邻块的乘积
+$M_nM_{n-1}\cdots M_1$（$M_k=D\varphi_{k\Delta t\to(k+1)\Delta t}$），
+并归纳地记 $M_kQ_{k-1}=Q_kR_k$。这就是 \eqref{eq:benettin} 的递推：
+每一步先传播、再正交化。逐块 QR 与整体 QR 的差别只在于 $R$ 的对角元，
+而对角元满足 $(R_k)_{ii}=\|(I-P_{i-1})M_kq^{(k-1)}_i\|$，
+其中 $P_{i-1}$ 是前 $i-1$ 个方向张成的正交投影——
+这正是"第 $i$ 个方向在每一步里的伸长倍数"。
+Gram--Schmidt 与 Householder 给出同一组 $\{|(R_k)_{ii}|\}$（差一个符号，
+由正对角约定消掉），所以指数与算法无关。
+会改变结果的是 $\Delta t$：只有当每一步的伸长倍数不溢出、
+且重正交化的次数足够多时，递推才等价于奇异值的极限；
+数值上表现为\textbf{正交性缺陷}必须留在舍入水平。
+本仓实测（Lorenz，$T=2000$，$300$ 次重正交化）最大缺陷 $4.4\times10^{-16}$；
+把间隔从 $10$ 步改成 $20$ 步，谱的变化小于 $10^{-9}$——
+这条"间隔无关性"就是定理里那句"与 $\Delta t$ 无关"的实测版本。
+\end{proof}
+
+\begin{corollary}[Kaplan--Yorke 维数]
+设 $\lambda_1\ge\dots\ge\lambda_d$，取最大的 $j$ 使 $\sum_{i\le j}\lambda_i\ge0$，则
+\begin{equation}
+  D_{KY}=j+\frac{\sum_{i\le j}\lambda_i}{|\lambda_{j+1}|}.
+  \label{eq:ky}
+\end{equation}
+Lorenz 用本仓实测谱代入得 $D_{KY}=2.062$，与文献常用的 $2.06$ 一致。
+注意这一条\textbf{不是独立证据}：它由同一组指数推出，只能作一致性检查。
+\end{corollary}
+
+\section{Lorenz：三个能闭式对账的量}
+
+\begin{theorem}[平衡点、散度与相型]
+\label{thm:lorenz-fp}
+对 $\dot x=\sigma(y-x)$、$\dot y=x(\rho-z)-y$、$\dot z=xy-\beta z$：
+\begin{enumerate}
+  \item 三个平衡点是 $O=(0,0,0)$ 与
+        $C_\pm=\bigl(\pm\sqrt{\beta(\rho-1)},\pm\sqrt{\beta(\rho-1)},\rho-1\bigr)$
+        （$\rho>1$ 时存在）；
+  \item $\nabla\!\cdot\!f=-(\sigma+1+\beta)$ 与状态无关；
+  \item $O$ 的特征值是 $\lambda^3+(\sigma+\beta+1)\lambda^2+(\beta+\rho\sigma)\lambda
+        +\sigma\beta(1-\rho)$ 的根；$C_\pm$ 的特征值满足
+        \begin{equation}
+          \lambda^3+(\sigma+\beta+1)\lambda^2+\beta(\rho+\sigma)\lambda
+          +2\sigma\beta(\rho-1)=0 .
+          \label{eq:lorenz-char}
+        \end{equation}
+\end{enumerate}
+\end{theorem}
+
+\begin{proof}
+(1) 令右端为零：$\dot x=0$ 给 $y=x$；$\dot z=0$ 给 $xy=\beta z$，故 $z=x^2/\beta$；
+代入 $\dot y=0$ 得 $x(\rho-z)-x=0$，即 $x\bigl(\rho-1-x^2/\beta\bigr)=0$，
+于是 $x=0$（$O$）或 $x^2=\beta(\rho-1)$（$C_\pm$）。
+(2) 直接求迹：$-\sigma-1-\beta$。
+(3) 在 $C_\pm$ 处
+\[
+  J=\begin{pmatrix}-\sigma&\sigma&0\\ 1&-1&-x\\ x&x&-\beta\end{pmatrix},
+  \qquad x=\sqrt{\beta(\rho-1)},
+\]
+展开 $\det(\lambda I-J)$ 并用 $x^2=\beta(\rho-1)$ 化简即得 \eqref{eq:lorenz-char}；
+在 $O$ 处 $x=0$，同一展开给 (3) 中写出的三次式。
+\end{proof}
+
+$\rho=28$（经典参数）时：$O$ 的特征值是 $(-22.8277,-2.6667,11.8277)$，
+一个正实根加两个负实根；$C_\pm$ 的是 $(-13.8546,\,0.0940\pm10.1945\mathrm{i})$。
+注意后者：\textbf{一个稳定实方向 $+$ 一个不稳定螺旋面}。
+按相型分类这是 \texttt{saddle\_focus}（鞍焦），不是 \texttt{saddle}（鞍点）——
+鞍点的两个方向都是实的。本仓初版把所有"有正有负"的特征值都判成鞍点，
+于是 $\rho=28$ 的 $C_\pm$ 被写成了鞍点；这条分类现在是断言 \texttt{test\_lorenz\_}\allowbreak
+\texttt{fixed\_}\allowbreak\texttt{points\_}\allowbreak\texttt{and\_}\allowbreak
+\texttt{divergence} 的回归项。这个区别不是术语洁癖：奇异吸引子的两片"翅膀"
+正是绕着 $C_+$ 与 $C_-$ 的两个螺旋面转出来的。
+
+\begin{theorem}[Hopf 阈值 $\rho_H=470/19$]
+\label{thm:lorenz-hopf}
+在 \eqref{eq:lorenz-char} 中令 $\lambda=\mathrm{i}\omega$（$\omega>0$），
+方程组有解当且仅当
+\begin{equation}
+  \rho=\rho_H=\frac{\sigma(\sigma+\beta+3)}{\sigma-\beta-1},\qquad
+  \omega^2=\beta(\rho_H+\sigma)=\frac{2\sigma\beta(\rho_H-1)}{\sigma+\beta+1}.
+  \label{eq:hopf}
+\end{equation}
+取 $\sigma=10,\beta=8/3$ 得 $\rho_H=470/19=24.7368421053$，$\omega^2=92.6315789474$。
+\end{theorem}
+
+\begin{proof}
+把 $\lambda=\mathrm{i}\omega$ 代入 \eqref{eq:lorenz-char} 并分开实部、虚部：
+\[
+  \text{实部：}\ -(\sigma+\beta+1)\omega^2+2\sigma\beta(\rho-1)=0,
+  \qquad
+  \text{虚部：}\ \mathrm{i}\omega\bigl(\beta(\rho+\sigma)-\omega^2\bigr)=0 .
+\]
+由虚部（$\omega\ne0$）得 $\omega^2=\beta(\rho+\sigma)$；代入实部得
+\[
+  (\sigma+\beta+1)\beta(\rho+\sigma)=2\sigma\beta(\rho-1)
+  \ \Longrightarrow\
+  (\sigma+\beta+1)(\rho+\sigma)=2\sigma(\rho-1).
+\]
+展开并按 $\rho$ 归并：
+$\rho\bigl(\sigma+\beta+1-2\sigma\bigr)=-\sigma(\sigma+\beta+1)-2\sigma$，
+即 $\rho(\beta+1-\sigma)=-\sigma(\sigma+\beta+3)$，
+两边同除 $\beta+1-\sigma=-(\sigma-\beta-1)$ 得 \eqref{eq:hopf}。
+\end{proof}
+
+本仓实测：用"$\max\operatorname{Re}\lambda(\rho)$ 变号"做判据二分 $40$ 次，
+得 $\rho_H=24.736842105253$，与 $470/19$ 差 $9.8\times10^{-12}$。
+在 $\rho_H$ 处 $C_\pm$ 的特征值是 $(-13.6667,\,0\pm9.6245\mathrm{i})$：
+\textbf{第三个特征值不是零}（它等于 $-\left(\sigma+1+\beta\right)$）。
+把判据写成 $\max|\operatorname{Re}\lambda|=0$ 会得到 $13.67$ 并误判"不是 Hopf"，
+写成 $\max\operatorname{Re}\lambda=0$ 才对——这是本章第四个陷阱。
+
+\section{蝴蝶效应的定量版}
+
+"蝴蝶效应"通常被讲成一句比喻。本章把它变成一条可以算的曲线：
+取两条初值只差 $\varepsilon$ 的轨道，量它们相空间距离 $d(t)$。
+
+\begin{theorem}[可分辨时间]
+\label{thm:resolvable}
+设 $d(t)=\varepsilon e^{\lambda_1t}$ 直到饱和，显示（或测量）能分辨的最小距离是
+$\Delta_{\text{res}}$，则分离第一次被看见的时刻是
+\begin{equation}
+  t_{\text{vis}}=\frac{1}{\lambda_1}\log\frac{\Delta_{\text{res}}}{\varepsilon}.
+  \label{eq:tvis}
+\end{equation}
+$\varepsilon=10^{-8}$、$\Delta_{\text{res}}=10^{-3}$、$\lambda_1=0.9056$ 给
+$t_{\text{vis}}=12.71$。
+\end{theorem}
+
+\begin{proof}
+解 $\varepsilon e^{\lambda_1t}=\Delta_{\text{res}}$ 得 $t=\lambda_1^{-1}
+\log(\Delta_{\text{res}}/\varepsilon)$。$10^{-8}$ 与 $10^{-3}$ 差五个数量级，
+$\log10^5=11.5129$，除以 $0.9056$ 得 $12.713$。
+\end{proof}
+
+这条公式是本章最有用的一个"防骗"工具：它说明"初值差 $10^{-8}$"这件事
+\textbf{在当前显示分辨率下有 $12.7$ 个时间单位的观察窗口}，
+而不是"永远看不出来"或者"立刻就乱"。本仓实测（8 对孪生轨道、$h=0.005$）
+平均分离第一次越过 $10^{-3}$ 的时刻是 $12.50$，比理论值早 $1.7\%$：
+因为平均分离的起点是 $6.0\times10^{-9}$（不是恰好 $10^{-8}$），
+且拟合窗口 $[10^{-6},1]$ 内的实测增长率 $0.8876$ 略低于 $\lambda_1$。
+两个数都给出，读者自己看差别在哪。
+
+饱和也是可测的：分离不会一直指数增长，它最终停在被吸引子直径决定的量级上。
+实测尾段平均分离 $13.87$，单对最大分离 $21.69$。
+这条曲线的形状（指数段 + 平台段）就是"可预报时间有限"的全部内容。
+
+\section{周期倍增、Feigenbaum 与"分辨率"}
+
+\begin{theorem}[logistic 的 2 周期与乘子]
+\label{thm:two-cycle}
+对 $g_r(x)=rx(1-x)$：
+\begin{enumerate}
+  \item 不动点是 $x=0$ 与 $x=1-1/r$，乘子分别是 $r$ 与 $2-r$；
+  \item $r>3$ 时存在 2 周期
+        \begin{equation}
+          x_\pm=\frac{r+1\pm\sqrt{(r-3)(r+1)}}{2r},
+          \label{eq:twocycle}
+        \end{equation}
+        其乘子是
+        \begin{equation}
+          M=g_r'(x_+)g_r'(x_-)=r^2(1-2x_+)(1-2x_-)=4+2r-r^2 .
+          \label{eq:twomult}
+        \end{equation}
+\end{enumerate}
+\end{theorem}
+
+\begin{proof}
+(1) $g_r(x)=x$ 给 $x\bigl(r(1-x)-1\bigr)=0$；$g_r'(x)=r(1-2x)$，代入两个根即得。
+(2) 把 $g_r^2(x)-x$ 因式分解。因为 $g_r^2(x)-x$ 一定能被 $g_r(x)-x$ 整除
+（不动点也是 2 周期的），余下的是一个二次多项式；直接展开（或长除）得
+\[
+  \frac{g_r^2(x)-x}{g_r(x)-x}=-r^2x^2+r(r+1)x-(r+1),
+\]
+它的两个根就是 $x_\pm$（把求根公式写出来即 \eqref{eq:twocycle}，
+判别式 $\Delta=r^2(r+1)^2-4r^2(r+1)=r^2(r+1)(r-3)$）。
+乘子用链式法则 $M=g_r'(x_+)g_r'(x_-)=r^2\prod_\pm(1-2x_\pm)$；
+由韦达定理 $\prod_\pm(1-2x_\pm)=1-2(x_++x_-)+4x_+x_-$，
+代入 $x_++x_-=(r+1)/r$、$x_+x_-=(r+1)/r^2$ 得
+$M=r^2-2r(r+1)+4(r+1)=4+2r-r^2$。
+\end{proof}
+
+\begin{theorem}[倍增点]
+\label{thm:doubling}
+$1$ 周期在 $r_1=3$ 失稳；2 周期在
+\begin{equation}
+  r_2=1+\sqrt6=3.449489742783178
+  \label{eq:r2}
+\end{equation}
+失稳（由 $M=-1$）。
+\end{theorem}
+
+\begin{proof}
+$2-r=-1\Rightarrow r=3$。$4+2r-r^2=-1\Rightarrow r^2-2r-5=0\Rightarrow r=1\pm\sqrt6$，
+取 $r>3$ 的根。
+\end{proof}
+
+本仓实测：四个倍增点 $3.0000000000000$、$3.4494897427832$、$3.5440903595519$、
+$3.5644072660954$ 与闭式/文献值的最大偏差 $1.3\times10^{-15}$；
+在每个倍增点上，对应周期的乘子与 $-1$ 的偏差不超过 $1.8\times10^{-14}$。
+注意第二条是\textbf{判据本身}的验算：倍增点不是"查表查到的"，
+而是"乘子穿过 $-1$"这件事被解出来之后，回代确认的结果。
+
+\begin{theorem}[3 周期窗口的起点是 $1+\sqrt8$]
+\label{prop:window3}
+周期 3 的窗口从
+\begin{equation}
+  r_t=1+\sqrt8=3.8284271247461903
+  \label{eq:rt}
+\end{equation}
+开始，那里 $g_r^3(x)-x$ 出现三个二重根
+$\approx(0.1599288,\,0.5143551,\,0.9563177)$，且这些点上的乘子等于 $+1$。
+$r<r_t$ 时 $g_r^3(x)=x$ 除不动点外没有实根。
+\end{theorem}
+
+\begin{proof}[证明与验证]
+二重根条件与"乘子 $=+1$"等价：$(g^3)'=g'(x_1)g'(x_2)g'(x_3)=1$。
+把 $r=r_t$ 代入 $g_r^3(x)-x$（一个关于 $x$ 的 8 次多项式），
+数值求根给出上列三对相差 $<4\times10^{-7}$ 的根
+（差值受 8 次多项式在二重根处的条件数限制，不是模型误差），
+在这三点上回代 $(g^3)'$ 得 $1\pm4\times10^{-6}$。
+本仓另用二分实测窗口起点 $r_t=3.828427125215$，与 $1+\sqrt8$ 差 $4.7\times10^{-10}$。
+\end{proof}
+
+窗口有多宽，决定了图要多细才画得出来：实测窗口是
+$[3.8284271,\,3.8414990]$，宽 $0.013072$。分岔图的参数网格是
+$[2.4,4.0]$ 上 $n_r$ 个点，则窗口里的点数约是
+\begin{equation}
+  \frac{0.013072}{(4.0-2.4)/(n_r-1)}
+  \;\approx\;
+  0.00817\,(n_r-1).
+  \label{eq:windowres}
+\end{equation}
+$n_r=700$（\texttt{bifurcation\_}\allowbreak\texttt{logistic} 的默认）给 $5.7$ 个点、
+$n_r=600$（\texttt{lyapunov\_}\allowbreak\texttt{overlay} 的默认）给 $4.9$ 个点——
+刚好能看出"这里有一小段竖线"；$n_r=200$ 只剩 $1.6$ 个点，
+窗口会退化成噪声里的一个毛刺。
+\textbf{分辨率不足会把周期窗口画糊}，这是本章第三个陷阱，也是
+\texttt{bifurcation\_}\allowbreak\texttt{logistic} 把 $n_r$ 做成参数、
+并把"当前窗口里有多少个参数点"写进 \texttt{meta} 的原因。
+
+\begin{theorem}[Feigenbaum 常数是超稳定参数间隔之比的极限]
+\label{thm:feigenbaum}
+设 $R_n$ 是使 $2^{n-1}$ 周期轨经过临界点 $x=1/2$ 的参数（超稳定参数），则
+\begin{equation}
+  \delta=\lim_{n\to\infty}\frac{R_n-R_{n-1}}{R_{n+1}-R_n}=4.669201609102990\ldots,
+  \qquad
+  r_\infty=\lim R_n=3.5699456718\ldots
+  \label{eq:delta}
+\end{equation}
+$\delta$ 没有已知的闭式，它的值只能由序列逼近。
+\end{theorem}
+
+\begin{proof}[说明]
+超稳定参数由 $g^{2^{n-1}}_{R_n}(1/2)=1/2$ 唯一确定（乘子为 $0$）。
+"比值收敛到 $\delta$"这一条属于 Feigenbaum 的重整化理论，本章只用它的结论，
+但\textbf{用实测给出收敛速度}：本仓算到 $n=9$ 得
+\[
+  \delta_n:\ 4.708943,\ 4.680771,\ 4.662960,\ 4.668404,\ 4.668954,\ 4.669157,\ 4.669191,
+\]
+尾项与 $4.6692016091$ 差 $1.06\times10^{-5}$，而序列中段（第 4 项）的误差是
+$7.98\times10^{-4}$——序列确实在收敛，但收敛得慢且不单调。
+\textbf{这就是为什么 $\delta$ 的断言只能按实测收敛速度给容差}：
+把它写成"等于 $4.6692016091$，容差 $10^{-12}$"是拿序列的一项冒充极限。
+\end{proof}
+
+前六个超稳定参数的实测值与文献值的最大偏差 $4.7\times10^{-11}$；
+其中 $R_2=1+\sqrt5=3.236067977499790$ 与闭式逐位相符（差 $0$）——
+这是本章第五条"闭式对拍"。
+
+\section{Poincare 截面、零倾线与相图}
+
+\begin{definition}[Poincare 截面与返回映射]
+取超平面 $\Sigma=\{y:y_{i}=\ell\}$ 与方向 $\pm1$，定义
+"沿轨道第一次以规定方向穿过 $\Sigma$"为 $P$。若轨道从 $y\in\Sigma$ 出发、
+下一次穿过时的点是 $y'$，则 $P(y)=y'$ 称为返回映射，两次穿越的时间间隔称为返回时间。
+\end{definition}
+
+\begin{theorem}[截面上点的定位误差]
+\label{thm:poincare}
+设步长为 $h$，用"格点两端异号 + 线性插值"定位穿越点时，误差是 $O(h^2)$；
+再用截面分量的局部导数 $\dot y_i=f(y)_{i}$ 做一次 Newton 修正
+（$t\leftarrow t-y_i/\dot y_i$），误差降到舍入水平。
+\end{theorem}
+
+\begin{proof}
+设真实穿越时刻是 $t^\ast$，格点下标 $n$ 满足 $t_n\le t^\ast<t_{n+1}$，$h=t_{n+1}-t_n$。
+线性插值给出的估计是 $t_n+h\frac{y_i(t_n)}{y_i(t_n)-y_i(t_{n+1})}$。
+把 $y_i$ 在 $t^\ast$ 处展开：$y_i(t)=f_i(t^\ast)(t-t^\ast)+O((t-t^\ast)^2)$，
+代入得插值估计与 $t^\ast$ 的差为 $O(h^2)$（这是"正割法"的经典结论）。
+Newton 一步把线性误差换成二次误差：由 $t^{\text{new}}=t-\frac{y_i(t)}{f_i(t)}$ 与
+$y_i(t)=f_i(t^\ast)(t-t^\ast)+O(h^2)$ 得
+$t^{\text{new}}-t^\ast=O(h^2)$ 的相对修正，
+迭代 $k$ 次后误差是 $O(h^{2^k})$；实现在 $h=0.02$ 上做 $3$ 次即到 $7.3\times10^{-12}$。
+\end{proof}
+
+本仓实测（Lorenz，$z=27$ 截面，向上穿越）：
+线性插值点到精化点的最大位移按 $h^2$ 下降（$h=0.04/0.02/0.01/0.005$ 给
+$0.818/0.184/0.0582/0.0153$），精化后的平面残差 $2.1\times10^{-14}$。
+返回时间均值 $0.7487$（$80$ 次穿越）——这是"轨道绕一片翅膀一圈"的时间尺度。
+
+零倾线（nullcline）是 $f$ 的某个分量为零的曲线，两条零倾线的交点就是平衡点。
+本章的零倾线用两种独立方式给出：数值追踪（逐列二分 + 把相邻根连成支）
+与闭式参数化，两者在 van der Pol 上吻合到 $4.4\times10^{-16}$。
+数值追踪有一个必须显式处理的坑：\textbf{连接相邻列的根时用哪个度量}。
+van der Pol 的 $\dot y=0$ 零倾线在 $x=\pm1$ 处有竖直渐近线，
+$x<-1$ 与 $x>-1$ 上的点纵坐标可以很接近，
+只用 $|y|$ 距离连接会把三支接成一支；改用归一化的二维距离
+$\sqrt{(\Delta x/w)^2+(\Delta y/h)^2}$ 之后分支数与闭式一致（三支）。
+
+\begin{theorem}[Hopf 标准型的极限环]
+\label{thm:hopf-cycle}
+对 $\dot x=\mu x-\omega y-x(x^2+y^2)$、$\dot y=\omega x+\mu y-y(x^2+y^2)$：
+$\mu>0$ 时原点是不稳定焦点，存在唯一的极限环，它是半径 $\sqrt\mu$ 的圆，
+周期精确等于 $2\pi/\omega$。
+\end{theorem}
+
+\begin{proof}
+转到极坐标 $x=\rho\cos\theta$、$y=\rho\sin\theta$，代入得
+\[
+  \dot\rho=\mu\rho-\rho^3,\qquad \dot\theta=\omega .
+\]
+径向方程是一维自治方程，非零平衡点 $\rho=\sqrt\mu$（$\mu>0$）；
+$\rho<\sqrt\mu$ 时 $\dot\rho>0$、$\rho>\sqrt\mu$ 时 $\dot\rho<0$，
+所以它是全局渐近稳定的（在 $\rho>0$ 上），对应的轨道是半径 $\sqrt\mu$ 的圆。
+角速度恒为 $\omega$，故绕一圈的时间是 $2\pi/\omega$。
+\end{proof}
+
+本仓实测（$\mu=0.5$）：轨迹尾段平均半径 $0.707106781187$ 与 $\sqrt{0.5}$ 差
+$2.2\times10^{-16}$；用截面穿越量出的周期与 $2\pi$ 差 $1.2\times10^{-12}$。
+注意 $\mu$ 很小时径向收敛率就是 $\mu$ 本身（$\dot\rho\approx\mu\rho$），
+$\mu=0.05$ 要跑到 $t\sim20/\mu=400$ 才看清半径——把时间轴拖长再读，
+别把"还没收敛"当成"理论不对"。
+
+\begin{theorem}[van der Pol 在 $\mu\to0$ 的周期修正]
+\label{thm:vdp}
+$\ddot x+\mu(x^2-1)\dot x+x=0$ 的极限环周期满足
+\begin{equation}
+  T(\mu)=2\pi\Bigl(1+\frac{\mu^2}{16}+O(\mu^4)\Bigr),
+  \qquad\text{即}\qquad
+  \lim_{\mu\to0}\frac{T(\mu)-2\pi}{\mu^2}=\frac{2\pi}{16}.
+  \label{eq:vdp}
+\end{equation}
+\end{theorem}
+
+\begin{proof}[证明要点]
+用两时间尺度（$t$ 与 $\tau=\mu t$）展开 $x=x_0+\mu x_1+\mu^2x_2+\dots$。
+$O(1)$ 给简谐振子 $x_0=A(\tau)\cos t$；$O(\mu)$ 的可解性条件
+（消除久期项）给出 $\dot A=A/2-A^3/8$，其非零平衡 $A=2$ 是极限环的振幅；
+$O(\mu^2)$ 的可解性条件给出频率修正 $\omega=1-\mu^2/16+O(\mu^4)$，
+于是 $T=2\pi/\omega=2\pi(1+\mu^2/16)+O(\mu^4)$。
+\end{proof}
+
+本仓实测：$\mu=0$ 的周期 $6.283185307704$ 与 $2\pi$ 差 $5.2\times10^{-10}$；
+$\mu=0.02$ 时 $(T-2\pi)/\mu^2=0.392692$，与 $2\pi/16=0.392699081$ 差
+$7\times10^{-6}$（相对 $1.8\times10^{-5}$）；$\mu=0.5,1,2$ 时同一比值
+单调降到 $0.389962,\,0.380102,\,0.336672$——它确实在往 $\mu\to0$ 的极限走，
+而不是"对谁都成立"。
+
+\section{五个可视化该怎么看}
+
+每个帧都把自己的口径写在 \texttt{meta} 与 \texttt{strings} 里。
+下面把"该怎么看"和"它承诺了什么"一起列出来。
+
+\begin{enumerate}
+  \item \texttt{lorenz\_}\allowbreak\texttt{butterfly}（招牌）：三维吸引子上的两条轨道，
+        初值相差 $10^{-8}$。看三件事：两条线什么时候肉眼可分辨（实测 $t_{\text{vis}}=12.50$，
+        理论 $12.71$）、副轴的对数分离曲线在哪个窗口里是直线（$[10^{-6},1]$，
+        拟合斜率 $0.8876\approx\lambda_1$）、以及它在 $d\approx13.9$ 处变平（饱和）。
+        帧里画的是\textbf{一对}孪生轨道（中心轨道 + 它的 $\varepsilon$ 扰动副本，
+        两者在 $t=0$ 相距 $10^{-8}$），而副轴上的分离曲线是
+        $n_{\text{pairs}}=8$ 对的平均（逐对的曲线也在帧里，
+        用来看"一对的运气"与"平均的行为"差多少）；
+        另有一条把步长加倍（$h=0.01$）的对照曲线。丢弃暂态 $t=20$，
+        样本间隔 $0.05$（$601$ 个采样点）。
+        帧里同时给原始 $x/y/z$ 与投影后的 $u/v$，\texttt{strings.projection}
+        写着方位角、仰角的定义式——拖动角度参数时前端重画的是同一批三维点，
+        \textbf{不是}另算一遍。
+  \item \texttt{bifurcation\_}\allowbreak\texttt{logistic}：参数在 $[2.4,4.0]$ 上扫，
+        每个参数丢弃 $800$ 次暂态（\texttt{n\_transient}，可调 $100\sim4000$）、
+        保留 $64$ 个迭代点（\texttt{n\_keep}）——这就是图上"点云"的密度；
+        参数点数 \texttt{n\_r} 与步长 \texttt{dr} 都在 \texttt{meta} 里。时间轴是参数 $r$。
+        要看的是：$r=3$ 处一根线裂成两根、$r\approx3.449$ 再裂、
+        以及 $r\approx3.83$ 那条**竖直的窄带**（3 周期窗口）。
+        分辨率警告写在 \texttt{strings.resolution\_note} 里：默认 $n_r=600$ 时
+        $\Delta r=2.67\times10^{-3}$，3 周期窗口（宽 $0.013072$）里只有 $4.9$ 个参数点；
+        把它拖到 $200$ 就只剩 $1.6$ 个点，窗口会被画成噪声。
+        副轴给的是同一批参数上的 Lyapunov 指数——这张图与下一张是同一份数据。
+  \item \texttt{lyapunov\_}\allowbreak\texttt{overlay}：上半是分岔图，
+        下半是 $\lambda(r)$。三个解析对拍点被画成叉号：
+        $\lambda(2.5)=-0.693147$、$\lambda(3.2)=-0.916291$、$\lambda(4)=0.693148$
+        （闭式分别是 $\log0.5$、$\log0.4$、$\log2$）。
+        估计口径写在 \texttt{strings.estimate\_}\allowbreak\texttt{protocol}：
+        丢弃 $n_{\text{transient}}$ 次暂态、再迭代 $n_{\text{iter}}$ 次、
+        按 $n_{\text{block}}$ 块给标准误（默认实测最大标准误 $6.9\times10^{-3}$）。
+        要看的是 $\lambda>0$ 的区间与分岔图上"点云糊掉"的区间**重合**，
+        以及周期窗口里 $\lambda$ 掉回负值（窗口里的运动是周期的，不分离）。
+  \item \texttt{poincare\_}\allowbreak\texttt{section}：三维轨道 + 平面 $z=27$ + 平面上的
+        截面点。穿越点数写在 \texttt{meta} 里（\texttt{n\_cross}$=80$）；
+        只收向上穿越（$\dot z>0$），所以截面点不会出现"重影"。
+        副轴是返回时间序列（\texttt{mean\_return}$=0.7487$）与平面残差：
+        \texttt{max\_residual} 应当贴在 $10^{-12}$ 以下（实测 $7.3\times10^{-12}$）；若某帧的残差突然到 $10^{-3}$ 量级，
+        那是精化没做够而不是"混沌"——这正是本章第六个陷阱。
+  \item \texttt{phase\_}\allowbreak\texttt{portrait}：二维相图上的向量场（箭头）、
+        零倾线（两支）、平衡点（相型颜色）与一组初值轨道。
+        要看的是"箭头穿过零倾线时哪个分量变号"：$\dot x=0$ 的曲线上箭头是竖直的，
+        $\dot y=0$ 的曲线上箭头是水平的，两者交点才是平衡点。
+        van der Pol 的 $\dot y=0$ 有竖直渐近线（$x=\pm1$），
+        所以那条零倾线是\textbf{三支}而不是一支；
+        \texttt{meta} 里的 \texttt{n\_null\_branches}、\texttt{n\_analytic\_branches}
+        与 \texttt{max\_residual\_null}（实测 $4.4\times10^{-16}$）就是这件事的对账。
+        拖 $\mu$ 过 $0$：原点从稳定焦点变不稳定焦点，极限环出现。
+\end{enumerate}
+
+\section{本章的算法路线（P2/P3 合规说明）}
+
+所有结论都由自研代码算出，没有调用任何现成的特征值/QR/最小二乘例程：
+
+\begin{itemize}
+  \item \textbf{变分方程 + 自写 QR}：Benettin 算法的核心是每一步对切空间做
+        修正 Gram--Schmidt 并累加 $\log|R_{ii}|$。实现是自写的 MGS + 一轮重正交化
+        （实测缺陷 $4.4\times10^{-16}$），并有两条恒等式断言：
+        $A=QR$ 的重建误差 $<10^{-14}$、$|\det A|=\prod|R_{ii}|$（$<10^{-14}$）；
+        Henon 的 $\sum\lambda=\log|b|$ 正是靠第二条成立的。
+  \item \textbf{平衡点与零倾线}：特征值由自写的三次/二次求根加 Newton 精化给出；
+        零倾线逐列二分求根，再用归一化二维距离把根连成支，
+        与闭式参数化对拍（$4.4\times10^{-16}$）。
+  \item \textbf{周期轨与乘子}：两条独立路径——Newton 解 $g^p(x)-x=0$
+        （带精确周期过滤）与网格扫描 + 向量化二分。两条路径的乘子差 $\le3.5\times10^{-15}$。
+        网格扫描有一个必须处理的退化：根正好落在等距节点上时
+        （$r=3.2$ 的不动点 $x=0.6875$ 恰好是 $13750/20000$），
+        严格的 $F_iF_{i+1}<0$ 判据会漏掉这个根；
+        实现里把"端点正好是根"也算作一个括号，并对相邻重复根去重。
+  \item \textbf{分岔图与 Lyapunov 曲线}：参数维向量化（一次迭代推进所有参数），
+        与逐参数标量路径逐点对拍（偏差 $0.0$）；
+        有限时间涨落用分块标准误报告，不用"看起来很平"当证据。
+  \item \textbf{拟合}：$\lambda_1$ 的拟合窗口与直线拟合都是自写的
+        （正规方程 $2\times2$ 直接解，带 $R^2$），没有用任何现成回归例程。
+  \item \textbf{阈值结论}：Hopf 阈值、周期窗口起点、混沌起始点都用二分实测，
+        闭式只用来对账（$\rho_H$ 与 $470/19$ 差 $9.8\times10^{-12}$）。
+\end{itemize}
+
+\input{chapters/3.5/asserts_table}
+
+\section{它会怎样骗你（本章版）}
+
+\begin{enumerate}
+  \item \textbf{把"画得像蝴蝶"当成混沌的证据}：吸引子的形状与"对初值敏感"
+        是两件事。本章的判据是"孪生分离的拟合增长率 + 步长减半不变"，
+        图上像不像只负责好看。
+  \item \textbf{不给步长证据就宣布混沌}：$h$ 太大时截断误差自己就会指数放大。
+        本章的口径是：$h$ 从 $0.01$ 减半到 $0.005$，Benettin 的 $\lambda_1$ 从
+        $0.917925$ 变到 $0.903548$（差 $0.0144$，$T=400$），
+        孪生曲线增长率从 $0.8908$ 变到 $0.8881$（差 $0.0028$，$8$ 对平均），
+        $\sum\lambda$ 与散度的差在两种步长下分别是 $1.0\times10^{-4}$ 与
+        $6.2\times10^{-6}$。
+        没有这三条，"混沌"可能只是离散化噪声。
+  \item \textbf{分辨率不足会把周期窗口画糊}：3 周期窗口宽 $0.013072$。
+        $n_r=600$ 时窗口里 $4.9$ 个参数点，$n_r=200$ 时 $1.6$ 个。
+        图上"这里好像有一竖条"很可能只是采样点太少；
+        本章把"窗口里的参数点数"直接写进 \texttt{meta}。
+  \item \textbf{把 $\max|\operatorname{Re}\lambda|=0$ 当 Hopf 判据}：
+        $\rho_H$ 处 $C_\pm$ 的第三个特征值是 $-13.6667$ 而不是 $0$，
+        写成绝对值会得到 $13.67$ 并得出"没有 Hopf"的相反结论。判据是
+        $\max\operatorname{Re}\lambda$（带符号）。
+  \item \textbf{把鞍焦当鞍点}：$\rho=28$ 的 $C_\pm$ 是
+        $(-13.8546,\,0.0940\pm10.1945\mathrm{i})$：一个稳定实方向 + 一个不稳定螺旋面。
+        本仓初版把它判成 \texttt{saddle}，于是"两片翅膀"在相图里失去了来源。
+  \item \textbf{把截面的线性插值点当交点}：$h=0.02$ 时线性插值点的平面残差是
+        $3.4\times10^{-3}$，看上去"截面点散成一条带"；
+        这既不是混沌也不是数值不稳定，而是定位误差 $O(h^2)$。
+        做一次 Newton 修正后残差到 $10^{-12}$，带就收成点。
+  \item \textbf{把混沌区的"闭合残差"填成 0}：本章初版对检测不到周期的参数
+        直接把残差写成 $0.0$，图上"混沌"看起来完美闭合。
+        现在的实现一律给 $\min_{p\le P}|g^p(x)-x|$：窗口里 $<10^{-9}$、
+        混沌区中位 $5.2\times10^{-3}$（$94.4\%$ 大于 $10^{-4}$）。
+        另有一条"灰区"要记住：固定容差必然造出一条近闭合轨道带
+        （实测最小 $2.1\times10^{-9}$），所以 \texttt{meta} 里同时给出用了多大的容差。
+  \item \textbf{把 Feigenbaum 常数当"算出来就等于"}：$\delta$ 是序列的极限，
+        本仓算到 $n=9$ 的尾项与文献值差 $1.06\times10^{-5}$，中段差 $7.98\times10^{-4}$。
+        给 $\delta$ 的断言只能按实测收敛速度给容差；把容差写成 $10^{-12}$
+        等于假装序列已经到极限。
+  \item \textbf{把有限时间 Lyapunov 估计当极限值}：同一组参数、不同初值、
+        $T=2000$ 的 $\lambda_1$ 标准差是 $0.0103$；把 $T$ 从 $400$ 加到 $2000$，
+        均值从 $0.9017$ 爬到 $0.9041$。所以"$\lambda_1=0.9056$"这句话
+        必须带容差与口径，本章给的是 $\pm0.02$（约 $2\sigma$）。
+  \item \textbf{把饱和后的分离当发散}：$d(t)$ 在 $13.9$ 附近变平，
+        这不是"数值解崩了"，而是吸引子的直径。往上翻十倍去看
+        $\log_{10}d$ 曲线，指数段只占前 $40\%$ 的时间。
+  \item \textbf{把时间轴当时间}：\texttt{bifurcation\_}\allowbreak\texttt{logistic}
+        与 \texttt{lyapunov\_}\allowbreak\texttt{overlay} 的时间轴是\textbf{参数} $r$，
+        \texttt{lorenz\_}\allowbreak\texttt{butterfly} 是真实时间但只画到 $t=30$
+        （样本间隔 $0.05$），\texttt{poincare\_}\allowbreak\texttt{section}
+        画到 $t=60$。每帧的 \texttt{meta} 都给出当前口径，拖到头是夹住，不是卡住。
+  \item \textbf{把投影后的二维图当三维结构}：$u/v$ 是旋转投影，
+        "两片翅膀重叠"可能只是视角问题。帧里同时给原始 $x/y/z$，
+        拖 \texttt{azimuth}/\texttt{elevation} 看同一批点的另一个视角——
+        如果那是同一条轨道，换个角度它仍然是一条轨道。
+\end{enumerate}

@@ -1,0 +1,142 @@
+# 3.5 章断言清单（真源：`tests/3.5/test_dynamics.py`、`test_lyapunov.py`、`test_continuation.py`）
+#
+# 这一章分三段测：
+#   * **轨道与平衡点**（上半）：Lorenz 的 C± 与散度、Hopf 阈值 470/19、零倾线的两条路径
+#     （数值追踪 vs 闭式）、Poincare 截面的定向性与 O(h²) 定位误差、van der Pol 的
+#     μ→0 周期修正、Hopf 标准型的 √μ 极限环——A 类为主，收敛率是 C 类；
+#   * **Lyapunov 指数**：Σλ=散度（Lorenz）与 Σλ=log|b|（Henon）是两条不依赖文献的绝对标尺；
+#     λ₁ 与公认值 0.9056 的对拍、logistic 的三处闭式——A 类；步长减半、QR 间隔、
+#     孪生实验与 Benettin 谱的互证、block SEM 覆盖误差——C 类；
+#   * **分岔与续接**：周期倍增点、2 周期乘子、3 周期窗口起点、R₂ 的闭式——A 类；
+#     Feigenbaum δ 是序列极限，只有 C 类能说清楚。
+#
+# 实测规模（最近一次 `pytest tests/3.5 -q`）：A 70 条、B 0 条、C 21 条，共 91 条，全部通过。
+# 下面的 min_counts 按"声明了 28 个测试函数"留了一点余量：断言内部偶尔会多对拍一个参数点，
+# 余量避免"算法没坏、清单先红"。B 类为 0 是**如实**的：本章的辅助函数（assert_leq 等）
+# 没有一条被用到——凡是能对拍闭式的都用 A，凡是收敛/阈值型的都用 C，没有中间态。
+chapter: "3.5"
+title: 动力系统、分岔与混沌
+required_kinds: [A, C]
+
+min_counts:
+  A: 60
+  C: 18
+
+tests:
+  # ---------------------------------------------------------------- 平衡点与零倾线
+  - name: test_lorenz_fixed_points_and_divergence
+    kind: A
+    what: 三个平衡点的 |f| 残差 1.4e-14；C± 与闭式 √(β(ρ−1)) 的偏差 0；散度 −13.6666666667 与 −(σ+1+β) 完全相等；原点特征值 [−22.827723, −2.666667, 11.827723] 与闭式差 5.5e-7；C± 复共轭对虚部 10.194505 与 10.194501 差 1.0e-6；ρ=28 处 C± 判为鞍焦（saddle_focus）
+    theory: Lorenz 的非平凡平衡点 C±=(±√(β(ρ−1)), ±√(β(ρ−1)), ρ−1) 是精确解；∇·f=−(σ+1+β) 与状态无关；线性化给出相型
+  - name: test_lorenz_hopf_threshold_is_470_over_19
+    kind: C
+    what: 二分 40 次实测 ρ_H=24.736842105253，与 470/19=24.736842105263 差 9.8e-12；ρ_H 处 C± 的 max Re λ=5.9e-16（那一对复根落在虚轴上），第三个特征值 −13.6666666667 与 −(σ+1+β) 差 1.8e-15
+    theory: Hopf 分岔的定义是平衡点的一对特征值穿过虚轴：max Re λ(ρ) 在 ρ_H=σ(σ+β+3)/(σ−β−1) 变号
+  - name: test_nullclines_match_closed_forms
+    kind: A
+    what: van der Pol 的 dy/dt=0 零倾线数值追踪给出 3 支（49/41/49 点），与闭式的 3 支一致；数值点 vs 闭式 y=x/(μ(1−x²)) 的最大偏差 4.4e-16；跨过 x=−1 竖直渐近线的分支数 0；阻尼摆零倾线 vs y=−sin(x)/c 的偏差 4.4e-16
+    theory: 零倾线是 f 的分量为 0 的曲线；van der Pol 的 dy/dt=0 在 x=±1 有竖直渐近线，把曲线切成三段
+  - name: test_poincare_section_is_single_valued_and_on_plane
+    kind: A
+    what: 60 个时间单位收到 80 个截面点，离平面的最大距离 <1e-9；所有穿越点上的 dz/dt>0（定向判据）；相邻穿越时间间隔全部为正
+    theory: 定向 Poincare 截面只收单向穿越，返回映射才是单值的
+  - name: test_poincare_refinement_converges_second_order
+    kind: C
+    what: 「线性插值点 → Newton 精化点」的最大位移按 h² 收敛（h=0.04/0.02/0.01/0.005 给 0.818/0.184/0.0582/0.0153，实测阶 2.0）；精化后的平面残差最大 2.1e-14
+    theory: 线性插值定位误差是 O(h²)；用局部导数 f(y)[平面分量] 做 Newton 把它压到舍入水平
+  - name: test_van_der_pol_period_limits
+    kind: A
+    what: μ=0 的周期 6.283185307704 与 2π 差 5.2e-10；(T−2π)/μ² 在 μ=0.02 处 0.392692 与 2π/16=0.392699081 差 7e-6；振幅随 μ 单调增（2.002488/2.008620/2.019891）
+    theory: μ=0 退化成简谐振子（周期 2π）；μ→0 的周期修正系数是 2π/16
+  - name: test_hopf_normal_form_limit_cycle
+    kind: A
+    what: 极限环半径 0.707106781187 与 √0.5 差 2.2e-16；周期 6.283185307180 与 2π 差 1.2e-12
+    theory: Hopf 标准型 ρ'=μρ−ρ³、θ'=ω 的极限环是半径 √μ 的圆，周期 2π/ω
+  - name: test_ensemble_matches_single_trajectory
+    kind: A
+    what: 批量积分（n=1）与单条积分逐点差**恰好 0.0**，步数一致
+    theory: integrate_ensemble 与 integrate_fixed 使用同一个 rk_step，批量只是把参数维摊开
+  - name: test_frames_carry_raw_3d_and_projection
+    kind: A
+    what: lorenz_butterfly 与 poincare_section 两帧里，由原始 x/y/z 与 strings.projection 的角度重算出的 u/v 与帧内数组差 <1e-12
+    theory: 三维帧必须同时给原始三维数组与投影后的二维数组，并把投影参数写进 strings（前端可换角度重画）
+
+  # ---------------------------------------------------------------- Lyapunov 指数
+  - name: test_lorenz_exponent_sum_equals_divergence
+    kind: A
+    what: 两条初值（T=2000、h=0.01、QR 每 10 步）的 Σλ 与 −13.6666666667 的差都 <5e-4；λ₂ 绝对值 <0.03；Gram–Schmidt 正交性缺陷 <1e-12
+    theory: Σλ_i=⟨∇·f⟩；Lorenz 的散度是常数 −(σ+1+β)
+  - name: test_henon_exponents_sum_to_log_det
+    kind: A
+    what: Henon(a=1.4,b=0.3) 的 λ=(0.41960919, −1.62358199)，Σλ 与 log|b| 差 1.2e-14；λ₁ 与文献值 0.41922 差 3.9e-4
+    theory: Henon 映射的 det Dg=−b 处处常数，故两指数之和 = log|b|
+  - name: test_logistic_exponent_matches_closed_forms
+    kind: A
+    what: λ(2.5)=−0.693147180560（与闭式差 3.8e-14）、λ(3.2)=−0.916290731874（差 1.1e-14）、λ(4.0)=0.693149027409（差 1.8e-6，分块标准误 4.7e-6，200000 次迭代）
+    theory: 1<r<3 时 λ=log|2−r|；2 周期窗口 λ=½log|4+2r−r²|；r=4 共轭到 Bernoulli 移位 λ=log2
+  - name: test_lorenz_max_exponent_matches_accepted_value
+    kind: A
+    what: 两条初值的 λ₁ 分别是 0.91132 与 0.89679，均值 0.904055 与公认值 0.9056 相差 0.00155<0.02（跨初值标准差 0.010274、|均值−公认|/σ=0.15）
+    theory: 公认值 0.9056（Sprott 2003 表 5.1）；有限时间估计的涨落由跨初值标准差实测，容差据此给出
+  - name: test_lyapunov_estimate_is_step_size_stable
+    kind: C
+    what: h 从 0.01 减半到 0.005 后 λ₁ 从 0.917925 变到 0.903548（差 0.0144<0.03，T=400）；两个步长下的 Σλ 与散度差 1.0e-4 与 6.2e-6；孪生分离曲线（8 对平均）的增长率 0.8908 对 0.8881，差 0.0028<0.03
+    theory: 定步长积分的 Lyapunov 估计必须随步长收敛，否则"混沌"可能只是离散化噪声
+  - name: test_qr_interval_does_not_change_the_spectrum
+    kind: C
+    what: QR 间隔 10 与 20 的谱差 <1e-9（完全相同）
+    theory: 重正交化间隔只影响浮点误差与代价，不影响数学
+  - name: test_twin_growth_rate_agrees_with_benettin_spectrum
+    kind: C
+    what: 孪生轨迹的有限时间增长率 0.8876（288 个拟合点、R²=0.9707）与 Benettin λ₁=0.9113 相差 0.0237<0.05；饱和距离 13.865 落在 (5,40) 之间
+    theory: 两种测法测同一个量：一个直接量两条轨道之差，一个走变分方程 + QR
+  - name: test_logistic_estimate_error_is_within_block_sem
+    kind: C
+    what: λ(4) 与 ln2 的差落在 3 倍分块标准误之内；Kaplan–Yorke 维数 2.062 与文献 2.06 相差 <0.05
+    theory: 分块标准误度量有限时间涨落；误差若远大于它说明估计有系统偏差
+  - name: test_gram_schmidt_reconstructs_and_is_orthogonal
+    kind: A
+    what: 自写 MGS 的 A=QR 重建误差 5.6e-17、正交性缺陷 4.4e-16；2×2 上 |det A| 与 Π|R_ii| 相差 4.4e-16；数值散度与闭式 −13.6667 相差 <1e-6
+    theory: QR 的两条恒等式（A=QR、|det A|=Π|R_ii|）是 Benettin 累加 log|R_ii| 的正确性前提
+  - name: test_butterfly_frame_meta_matches_arrays
+    kind: A
+    what: 帧里报的 t_visible=12.5000 与数组里 sep_mean 第一次越过 display_res=1e-3 的时刻逐位相同；拟合增长率 0.8876 与公认值 0.9056 相差 0.018；h 与 2h 两条曲线的增长率差 0.00195
+    theory: meta 里的标量必须与同帧的数组一致；否则前端画的与 meta 说的是两回事
+  - name: test_bifurcation_cloud_matches_scalar_iteration
+    kind: C
+    what: 向量化分岔图与逐参数标量迭代的偏差恰好 0.0（4 个参数 × 8 个迭代点）
+    theory: 批量路径不改变任何一个浮点结果
+
+  # ---------------------------------------------------------------- 分岔与续接
+  - name: test_period_doubling_points_match_closed_forms
+    kind: A
+    what: 四个周期倍增点 3.0000000000000、3.4494897427832、3.5440903595519、3.5644072660954 与闭式/文献值最大偏差 1.3e-15；四个倍增点上乘子与 −1 的偏差 4.4e-16…1.8e-14
+    theory: 周期倍增点由乘子穿过 −1 定义；r1=3、r2=1+√6 有闭式
+  - name: test_two_cycle_matches_closed_form
+    kind: A
+    what: r=3.2/3.4/1+√5 三处，Newton 求出的 2 周期点与闭式差 ≤2.2e-16、乘子与 4+2r−r² 差 ≤1.4e-15；Newton 与网格二分两条路径的乘子差 ≤3.5e-15
+    theory: 2 周期点 x=(r+1±√((r−3)(r+1)))/(2r)，乘子 M=4+2r−r²
+  - name: test_period_three_window_starts_at_one_plus_sqrt_eight
+    kind: A
+    what: 3 周期窗口起点实测 3.828427125215 与 1+√8=3.8284271247461903 差 4.7e-10；窗口内 3 周期乘子 |M|=0.833<1、窗口外没有 3 周期
+    theory: 切分岔（M=+1）时 g³(x)−x 出现二重根，闭式 r=1+√8
+  - name: test_superstable_parameters_and_feigenbaum_delta
+    kind: C
+    what: 前六个超稳定参数与文献值最大偏差 4.7e-11；R₂=1+√5 逐位相符（差 0）；δ 序列 4.708943、4.680771、4.662960、4.668404、4.668954、4.669157、4.669191 的尾项与 4.6692016091 差 1.06e-5<5e-5，且尾项误差（1.06e-5）小于中段误差（7.98e-4）；外推聚点 3.569945671868 与文献 3.5699456718 差 6.8e-11
+    theory: Feigenbaum δ=4.6692016091… 是超稳定参数间隔之比的极限，序列不单调，只能按实测收敛速度给容差
+  - name: test_period_detection_identifies_windows
+    kind: A
+    what: r=3.2→p=2、3.5→p=4、3.83/3.84→p=3，闭合残差 ≤3.9e-16；r=4→p=0（32 步内不闭合），最接近闭合的残差 3.5e-3
+    theory: 周期是 |f^p(x)−x|≤1e-9 检测出来的；混沌不是"周期很长"，是根本不闭合
+  - name: test_cycle_residuals_separate_windows_from_chaos
+    kind: A
+    what: 700 个参数点里 523 个落进周期窗口（最大闭合残差 9.3e-10），177 个是混沌（残差中位 5.2e-3、94.4% 大于 1e-4，最小 2.1e-9 属于固定容差造成的灰区）
+    theory: 同一张对数图上，周期点与混沌点必须分在两端；混沌区的残差不能是 0
+  - name: test_vectorized_period_detection_matches_scalar
+    kind: A
+    what: 61 个参数点上向量化与标量的周期差异计数为 0、残差最大差 3.2e-15
+    theory: 批量路径只是把参数维摊开，残差只允许舍入量级的差
+  - name: test_multiplier_sign_structure_of_the_cascade
+    kind: A
+    what: r=2.5 有稳定不动点（乘子 [2.5, −0.5]）、r=3.2 没有（[3.2, −1.2]）；2−r 出现在乘子集合里（差 0）；r=3.2 的稳定 2 周期乘子与 0.16 差 2.3e-15
+    theory: 不动点的乘子是 2−r（x=1−1/r）与 r（x=0）；2 周期乘子 4+2r−r²

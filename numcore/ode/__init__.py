@@ -21,10 +21,24 @@
 表驱动的显式 RK 单步，够用即可，不重复实现 3.1 章的嵌入对与步长控制（那部分在
 ``numcore.ode.stepsize`` 里）。
 
+* :mod:`numcore.ode.dynamics` / :mod:`numcore.ode.lyapunov` / :mod:`numcore.ode.continuation`
+  （3.5 章）—— **动力系统、分岔与混沌**：右端项与 Jacobi 的工厂（Lorenz/Rossler/van der Pol/
+  阻尼摆/Hopf 标准型，外加 logistic 与 Henon 两个映射）、平衡点与相型判定（含**鞍焦**
+  ``saddle_focus``：混合符号 + 复共轭对）、零倾线（数值追踪与闭式参数化两条路径）、
+  Poincare 截面（定向穿越 + 用局部导数的 Newton 精化，残差到 :math:`10^{-12}`）、
+  Lyapunov 谱（Benettin 变分方程 + 自写修正 Gram--Schmidt，带正交性缺陷与
+  :math:`\\sum\\lambda=\\langle\\nabla\\!\\cdot\\!f\\rangle` 恒等式）、孪生轨道的有限时间增长率与
+  可分辨时间、周期轨 Newton 与乘子（网格扫描 + 二分是第二条独立路径）、周期倍增点、
+  超稳定参数与 Feigenbaum 常数。轨迹积分一律复用 3.1 章的 ``rk.rk_step``，
+  三维投影只在**显示空间**做（原始 :math:`x/y/z` 照给，投影参数写进帧的 strings）。
+
 依赖方向是单向的：3.2 不 import 3.1，3.1 也不需要 3.2（"稳定域"是 3.1 的下游话题）。
 这样两章的模块可以各自独立跑断言，不会因为对方还没写完而互相阻塞。
 3.3 只依赖 3.1（复用 ``rk.rk_step`` 作非辛对照），不 import 3.2；
 反向也没有依赖（3.1/3.2 不知道辛性的存在）。
+3.5 同样只依赖 3.1（``rk.rk_step`` / ``integrate_fixed``）；它的三个模块之间是单向的：
+``dynamics`` 不 import 另外两个，``lyapunov`` 与 ``continuation`` 都 import ``dynamics``。
+3.5 也不 import 3.2/3.3（稳定域与辛性都不是它的话题）。
 """
 
 from __future__ import annotations
