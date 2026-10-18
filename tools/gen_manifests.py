@@ -193,6 +193,18 @@ def main(argv: Iterable[str] | None = None) -> int:
 
     root: pathlib.Path = args.root
     registry = Registry(root)
+    # 生成模式用 strict=False 并**打印**跳过的章节：写完一章的 agent 不该被兄弟章节
+    # 的语法错误挡住；但 --check 仍然严格（那才是门禁要的"一个都不能坏"）。
+    skipped: list[str] = []
+    if args.check:
+        registry.discover()
+    else:
+        registry.discover(strict=False)
+        known = set(registry.ids())
+        for path in registry.chapter_files():
+            cid = path.name[: -len(".py")]
+            if cid not in known:
+                skipped.append(cid)
     files = build(registry)
 
     drift: list[str] = []
@@ -208,6 +220,8 @@ def main(argv: Iterable[str] | None = None) -> int:
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(text, encoding="utf-8", newline="\n")
 
+    if skipped and not args.json:
+        print(f"[警告] 以下章节当前无法加载、已跳过（修好后重跑即可）：{', '.join(skipped)}")
     ok = not drift and not missing
     # 证据落盘：PROTOCOLS §9 把 dist/reports/manifests.json 列为 G6 的证据，
     # 但之前**没有任何写入者**，于是 docs/PROGRESS.md 的门禁表永远显示"未运行"。
@@ -221,6 +235,7 @@ def main(argv: Iterable[str] | None = None) -> int:
                     "files": [str(p) for p in sorted(files)],
                     "drift": drift,
                     "missing": missing,
+                    "skipped": skipped,
                     "generated_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
                 },
                 ensure_ascii=False,

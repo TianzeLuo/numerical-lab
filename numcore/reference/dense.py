@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+import warnings
 from typing import Any, Callable
 
 import numpy as np
@@ -23,6 +24,7 @@ import scipy.special as _sspec
 import scipy.stats as _sstats
 
 __all__ = [
+    "svdvals",
     # 稠密线代
     "solve", "solve_triangular", "inv", "det", "lu", "cholesky", "qr", "svd", "eig", "eigh",
     "lstsq", "pinv", "cond", "norm", "matrix_rank", "expm", "logm", "sqrtm", "schur", "hessenberg",
@@ -45,8 +47,17 @@ __all__ = [
 # 稠密线代（numpy.linalg / scipy.linalg）
 # --------------------------------------------------------------------------- #
 def solve(A: Any, b: Any) -> np.ndarray:
-    """``A x = b`` 的 LU 解（``numpy.linalg.solve``，LAPACK dgesv）。"""
-    return _nla.solve(np.asarray(A, dtype=float), np.asarray(b, dtype=float))
+    r"""``A x = b`` 的 LU 解。
+
+    实输入走 ``numpy.linalg.solve``（LAPACK dgesv），复输入走
+    ``scipy.linalg.solve``（zgesv）。原先统一 ``dtype=float`` 会把复数问题
+    静默截断成实问题（只发一条 ``ComplexWarning``），1.4 章的复数 LU 对拍就撞上了这个。
+    """
+    a = np.asarray(A)
+    rhs = np.asarray(b)
+    if np.iscomplexobj(a) or np.iscomplexobj(rhs):
+        return _sla.solve(np.asarray(a, dtype=complex), np.asarray(rhs, dtype=complex))
+    return _nla.solve(np.asarray(a, dtype=float), np.asarray(rhs, dtype=float))
 
 
 def solve_triangular(A: Any, b: Any, *, lower: bool = True, unit_diagonal: bool = False) -> np.ndarray:
@@ -66,8 +77,12 @@ def det(A: Any) -> float:
     return float(_sla.det(np.asarray(A, dtype=float)))
 
 
-def lu(A: Any) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """``scipy.linalg.lu``：返回 ``(P, L, U, A0)``，满足 ``A0 = P @ L @ U``。"""
+def lu(A: Any) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """``scipy.linalg.lu``：返回 ``(P, L, U)``，满足 ``A = P @ L @ U``。
+
+    注意是**三元组**（``scipy`` 从 1.x 起就是这个签名）：早先这里的注解写成
+    ``(P, L, U, A0)``，照着注解解包会 ``ValueError``。
+    """
     return _sla.lu(np.asarray(A, dtype=float))
 
 
@@ -83,8 +98,30 @@ def qr(A: Any, *, mode: str = "complete") -> tuple[np.ndarray, np.ndarray]:
 
 
 def svd(A: Any, *, full_matrices: bool = True) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """SVD（``numpy.linalg.svd``，LAPACK dgesdd）。"""
-    return _nla.svd(np.asarray(A, dtype=float), full_matrices=full_matrices)
+    r"""SVD（``numpy.linalg.svd``，LAPACK dgesdd）。
+
+    复数输入走 ``scipy.linalg.svd``：``numpy.linalg.svd`` 会被这里原先的
+    ``dtype=float`` 静默截断（只发一条 ``ComplexWarning``，虚部直接丢掉，
+    实测 1.4 章的对角复矩阵上 :math:`\sigma_{\min}` 从此差了 3 个量级）。
+    """
+    arr = np.asarray(A)
+    if np.iscomplexobj(arr):
+        u, s, vh = _sla.svd(np.asarray(arr, dtype=complex), full_matrices=full_matrices)
+        return u, s, vh
+    return _nla.svd(np.asarray(arr, dtype=float), full_matrices=full_matrices)
+
+
+def svdvals(A: Any) -> np.ndarray:
+    r"""奇异值（降序，实/复通吃）。
+
+    **消费者**：``tests/1.4/test_pseudospec.py``（伪谱 :math:`\sigma_{\min}` 的对拍）
+    与 :mod:`numcore.linalg.pseudospec` 的文档示例。单独加这个包装是因为
+    ``numpy.linalg`` 没有复数安全的 ``svdvals``，而 :func:`svd` 返回三个矩阵太重。
+    """
+    arr = np.asarray(A)
+    if np.iscomplexobj(arr):
+        return np.asarray(_sla.svdvals(np.asarray(arr, dtype=complex)), dtype=float)
+    return np.asarray(_sla.svdvals(np.asarray(arr, dtype=float)), dtype=float)
 
 
 def eig(A: Any) -> tuple[np.ndarray, np.ndarray]:
@@ -209,17 +246,35 @@ def dct(x: Any, *, type_: int = 2) -> np.ndarray:
 # 求积与 ODE
 # --------------------------------------------------------------------------- #
 def quad(f: Callable[[float], float], a: float, b: float, *, epsabs: float = 1e-13, epsrel: float = 1e-13) -> tuple[float, float, int]:
-    """自适应 Gauss–Kronrod 求积（``scipy.integrate.quad``，QUADPACK dqagse）。
+    r"""自适应 Gauss–Kronrod 求积（``scipy.integrate.quad``，QUADPACK dqagse）。
 
     返回 ``(积分值, 误差估计, 函数求值次数)``。
+
+    ``full_output=1`` 的返回值**长度不固定**，取决于积分是否顺利收敛：
+
+    * ``ier == 0``（正常收敛）→ ``(val, abserr, infodict)``（本机 scipy 1.16.3 实测 3 项）；
+    * ``ier ∈ {1,2,3,4,5,7}``（细分上限 / 舍入误差 / 被判发散……）→
+      ``(val, abserr, infodict, msg)``，多出来的第 4 项是失败说明（本机 1.16.3 实测 4 项）。
+
+    所以这里**不能**写死三元组解包：原先的 ``val, err, info = _sint.quad(...)`` 一旦碰上第二种
+    情况就是 ``ValueError: too many values to unpack (expected 3)``（2.2 章因此绕开了本函数，
+    改用复合 Simpson 当第二把尺子）。取前两项 + 第 3 项字典，两种长度都能吃下。
+
+    另外注意：``full_output`` 为真时 scipy **不再**发 ``IntegrationWarning``（只在第 4 项里留话），
+    而参照层是要给全仓当"真值"用的，不能悄悄返回一个 scipy 自己都不信的数——所以这里把那条
+    警告原样重发一次，调用方按常规 ``warnings`` 机制处理即可。
     """
-    val, err, info = _sint.quad(f, a, b, epsabs=epsabs, epsrel=epsrel, limit=500, full_output=1)
+    res = _sint.quad(f, a, b, epsabs=epsabs, epsrel=epsrel, limit=500, full_output=1)
+    val, err, info = res[0], res[1], res[2]
+    if len(res) > 3:  # 4 元组 ⇔ ier != 0：积分没达到请求的精度
+        warnings.warn(str(res[3]), _sint.IntegrationWarning, stacklevel=2)
     return float(val), float(err), int(info["neval"])
 
 
 def quad_inf(f: Callable[[float], float], a: float, *, sign: int = 1) -> tuple[float, float]:
     """半无穷区间积分（``scipy.integrate.quad`` 的 ``(-inf, a]`` / ``[a, inf)``）。"""
     bounds = (-np.inf, a) if sign < 0 else (a, np.inf)
+    # 关掉 full_output：scipy 各版本都只返回 (val, abserr)；仍用切片而不是解包，免得再被长度变化咬到。
     val, err = _sint.quad(f, bounds[0], bounds[1], epsabs=1e-13, epsrel=1e-13, limit=500)[:2]
     return float(val), float(err)
 
@@ -280,14 +335,24 @@ def bspline(x: Any, y: Any, *, k: int = 3, xq: Any = None) -> Any:
 
 
 def remez_like(f: Callable[[float], float], a: float, b: float, deg: int) -> np.ndarray:
-    """最佳一致逼近的参照：用 Chebyshev 节点插值近似 Remez 结果（非真 Remez，仅作粗对拍）。
+    """最佳一致逼近的参照：``deg`` 次 Chebyshev 插值的**单项式系数**（非真 Remez，仅作粗对拍）。
 
-    真 Remez 交换算法由 2.3 章自研实现；这里给出"Chebyshev 插值"这一已知良好的下界参照。
+    真 Remez 交换算法由 2.1/2.3 章自研实现；这里给出"Chebyshev 节点插值"这一已知良好
+    （但非最优）的参照，便于对拍"最优一致逼近的误差不会大于它"。
+
+    历史坑（修于本章交付后）：老实现读 ``scipy.interpolate.BarycentricInterpolator(...).coef``，
+    而 scipy ≥1.12 已移除该属性 → 一调用就 ``AttributeError``；因为全仓没有调用方，
+    这个坏掉的参照一直没被发现。现在改用公开稳定的
+    ``numpy.polynomial.Chebyshev.interpolate`` + ``convert``，插值节点仍然是
+    Chebyshev 第一类点（与老实现同一组点）。``f`` 允许是标量函数（逐点求值，不要求可向量化）。
     """
-    k = np.arange(deg + 1)
-    nodes = np.cos(np.pi * k / deg)
-    xs = 0.5 * (a + b) + 0.5 * (b - a) * nodes
-    return _sinterp.BarycentricInterpolator(xs, np.asarray([f(float(t)) for t in xs])).coef
+    from numpy.polynomial import Chebyshev as _cheb, Polynomial as _poly
+
+    def _values(x: Any) -> np.ndarray:
+        return np.array([float(f(float(t))) for t in np.atleast_1d(np.asarray(x, dtype=float))], dtype=float)
+
+    ch = _cheb.interpolate(_values, deg, domain=[float(a), float(b)])
+    return np.asarray(ch.convert(kind=_poly).coef, dtype=float)
 
 
 # --------------------------------------------------------------------------- #

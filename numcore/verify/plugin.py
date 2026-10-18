@@ -34,7 +34,9 @@ def report_path() -> Path:
 
 def pytest_configure(config: Any) -> None:
     """清空上一次会话的登记表，避免跨会话污染。"""
+    _report.clear_reset_events()
     _report.reset_report()
+    _report.clear_reset_events()  # 上面这次是"开新会话"，不算事故
 
 
 def pytest_runtest_setup(item: Any) -> None:
@@ -46,6 +48,19 @@ def pytest_sessionfinish(session: Any, exitstatus: int = 0) -> None:  # noqa: AR
     """写报告 + 终端摘要。"""
     recs = _report.records()
     if not recs:
+        # 空登记表 = 报告不写。这在两种情况下是正常的（本会话没有断言测试），
+        # 但也可能是**事故**：某个测试直接调了 `reset_report()`，把整个会话的记录清掉了，
+        # 于是 G3 拿着上一次部分运行的旧报告报"已实现章节没有任何断言记录"。
+        # 真踩过。所以这里不静默：收集到测试却一条记录都没有时，明确喊一声。
+        collected = int(getattr(session, "testscollected", 0) or 0)
+        if collected > 0 and _report.reset_events() > 0:
+            print(
+                f"\n[numcore] ⚠ 本次会话调用过 reset_report() {_report.reset_events()} 次，"
+                f"结束时登记表是空的 → 报告未更新（{report_path()}）。"
+                "测试里要一张干净的表请用 numcore.verify.isolated_report()，"
+                "它退出时会把原记录放回去。",
+                flush=True,
+            )
         return
     path = report_path()
     _report.write_report(path)

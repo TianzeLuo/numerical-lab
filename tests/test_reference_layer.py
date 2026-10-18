@@ -8,6 +8,12 @@
 from __future__ import annotations
 
 import math
+import os
+import pathlib
+import subprocess
+import sys
+import textwrap
+import warnings
 
 import numpy as np
 import pytest
@@ -15,6 +21,8 @@ import pytest
 from numcore.reference import analytic as ra
 from numcore.reference import dense as rd
 from numcore.reference import exact as rx
+
+ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
 # --------------------------------------------------------------------------- #
@@ -255,3 +263,81 @@ def test_gibbs_overshoot_matches_theory() -> None:
     over = ra.gibbs_overshoot(n_terms=999)
     assert 0.176 < over < 0.181, over
     assert 0.088 < over / 2.0 < 0.0905  # 相对于跳变高度的比例 —— "约 9%" 的出处
+
+
+# --------------------------------------------------------------------------- #
+# 参照层的接口契约：SciPy 版本敏感的返回值 / 缺依赖时的行为
+# --------------------------------------------------------------------------- #
+def test_dense_quad_matches_analytic_integrals() -> None:
+    r"""``quad`` 要对得上能解析算出的积分：``∫₀¹ 4/(1+x²) dx = π``、``∫₀¹ x³ dx = 1/4``。
+
+    相对误差门槛取 1e-10——比 QUADPACK 在 ``epsabs=epsrel=1e-13`` 下的实际表现（~1e-16）
+    松三个数量级，只钉"参照物没算错"，不钉浮点噪声。顺带钉住返回值形状：
+    第三项必须是含 ``neval`` 的字典（``full_output`` 的解析一旦写错，这条就会红）。
+    """
+    val, err, neval = rd.quad(lambda x: 4.0 / (1.0 + x * x), 0.0, 1.0)
+    assert abs(val - math.pi) / math.pi <= 1e-10, (val, err, neval)
+    assert err >= 0.0
+    assert isinstance(neval, int) and neval > 0
+
+    val3, err3, neval3 = rd.quad(lambda x: x**3, 0.0, 1.0)
+    assert abs(val3 - 0.25) / 0.25 <= 1e-10, (val3, err3, neval3)
+    assert isinstance(neval3, int) and neval3 > 0
+
+
+def test_dense_quad_survives_full_output_four_tuple() -> None:
+    r"""回归：``ier != 0`` 时 SciPy 的 ``full_output=1`` 返回 **4 元组**，不许解包崩。
+
+    这是 2.2 章绕开 ``numcore.reference.dense.quad`` 的真实原因：原先写死的
+    ``val, err, info = _sint.quad(..., full_output=1)`` 碰上
+    ``(val, abserr, infodict, msg)`` 就抛 ``ValueError: too many values to unpack (expected 3)``。
+    修复后有两条要求：(a) 不崩、照常返回三元组；(b) SciPy 在 ``full_output`` 模式下**不再**
+    发 ``IntegrationWarning``，参照层要把这条警告重发出来，否则"真值"可能是个被判定为发散的数。
+    """
+    hard = lambda x: np.sin(1.0 / x) / x if x > 0 else 0.0  # noqa: E731
+
+    # 先直连 SciPy 立住前提：这条积分确实走 ier != 0 的那条返回路径。
+    # 不在这里 import scipy：P1 规定 scipy 只允许出现在 numcore/reference/（tests/ 也在静态扫描范围内）。
+    raw = rd._sint.quad(hard, 1e-12, 1.0, epsabs=1e-13, epsrel=1e-13, limit=500, full_output=1)
+    assert len(raw) == 4 and isinstance(raw[3], str) and raw[3], "本机 SciPy 没走到 4 元组分支，测试前提失效"
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        val, err, neval = rd.quad(hard, 1e-12, 1.0)  # 修复前：这里抛 ValueError
+    assert math.isfinite(val) and math.isfinite(err)
+    assert isinstance(neval, int) and neval > 0
+    assert "IntegrationWarning" in [w.category.__name__ for w in caught], [w.category.__name__ for w in caught]
+
+
+def test_reference_dense_fails_loudly_without_scipy() -> None:
+    """scipy 不可用时参照层必须**明确报错**，而不是悄悄降级成别的算法。
+
+    P1 把 scipy 收敛到 ``numcore/reference/`` 一处，就是为了让"没装 scipy"一次性暴露：
+    本包顶层 ``import scipy.integrate as _sint``，缺库即 ``ImportError``，没有自造兜底。
+    本机装了 scipy，所以用子进程装一个 import 拦截器来复现"没装"的环境。
+    """
+    script = textwrap.dedent(
+        """
+        import sys
+
+        class _NoScipy:
+            def find_spec(self, name, path=None, target=None):
+                if name == "scipy" or name.startswith("scipy."):
+                    raise ImportError("scipy is not installed (blocked by test)")
+                return None
+
+        sys.meta_path.insert(0, _NoScipy())
+        try:
+            import numcore.reference.dense  # noqa: F401
+        except ImportError as exc:
+            print("IMPORTERROR", exc)
+        else:
+            print("NOERROR")
+        """
+    )
+    env = dict(os.environ)
+    env["PYTHONPATH"] = str(ROOT) + os.pathsep + env.get("PYTHONPATH", "")
+    proc = subprocess.run([sys.executable, "-c", script], cwd=ROOT, env=env, capture_output=True, text=True, check=False)
+    assert proc.returncode == 0, proc.stderr
+    assert proc.stdout.startswith("IMPORTERROR"), proc.stdout
+    assert "scipy" in proc.stdout

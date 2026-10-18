@@ -8,7 +8,7 @@ PORT    ?= 8080
 CHAPTER ?= 0.0
 
 .DEFAULT_GOAL := help
-.PHONY: help ci setup test pytest jstest typecheck build policy asserts parity visual manifests book progress serve precompute clean clean-all
+.PHONY: help ci setup test pytest jstest typecheck build policy asserts parity visual visual-update manifests book progress serve precompute clean clean-all
 
 help: ## 显示这份帮助
 	@grep -hE "^[a-zA-Z_-]+:.*?## " $(MAKEFILE_LIST) | awk "BEGIN{FS=\":.*?## \"}{printf \"  \\033[36m%-14s\\033[0m %s\\n\", \$$1, \$$2}"
@@ -38,7 +38,7 @@ build: ## tsc 编译到 dist/viz
 policy: ## G1 策略红线静态检查
 	$(PY) tools/check_policy.py
 
-asserts: ## G3 跑断言并生成报告/章末附表
+asserts: ## G3 跑断言并生成 dist/reports/assertions.json + 每章 chapters/<id>/asserts_report.md
 	$(PY) tools/run_asserts.py
 
 parity: ## G7 Python ↔ TS 对拍
@@ -66,7 +66,7 @@ precompute: ## 生成 L3 静态帧到 data/frames/
 	$(PY) tools/precompute.py --chapter $(CHAPTER)
 
 clean: ## 删掉 dist/ 与缓存（保留 data/ 契约产物）
-	rm -rf dist .cache/pytest .cache/mpl
+	rm -rf dist .cache/mpl .cache/npm .pytest_cache
 
 clean-all: clean ## 连 data/frames 一起删（可重新生成）
 	rm -rf data/frames

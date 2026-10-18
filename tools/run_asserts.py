@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""G4 门：跑断言、对账"声明 vs 实测"、产出报告。
+"""G3 门：跑断言、对账"声明 vs 实测"、产出报告。
 
 做三件事：
 
@@ -45,6 +45,20 @@ DEFAULT_REPORT = ROOT / "dist" / "reports" / "assertions.json"
 KINDS = ("A", "B", "C")
 
 
+def _display_path(path: pathlib.Path, root: pathlib.Path) -> str:
+    """尽量给相对路径，给不出就原样返回。
+
+    存在的理由：``--report`` 可以被指到仓库外（例如 ``/tmp/r.json``，或 CI 的临时目录），
+    那时 ``path.relative_to(root)`` 会抛 ``ValueError: '/tmp/...' is not in the subpath of ...``。
+    章报告其实**已经正确写出**了，只是最后打印一行路径时把整个进程崩掉——工具不该因为
+    "打印用的路径算不出来"而失败。所有打印/写盘用的路径都走这里。
+    """
+    try:
+        return str(path.relative_to(root))
+    except ValueError:
+        return str(path)
+
+
 # --------------------------------------------------------------------------- #
 # asserts.yaml
 # --------------------------------------------------------------------------- #
@@ -56,7 +70,7 @@ def load_asserts_decl(root: pathlib.Path, chapter: str) -> dict[str, Any] | None
     import yaml  # type: ignore
 
     data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    data["_path"] = str(path.relative_to(root))
+    data["_path"] = _display_path(path, root)
     return data
 
 
@@ -247,7 +261,7 @@ def run_pytest(root: pathlib.Path, report: pathlib.Path, pytest_args: list[str])
 
 
 def main(argv: Iterable[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(description="跑断言、对账声明、生成报告（G4 门）")
+    ap = argparse.ArgumentParser(description="跑断言、对账声明、生成报告（G3 门）")
     ap.add_argument("--no-run", action="store_true", help="不跑 pytest，直接分析现有报告")
     ap.add_argument("--report", type=pathlib.Path, default=DEFAULT_REPORT)
     ap.add_argument("--json", action="store_true")
@@ -295,12 +309,12 @@ def main(argv: Iterable[str] | None = None) -> int:
                 f"{'  ⚠ ' + str(len(blk['problems'])) + ' 个对账问题' if blk['problems'] else ''}"
             )
         if result["ok"]:
-            print("G4 通过：声明与实测一致，三类断言齐全")
+            print("G3 通过：声明与实测一致，三类断言齐全")
         else:
-            print(f"G4 失败：{len(result['problems'])} 个问题")
+            print(f"G3 失败：{len(result['problems'])} 个问题")
             for p in result["problems"]:
                 print(f"  - {p}")
-        print(f"报告：{report.relative_to(root)}；每章附表：chapters/<id>/asserts_report.md")
+        print(f"报告：{_display_path(report, root)}；每章附表：chapters/<id>/asserts_report.md")
     if not result["ok"]:
         return 1
     return 0 if rc == 0 else rc

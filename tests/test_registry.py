@@ -144,13 +144,24 @@ def test_discover_finds_real_chapters() -> None:
     found = reg.discover()
     assert isinstance(found, dict) and "0.0" in found
     ids = reg.ids()
-    assert ids == ["0.0"]
+    # 不钉死"仓库当前有哪几章"（每加一章就得手改的钉子），只要求：
+    #  * 模板章 0.0 在（它是五件套的样板）；
+    #  * 顺序按 (部, 章) 升序，且没有重复。
+    assert "0.0" in ids
+    assert len(set(ids)) == len(ids)
     assert sorted(ids, key=lambda c: (int(c.split(".")[0]), int(c.split(".")[1]))) == ids
     entry = reg.get("0.0")
     assert isinstance(entry, ChapterEntry)
     assert entry.viz_ids == ("oscillator_regimes", "heat_ftcs")
     assert entry.title
     assert reg.viz("0.0", "heat_ftcs").id == "heat_ftcs"
+    ch12 = reg.get("1.2")
+    assert ch12.viz_ids == ("lu_heatmap", "unit_ball", "spy_ordering", "pivot_strategy")
+    # 1.2 章此刻应当是"五件套齐全"的：模块在、viz 四个、笔记/坑/断言声明都在
+    row = next(r for r in reg.progress() if r.id == "1.2")
+    assert row.has_module and row.manifest_ok
+    assert row.viz_declared == 4 and row.viz_implemented == 4
+    assert row.pitfall_chars >= 800
 
 
 def test_discover_ignores_private_and_bad_names(fake_root: pathlib.Path) -> None:
@@ -197,7 +208,7 @@ def test_registry_discover_is_idempotent() -> None:
     again = reg.discover()
     # 模块对象每次重新 exec 都是新对象，所以比"身份"没意义；比可序列化的内容
     assert [e.manifest.to_json() for e in first.values()] == [e.manifest.to_json() for e in again.values()]
-    assert reg.ids() == ["0.0"]
+    assert reg.ids() == ["0.0", "1.2"]
     assert [e.id for e in reg.all()] == reg.ids()
 
 
@@ -237,7 +248,8 @@ def test_iter_viz_yields_every_pair() -> None:
     reg = Registry(ROOT)
     pairs = list(reg.iter_viz())
     assert ("0.0", "oscillator_regimes") in pairs
-    assert len(pairs) == 2
+    assert ("1.2", "spy_ordering") in pairs
+    assert len(pairs) == 6  # 0.0 两个 + 1.2 四个
 
 
 # --------------------------------------------------------------------------- #

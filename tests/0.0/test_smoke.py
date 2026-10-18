@@ -181,12 +181,16 @@ def test_ftcs_threshold_converges_to_continuum_limit() -> None:
 
         result = find_threshold(unstable, 0.4, 0.7, assume="false_at_lo", tol=1e-8)
         gaps.append(abs(result.threshold - ftcs_critical_r_limit()))
+    # kind="C"：这条断言问的是"实测阶是否达到理论阶"，属于收敛率（C 类）。
+    # 不写 kind 时缺省是 A（与解析阶对拍），而本测试声明的是 C 类——
+    # 类别不符会被 numcore.verify 当场判失败（这条规则抓到过本测试，是真事）。
     fit = assert_order(
         [1.0 / nx for nx in nxs],
         gaps,
         theory=2.0,
         tol=0.2,
         label="阈值偏差的收敛阶",
+        kind="C",
     )
     assert fit.slope > 1.5
 

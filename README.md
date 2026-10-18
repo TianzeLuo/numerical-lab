@@ -99,9 +99,9 @@ $ make serve            # HTTP + WebSocket，默认 127.0.0.1:8080
 
 ```console
 $ make ci               # 十道门禁一把跑完（失败不早停，逐门汇总 → dist/reports/ci.json）
-  ✅ G1 策略红线（POLICY P1–P9）              4.41 s
+  ✅ G1 策略红线（POLICY P1–P13 中的 11 条机器规则）  4.41 s
   ✅ G2 Python 测试（pytest，严格模式）     74.35 s
-  ✅ G6 manifest 无漂移                            2.00 s
+  ✅ G6 生成物无漂移（manifest + 色标）            2.00 s
   ✅ G4 TypeScript 类型检查                       8.02 s
   ✅ G5 TypeScript 测试                             9.64 s
   ✅ G3 数值断言对账（声明↔实测）       2.13 s
@@ -113,7 +113,9 @@ $ make ci               # 十道门禁一把跑完（失败不早停，逐门汇
 全部门禁通过。 报告：dist/reports/ci.json
 ```
 
-**约 2 分钟**跑完一轮；Python 侧 699 条测试、TypeScript 侧 285 条。写完一章后该跑哪些、
+**约 2 分钟**跑完一轮；实测规模：Python 侧 **740 条**（`python3 -m pytest tests --collect-only -q`）、
+TypeScript 侧 **296 条**（`node --test "dist/viz/tests/**/*.test.js"`，全绿）——数字会随章节增长，
+以这两条命令的输出为准。写完一章后该跑哪些、
 失败了先看哪里，见 [`docs/AUTHORING.md`](docs/AUTHORING.md) §3。
 
 ---
@@ -124,7 +126,7 @@ $ make ci               # 十道门禁一把跑完（失败不早停，逐门汇
 |---|---|
 | `numcore/` | 数学真源：纯函数、无 IO（`fp` `linalg` `interp` `quad` `transform` `ode` `pde` `inverse` `apps`）；`verify/` 是断言裁判；`reference/` 是全仓库**唯一**可 import scipy 的目录 |
 | `server/` | 数据通道，**不含数学**：`registry.py`（读 `docs/chapters.yaml`）、`manifest.py`（契约校验）、`frames.py`（帧装配 + 缓存）、`nlf.py`（帧编解码）、`ws.py`（自研 RFC 6455 子集）、`app.py`（HTTP + WS 路由）、`chapters/<id>.py`（每章的 `MANIFEST` + `compute`） |
-| `viz/` | 渲染层，**不做物理**：`shared/src/`（`scene` `render2d` `framesource` `controls` `timeline` `loglogfit` `numeric/` …）、`chapters/<id>/`（每章一个包）、`site/`（目录树/路由/分享链接）、`tests/`（285 条 TS 单测 + 场景转储） |
+| `viz/` | 渲染层，**不做物理**：`shared/src/`（`scene` `render2d` `framesource` `controls` `timeline` `loglogfit` `numeric/` …）、`chapters/<id>/`（每章一个包，`<viz>.model.ts` + `<viz>.viz.ts`）、`site/`（目录树/路由/分享链接）、`tests/`（296 条 TS 单测 + 场景转储） |
 | `chapters/<id>/` | 讲义与文档：`notes.tex`（推导）、`pitfalls.md`（防误导分析，≥ 800 字）、`asserts.yaml`（断言声明）；`asserts_report.md` / `asserts_table.tex` 是**生成物** |
 | `tests/` | Python 测试：`<id>/`（三类数值断言）、`test_*.py`（协议/工具/端到端）、`parity/`（对拍 golden 与容差）、`baselines/`（视觉回归基线 PNG，进 git）、`policy/`（检查器的元测试） |
 | `tools/` | 工程与产物：策略检查、断言对账、manifest 生成、对拍、光栅器、视觉回归、GIF 导出、讲义编译、进度生成、`ci.sh` |
@@ -176,7 +178,7 @@ numcore（纯函数，唯一数学真源）
 | **G3** | `python3 tools/run_asserts.py --no-run` | 「声明了却没测」「测了却没声明」「靠静默通过混过去」：`asserts.yaml` ↔ pytest 收集**双向**对账 | 诊断文案曾建议用 `tail=` 截掉细网格端，但 `tail=` 保留的恰是被舍入地板污染的**细端**；这条教训被写成测试，并新增 `head=` 参数（`tests/0.0/test_smoke.py::test_fit_order_head_option_escapes_roundoff_floor`） |
 | **G4** | `npm run typecheck` | 接口/类型层面的前后端漂移（`tsc --noEmit`，`strict: true`） | **暂无抓捕记录**。反而有一条盲区值得记住：0.0 章曾把字符串写进 `meta`，`pytest` 全绿、`tsc` 全绿，直到前端真解码那一帧才炸（`server/nlf.py` 的 `set_strings` 注释记下了这次事故） |
 | **G5** | `npm test` | `.nlf` 解码、`validateScene`、时间轴/控件/分享、渲染与数值 helpers | 「viridis 亮度单调不减」用现成 8 位 LUT 不可能成立（i=95/146 单通道 −1 LSB），测试因此改成逐条可解释的断言；热力图快慢两条路径曾画出**镜像**（由 G8 发现） |
-| **G6** | `python3 tools/gen_manifests.py --check` | manifest 生成物（5 个文件）与 Python 真源漂移——从根上消灭「前后端两处声明」 | **暂无抓捕记录**。注意一个缺口：`tools/gen_colorscales.py --check` 有实现，但**没有任何门禁调用它**，色标漂移目前无人守 |
+| **G6** | `python3 tools/gen_manifests.py --check && python3 tools/gen_colorscales.py --check` | manifest 生成物（5 个文件）与 Python 真源漂移（从根上消灭「前后端两处声明」），以及**色标 LUT**（`colorscale_data.gen.ts` / `colorscales.json`）与真源 `tools/colorscale_tables.py` 漂移 | **暂无抓捕记录**。这条门曾经只跑 manifest：`tools/gen_colorscales.py --check` 有实现却没人调用，色标漂移无人守；现已并进本门（`tools/ci.sh` 里是一条 `&&` 命令） |
 | **G7** | `python3 tools/parity.py` | Python ↔ TS 双实现漂移（前端自己算一遍物理量） | 基准 golden 曾可能「随时间悄悄漂移而门禁照样绿灯」（要求 `--update-golden` 逐字节可重生成）；容差纪律也来自教训：`tolerances.yaml` 明写「绝不靠把 rtol 放大到能过——那是把门禁做成了装饰」 |
 | **G8** | `python3 tools/precompute.py --n 6 --quiet && npm run scene --silent && python3 tools/visual_regression.py --check --require-scenes` | 「图好看但算错」：真前端模型 → `Scene` → 光栅 PNG，与基线逐像素比对 | 参考光栅器发现前端热力图快路径**少了一次纵向翻转**——这个 bug 只会在浏览器里「看着不对」，任何纯逻辑测试都抓不到；另外若不加 `--require-scenes`，「一张图都没比」也能绿 |
 | **G9** | `python3 tools/build_book.py --check` | 讲义编译失败、未定义引用、章末断言附表与最新报告不一致（PDF 撒谎） | 未转义的下划线在正文数学模式下直接变成 `Missing $ inserted`（工具注释：「这个坑真的踩过一次」）。**已知盲区**：字体缺字（`Missing character`）不算失败，`book.pdf` 里 `≤` 之类字符会被静默吞掉 |
@@ -184,12 +186,14 @@ numcore（纯函数，唯一数学真源）
 
 > **G6/G8/G10 的「漂移」类门禁是本项目的良心**：它们专治「文档说做了、其实没做」与「图好看但算错」。
 
-两点读表须知（都是当前仓库里真实存在的文档-代码不一致，别被带偏）：
+两点读表须知：
 
-- G1 的规则编号有三套说法：`docs/POLICY.md` §1 定义 P1–P9，`tools/ci.sh` 的门名写「P1–P9」，
-  而 `tools/check_policy.py` 的 `RULE_DOC` 实际执行 **P1–P8、P10、P12、P13**（无 P9/P11）。**以检查器为准。**
-- `docs/POLICY.md` §5 把 G3 的命令写成 `python tools/run_asserts.py --all`，但该 flag **不存在**
-  （argparse 会把它前缀匹配成 `--allow-empty`）。上表与 `tools/ci.sh` 里用的是真正生效的 `--no-run`。
+- G1 的规则编号**只认检查器**：`docs/POLICY.md` §1 现已按 `tools/check_policy.py` 的 `RULE_DOC`
+  逐条对齐，覆盖 **P1–P8、P10、P12、P13 共 11 条机器规则**；P9 保留为评审项、P11 是空号
+  （`tools/ci.sh` 的门名与之一致）。改规则时先改检查器，再同步 POLICY——反过来会立刻漂移。
+- **argparse 的前缀匹配是个真陷阱**：`tools/run_asserts.py` 没有 `--all`，写 `--all` 会被当成
+  `--allow-empty`（"报告缺失也不算失败"）而**静默变绿**。上表与 `tools/ci.sh` 用的是真正生效的
+  `--no-run`。给 `tools/` 里的脚本加选项时，别让两个选项名互为前缀。
 
 ---
 
@@ -202,9 +206,9 @@ numcore（纯函数，唯一数学真源）
 | `make setup` | 检查 python/node/依赖/字体，不装任何东西 | 换机器后第一件事 |
 | `make serve` | 起本地服务（HTTP + WebSocket），默认 8080 | 看可视化 / 手工验证接口 |
 | `make test` | `pytest` + `jstest` | 提交前 |
-| `make pytest` | Python 测试（699 条） | 改了 `numcore/` `server/` `tests/` |
+| `make pytest` | Python 测试（740 条） | 改了 `numcore/` `server/` `tests/` |
 | `make typecheck` | `tsc --noEmit`（strict） | 改了 `viz/**/*.ts` |
-| `make jstest` | 先 `tsc` 编译再 `npm test`（285 条） | 改了前端 |
+| `make jstest` | 先 `tsc` 编译再 `npm test`（296 条） | 改了前端 |
 | `make build` | `tsc` 编译到 `dist/viz` | 只想要产物 |
 | `make policy` | G1 策略红线静态检查 | 改了 `numcore/` 或加了豁免 |
 | `make asserts` | G3 跑断言、生成报告与 `chapters/<id>/asserts_report.md` | 改了 `tests/<id>/` 或 `asserts.yaml` |

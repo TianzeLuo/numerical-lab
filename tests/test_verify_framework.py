@@ -31,6 +31,7 @@ from numcore.verify import (
     assert_monotone,
     assert_order,
     assert_orthogonal,
+    record,
     assert_symmetric,
     assert_threshold,
     assert_within,
@@ -50,6 +51,7 @@ from numcore.verify import (
     norm_ppf,
     pearson,
     r_squared,
+    isolated_report,
     records,
     reference_line,
     relative_error,
@@ -168,10 +170,10 @@ def test_fit_order_tail_parameter_truncates_fine_end() -> None:
 
 def test_assert_order_passes_and_records() -> None:
     """正确阶数：通过，并在报告中留下"理论值/实测值"。"""
-    reset_report()
     h = 2.0 ** -np.arange(1, 9, dtype=float)
-    with suppressed():  # 本测试自带 reset，避免污染全局报告
-        fit = assert_order(h, h**4, theory=4.0, label="simpson")
+    with isolated_report():  # 只在本测试内部要一张空表，退出时原来的记录会回来
+        with suppressed():
+            fit = assert_order(h, h**4, theory=4.0, label="simpson")
     assert abs(fit.slope - 4.0) < 1e-9
 
 
@@ -448,16 +450,16 @@ def test_decorator_requires_measurement() -> None:
         return None
 
     # 注意：本测试故意不在 suppressed() 下运行——"禁止静默通过"这条元规则
-    # 必须被真正触发一次；随后 reset_report() 清掉这条失败记录，避免污染全局报告。
-    with pytest.raises(AssertionFailure, match="未登记任何实测值"):
-        _empty()
-    assert any(not r.passed and r.unmeasured for r in records())
-    reset_report()
+    # 必须被真正触发一次。用 isolated_report() 而不是 reset_report()：
+    # 后者会连**整个会话**的登记一起清掉，导致 pytest 结束时根本不写报告。
+    with isolated_report():
+        with pytest.raises(AssertionFailure, match="未登记任何实测值"):
+            _empty()
+        assert any(not r.passed and r.unmeasured for r in records())
 
 
 def test_decorator_records_returned_measurement() -> None:
     """返回 ``Measured`` 的测试必须出现在报告里，且带上理论值。"""
-    report_path = None
 
     @assertion("C", "人造收敛因子", id="fake_factor", chapter="0.0")
     def _factor() -> Measured:
@@ -465,26 +467,25 @@ def test_decorator_records_returned_measurement() -> None:
 
     with suppressed():
         _factor()  # suppressed 下不登记，只验证不抛错
-    reset_report()
 
     @assertion("C", "人造收敛因子", id="fake_factor", chapter="0.0")
     def _factor2() -> Measured:
         return Measured(value=0.5, tol=0.01, detail="人造")
 
-    _factor2()
-    recs = records()
-    assert len(recs) == 1
-    r = recs[0]
-    assert r.id == "fake_factor" and r.kind == "C"
-    assert r.measured == 0.5 and r.tol == 0.01 and r.passed
-    assert r.chapter == "0.0"
-    report_path = write_report("/tmp/nlab-probe/assertions.json")
-    payload = json.loads(report_path.read_text(encoding="utf-8"))
-    assert payload["totals"]["C"] == 1
-    assert payload["chapters"]["0.0"]["passed"] == 1
-    assert "fake_factor" in markdown_table("0.0")
-    assert summary()["totals"]["unmeasured"] == 0
-    reset_report()
+    with isolated_report():
+        _factor2()
+        recs = records()
+        assert len(recs) == 1
+        r = recs[0]
+        assert r.id == "fake_factor" and r.kind == "C"
+        assert r.measured == 0.5 and r.tol == 0.01 and r.passed
+        assert r.chapter == "0.0"
+        report_path = write_report("/tmp/nlab-probe/assertions.json")
+        payload = json.loads(report_path.read_text(encoding="utf-8"))
+        assert payload["totals"]["C"] == 1
+        assert payload["chapters"]["0.0"]["passed"] == 1
+        assert "fake_factor" in markdown_table("0.0")
+        assert summary()["totals"]["unmeasured"] == 0
 
 
 def test_chapter_attribution_from_nodeid() -> None:
@@ -502,3 +503,82 @@ def test_rng_is_deterministic() -> None:
     assert np.array_equal(a, b)
     assert not np.array_equal(a, c)
     assert np.array_equal(rng().standard_normal(3), rng(20261018).standard_normal(3))
+
+
+# --------------------------------------------------------------------------- #
+# 元测试：框架自己的测试不许毁掉会话报告
+# --------------------------------------------------------------------------- #
+@pytest.fixture(scope="module")
+def records_before_this_file() -> int:
+    """进入本文件时，会话里已有的登记条数（整套跑时是前几章贡献的）。"""
+    return len(records())
+
+
+def test_framework_tests_do_not_wipe_the_session_report(records_before_this_file: int) -> None:
+    """本文件跑完之后，会话登记表不许比进来时更少。
+
+    背景：``pytest_sessionfinish`` 靠登记表写 ``dist/reports/assertions.json``。
+    框架测试如果用 ``reset_report()`` 清表，整套 pytest 跑完报告就是空的、**静默不写**，
+    G3 于是拿着上一次部分运行的旧报告报"已实现章节没有任何断言记录"。
+    正确做法是 ``with isolated_report():``——退出时把原记录放回去。
+    """
+    assert len(records()) >= records_before_this_file, (
+        "会话登记表被本文件的测试清空了：请用 numcore.verify.isolated_report() 而不是 reset_report()"
+    )
+
+
+def test_decorator_rejects_kind_mismatch() -> None:
+    """声明 A 类、却只登记了 B 类记录 —— 也算"假证据"，必须失败。
+
+    为什么要有这条规则：A 类断言的含义是"与解析解/参考实现对拍"，
+    而 `assert_leq` / `assert_within` / `assert_monotone` 这些 helper 登记的 kind 固定是 `"B"`。
+    于是一个 `@assertion("A")` 的测试只要全用 helper，就会出现
+    "这一章有 N 条 A 类断言"是假话、而 pytest 全绿、报告里也有记录的情况。
+    1.3 章真踩到过（交付报告第 4 条），当时只靠 `min_counts` 间接兜住。
+    """
+
+    @assertion("A", "解析对拍：本测试其实只记了 B")
+    def _mismatched() -> None:
+        record(label="只记一条 B", theory=1.0, measured=1.0, tol=0.0, passed=True, kind="B")
+
+    with isolated_report():
+        with pytest.raises(AssertionFailure, match="声明为 A 类"):
+            _mismatched()
+        assert any(not r.passed for r in records())
+
+    # 显式声明 A 类记录（或把 helper 的 kind 改成 A）之后必须通过：
+    @assertion("A", "解析对拍：显式记 A")
+    def _explicit() -> None:
+        record(label="显式 A 记录", theory=1.0, measured=1.0, tol=0.0, passed=True, kind="A")
+
+    with isolated_report():
+        _explicit()
+        recs = records()
+        assert len(recs) == 1 and recs[0].kind == "A" and recs[0].passed
+
+    # helper 的缺省类别是 B，所以 @assertion("B") 用 helper 是合法的：
+    @assertion("B", "不变量：helper 缺省 B")
+    def _b_helper() -> None:
+        assert_leq(1.0, 2.0, label="1 ≤ 2")
+
+    with isolated_report():
+        _b_helper()
+        assert records() and all(r.kind == "B" for r in records())
+
+
+def test_assert_order_can_record_kind_c() -> None:
+    """`assert_order` 的缺省类别是 A；但"实测阶是否达到理论阶"也常被声明为 C 类。
+
+    这条测试钉住 `kind=` 参数：不传就是 A（历史行为，全仓多数章节依赖它），
+    传了就按传的记 —— 否则声明 C 的测试会因为"类别不符"直接失败（0.0 章真踩过）。
+    """
+    h = np.array([0.05, 0.025, 0.0125, 0.00625])
+    err = 3.0 * h**2
+
+    with isolated_report():
+        assert_order(h, err, theory=2.0, tol=0.05, label="缺省类别")
+        assert records()[-1].kind == "A"
+
+    with isolated_report():
+        assert_order(h, err, theory=2.0, tol=0.05, label="显式 C 类", kind="C")
+        assert records()[-1].kind == "C"

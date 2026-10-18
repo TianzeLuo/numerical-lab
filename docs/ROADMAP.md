@@ -32,7 +32,7 @@
 | 28 章正文 | ⬜ 0 / 28 | `docs/PROGRESS.md`：章节 `0 / 28`，进度条 `····················` |
 | 115 个交互可视化 | ⬜ 0 / 115 | `docs/PROGRESS.md`：`0 / 115`（模板章另有 `2 / 2`） |
 | 数值断言 | ✅ 11 条（A 5 / B 4 / C 2）全绿 | `make asserts` 输出；`dist/reports/assertions.json` |
-| 双实现对拍 | ✅ 5 个 case / 1915 个点 | `make parity` 输出 |
+| 双实现对拍 | ✅ 8 个 case / 2387 个点（锚点 `1b0c6c8` 时为 5 / 1915） | `make parity` 输出 → `dist/reports/parity.json` 的 `n_cases` / `n_points`；1.2 章加入 3 条 LU case（92 + 312 + 68 点，均 `max\|Δ\| = 0`） |
 | 视觉回归基线 | ✅ 12 张（`tests/baselines/0.0/`） | `make visual` 输出：`ok 12 · 不一致 0 · 缺基线 0` |
 | 讲义 | ✅ 单章 7 页 + 合并本 11 页，未定义引用 0 | `make book` 输出；`dist/book/*.pdf` |
 | **M1 – M6** | ⬜ 未开始 | `docs/PROGRESS.md` 的章节状态表除 0.0 外全为 `—` |
@@ -156,10 +156,30 @@
 - `docs/CHAPTERS.md` §6 的建议是**先只做 M0 + M1**，然后设检查点按兴趣续做，**允许砍章**。
 - 关键路径（`docs/chapters.yaml` 的 `critical_path`）：`1.1 → 1.2 → 1.4 → 1.5 → 4.1 → 4.2 → 4.3 → 6.1`；
   这条链上的任何一章延期，都会顺延 M4/M5。
-- **已知缺口（当前，非排期）**：`tools/gen_colorscales.py --check` 有实现但没有被任何门禁调用，
-  色标漂移目前无人守；`docs/PROTOCOLS.md` §9 列出的 `dist/reports/{manifests,visual_regression,progress}.json`
-  没有写入者，所以 `docs/PROGRESS.md` 的 G6/G8 恒显示「未运行」。
-  这两条要么补上门禁、要么改文档，别让它们继续漂。
+- **缺口清单（2026-10-18 复核：✅ 已闭合 2 条、⬜ 未闭合 4 条、⚠ 已知取舍 1 组）**：
+  - ✅ 已闭合：`tools/gen_colorscales.py --check` 曾经「有实现但没有门禁调用」，色标漂移无人守；
+    现已并入 **G6**（`tools/ci.sh` 里与 `gen_manifests.py --check` 用 `&&` 串成一条命令，
+    见 `docs/POLICY.md` §5）。
+  - ✅ 已闭合：`dist/reports/{manifests,visual_regression}.json` 曾经没有写入者，
+    导致 `docs/PROGRESS.md` 的 G6/G8 恒显示「未运行」；`gen_manifests.py` 与 `visual_regression.py`
+    现在跑门禁时会把证据落盘（提交 `54c51d9`）。
+  - ⬜ 仍未闭合（文档已写、实现待补）：`tools/raster.py::validate_scene` 还没有复刻
+    「文本层压住坐标轴装饰带」这条规则 8——TS 侧 `viz/shared/src/scene.ts::validateScene` 已实现，
+    由 `dump_scenes.ts` 在转储时拦下；Python 侧目前只查角标盒的越界/重叠
+    （`docs/PROTOCOLS.md` §6.2）。补法：把 TS 的 `textBoxOf`（按 `maxWidth` 折行、行高 `size+4`）
+    与 `axisDecoBands` 一起搬到 `tools/raster.py`，在文本循环里做相交判定。
+  - ⬜ 仍未闭合（文档已写、实现待补）：1.5 章 `preconditioner` 帧的 `ilu_dropped = -1` 哨兵
+    没有在 `strings` 里说明含义（只有 manifest 描述提到「ILU(0) 丢弃的填充次数」），
+    而 `docs/PROTOCOLS.md` §1.3 要求哨兵值必须在 `strings` 里有一句解释。
+  - ⬜ 仍未闭合（实现已写、测试待补）：`Frame.validate()` 拒绝非有限 `meta` 这条硬约束
+    （`docs/PROTOCOLS.md` §1.3）在 `tests/test_nlf.py` 里还没有对应的单测——
+    现在只有 `tests/test_frames_contract.py` 的全仓编码测试会在某章真写出 NaN 时兜住。
+  - ⬜ 仍未闭合：`dist/reports/progress.json` 既没有写入者、也没有读取者。文档里已不再引用它
+    （`docs/PROTOCOLS.md` §9 那一行已删）——要恢复这个文件，先得有一个真实的消费方。
+  - ⚠ 已知取舍（有意如此，不是缺口）：**两个渲染层各自实现同一套几何**——装饰带/角标盒的常量由
+    同一组样例数字钉住；色标只有光栅器画；场景以 TS 转储为首选、Python 探针场景兜底
+    （CI 用 `visual_regression.py --require-scenes` 钉住首选路径）；`viz/shared/src/numeric/**`
+    只用于 parity 对拍，章节要 import 必须标 `// preview-approx`（详见 `docs/ARCHITECTURE.md` §2.3）。
 
 ---
 
@@ -192,7 +212,7 @@ npm run build --silent && npm test    # 285 条 TS 单测全过
 # 6) 生成物 / 断言 / 对拍 / 视觉 / 讲义 / 进度
 python3 tools/gen_manifests.py --check     # 5 个文件与真源一致
 python3 tools/run_asserts.py               # 11 条断言（A5/B4/C2）全过
-python3 tools/parity.py                    # 5 case / 1915 点
+python3 tools/parity.py                    # 锚点提交上为 5 case / 1915 点（工作区现为 8 / 2387）
 python3 tools/precompute.py --n 6 --quiet  # G8 前置：L3 帧
 npm run scene --silent                     # 真模型转储 12 个场景
 python3 tools/visual_regression.py --check --require-scenes   # ok 12

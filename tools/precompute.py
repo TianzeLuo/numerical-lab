@@ -106,7 +106,16 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     """执行一次预计算（可被测试直接调用，不经过 argparse）。"""
     out_root = pathlib.Path(args.out_root).resolve() if args.out_root else ROOT
     registry = Registry(ROOT)
-    registry.discover()
+    # 指定了 --chapter 时只要求**这些**章节能加载：并发开发时兄弟章节可能正处于
+    # 语法半成品状态，不该把"我只想算 1.2 的帧"变成一次全仓失败（真踩过）。
+    # 不指定 --chapter 时保持严格——那时确实要求整仓都健康。
+    explicit = [c for c in (args.chapter or []) if c]
+    registry.discover(strict=not explicit)
+    if explicit:
+        missing = [c for c in explicit if c not in set(registry.ids())]
+        if missing:
+            registry.discover()
+            raise RegistryError(f"指定章节无法加载：{', '.join(missing)}")
     chapters: list[str] = list(args.chapter) if args.chapter else registry.ids()
     unknown = [c for c in chapters if c not in set(registry.ids())]
     if unknown:

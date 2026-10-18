@@ -747,7 +747,8 @@ class _Handler(BaseHTTPRequestHandler):
         """PROTOCOLS §8 的断言报告；只读 ``dist/reports/assertions.json``。
 
         ``--allow-write`` 是这一行的开关（PROTOCOLS §3 备注）：不写盘的部署下直接 403。
-        这一层**不**跑 pytest——真正的"触发"属于 ``tools/run_asserts.py``（目前仓库里还没有），
+        这一层**不**跑 pytest——真正的"触发"属于 ``tools/run_asserts.py``（G3 门禁的入口，
+        由 ``make asserts`` 与 ``tools/ci.sh`` 调用，写的就是本行读的那份报告），
         服务进程不该被一个 GET 拖进几分钟的测试会话。
         """
         server = self._lab_server

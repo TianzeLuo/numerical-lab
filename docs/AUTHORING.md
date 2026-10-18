@@ -35,7 +35,7 @@
 | 顺序 | 文档 | 你要从里面拿到什么 |
 |---|---|---|
 | 1 | [`docs/POLICY.md`](POLICY.md) | 红线：P1–P13 各管什么、五件套完整性、断言纪律、防误导七条、提交信息格式。**任何一条都不能破。** |
-| 2 | [`docs/PROTOCOLS.md`](PROTOCOLS.md) | 跨语言接口：`.nlf` 帧容器（§1）、WS/HTTP 协议（§2–4）、manifest 字段约束（§5）、`Scene` 契约（§6）、对拍协议（§7）、断言报告（§8）、产物目录（§9） |
+| 2 | [`docs/PROTOCOLS.md`](PROTOCOLS.md) | 跨语言接口：`.nlf` 帧容器与 `meta` 硬约束（§1）、WS/HTTP 协议（§2–4）、manifest 字段约束（§5）、`Scene` 契约 + 布局契约（§6）、对拍协议（§7）、断言纪律与报告（§8）、产物目录（§9） |
 | 3 | [`docs/ARCHITECTURE.md`](ARCHITECTURE.md) | 代码怎么摆、一次点击的数据怎么流、`Scene` 为什么是唯一中间表示、测试金字塔 |
 
 你这一章的**内容要求**（推导要点、该做哪几个可视化、核心模块清单、断言方向）在
@@ -301,12 +301,37 @@ export function modelFor(vizId: string): SceneModel | null {
 G8 就只能退化成「Python 自己拼一个标准场景来比」，用户真正看到的那张图反而没人守
 （`docs/ARCHITECTURE.md` §1）。
 
+**布局契约（Scene 的「规则 8」）**：`validateScene`（TS）与 `tools/raster.py::validate_scene`（Python）
+会当场拒绝两类布局错误，光栅器那一侧还会让 G8 变红（细节见 `docs/PROTOCOLS.md` §6.1–6.2）。
+写模型时照这四条做：
+
+1. **角标一律走 `placeBadge(b, slot, width)`**，不要手写 `x/y`：它按 `BADGE_LAYOUT`
+   （`x=8, top=34, rowH=18, colW=344`）放进固定槽位，并把文本裁到 `badgeUnitBudget(width)`
+   （两列画布 **47** 个显示单位）。槽位固定是为了"少一枚角标时其余不挪位"，裁剪是因为
+   1.2/0.0 章真出现过 65 单位的长角标横穿到右列、压住临界值角标。越界/重叠的报错长这样：
+   `徽标 xxx… 超出画布：盒子 [x, y, w×15]，画布 W×H（规则 8：先用 placeBadge/clipBadgeText 收进列宽）`、
+   `徽标重叠（规则 8）：…`。
+2. **面板 `top` 从 `headerBand(width)` 之后开始**：两列画布预留 **114px**（`34 + 4×18 + 8`），
+   单列（宽度 < 712）是 **186px**。
+3. **轴下的位置要自己算够**：渲染层会在 `rect` 外侧画装饰带（`AXIS_DECO = {top:18, bottom:28, left:56}`），
+   文本层落进去就报 `文本压住坐标轴装饰（规则 8）`。要放图例/数值块时，把该轴 `xlabel` 置空、
+   高度多留出 `28px + 自绘文本的高度`（`lu_heatmap` 的副轴按这个口径扣了 62px）。
+4. **手写类别名（`AxisOptions` 没有 `xtickLabels`）时**：清空该轴 `xticks` 并**不要**再设 `xlabel`，
+   否则数字刻度/轴名会与手写标签叠在同一条带里（`spy_ordering` 踩过）。
+
+**角标是索引级标签**：`placeBadge` 的裁剪是静默的（只留尾部 `…`），所以角标里只放"这是什么"；
+长句子请进面板文本、`strings` 或 `pitfalls`。
+
 **检查清单**
 
 - [ ] `<viz>.model.ts` 里没有 `document` / `window` / `canvas` / `node:*` / 第三方 import。
 - [ ] 帧里缺必需数组时抛 `ModelInputError`；缺的只是标注信息时降级（不抛错）。
 - [ ] `Scene` 至少含一枚 `kind="source"` 徽标；`overflow.flag === true` 时 `note` 非空。
 - [ ] 层引用的 `axes` id 都存在；`heat.values.length === nx*ny`；`loglogfit` 的两个斜率都有限。
+- [ ] 角标是用 `placeBadge(b, slot, width)` 摆的（没有手写坐标、没有被裁掉关键信息）；
+      面板 `top ≥ headerBand(width)`。
+- [ ] 有图例/数值块的轴：`xlabel` 置空、高度多让出 `28px + 文本高度`；手写类别名的轴清空了
+      `xticks` 且未设 `xlabel`（否则 `validateScene` 报「规则 8」）。
 - [ ] 章节前端**不得** import `viz/shared/src/numeric/**`（P8）；确实需要前端近似时，按 §5 走白名单并打 `preview-approx` 徽标。
 - [ ] `index.ts` 登记了新 viz；`manifest.gen.ts` 是生成物，**不要手改**。
 
@@ -413,10 +438,14 @@ tests:                        # 逐条列出测试函数名 + 类别 + 一句话
 **检查清单**
 
 - [ ] 每条断言都被 `@assertion` 装饰，且有 `theory`（不许 `assert True` 占位）。
-- [ ] A 类声明了收敛阶，实测阶落在理论阶 ± 0.1（`assert_order` 的 `tol` 别偷偷放宽）。
+- [ ] 每个 `@assertion` 的测试至少产生一条 `record`；A 类不能只调 helper（helper 的类别固定是 `B`）；
+      `record(passed=False)` 后面必须跟 `assert`（`docs/PROTOCOLS.md` §8.1–8.3）。
+- [ ] A 类声明了收敛阶，实测阶落在理论阶 ± 0.1（`assert_order` 的 `tol` 别偷偷放宽）；
+      `h`/`err` 按 h **递减**传，拟合窗口写进 `theory` 串与 `meta`（§8.4）。
 - [ ] B 类容差**说得出出处**（机器精度界 `8nu·max|E|`、解析容差、问题规模推导），不是「试出来的」。
 - [ ] C 类阈值是二分实测的；若与教科书常数不同，把「向常数收敛」也测掉。
 - [ ] `asserts.yaml` 的 `tests[]` 与 `tests/<id>/` 里的函数名逐条对应；`required_kinds` 与实际类别一致。
+- [ ] 矩阵分解类章节的 A 类覆盖 `m<n / m=n / m>n`（§8.6）；反例类断言写清样本分布与规模（§8.7）。
 - [ ] 拟合窗口的舍入地板处理过（用 `head=` 保留粗端；`tail=` 保留的是**细端**，正是被污染的那一端）。
 
 跑：`make asserts`（会重跑 pytest 并生成 `chapters/<id>/asserts_report.md`）。
@@ -483,6 +512,32 @@ make book                                 # 3) 编译；附表与最新报告不
 
 跑：`make book`（G9）。
 
+### 2.6 源码书写约定（中文、引号、枚举与哨兵）
+
+- **中文字符串里不要用裸 ASCII 双引号（`"`）**：它会把 Python 字符串提前截断，实测多次当场
+  `SyntaxError`（1.3 / 3.2 / 2.3 章都中过）；LaTeX 的字符串里同理（`"` 不是引号）。
+  统一用「」或 “”。G1 的 SYNTAX 规则把这类问题报成 `语法错误：…`；同一规则还管另一类相关报错：
+  `警告当作错误：invalid escape sequence '\i'（无效转义请写成原始字符串 r""" 或双反斜杠）`——
+  docstring 里写 LaTeX（`\input`、`\int`）必须用 `r"""` 或双反斜杠。
+- **枚举/字符串参数走 `set_strings`**（`pivot="partial"`、`bc="natural"`、`method="bdf2"`）；
+  帧里出现哨兵值（`None`、`-1`）必须在 `strings` 里说明它为什么不是数字
+  （`docs/PROTOCOLS.md` §1.3，那里列了 1.1/1.2/2.2 三处正例与 1.5 的待补处）。
+- **没有 `xtickLabels` 这个东西**：`AxisOptions` 没有这个字段，类别名只能自己用 `text` 层手写；
+  并且要**把该轴的 `xticks` 清空**（否则数字刻度与手写标签叠在同一行）、
+  **不要再给该轴设 `xlabel`**（否则与手写标签挤在同一条装饰带，规则 8 当场报违规）。
+- **几个反复踩到的具体坑**（各一句）：
+  - `np.roll` 平移采样网格是**空操作**：它只把数组循环置换，`min`/`max`/`sum` 这类置换不变量
+    逐位不变（判据：对同一数组 `np.roll(x, k)` 与 `x` 的 `min/max/sum` 完全相同，只有 `argmin` 会动），
+    1.1 章差点据此写出假证据；真要平移网格请写 `x + k*dx`。
+  - `next_float(±0, direction=−1)` 要特判：位模式键把 `+0`/`−0` 当相邻，但数轴上它们是同一个点，
+    实现里必须先跳到另一个零的键上（`numcore/fp.py` 的 `next_float`）。
+  - **C¹ 函数的数值导数必须用单侧差商**：跨节点的中心差商带 `O(h·ΔS'')` 项，
+    2.2 章 PCHIP 实测卡在 `1e-5` 量级、缩小 h 也不改善（实测最大相对差 `2.6e-6`）；
+    换成同一段内的三点单侧二阶差商立刻降到 `1.4e-10`。
+  - **Newton 收敛判据要用相对残差**：绝对判据在解衰减到 `1e-11` 时"零次迭代就宣布收敛"
+    （那一刻残差已是当前解的 50%）；`numcore.ode.implicit.newton_solve` 用
+    `‖F‖∞ ≤ tol·max(‖y‖∞, ‖y₀‖∞) + atol`（3.2 章真踩过）。
+
 ---
 
 ## 3. 本地验证循环
@@ -500,7 +555,7 @@ make book                                 # 3) 编译；附表与最新报告不
 | `make visual` | 改了 `model.ts`、渲染层、manifest 参数 | `dist/visual/diff/*.png` 差异图；`dist/reports/visual_regression.json` |
 | `make visual-update` | 图**有意**变了（必须在提交信息里写明原因） | 更新后 `git status tests/baselines/` 应只多出你预期的那几张 |
 | `make book` | 改了 `notes.tex` / `asserts_table.tex` | `dist/book/one_<id>.log`（缺字、未定义引用、Overfull 都在这） |
-| `make progress` | 开/关一章、改了 `chapters.yaml`、完成度变了 | `dist/reports/progress.json` 不存在时是「未运行」，不是失败 |
+| `make progress` | 开/关一章、改了 `chapters.yaml`、完成度变了 | 重生成 `docs/PROGRESS.md`；门禁状态段读 `dist/reports/*.json`，缺哪个就显示「未运行」（不是失败） |
 | `make ci` | 提交前 | `dist/logs/G1.log … G10.log`（每道门的完整输出）+ `dist/reports/ci.json`（汇总） |
 
 两个只读的「体检」命令，排查时很好用：
@@ -587,8 +642,11 @@ python3 tools/parity.py --check-golden    # 额外确认「盘上的 golden == �
 - 靠近零点的分量相对差会自然放大，靠 `atol` 兜底；**绝不靠把 `rtol` 放大到能过**——
   「那是把门禁做成了装饰」。
 
-**当前覆盖**（M0）：5 个 case / 1915 个点——`heat_explicit_step`、`heat_ftcs_run`、
-`ftcs_amplification_modes`、`oscillator_sample`、`order_fit_powerlaw`；
+**当前覆盖**（实测 2026-10-18）：**8 个 case / 2387 个点**——`heat_explicit_step`、`heat_ftcs_run`、
+`ftcs_amplification_modes`、`oscillator_sample`、`order_fit_powerlaw`，
+以及 1.2 章的三条 LU 对拍：`lu_partial_pivot`（Hilbert(6)，92 点）、`lu_wilkinson_growth`（Wilkinson(12)，312 点）、
+`lu_tiny_pivot`（首元 1e-14，68 点），三条均实测 `max|Δ| = 0`。
+读数命令：`python3 tools/parity.py` → `dist/reports/parity.json` 的 `n_cases` / `n_points`；
 计划清单见 `docs/PROTOCOLS.md` §7。
 
 ---

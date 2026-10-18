@@ -1,7 +1,7 @@
 # PROTOCOLS —— 帧格式 / 场景契约 / 可视化契约 / 对拍协议
 
 > 本文件定义**跨语言、跨进程、跨时间的接口**。任何一端改动都必须同步本文件与两侧实现，
-> 并由 `tests/test_nlf_roundtrip.py`、`viz/tests/nlf.test.ts`、`tests/parity/` 三处守住。
+> 并由 `tests/test_nlf.py`、`viz/tests/nlf.test.ts`、`tests/parity/` 三处守住。
 
 目录：
 1. [.nlf 帧容器](#1-nlf-帧容器)
@@ -73,16 +73,59 @@
 - Python（写读双端，权威实现）：`server/nlf.py` —— `pack_frame(fr: Frame) -> bytes`、`unpack_frame(buf) -> Frame`、
   `write_frame(path, fr)`、`read_frame(path)`、`Frame.add(name, array, unit, label)`。
 - TypeScript（读端 + 测试用写端）：`viz/shared/src/nlf.ts` ——
-  `decodeNlf(bytes): Frame`（**仅** `codec === "none"`）、`decodeNlfAsync(bytes): Promise<Frame>`（任意 codec，
-  内部用 `DecompressionStream`）、`encodeNlf(frame, opts?): Uint8Array`、`frameSummary(frame): string`。
+  `decodeNlf(bytes): Frame`（**同步**，**仅** `codec === "none"`）、
+  `decodeNlfAsync(bytes): Promise<Frame>`（**异步**，任意 codec，内部用 `DecompressionStream`）、
+  `encodeNlf(frame, opts?): Promise<Uint8Array>`（**异步**，`opts.codec` 缺省 `"none"`，调用方必须 `await`）、
+  `frameSummary(frame): string`。
   调用方一律用 `decodeNlfAsync`（对未压缩帧无额外开销），这样可以不必在业务代码里分支。
+  `encodeNlf` 之所以是异步的：`codec="zlib"` 要走 `CompressionStream`，而它只有异步 API——
+  把 `none` 分支写成同步、`zlib` 分支写成异步会让调用方被迫分叉，所以统一成 `Promise`。
 - 两侧的**报错顺序**必须一致（`version → endian → codec → dtype → order → nbytes 自洽 → 越界 → payload 总长 → 区间重叠`），
   便于把"同一份坏字节"的判定写成跨语言对拍。
 - 有意的差异（只影响**非法输入**）：TS 端更严——`kind`、`meta` 标量性、`shape` 元素整数性、
   `strings`/`critical`/`pitfalls` 类型都会抛 `NlfError`，而 Python 写端本来就不可能产出这些形态，
-  因此 Python 写出的帧 100% 可被 TS 解码（已用 6 夹具 × 3 codec 双向验证）。
-- 基准文件：`tests/fixtures/nlf/*.nlf`（每个 ≤ 4 KB，随仓库提交）。两侧都必须能逐点还原，
-  还原结果写入 `tests/parity/golden/nlf_*.json` 供 G7 逐值比对。
+  因此 Python 写出的帧 100% 可被 TS 解码。实测口径（`tests/fixtures/nlf/` 的 **6 个夹具**，
+  用 `server/nlf.py::read_frame` 逐个读 header 得到）：**5 个 `codec=none` + 1 个 `zlib`（`zlib_2d.nlf`），
+  没有 gzip 夹具**；`gzip` 分支只在 `viz/tests/nlf.test.ts` 里用**合成帧**做往返，不在这 6 个夹具之列。
+- 基准文件：`tests/fixtures/nlf/*.nlf`（随仓库提交）。实测体积 **618 B – 10049 B**：
+  `zlib_2d.nlf` 约 **9.8 KiB**（压缩帧的 payload 是大数组，压缩后仍比其余夹具大一个量级），
+  其余 5 个 653–890 B。两侧都必须能逐点还原，
+  还原结果写入 `tests/parity/golden/nlf_*.json`（6 份）供 G7 逐值比对。
+
+### 1.3 `Frame.set_meta` 的硬约束（写入前自检）
+
+`meta` 原样进 header JSON，所以只收 **number / bool / null**，且 number 必须是**有限数**。
+三条都不是"风格建议"，违反时 `server/nlf.py::Frame.validate()` 当场抛 `NlfError`：
+
+| 写法 | 报错（原文摘录） |
+|---|---|
+| `fr.set_meta(tag="partial")` | `meta['tag'] 是字符串——请改放进 strings（PROTOCOLS §1.1）` |
+| `fr.set_meta(hist=[1, 2])`（list / tuple / ndarray / dict 同理） | `meta['hist'] 不是 number/bool/null（PROTOCOLS §1.1）` |
+| `fr.set_meta(kappa_u=float("nan"))`（`±inf` 同理） | `meta['kappa_u'] = nan 不是有限数——JSON 没有 NaN/Infinity，请用 None（null）表示"无有限值"，并在 strings 里说明原因` |
+
+最后一条是**硬错误**，不是"写的时候顺手清洗一下"：header 由 `json.dumps(..., allow_nan=False)`
+编码（`server/nlf.py:315`），NaN 会在**写盘那一刻**才炸，报的是
+`Out of range float values are not JSON compliant`——与"哪个量没定义"毫无关系（1.1 章真踩过：
+`pack_frame` 抛在预计算落盘路径上，报错完全指不到元凶）。`Frame.validate()` 宁可提前拒绝，
+也不让一个 NaN 拖垮整帧。
+
+**规定写法**：每个装配帧的章节文件里放一个 `_finite_or_none(x)` 小工具
+（1.1 章叫 `_scalar`、1.2/1.5 章叫 `_finite_or_none`、2.2 章叫 `_finite`），
+"没有有限值"一律写 `None`，并在 `strings` 里如实说明**为什么**。已落地的四处：
+
+| 位置 | 写进 meta | `strings` 里的说明 |
+|---|---|---|
+| 1.1 `cond_ellipsoid`：`kappa_u`（κ 非有限时） | `None` | `note`：`κu = … ≥ 1：A 在 float64 里已经和奇异矩阵无法区分…` |
+| 1.2 `unit_ball`：`forward_error` / `backward_error` / `residual` / `x_num_absmax` | `None`（`singular=True` 时） | `status`：`数值奇异：κ > 1/u，A 的浮点分解出现零主元`；另有 `note` 说明 |
+| 2.2 曲率能量：`energy_ratio`（τ=1 时能量恰为 0） | `None` | `note`：`tau=1：弯矩为 0，曲线就是折线——C1 已经断了，曲率能量恒为 0（比值因此无定义）` |
+| 1.5 `preconditioner`：`ilu_dropped`（预条件不是 ILU(0) 时） | `-1` 哨兵 | **必须在 `strings` 里写明 `-1` = 不适用**；当前只在 manifest 描述里提了"ILU(0) 丢弃的填充次数"，见 `docs/ROADMAP.md` §4 的已知缺口 |
+
+**共同纪律**：帧里出现 `None` 或 `-1` 这类哨兵值，`strings` 里就必须有一句解释它为什么不是数字；
+枚举/字符串参数（主元策略、边界条件、方法名）一律走 `fr.set_strings(...)`，不进 `meta`。
+自检：`python3 -m pytest tests/test_nlf.py tests/test_frames_contract.py -q`
+（前者钉 `meta` 的类型契约，后者把每一章的每个 viz 在默认参数与边界参数上**真的编码一遍**——
+NaN 会在那里当场炸）；单章还可以跑 `python3 tools/precompute.py --chapter <id>`，
+同样在这一步抛 `NlfError`，而不是等到前端解码那一帧。
 
 ---
 
@@ -124,7 +167,9 @@
 
 - 支持：握手（`Sec-WebSocket-Accept`）、文本/二进制帧、客户端掩码解码、分片（continuation）、
   ping/pong、close 握手、`Sec-WebSocket-Protocol` 回显。
-- 不支持（并显式以 close code 1003/1002 拒绝）：扩展协商、压缩（`permessage-deflate`）、超过 `MAX_FRAME`（默认 16 MiB）的帧。
+- 不支持（并显式拒绝）：扩展协商与压缩（`permessage-deflate`，RSV1 非零 → **1002**）、
+  未知 opcode → **1002**、非法 UTF-8 文本 → **1007**、**超过 `MAX_FRAME`（默认 16 MiB）的帧 → 1009**。
+  注意"超长"用的是 **1009**（message too big），不是 1003（unsupported data）；1002 只用于协议违规。
 - 单连接单线程处理；计算在订阅循环内同步执行（帧小、算得快；重活走预计算）。
 - 测试：`tests/test_ws.py` 用自研客户端（`server/wsclient.py`，同样零依赖）跑握手/分片/大帧/关闭/半包。
 
@@ -141,8 +186,8 @@
 | GET | `/api/chapters` | 章节清单（合并 `docs/chapters.yaml` + 进度 + 依赖）|
 | GET | `/api/chapter/<id>/manifest` | 该章全部 viz 的 manifest |
 | GET | `/api/chapter/<id>/frame?viz=..&params=<base64url json>&t=<%.6g>` | 单个 `.nlf`（`Content-Type: application/x-nlf`）|
-| GET | `/api/chapter/<id>/frames?...&n=60` | 多帧流：`multipart/mixed` 或长度前缀拼接（降级通道）|
-| POST | `/api/asserts/<id>` | 触发该章断言（仅 `--allow-write` 时启用）|
+| GET | `/api/chapter/<id>/frames?...&n=60` | 多帧流（降级通道）：**只有 `NLFS/1` 一种格式**——长度前缀容器，`Content-Type: application/octet-stream`，见下；**没有 multipart** |
+| GET \| POST | `/api/asserts/<id>` | **只读**返回 `dist/reports/assertions.json` 里该章的记录（**不会跑 pytest**）。报告文件不存在 → **404**；未以 `--allow-write` 启动 → **403** |
 
 `params` 传输：JSON 经 UTF-8 → base64url，避免 URL 编码歧义；也接受 `params_json`（简单调试用）。
 
@@ -203,7 +248,9 @@ offset 12: header_len 字节 UTF-8 JSON，形如
 **单一真源在 Python**：`server/chapters/<id>.py` 里声明 `MANIFEST`，
 `tools/gen_manifests.py` 生成
 `viz/chapters/<id>/manifest.gen.ts`（TS 字面量 + 类型）与 `data/manifests/<id>.json`（运行时）。
-CI 门禁 G6 保证"生成物 == 真源"，从根上消灭"前后端两处声明漂移"。
+CI 门禁 G6 保证"生成物 == 真源"，从根上消灭"前后端两处声明漂移"；
+G6 是同一条命令里的两步：`gen_manifests.py --check`（本节）**与** `gen_colorscales.py --check`（§6 的色标表），
+两者都无漂移才算 G6 通过。
 
 ```python
 # server/chapters/<id>.py
@@ -247,7 +294,8 @@ MANIFEST = {
 
 ## 6. Scene 契约（渲染与视觉回归）
 
-前端 `model.ts` 把 `Frame` 映射为**纯 JSON** 的 `Scene`；`view.ts` 把 `Scene` 画到 canvas；
+前端 `viz/chapters/<id>/<viz>.model.ts` 把 `Frame` 映射为**纯 JSON** 的 `Scene`；
+共享的 `viz/shared/src/render2d.ts` 把 `Scene` 画到 canvas（DOM 装配在 `viz/shared/src/view.ts`）；
 Python `tools/raster.py` 把**同一个** `Scene` 光栅化为 PNG。于是"视觉回归"在没有浏览器的环境下也可执行。
 
 ```ts
@@ -293,11 +341,87 @@ type Badge = { x: number; y: number; text: string; kind: "source"|"autoscale"|"o
 `validateScene(scene)`（TS）与 `tools/raster.py::validate_scene`（Python）实现同一套校验，
 规则：层引用的 `axes` 必须存在；`heat.values.length == nx*ny`；`loglogfit` 两斜率必须有限；
 `overflow.flag == true` 时 `overflow.note` 非空；`badges` 至少含一个 `source` 徽标。
-两侧校验器都对 `viz/tests/scene/golden/*.json` 的同一批场景跑，结论必须一致（G7 的一部分）。
+
+### 6.1 角标盒与文本盒：两侧共用的一把尺子
+
+模型层是纯函数、拿不到 `measureText`，所以"角标放不放得下、两个盒子会不会相交"只能靠一把**写死的尺子**。
+这把尺子同时被 TS 的模型/校验器与 Python 的光栅器/校验器使用，任何一侧偷改都会让另一侧误判
+（"模型以为放得下、校验器以为放不下"是无解的扯皮）：
+
+| 量 | TS（`viz/shared/src/scene.ts`） | Python（`tools/raster.py`） | 取值 / 口径 |
+|---|---|---|---|
+| 显示宽度单位 | `textWidthUnits(text)` | `_text_width_units(text)` | CJK/全角（`codePointAt > 0x2e80` / `ord > 0x2E80`）记 **2**，其余记 **1** |
+| 像素 / 单位 | `BADGE_UNIT_PX` | `BADGE_UNIT_PX` | **7**：内嵌位图字体实测（角标字号 = `base_font_size − 2` = 11，实测 10 个 ASCII = 70px、10 个汉字 = 140px，即 7.00 px/单位）；浏览器 sans-serif 略窄，7 当保守上界 |
+| 左右内边距之和 | `BADGE_PAD_PX` | `BADGE_PAD_PX` | **10**（两个渲染层都是左右各 5px） |
+| 角标盒高度 | `BADGE_BOX_H` | `BADGE_BOX_H` | **15**：校验器用的名义盒高；绘制高度是 `base_font_size + 4`，槽位行距 18，所以相邻行不会撞 |
+| 角标盒宽度 | `badgeBoxWidth(text)` | `badge_box_width(text)` | `units × 7 + 10` |
+| 单行预算 | `badgeUnitBudget(width)` | `badge_unit_budget(width)` | 见 §6.2 |
+| 角标裁剪 | `clipBadgeText(text, units)`（`model.ts`） | `clip_badge_text(text, units)` | 超出部分砍掉并用尾部 `…` 收尾，两侧同一算法 |
+
+钉住两侧的是同一组样例：`tests/test_raster.py::test_badge_box_width_matches_the_shared_metric`
+（`"数据：后端 .nlf 帧" == 18 单位 × 7 + 10`）与 `viz/tests/scene.test.ts` 的
+`placeBadge` / `badgeUnitBudget` 用例（断言裁剪后 `textWidthUnits(text) ≤ badgeUnitBudget(960)`）。
+**改这把尺子 = 两侧一起改**，否则 G8 的像素基线会告诉你哪里对不上。
+
+### 6.2 规则 8（布局）：校验器查什么、模型该怎么写
+
+`validateScene(scene)`（TS）与 `tools/raster.py::validate_scene`（Python）都实现"规则 8（布局）"，
+报错文本里直接写着 `规则 8`：
+
+**① 角标盒必须落在画布内、两两不相交**（两侧都查）。
+`placeBadge(b, slot, width)`（`viz/shared/src/model.ts`）负责把角标放进固定槽位并**自动裁剪**：
+
+| 常量 / 函数 | 值 | 语义 |
+|---|---|---|
+| `BADGE_LAYOUT` | `{x: 8, top: 34, rowH: 18, colW: 344, maxSlots: 8}` | 顶部角标区；`top=34` 是为了不压住画在 (12, 8) 的 `scene.title` |
+| `badgeColumns(width)` | `width ≥ 2×344 + 24 = 712` 才是 **2** 列，否则 1 列 | 窄画布（含 `--width 200` 的导出）退化成单列 |
+| `badgeRows(width)` | `ceil(8 / columns)`：两列 **4** 行、单列 **8** 行 | 排版函数据此让出顶部 |
+| `headerBand(width)` | `34 + rows×18 + 8`：两列 **114px**、单列 **186px** | 面板的 `top` 必须从它之后开始，角标与面板互不重叠 |
+| `badgeUnitBudget(width)` | 两列：`floor((344 − 10) / 7)` = **47** 个显示单位；单列：`floor((max(60, width − 16) − 10) / 7)`（960 宽 → 47、200 宽 → 24） | `placeBadge` 用它裁文案 |
+
+**角标是索引级标签**：`placeBadge` 的裁剪是静默的（只留尾部 `…`），所以角标里只放"这是什么"
+（数据来源、自适应、溢出、临界值、降级）；完整句子请放面板文本、`strings` 或 `pitfalls`。
+
+**② 文本层不得压住坐标轴的装饰带**（TS 侧 `validateScene` 当场报；Python 侧目前只做第 ① 条，
+见下面的判据）。装饰带常量 `AXIS_DECO = {top: 18, bottom: 28, left: 56}`，
+`axisDecoBands(axis)` **按需生成**——`xticks` 为空就不占刻度带、没有 `xlabel` / `title` / `ylabel`
+就不占那一条：
+
+| 有装饰才占带 | 矩形（相对画布） | 谁画的 |
+|---|---|---|
+| `title` 非空 | `[x, y−18, w, 16]` | 轴标题基线在 `top − 6` |
+| `xticks` 非空 | `[x, y+h+3, w, 15]` | 刻度标签基线在 `bottom + 4` |
+| `xlabel` 非空 | `[x, y+h+16, w, 12]` | 轴名基线在 `bottom + base + 16` |
+| `yticks` 非空 | `[x−41, y, 35, h]` | y 刻度标签右对齐于 `left − 6` |
+| `ylabel` 非空 | `[x−56, y, 14, h]` | 轴名竖排在 `left − 42` |
+
+**清空 `xticks` 的轴不占刻度带**——好几个模型刻意清空 `xticks` 改用手写类别名
+（`AxisOptions` 没有 `xtickLabels`），若把空刻度也当装饰，这些模型会被误报。
+
+**③ 文本盒按"块"算，不按横条算**：`textBoxOf(t)`（TS）与光栅器的排版同口径——按 `maxWidth`
+折行（每行 `floor(maxWidth / 7)` 个单位）、行高 `size + 4`、`baseline = top`、按 `align` 平移起点。
+一句长说明占的是**几行的块**；早先按单行估盒，0.0 章被误报过。
+
+**三起真实事故（各写清怎么修）**：
+
+| 事故 | 现象 | 修法 |
+|---|---|---|
+| 1.2 / 0.0 章的一枚 **65 单位**角标 | 横穿到右列、压住临界值角标 | `placeBadge` 统一裁到列宽预算（`clipBadgeText`）：宁可少显示几个字，也不许两枚角标叠在一起 |
+| `lu_heatmap` 的数值块 | 压进副轴 `xlabel` 带 | 副轴高度多扣 **62px**（轴自己的两条装饰带 + 模型自绘的两行文本块），并把该轴 `xlabel` 置空（`viz/chapters/1.2/lu_heatmap.model.ts:203`） |
+| `spy_ordering` 的手写类别标签 | 与 `xlabel` 挤在同一条带 | 清空该轴 `xticks`、**不设** `xlabel`，类别名全部由 `text` 层画 |
+
+判据（可执行）：`node dist/viz/tests/scene/dump_scenes.js` 会用 TS `validateScene` 校验每个真场景，
+`python3 tools/visual_regression.py --check --require-scenes` 再用 Python `validate_scene` 校验同一批文件；
+两侧报告里都不出现 `规则 8` 字样才算过。
+
+两侧**不是**各自跑一批 golden JSON 场景（仓库里没有 `viz/tests/scene/golden/`）：真正被钉住的是
+**同一批真场景**——`dump_scenes.ts` 先用 TS `validateScene` 校验再写 `dist/scenes/**.json`，
+`tools/visual_regression.py` 再用 Python `validate_scene` 校验同一批文件并光栅化（G8）。
+两侧各自另有单测：TS 在 `viz/tests/scene.test.ts`，Python 在 `tests/test_raster.py::test_validate_scene_*`。
 
 **配色与色标**：`viz/shared/src/colorscale.ts` 内置 5 个色标（256 级 LUT 常量，**不含第三方依赖**），
-Python `tools/raster.py` 用同名同值的 LUT（`tools/colorscales.py` 生成一次，两侧共用 JSON：
-`viz/shared/colorscales.json` 由 `tools/gen_colorscales.py` 产出，G6 检查）。
+Python `tools/raster.py` 用同名同值的 LUT（`tools/colorscale_tables.py` 是真源，`tools/gen_colorscales.py`
+生成两侧共享的 `viz/shared/colorscales.json` 与 `viz/shared/src/colorscale_data.gen.ts`，由 G6 检查）。
 
 ---
 
@@ -314,7 +438,7 @@ Python `tools/raster.py` 用同名同值的 LUT（`tools/colorscales.py` 生成�
   ```yaml
   default: {rtol: 1e-12, atol: 1e-14}
   cases:
-    lu_partial_pivot: {rtol: 1e-13, atol: 1e-15, reason: "TS 用 float64 同一算法，误差来源仅求和顺序"}
+    lu_partial_pivot: {rtol: 1e-14, atol: 1e-16, reason: "同一套运算顺序（先整列算乘子、再整块 outer 更新），实测逐位相同；不取 0 是留 FMA 收缩的 1 ulp 余量"}
     fft_radix2:      {rtol: 1e-10, atol: 1e-12, reason: "三角查表 vs 递推，累积差"}
   ```
 - 门禁 G7 失败时 MUST 打印 `case / 索引 / python 值 / ts 值 / 相对差 / 容差`，
@@ -324,10 +448,14 @@ Python `tools/raster.py` 用同名同值的 LUT（`tools/colorscales.py` 生成�
 - **容差必须写理由**：`tests/parity/tolerances.yaml` 的每条覆盖都要带 `reason` 与实测值，
   例如 heat 系"实测逐位相同，但跨平台 FMA 可能差 1 ulp，故留 1e-14≈45 ulp"。
 
-当前覆盖（M0）：`heat_explicit_step`、`heat_ftcs_run`、`ftcs_amplification_modes`、
-`oscillator_sample`、`order_fit_powerlaw` —— 5 个 case / 1915 个点。
+当前覆盖（截至 2026-10-18）：`heat_explicit_step`、`heat_ftcs_run`、`ftcs_amplification_modes`、
+`oscillator_sample`、`order_fit_powerlaw`、`lu_partial_pivot`（Hilbert(6)）、`lu_wilkinson_growth`（Wilkinson(12)，ρ = 2^11）、
+`lu_tiny_pivot`（首元 1e-14）—— **8 个 case / 2387 个点**（逐 case 点数：1800 / 312 / 92 / 68 / 41 / 41 / 25 / 8，
+读数来自 `dist/reports/parity.json`；新增的 3 条 LU case 实测 `max|Δ| = 0`）。
 覆盖清单（M0 起逐步补齐，加一个 case = `tools/parity.py::CASE_SPECS` 加一条 +
-`viz/shared/src/numeric/<algo>.ts` 加一个模块 + `--update-golden`）：`lu`、`qr`（Householder）、`chol`、`svd_jacobi`、`power_iter`、
+`viz/shared/src/numeric/<algo>.ts` 加一个模块 + `--update-golden`）：~~`lu`~~（已完成：`luPartialPivot`，
+见 `viz/shared/src/numeric/lu.ts` + `viz/tests/numeric.lu.test.ts` 的本地护栏）、
+`qr`（Householder）、`chol`、`svd_jacobi`、`power_iter`、
 `barycentric`、`spline_natural`、`gauss_legendre_nodes`、`fft_radix2`、`dwt_haar`、
 `rk4`、`dopri5_step`、`verlet`、`heat_explicit_step`、`upwind_step`、`sobol_seq`、`pce_basis`。
 
@@ -348,6 +476,99 @@ Python `tools/raster.py` 用同名同值的 LUT（`tools/colorscales.py` 生成�
 每章的 `chapters/<id>/asserts_report.md` 由同一脚本生成（理论值 / 实测值 / 容差 / 判定），
 并作为 `notes.tex` 的附表 `\input` 进去——**纸面结论与机器结论同源**。
 
+### 8.1 每条断言至少要产生一条 `record(...)`
+
+`@assertion("A"|"B"|"C", theory=..., chapter=...)` 装饰的每个测试，运行期**必须**至少登记一条记录：
+调用 `numcore.verify` 的 `assert_*` helper、显式 `record(...)`、或 `return Measured(value=..., tol=...)`。
+一条都没有 → 插件（`numcore/verify/report.py`，`strict_measure=True` 缺省，**不要关**）直接判失败：
+
+```
+测试未登记任何实测值：请调用 numcore.verify 的 assert_* helper，或 return Measured(value=..., tol=...)。禁止静默通过（POLICY §3）。
+```
+
+### 8.2 helper 的类别固定是 `"B"`：`@assertion("A")` 不能只调 helper
+
+`invariants.py` / `rates.py` 里的不变量 helper（`assert_leq` / `assert_within` / `assert_monotone` /
+`assert_conserved` …）登记的 `kind` **写死为 `"B"`**。于是 `@assertion("A")` 的测试若只调 helper，
+就会出现"声明 A 却一条 A 记录都没有"——插件会报**类别不符**并失败：
+
+```
+声明为 A 类，但本测试登记的全是 B 类记录：A 类必须与解析解/参考实现对拍、B 类是不变量、C 类是收敛率。
+要用 helper 记 A 类，请显式调用 record(kind="A", ...) 并 assert 它；helper 的缺省类别是 B。
+```
+
+规范写法（自己算完残差/误差后登记）：
+
+```python
+rec = record(label=..., theory=..., measured=..., tol=..., passed=cond)
+assert rec.passed, rec.measured
+```
+
+一行 `record` + 一行 `assert`：既保证类别正确，又保证失败真的失败。
+
+### 8.3 `record(passed=False)` 后面必须跟 `assert`
+
+只 `record(passed=False)` 而不 `assert`：pytest **全绿**，但 `tools/run_asserts.py::analyse`
+先看 `totals.failed`，会报 `有 1 条断言失败`。
+两种失败方式分工明确：`assert` 让 pytest 当场红（定位到用例），报告的 `failed` 让 G3 红（定位到章节）。
+**统一写成 `assert rec.passed, rec.measured`**，两处一起红，不留"记录里失败、进程却退出 0"的缝。
+
+### 8.4 `assert_order` / `fit_order` 是幂律拟合：递减、渐近区、窗口写进 `theory`
+
+`numcore/verify/order.py` 拟合的是 `err ≈ C·h^p`（双对数最小二乘），四个硬条件：
+
+1. `h` / `err` **必须按 `h` 递减**传（从最粗网格到最细网格）。`head=` 保留**粗端**、`tail=` 保留**细端**——
+   "尾部触舍入地板"要用 `head=`，方向别记反（写反了等于把被污染的那一端留下）。
+2. **只喂幂律关系**。对数型关系（例："位数 = log10(gap) + C"）拟合出来的 `p` 没有意义（1.1 章实测 **0.047**）。
+3. **必须确认处在渐近区**，窗口写进 `theory` 串与 `meta`：1.3 章正规方程把 21 个点全塞进去得 **1.52**，
+   只取 `err < 0.1` 的窗口才回到 **1.981**；3.2 章 BDF2 粗窗口（h = 1/8…1/64）**1.8843**、
+   细窗口（1/128…1/4096）**1.9862**。
+4. **饱和段 / 舍入地板会污染拟合**：`err` 到机器精度后不再随 h 下降，全局拟合必然偏小。
+   `numcore.verify.diagnose_order` 会给出 `skip=` / `head=` 的建议，但它是**诊断、不自动改窗口**——
+   窗口是你写进 `theory` 的断言内容的一部分。
+
+### 8.5 A 类要双向：既测"精度对"，也测"到边界当场失效"
+
+"误差很小"单独不能证明阶或精度，必须配上**边界反例**：
+
+- 2.3 章 Gauss 求积：断言 `k ≤ 2n−1` 的矩误差在舍入水平，**同时**断言 `k = 2n` 处误差显著非零
+  （否则"精度"没有上界，等于什么都没说）；交错定理：交错点个数 **= n+2**、振幅比 → 1。
+- 1.1 章 Kahan：除了"`Kahan 误差 ~ u`"，还测**分段并行 43 倍退化**
+  （`1e16 + 1e-3×4095`：串行 0.095 → 8 段并行 4.095）——"稳定"这句话的边界必须被实测划出来。
+
+### 8.6 矩阵分解类章节的 A 类必须覆盖 `m<n` / `m=n` / `m>n`
+
+形状假设不写进断言，就会在宽矩阵上悄悄失效：1.3 章 `bidiagonalize` 曾在 `(5, 8)` 上给出
+**0.935** 的重建误差（相对 ‖A‖ 的 4.65e14 倍），因为 `m<n` 时 `r×r` 上双对角**不存在**、
+规范形式是下双对角。现在的断言在 `(8,5)` / `(5,8)` / `(12,12)` / `(20,4)` 四种形状上同时测
+重建误差、"只有两条对角线非零"与两翼正交性
+（`tests/1.3/test_qr_svd.py::test_bidiagonalization_structure_and_error`）。
+1.3 与 2.2 两次被"宽矩阵的规范形式不同"咬到——`m<n / m=n / m>n` 是最低覆盖。
+
+### 8.7 反例要交代数据分布
+
+"我试了没出问题"不是证据：1.1 章 3000 组 `uniform(−1,1)` 三元组里 **2940 组**加法结合律的结果逐位相同，
+把量级铺到 `2^−30 … 2^0` 才有 **654 组**不同、偏差最大到界的 **0.9969 倍**。
+反例类断言的 `what` / `theory` 里要写清样本分布与规模，否则测出来的只是"数据还不够刁"。
+
+### 8.8 报告文件是全仓共享的：单章验收要与 pytest 串在同一条命令里
+
+`dist/reports/assertions.json` **每次 pytest 会话都被整体覆盖**（插件在 `pytest_configure` 清表、
+在 `pytest_sessionfinish` 落盘；`tools/run_asserts.py` 用 `NUMCORE_REPORT` 指定同一个文件）。
+所以单独跑 `pytest tests/<id>` 之后，报告里只剩这一章；紧接着 `run_asserts.py --no-run`
+会报其它已实现章节"在报告里没有任何断言记录"（实测：只跑 `tests/1.3` 后，0.0/1.1/1.2/1.4/1.5/2.1/2.2/2.3/3.2 共 9 章全部报缺）。
+单章排查请指定一份自己的报告，并把两条命令**串在同一条命令里**跑：
+
+```bash
+NUMCORE_REPORT=/tmp/assertions-1.3.json python3 -m pytest tests/1.3 -q \
+  && python3 tools/run_asserts.py --no-run --report /tmp/assertions-1.3.json
+```
+
+G3 用的是整跑出来的那一份：G2 `pytest tests -q` 写、G3 `run_asserts.py --no-run` 读（`tools/ci.sh`），
+所以"过门禁"只能靠不带 pytest 参数的 `python3 tools/run_asserts.py`（或 `make asserts`）。
+注意 `run_asserts.py` 无论报告路径是什么，都会按该报告**重写** `chapters/<id>/asserts_report.md`
+（报告里没有的章节不重写）——临时报告只影响被它覆盖到的那几章。
+
 ---
 
 ## 9. 产物目录
@@ -361,10 +582,10 @@ dist/                                # 全部可重新生成（.gitignore 覆盖
 │   ├── png/<chapter>-<name>.png       # 本次光栅结果
 │   └── diff/<chapter>-<name>.png      # 与基线的差异图（不一致时）
 ├── reports/
-│   ├── assertions.json / asserts_report.md（各章另存 chapters/<id>/asserts_report.md）
+│   ├── assertions.json（`tools/run_asserts.py`；每章的 markdown 附表落在 chapters/<id>/asserts_report.md，不在 dist/）
 │   ├── parity_ts.json / parity.json
 │   ├── policy.json / manifests.json / scenes.json / visual_regression.json
-│   ├── book.json / progress.json / ci.json
+│   ├── book.json / ci.json
 ├── logs/G1.log … G10.log              # `make ci` 每道门的完整输出
 ├── book/                              # one_<id>.tex/pdf、book.tex/pdf、*.log
 └── export/

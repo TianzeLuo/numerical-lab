@@ -351,3 +351,49 @@ def test_repository_is_policy_clean() -> None:
     violations, notes = check(ROOT)
     assert violations == [], "\n".join(str(v) for v in violations)
     assert any("P6 文件级豁免" in n for n in notes)
+
+
+# --------------------------------------------------------------------------- #
+# SYNTAX 规则：无效转义（SyntaxWarning）必须变成违规
+#
+# 这条规则的第一版是**假绿**：`ast.parse` 确实会发 SyntaxWarning，但没人接住它
+# （默认只显示一次、只打到 stderr），于是 `tools/build_book.py:123` 的 `\input`
+# 在文档字符串里活了很久。下面两条测试把它钉死：一条正例、一条反例。
+# --------------------------------------------------------------------------- #
+def test_syntax_rule_catches_invalid_escape() -> None:
+    # 用 chr(92) 拼反斜杠：免得这条测试自己踩上无效转义（自指陷阱）
+    bs = chr(92)
+    src = f'x = 1{chr(10)}y = "{bs}i"{chr(10)}'  # 源码里是 "\i"
+    v = scan_source(src, path="numcore/demo.py")
+    assert [x.rule for x in v] == ["SYNTAX"], v
+    assert v[0].line == 2
+    assert "invalid escape" in v[0].message
+
+
+def test_syntax_rule_accepts_raw_and_doubled_backslash() -> None:
+    bs = chr(92)
+    # r"\i"：原始字符串，合法
+    assert scan_source(f'y = r"{bs}i"{chr(10)}', path="numcore/demo.py") == []
+    # "\\i"：双反斜杠，合法
+    assert scan_source(f'y = "{bs}{bs}i"{chr(10)}', path="numcore/demo.py") == []
+    assert scan_source("y = 1\n", path="numcore/demo.py") == []
+
+
+def test_repo_has_no_syntax_warnings() -> None:
+    """全仓库扫描：任何 Python 文件都不许有待处理的 SyntaxWarning。"""
+    import ast as _ast
+    import warnings as _warnings
+
+    bad: list[str] = []
+    for p in sorted(ROOT.glob("**/*.py")):
+        rel = p.relative_to(ROOT).as_posix()
+        if rel.startswith(("dist/", "node_modules/", ".cache/")) or "/dist/" in rel:
+            continue
+        with _warnings.catch_warnings(record=True) as caught:
+            _warnings.simplefilter("always")
+            try:
+                _ast.parse(p.read_text(encoding="utf-8", errors="replace"), filename=rel)
+            except SyntaxError as exc:
+                bad.append(f"{rel}:{exc.lineno}: {exc.msg}")
+        bad.extend(f"{rel}:{w.lineno}: {w.message}" for w in caught if issubclass(w.category, SyntaxWarning))
+    assert not bad, "存在无效转义/语法警告：\n  " + "\n  ".join(bad)

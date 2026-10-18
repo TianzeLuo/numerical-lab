@@ -280,8 +280,14 @@ def assert_order(
     min_points: int = 3,
     label: str | None = None,
     detail: str = "",
+    kind: str = "A",
 ) -> OrderFit:
     """断言实测收敛阶 ``= 理论阶 ± tol``（默认 ±0.1）。
+
+    ``kind`` 决定这条记录算哪一类断言：缺省 ``"A"``（与解析阶对拍——这是本仓的多数用法），
+    但"实测阶是否达到理论阶"严格说属于 C 类（收敛率）。声明为 ``@assertion("C")`` 的测试
+    如果直接用缺省值，会得到"声明 C 却只登记 A"的类别不符失败（``numcore/verify/report.py``
+    会当场报），这时显式传 ``kind="C"`` 即可。
 
     返回 :class:`OrderFit`，便于调用方继续使用拟合出的常数 ``C``、``R²`` 等。
     """
@@ -301,7 +307,7 @@ def assert_order(
             measured=fit.slope,
             tol=f"±{tol:g}",
             detail=detail_full,
-            kind="A",
+            kind=kind,
         )
     record(
         label=name,
@@ -310,7 +316,7 @@ def assert_order(
         tol=f"±{tol:g}",
         passed=True,
         detail=detail_full,
-        kind="A",
+        kind=kind,
         extra={"r2": fit.r2, "stderr": fit.stderr, "n_used": fit.n_used},
     )
     return fit

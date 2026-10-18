@@ -77,9 +77,9 @@ node 单测对前者做结构快照。于是"没有浏览器也能做视觉回�
   | `order.py` | `fit_order`（双对数最小二乘）、`consecutive_orders`、`assert_order`（±0.1） |
   | `rates.py` | `estimate_linear_factor`、`assert_linear_convergence`、`find_threshold`（二分实测临界值） |
   | `invariants.py` | 守恒量、正交性、对称性、单调性、有界漂移 |
-  | `tolerance.py` | `unit_roundoff`、`scaled_tol`、`backward_error_ratio`、`safe_log` |
+  | `tolerance.py` | `unit_roundoff`/`ulp`、`scaled_tol`/`machine_tol`、`relative_error`、`max_abs`、`frobenius`、`safe_log`/`safe_log10`/`safe_divide`/`safe_sqrt`、`is_all_finite`、`count_significant_digits`/`cancellation_digits` |
   | `report.py` | `@assertion(...)` 装饰器 + 注册表 + JSON/Markdown 报告 |
-  | `stats.py` | 均值/方差/置信区间/KS 检验（UQ 章用，避免 tests 里手搓统计） |
+  | `stats.py` | `norm_ppf`/`norm_cdf`、`t_ppf`、`mean_ci`/`std_err`、`effective_sample_size`、`pearson`/`r_squared`、`autocorrelation`（UQ 章用，避免 tests 里手搓统计；**不含 KS 检验**——KS 只在 `reference/dense.py::ks_2samp` 里作为 scipy 对拍参照物存在） |
 - `numcore/reference/`：解析解、精确解、高精度（mpmath）、SciPy 对拍。
   **这是全仓库唯一允许 import scipy 的目录**（POLICY P1）。
 
@@ -134,14 +134,38 @@ viz/site/           index.html / site.css / app.ts（目录树、路由、分享
 viz/tests/scene/    dump_scenes.ts：把真模型跑出来的 Scene 批量写成 dist/scenes/**.json
 ```
 
+**渲染层一致性的已知取舍**（2026-10 复核；都是"有意如此"，不是待修的 bug）：
+
+1. **同一套几何、两份实现**：`render2d.ts`（浏览器 canvas）与 `tools/raster.py`（无浏览器 PNG）
+   各自实现装饰带（`AXIS_DECO = {top: 18, bottom: 28, left: 56}`）与角标盒
+   （`BADGE_UNIT_PX = 7`、`BADGE_PAD_PX = 10`、`BADGE_BOX_H = 15`、列宽 `344`）的**同一套几何**，
+   由同一组样例数字钉住（`tests/test_raster.py::test_badge_box_width_matches_the_shared_metric`
+   与 `viz/tests/scene.test.ts` 的 `placeBadge` 用例）。改任何一侧的常量都必须同时改另一侧，
+   并预期 G8 的像素基线变化（`docs/PROTOCOLS.md` §6.1）。
+2. **光栅器比浏览器多画一条色标**：`render2d.ts` 导出了 `drawColorbar`，但 `renderScene` 没有调用它；
+   `raster.py` 会给每个 `heat` 图层在轴右侧自动配色标（Scene 契约里没有色标节点，这是光栅器的加法）。
+   于是 `lu_heatmap` 的模型要在右侧留一条 `46 + 14 + 52 + 42 + 8` px 的过道——浏览器里那就是空白。
+3. **场景由 TS 侧转储、Python 侧兜底**：G8 的首选输入是 `dist/scenes/**.json`（`npm run scene`
+   用真模型转储，`dump_scenes.ts` 先用 `validateScene` 校验）；某章/某 viz 没有转储时，
+   `visual_regression.py` 用 `raster.py::default_scene_for_frame` 生成标准探针场景，
+   并标成 `"source": "fallback"`——**只出报告、不算失败**。CI 用 `--require-scenes`
+   把"一张真转储都没有"钉成失败，防止兜底悄悄变成主路径。
+4. **两个 `validateScene` 不完全等价**：角标盒越界/重叠两侧都查；"文本层压住坐标轴装饰带"
+   目前只在 TS 侧查（`dump_scenes.ts` 在转储时即拦下），Python 侧尚未复刻这条
+   （见 `docs/ROADMAP.md` §4 的已知缺口）。
+5. **`viz/shared/src/numeric/**` 只用于 parity 对拍**：它是 P8 白名单。章节前端一旦 import 它，
+   文件里必须标 `// preview-approx`，否则 G1 报
+   `章节前端调用了 shared/numeric：必须在文件中标注 // preview-approx（P8）`；
+   除此之外章节只消费后端帧，不在前端自造物理量。
+
 ### 2.4 `tools/`（工程与产物）
 
 | 工具 | 用途 | 门禁 |
 |---|---|---|
 | `check_policy.py` | AST 扫描 POLICY P1–P13（含"五件套完整性"P13） | G1 |
-| `run_asserts.py` | 断言声明↔实跑双向核对 + `asserts_report.md` + `asserts_table.tex` 源 | G3/G4 |
-| `gen_manifests.py` | Python manifest → `manifest.gen.ts` / `data/manifests/**.json` / `index.gen.ts` | G6 |
-| `gen_colorscales.py` + `colorscale_tables.py` | 色标 LUT → 双侧共享 TS 常量 | G6 |
+| `run_asserts.py` | 断言声明↔实跑双向核对 → `dist/reports/assertions.json` + 每章 `chapters/<id>/asserts_report.md`（`asserts_table.tex` 由 `build_book.py` 从前者生成，不在这里） | G3 |
+| `gen_manifests.py` | Python manifest → `manifest.gen.ts` / `data/manifests/**.json` / `index.gen.ts` | G6（第一步） |
+| `gen_colorscales.py` + `colorscale_tables.py` | 色标 LUT → 双侧共享 TS 常量（`--check` 与上一条用 `&&` 串在同一个 G6 里，2026-10 起真正被门禁调用） | G6（第二步） |
 | `gen_fixtures.py` | `.nlf` 边界样本（解码器对拍用） | — |
 | `parity.py` | Python↔TS 逐点对拍（golden 生成/校验 + 容差判定） | G7 |
 | `precompute.py` | L3 静态帧（`data/frames/…`）+ `--prune` | G8 前置 |
@@ -169,7 +193,9 @@ viz/tests/scene/    dump_scenes.ts：把真模型跑出来的 Scene 批量写成
 5. `<viz>.model.ts::buildScene(frame, state)` → `Scene`（含 `heat` 层 + `loglogfit` 层 + 误差副轴 + 徽标）。
 6. `render2d.ts` 画到 canvas；`controls.ts` 的滑块标注 `ρ` 的理论临界值；越界时 `pitfalls.ts` 弹出提示。
 7. 同一 `Scene` 由 `visual_regression.py` 用 `raster.py` 画成 PNG，与基线比对（G8）。
-8. 断言在 `tests/1.2/` 里独立跑，理论值与实测值写进 `chapters/1.2/asserts_report.md`，并被 `notes.tex` 引用。
+8. 断言在 `tests/1.2/` 里独立跑，理论值与实测值写进 `chapters/1.2/asserts_report.md`（人读）；
+   `notes.tex` 里 `\input{chapters/1.2/asserts_table}` 引用的是 `build_book.py` 从 `dist/reports/assertions.json`
+   生成的附表——两者同源，且附表过期会被 G9 判红。
 
 **任何一步都不允许"前端自己算一遍物理量"**（P8）；前端只允许在 `numeric/` 内实现"与方法无关的显示辅助"，
 且必须通过对拍。

@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import contextlib
 import contextvars
+import dataclasses
 import functools
 import json
 import re
@@ -35,6 +36,9 @@ __all__ = [
     "record",
     "fail",
     "reset_report",
+    "reset_events",
+    "clear_reset_events",
+    "isolated_report",
     "records",
     "summary",
     "write_report",
@@ -102,6 +106,8 @@ class _Context:
     tol: Any
     nodeid: str | None
     n_recorded: int = 0
+    #: 本测试登记过的类别（A/B/C），用于查"声明 A 却只登记了 B"这类**类别不符**。
+    kinds: set[str] = dataclasses.field(default_factory=set)
 
 
 _RECORDS: list[AssertionRecord] = []
@@ -165,6 +171,7 @@ def record(
     _RECORDS.append(rec)
     if ctx is not None:
         ctx.n_recorded += 1
+        ctx.kinds.add(str(rec.kind))
     return rec
 
 
@@ -293,6 +300,32 @@ def assertion(
                 raise
             else:
                 _ingest_return(out, ctx)
+                if (
+                    strict_measure
+                    and ctx.n_recorded > 0
+                    and kind in ("A", "B", "C")
+                    and kind not in ctx.kinds
+                    and not _SUPPRESS.get()
+                ):
+                    # 类别不符也是"假证据"：@assertion("A") 要求与解析/参考实现对拍，
+                    # 但 helper（assert_leq / assert_within / assert_monotone）登记的 kind 固定是 "B"。
+                    # 只报"零测量"是不够的——那种测试 pytest 全绿、报告里也有记录，
+                    # 而"这一章有 N 条 A 类断言"这句话就变成了假的（1.3 章真踩到，见其交付报告第 4 条）。
+                    exc = AssertionFailure(
+                        label=aid,
+                        theory=theory,
+                        measured=None,
+                        tol=tol,
+                        detail=(
+                            f"声明为 {kind} 类，但本测试登记的全是 "
+                            f"{'/'.join(sorted(ctx.kinds))} 类记录：A 类必须与解析解/参考实现对拍、"
+                            "B 类是不变量、C 类是收敛率。要用 helper 记 A 类，请显式调用 "
+                            'record(kind="A", ...) 并 assert 它；helper 的缺省类别是 B。'
+                        ),
+                        kind=kind,
+                    )
+                    _record_failure(exc, seconds=time.perf_counter() - t0)
+                    raise exc
                 if strict_measure and ctx.n_recorded == 0 and not _SUPPRESS.get():
                     exc = AssertionFailure(
                         label=aid,
@@ -347,8 +380,48 @@ def records() -> list[AssertionRecord]:
     return list(_RECORDS)
 
 
+@contextlib.contextmanager
+def isolated_report() -> Iterator[list[AssertionRecord]]:
+    """临时隔离登记表：进入时清空，退出时把原来的记录**原样放回**。
+
+    为什么必须有它：:func:`reset_report` 清的是**整个 pytest 会话**的登记表，
+    而 ``pytest_sessionfinish`` 是在会话结束时才写报告的。框架自己的单元测试如果直接调
+    ``reset_report()``，整套 pytest 跑完之后登记表是空的，插件就**静默不写**
+    ``dist/reports/assertions.json``——G3 于是读到上一次部分运行的旧报告并报
+    "已实现章节在报告里没有任何断言记录"。这个坑真的踩过，所以把它做成 API 而不是纪律。
+    """
+    saved = list(_RECORDS)
+    _RECORDS.clear()
+    try:
+        yield _RECORDS
+    finally:
+        _RECORDS[:] = saved
+
+
+#: 本会话里 ``reset_report()`` 被调用的次数。插件靠它区分"这次会话没跑断言测试"与
+#: "有人把整张表清空了"——后者会让报告静默不写（真踩过，见 :func:`isolated_report`）。
+_RESET_EVENTS = 0
+
+
+def reset_events() -> int:
+    """本会话里 :func:`reset_report` 被调用过几次（插件与测试用来判"报告为什么没写"）。"""
+    return _RESET_EVENTS
+
+
+def clear_reset_events() -> None:
+    """把计数器归零（``pytest_configure`` 在每个会话开始时调用）。"""
+    global _RESET_EVENTS
+    _RESET_EVENTS = 0
+
+
 def reset_report() -> None:
-    """清空登记表（测试用）。"""
+    """清空登记表（测试用）。
+
+    ⚠ 它清的是**整个 pytest 会话**的登记表。测试里要"一张干净的表"，请用
+    :func:`isolated_report`（退出时会把原记录放回去）。
+    """
+    global _RESET_EVENTS
+    _RESET_EVENTS += 1
     _RECORDS.clear()
 
 

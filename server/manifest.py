@@ -372,9 +372,16 @@ def validate_manifest(raw: Mapping[str, Any], *, where: str = "") -> list[str]:
                 if a.get("scale", "linear") not in ("linear", "log"):
                     problems.append(f"{vid}.axes[{aid}]: scale 只能是 linear/log")
         pitfalls = v.get("pitfalls")
-        if not isinstance(pitfalls, str) or len(pitfalls.strip()) < MIN_PITFALL_CHARS:
+        if not isinstance(pitfalls, str):
+            # 类型错与长度错必须给不同的信息。踩过：作者把 pitfalls 写成 list，
+            # 而旧消息只报"至少 60 字（现在 295 字）"——自相矛盾，看的人完全不知道该改什么。
             problems.append(
-                f"{vid}: pitfalls 至少 {MIN_PITFALL_CHARS} 字（现在 {len(str(pitfalls or '').strip())} 字）"
+                f"{vid}: pitfalls 必须是**字符串**（现在是 {type(pitfalls).__name__}）"
+                f"——规则 7 要求把'它会怎样骗你'写成一段正文，而不是列表"
+            )
+        elif len(pitfalls.strip()) < MIN_PITFALL_CHARS:
+            problems.append(
+                f"{vid}: pitfalls 至少 {MIN_PITFALL_CHARS} 字（现在 {len(pitfalls.strip())} 字）"
                 "——规则 7 要求说清'它会怎样骗你'"
             )
         theory = v.get("theory")

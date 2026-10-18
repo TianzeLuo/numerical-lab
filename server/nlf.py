@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import gzip
 import json
+import math
 import struct
 import time
 import zlib
@@ -249,6 +250,14 @@ class Frame:
                 raise NlfError(f"meta[{k!r}] 是字符串——请改放进 strings（PROTOCOLS §1.1）")
             if isinstance(v, (list, tuple, np.ndarray, dict)) or not isinstance(v, (int, float, bool, type(None))):
                 raise NlfError(f"meta[{k!r}] 不是 number/bool/null（PROTOCOLS §1.1）")
+            if isinstance(v, float) and not math.isfinite(v):
+                # 头用 allow_nan=False 编码，NaN/Inf 会让**整帧**编码失败；而"没有有限值"
+                # 与"值很大/很小"在图上必须是两件事，所以这里直接拒绝，逼调用方用 null +
+                # strings 里的说明。踩过：1.2 的 unit_ball 在 κ ≳ 1/u 时把 NaN 写进 meta。
+                raise NlfError(
+                    f"meta[{k!r}] = {v!r} 不是有限数——JSON 没有 NaN/Infinity，"
+                    '请用 None（null）表示"无有限值"，并在 strings 里说明原因'
+                )
         for k, v in self.critical.items():
             if isinstance(v, (list, tuple)) and not all(isinstance(x, (int, float)) for x in v):
                 raise NlfError(f"critical[{k!r}] 必须是数值或数值数组")

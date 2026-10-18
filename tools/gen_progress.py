@@ -25,6 +25,8 @@ import sys
 import time
 from typing import Any, Iterable
 
+import yaml
+
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
@@ -37,7 +39,7 @@ PROGRESS = ROOT / "docs" / "PROGRESS.md"
 GATES: list[tuple[str, str, str]] = [
     ("G1", "策略红线", "dist/reports/policy.json"),
     ("G3", "数值断言", "dist/reports/assertions.json"),
-    ("G6", "manifest 无漂移", "dist/reports/manifests.json"),
+    ("G6", "生成物无漂移（manifest + 色标）", "dist/reports/manifests.json"),
     ("G7", "Python↔TS 对拍", "dist/reports/parity.json"),
     ("G8", "视觉回归", "dist/reports/visual_regression.json"),
     ("G9", "LaTeX 编译", "dist/reports/book.json"),
@@ -72,6 +74,31 @@ def _git_commit(root: pathlib.Path) -> str:
         return "（无 git）"
 
 
+def _declared_kinds(root: pathlib.Path, chapter_id: str) -> tuple[int, int, int] | None:
+    """从 ``chapters/<id>/asserts.yaml`` 数**声明**的 A/B/C 条数。
+
+    为什么要用声明的条数、而不是 `dist/reports/assertions.json` 里的实测条数：
+    报告被**任何一次 pytest**（哪怕只跑单章）重写，于是"确定性段落"会随之漂移，
+    G10 于是假红（实测：同一条命令连跑两次，第一次 exit 0、第二次 exit 1）。
+    声明的条数在版本控制里，只有作者改章节时才会变——这才是"确定性"该有的含义。
+    实测条数照旧展示，但放在分界线**以下**的易变段落里。
+    """
+    path = root / "chapters" / chapter_id / "asserts.yaml"
+    if not path.exists():
+        return None
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    except (yaml.YAMLError, OSError):
+        return None
+    tests = data.get("tests") or []
+    out = {"A": 0, "B": 0, "C": 0}
+    for item in tests:
+        kind = str((item or {}).get("kind", "")).upper()
+        if kind in out:
+            out[kind] += 1
+    return out["A"], out["B"], out["C"]
+
+
 def deterministic_section(root: pathlib.Path, summary: dict[str, Any], report: dict[str, Any] | None) -> str:
     declared = [c for c in summary["chapters"] if c["declared"]]
     extra = [c for c in summary["chapters"] if not c["declared"]]
@@ -91,20 +118,19 @@ def deterministic_section(root: pathlib.Path, summary: dict[str, Any], report: d
     lines.append(f"- 进度条（可视化）：{_bar(summary['vizzes_implemented'], summary['vizzes_declared'])}")
     lines.append(f"- 进度条（章节）：{_bar(summary['chapters_complete'], summary['chapters_declared'])}")
     lines.append("")
-    lines.append("「五件套」= ① `numcore/` 实现 ② `server/chapters/<id>.py` 帧 ③ `viz/chapters/<id>/` 可视化"
-                 " ④ 三类数值断言 ⑤ `chapters/<id>/notes.tex` 笔记。")
+    lines.append("「五件套」= ① `chapters/<id>/notes.tex` 推导笔记 ② `numcore/` 核心实现（`docs/chapters.yaml` 的 `modules`）"
+                 " ③ `viz/chapters/<id>/` 交互可视化（`*.viz.ts` + `manifest.gen.ts`）"
+                 " ④ `tests/<id>/` + `chapters/<id>/asserts.yaml` 数值断言"
+                 " ⑤ `chapters/<id>/pitfalls.md` 防误导分析（≥ 800 字）。")
     lines.append("")
     lines.append("## 章节状态")
     lines.append("")
-    lines.append("| 章 | 标题 | 部 | 可视化 | 模块 | manifest | 测试 | 笔记 | 断言 A/B/C | 完成 |")
+    lines.append("| 章 | 标题 | 部 | 可视化 | 模块 | manifest | 测试 | 笔记 | 声明断言 A/B/C | 完成 |")
     lines.append("|---|---|---|---|---|---|---|---|---|---|")
-    counts = (report or {}).get("chapters", {})
     for c in declared + extra:
         cid = c["id"]
-        blk = counts.get(cid, {})
-        # 报告里每章的类别计数是**扁平**的 A/B/C（旧版本曾用嵌套的 counts）
-        cnt = blk.get("counts") or {k: blk.get(k, 0) for k in ("A", "B", "C")}
-        kinds = f"{cnt.get('A', 0)}/{cnt.get('B', 0)}/{cnt.get('C', 0)}" if blk else "—"
+        kinds_declared = _declared_kinds(root, cid)
+        kinds = "/".join(str(v) for v in kinds_declared) if kinds_declared else "—"
         viz = f"{c['vizImplemented']}/{c['vizDeclared']}"
         mark = lambda b: "✅" if b else "—"  # noqa: E731
         title = c["title"].replace("|", "\\|")
@@ -116,17 +142,26 @@ def deterministic_section(root: pathlib.Path, summary: dict[str, Any], report: d
     lines.append("")
     lines.append("`*` = 未在 `docs/chapters.yaml` 里声明的额外章节（当前只有 0.0 模板章）。")
     lines.append("")
-    if report:
-        t = report.get("totals", {})
-        lines.append("## 断言总览（上次运行）")
-        lines.append("")
-        lines.append(f"- 断言条数：{t.get('total', 0)}（A {t.get('A', 0)} / B {t.get('B', 0)} / C {t.get('C', 0)}）")
-        lines.append(f"- 通过 {t.get('passed', 0)}，失败 {t.get('failed', 0)}，未登记实测值 {t.get('unmeasured', 0)}")
-        lines.append("")
     return "\n".join(lines) + "\n"
 
 
-def volatile_section(root: pathlib.Path, summary: dict[str, Any]) -> str:
+def _assertions_section(root: pathlib.Path, report: dict[str, Any] | None) -> list[str]:
+    """易变段落：最近一次 pytest 的断言实测总览（报告随时会被重写，故不入确定性段落）。"""
+    if not report:
+        return []
+    t = report.get("totals", {})
+    lines = ["## 断言实测（上次 pytest 运行）", ""]
+    lines.append(f"- 实测条数：{t.get('total', 0)}（A {t.get('A', 0)} / B {t.get('B', 0)} / C {t.get('C', 0)}）")
+    lines.append(f"- 通过 {t.get('passed', 0)}，失败 {t.get('failed', 0)}，未登记实测值 {t.get('unmeasured', 0)}")
+    lines.append("- 每章实测条数：" + "、".join(
+        f"{cid} {sum(v for v in (blk.get('counts') or {}).values())}"
+        for cid, blk in sorted((report.get("chapters") or {}).items())
+    ))
+    lines.append("")
+    return lines
+
+
+def volatile_section(root: pathlib.Path, summary: dict[str, Any], report: dict[str, Any] | None = None) -> str:
     lines = [DIVIDER, "", "## 门禁状态", ""]
     lines.append(f"生成时间：{time.strftime('%Y-%m-%d %H:%M:%S %z')} · commit `{_git_commit(root)}`")
     lines.append("")
@@ -148,6 +183,9 @@ def volatile_section(root: pathlib.Path, summary: dict[str, Any]) -> str:
     lines.append("")
     lines.append("门禁定义见 [`POLICY.md`](POLICY.md)；一键跑全部：`make ci`（或 `bash tools/ci.sh`）。")
     lines.append("")
+    # 断言实测条数来自 `dist/reports/assertions.json`，而**任何一次 pytest**（哪怕只跑单章）
+    # 都会重写它——所以它只能放在分界线以下，否则 G10 会假红（同一条命令连跑两次、第二次失败）。
+    lines.extend(_assertions_section(root, report))
     return "\n".join(lines)
 
 
@@ -158,7 +196,7 @@ def build(root: pathlib.Path) -> tuple[str, str]:
     summary = reg.summary()
     report = _read_json(root / "dist" / "reports" / "assertions.json")
     head = deterministic_section(root, summary, report)
-    return head, head + "\n" + volatile_section(root, summary)
+    return head, head + "\n" + volatile_section(root, summary, report)
 
 
 def main(argv: Iterable[str] | None = None) -> int:
