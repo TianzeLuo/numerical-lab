@@ -47,6 +47,7 @@ import { formatNumber, niceLimits, niceTicks } from "../../shared/src/axes.js";
 import type { Frame } from "../../shared/src/frame.js";
 import { countNonFinite } from "../../shared/src/geometry.js";
 import {
+  resolveTextOverlaps,
   ModelInputError,
   applyOverflow,
   canvasSize,
@@ -70,6 +71,7 @@ import {
   type SceneModel,
 } from "../../shared/src/model.js";
 import {
+  pitfallsBand,
   axisModeBadge,
   badge,
   heatLayer,
@@ -521,6 +523,11 @@ export const errorSpectrumModel: SceneModel = (frame, opts) => {
     countNonFinite(residual) +
     countNonFinite(stepGrid);
   applyOverflow(scene, nBad, { slot: SLOT.overflow, width });
+  // 底部 pitfalls 面板（规则 7）由渲染层现画，模型看不见它：用共享的 pitfallsBand 拿到
+  // 面板顶边，再让 resolveTextOverlaps 把放不下的文字如实计数后丢掉（窄画布下才生效）。
+  const panelTop = pitfallsBand(scene)?.[1];
+  scene.texts = resolveTextOverlaps(scene.texts, [8, 24, width - 16, (panelTop ?? height) - 28]);
+
   return scene;
 };
 

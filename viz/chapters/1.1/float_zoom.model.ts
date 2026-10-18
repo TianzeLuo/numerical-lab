@@ -488,7 +488,7 @@ export const floatZoomModel: SceneModel = (frame, opts) => {
   }
   // 窄画布（480px）下每块说明都会多折一两行，模型里按自己的行数排的下一块就会压上去。
   // 这里用共享盒子量法统一消解（放不下的如实计数并写明）；960×600 下是恒等变换。
-  scene.texts = avoidTextOverlap(scene.texts, [8, 24, width - 16, height - 108]);
+  scene.texts = avoidTextOverlap(scene.texts, [8, 24, width - 16, height - 132]);
 
   return scene;
 };

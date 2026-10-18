@@ -9,6 +9,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
+  pitfallsBand,
   assertValidScene,
   axisModeBadge,
   badge,
@@ -389,13 +390,33 @@ test("validateScene 拒绝同行的两枚长角标（规则 8）", () => {
   assert.deepEqual(after, [], `挪开一行后不应再报布局问题：${after.join(" | ")}`);
 });
 
+test("validateScene 拒绝压在底部 pitfalls 面板下的文本（规则 7）", () => {
+  const s = baseScene();
+  // 面板由渲染层按 scene.pitfalls 现画（render2d.ts::drawPitfalls），模型看不见它，
+  // 所以这条只能由校验器守。面板高度随 pitfalls 行数变化，这里用长 pitfalls 把它抬高。
+  s.pitfalls = "这条陷阱说明要足够长，长到面板占掉画布底部一大块，好让压在下面的文本被抓出来。".repeat(4);
+  const band = pitfallsBand(s);
+  assert.ok(band !== null && band[1] > 0, "长 pitfalls 应当算出面板盒子");
+  const top = band![1];
+  s.texts = [text(40, top + 6, "压在面板里的说明", { role: "note", size: 11 })];
+  const issues = validateScene(s);
+  assert.ok(
+    issues.some((i) => i.includes("pitfalls 面板")),
+    `应当报出被面板压住的文本，实际：${issues.join(" | ")}`,
+  );
+  // 面板顶边以上就合法
+  s.texts = [text(40, top - 20, "面板上方的说明", { role: "note", size: 11 })];
+  const clean = validateScene(s).filter((i) => i.includes("pitfalls 面板"));
+  assert.equal(clean.length, 0, `面板上方不该报：${clean.join(" | ")}`);
+});
+
 test("validateScene 拒绝互相压住的文本层（规则 8）", () => {
   const s = baseScene();
   // 两块说明叠在一起 = 两块都没说清。Python 侧同一规则在 tools/raster.py::_text_deco_issues，
   // 两侧必须同时报——否则"浏览器正常、PNG 基线糊了"会在门禁里溜过去（1.1 章真报过 21×14px）。
   s.texts = [
-    { x: 40, y: 60, text: "第一块说明", size: 11 },
-    { x: 46, y: 66, text: "第二块说明", size: 11 },
+    text(40, 60, "第一块说明", { role: "note", size: 11 }),
+    text(46, 66, "第二块说明", { role: "note", size: 11 }),
   ];
   const issues = validateScene(s);
   assert.ok(
@@ -404,8 +425,8 @@ test("validateScene 拒绝互相压住的文本层（规则 8）", () => {
   );
   // 恰好贴边（共边）不算重叠：盒子 [40,60,宽,15] 与 [40,75,...] 只共一条边
   s.texts = [
-    { x: 40, y: 60, text: "第一块说明", size: 11 },
-    { x: 40, y: 75, text: "第二块说明", size: 11 },
+    text(40, 60, "第一块说明", { role: "note", size: 11 }),
+    text(40, 75, "第二块说明", { role: "note", size: 11 }),
   ];
   const clean = validateScene(s).filter((i) => i.includes("文本互相压住"));
   assert.equal(clean.length, 0, `贴边不该算重叠：${clean.join(" | ")}`);

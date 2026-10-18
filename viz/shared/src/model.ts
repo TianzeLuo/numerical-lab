@@ -663,6 +663,10 @@ export function degradedBadge(items: readonly string[], slot: number, width: num
  * 为什么只丢不移：往下推会推进下一条轴的**装饰带**（刻度与轴名由渲染层自己画，
  * 模型看不见），那是另一条规则 8 违规。诚实口径：宁可少说，不可叠着说、也不可压着轴说。
  * 丢弃数量写在画布顶部一行短注里，不静默（防误导七条第一条）。
+ *
+ * ``rect`` 的约定与 `textBoxOf` 一致：``[x, y(顶), 宽, 高]``——**第四个是高度不是底边**。
+ * 想"不许越过某条底线"时传 ``高 = 底线 − 顶``（这里踩过坑：把底线当高度传，
+ * 实际允许的底边比预期低了 24px，底部的诚实提示就又被面板压住了）。
  */
 export function resolveTextOverlaps(
   layers: TextSpec[],

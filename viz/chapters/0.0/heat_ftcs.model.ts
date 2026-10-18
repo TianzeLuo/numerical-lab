@@ -56,6 +56,7 @@ import {
   type SceneModel,
 } from "../../shared/src/model.js";
 import {
+  pitfallsBand,
   textBoxOf,
   axisModeBadge,
   badge,
@@ -297,7 +298,10 @@ export const heatFtcsModel: SceneModel = (frame, opts) => {
   applyOverflow(scene, countNonFinite(u) + countNonFinite(exact) + nBadError, { slot: SLOT.overflow, width });
   // 文本块之间不许重叠（规则 8，两侧校验器都查）：模型里各块按自己的行数排位，
   // 帧里的说明一变长就会多折一行压住下一块（fixture 里 t=0.5 的标记真压过参数行 49×8px）。
-  scene.texts = resolveTextOverlaps(scene.texts, [8, 24, width - 16, height - 8]);
+  // 底线取底部 pitfalls 面板的顶边（面板高度随 pitfalls 行数变，小画布上它会占掉大半屏）：
+  // 第四个参数是**高度**（`textBoxOf` 口径），不是底线。
+  const panelTop = pitfallsBand(scene)?.[1];
+  scene.texts = resolveTextOverlaps(scene.texts, [8, 24, width - 16, (panelTop ?? height) - 28]);
 
   return scene;
 };

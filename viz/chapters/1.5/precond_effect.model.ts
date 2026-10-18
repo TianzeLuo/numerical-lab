@@ -45,6 +45,7 @@ import { formatNumber, niceLimits, niceTicks } from "../../shared/src/axes.js";
 import type { Frame } from "../../shared/src/frame.js";
 import { countNonFinite } from "../../shared/src/geometry.js";
 import {
+  resolveTextOverlaps,
   ModelInputError,
   applyOverflow,
   canvasSize,
@@ -68,6 +69,7 @@ import {
   type SceneModel,
 } from "../../shared/src/model.js";
 import {
+  pitfallsBand,
   axisModeBadge,
   badge,
   bandLayer,
@@ -173,7 +175,6 @@ export const precondEffectModel: SceneModel = (frame, opts) => {
   const iluApplicable = metaBool(frame, "ilu_dropped_applicable");
   const iluDropped = iluDroppedRaw !== undefined && iluDroppedRaw >= 0 ? iluDroppedRaw : undefined;
   const iluSentinel = iluApplicable === false || (iluApplicable === undefined && iluDroppedRaw !== undefined && iluDroppedRaw < 0);
-  const sentinelNote = stringOf(frame, "sentinel_note");
   const precondNnz = metaNumber(frame, "precond_nnz");
   const matrixNnz = metaNumber(frame, "matrix_nnz");
   const omegaRaw = metaNumber(frame, "omega");
@@ -377,21 +378,30 @@ export const precondEffectModel: SceneModel = (frame, opts) => {
       ? "等效 κ（由实测因子反推）：帧是 null，不显示（不按 0 处理）"
       : `等效 κ = ${formatNumber(kappaEffective, 4)}（帧 meta，由迭代数反推）`,
   );
-  convLines.push(
+  // 这一条挪到左栏：右栏原本 10 行（349..499），底部会被 pitfalls 面板（顶边 474）压掉两行。
+  // 左栏 7 行（349..469）还有一行位置，且它讲的是"谱被压到哪一段"，放左栏更贴题。
+  specLines.push(
     "κ 降幅 != 迭代数降幅：谱聚簇时 CG 远快于最坏界",
   );
+  // ω 与"ilu_dropped=-1 是哨兵"这两件事在本帧都是"这个参数在这里不适用"，
+  // 拼成一行（右栏 9 行会被底部 pitfalls 面板压掉一行；合并后 8 行正好）。
+  const omegaLineDone = iluSentinel && omega !== undefined;
   convLines.push(
-    iluSentinel
+    omegaLineDone
+      ? `ω=${formatNumber(omega as number, 4)}（SSOR）；ilu_dropped=${formatNumber(iluDroppedRaw ?? -1, 3)} 是哨兵：` +
+        `帧 sentinel_note 说「没有丢弃概念」（applicable=${iluApplicable === undefined ? "帧未给" : String(iluApplicable)}）`
+      : iluSentinel
       ? // 帧的 sentinel_note 有 3 行那么长：只取结论（-1 = 没有丢弃概念），
         // 判据写 applicable，剩下的留给帧的 note 行（全引会把 ω 那一行挤出画布）。
-        `ilu_dropped=${formatNumber(iluDroppedRaw ?? -1, 3)}：帧 sentinel_note 说这是「没有丢弃概念」` +
-        `${sentinelNote === undefined ? "（帧没给 sentinel_note）" : ""}；判据 applicable=` +
-        `${iluApplicable === undefined ? "帧未给" : String(iluApplicable)}`
+        `ilu_dropped=${formatNumber(iluDroppedRaw ?? -1, 3)}：帧 sentinel_note 说「没有丢弃概念」` +
+        `（applicable=${iluApplicable === undefined ? "帧未给" : String(iluApplicable)}）`
       : iluDropped === undefined
         ? "帧 meta 缺 ilu_dropped：不显示丢弃填充次数。"
-        : `ILU(0) 丢弃填充 ${formatNumber(iluDropped, 4)} 次（帧 meta）；一维上 ILU(0) 是精确 LU（1 步收敛），不能外推到二维。`,
+        : `ILU(0) 丢弃填充 ${formatNumber(iluDropped, 4)} 次（帧 meta）；一维上 ILU(0) 即精确 LU，不能外推到二维`,
   );
-  if (omega === undefined) {
+  if (omegaLineDone) {
+    // 已与哨兵行合并，见上
+  } else if (omega === undefined) {
     const requested = paramsJson["omega"];
     convLines.push(
       `ω：不适用（帧 meta.omega = ${formatNumber(omegaRaw ?? 0, 3)} 是哨兵：只有 SSOR 用 ω）` +
@@ -414,6 +424,8 @@ export const precondEffectModel: SceneModel = (frame, opts) => {
   if (note !== undefined) convLines.push(`帧 note：${note}`);
 
   scene.texts.push(...textBlock(base.left, specRect[1] + specRect[3] + 28, base.bottom - 4, specLines, pal.muted, unitBudget(specW), "top"));
+  // 起点仍是 +28（+14 会压住 convergence 轴的刻度装饰带，规则 8 报过）；
+  // 行数靠"合并 ω 与哨兵行"压到 8 行以内，底部才不会被 pitfalls 面板（顶边 474）压住。
   scene.texts.push(...textBlock(convX, convRect[1] + convRect[3] + 28, base.bottom - 4, convLines, pal.muted, unitBudget(convW), "top"));
 
   // —— 角标（固定槽位）——
@@ -450,6 +462,11 @@ export const precondEffectModel: SceneModel = (frame, opts) => {
     countNonFinite(bound) +
     countNonFinite(stepGrid);
   applyOverflow(scene, nBad, { slot: SLOT.overflow, width });
+  // 底部 pitfalls 面板（规则 7）由渲染层现画，模型看不见它：用共享的 pitfallsBand 拿到
+  // 面板顶边，再让 resolveTextOverlaps 把放不下的文字如实计数后丢掉（窄画布下才生效）。
+  const panelTop = pitfallsBand(scene)?.[1];
+  scene.texts = resolveTextOverlaps(scene.texts, [8, 24, width - 16, (panelTop ?? height) - 28]);
+
   return scene;
 };
 

@@ -294,6 +294,40 @@ export function textBoxOf(t: { x: number; y: number; text?: string; size?: numbe
  * 这条细节很要紧——好几个模型刻意把 `xticks` 清空、改用 `text` 层手写类别名
  * （`AxisOptions` 没有 `xtickLabels`），若把空刻度也当成"有装饰"，那些模型会被误报。
  */
+/**
+ * 底部 pitfalls 面板的盒子（规则 7 的面板由渲染层自己画：`render2d.ts::drawPitfalls`）。
+ *
+ * 与 Python 侧 `tools/raster.py::pitfalls_band` 同口径：字号 `base-1`、行高 `size+4`、
+ * 左右各 12px、底边距 10px，按**共享的显示宽度单位**折行。模型看不见这块面板
+ * （它不在 Scene 里，渲染器从 `scene.pitfalls` 现画），所以只能由校验器替它守。
+ */
+export function pitfallsBand(
+  scene: { canvas?: { w?: number; h?: number } | undefined; pitfalls?: string | undefined },
+  baseFontSize = 13,
+): [number, number, number, number] | null {
+  const body = scene.pitfalls;
+  if (typeof body !== "string" || body.trim() === "") return null;
+  const w = Number(scene.canvas?.w ?? 0);
+  const h = Number(scene.canvas?.h ?? 0);
+  if (!(w > 0) || !(h > 0)) return null;
+  const size = baseFontSize - 1;
+  const width = w - 24;
+  const lines: string[] = [];
+  let cur = "";
+  for (const ch of `它会怎样骗你：${body}`) {
+    if (cur !== "" && textWidthUnits(cur + ch) * BADGE_UNIT_PX > width) {
+      lines.push(cur);
+      cur = ch;
+    } else {
+      cur += ch;
+    }
+  }
+  if (cur !== "") lines.push(cur);
+  const lineH = size + 4;
+  const y0 = h - 10 - lines.length * lineH;
+  return [8, y0 - 4, w - 16, lines.length * lineH + 8];
+}
+
 export function axisDecoBands(
   axis: { rect: [number, number, number, number]; xticks?: number[]; yticks?: number[]; xlabel?: string; ylabel?: string; title?: string },
 ): [number, number, number, number][] {
@@ -501,6 +535,22 @@ export function validateScene(scene: unknown): string[] {
           issues.push(
             `文本互相压住（规则 8）：${String(a.t.text ?? "").slice(0, 16)}… 与 ` +
               `${String(b.t.text ?? "").slice(0, 16)}… 重叠 ${ox.toFixed(0)}×${oy.toFixed(0)}px`,
+          );
+        }
+      }
+    }
+    const pfBand = pitfallsBand(s);
+    if (pfBand !== null) {
+      const [bx, by, bw, bh] = pfBand;
+      for (const box of txtBoxes) {
+        if (!box.ok) continue;
+        const ox = Math.min(box.x + box.w, bx + bw) - Math.max(box.x, bx);
+        const oy = Math.min(box.y + box.h, by + bh) - Math.max(box.y, by);
+        if (ox > 2 && oy > 2) {
+          issues.push(
+            `文本被底部 pitfalls 面板压住（规则 7）：${String(box.t.text ?? "").slice(0, 16)}… ` +
+              `与面板 [${bx.toFixed(0)}, ${by.toFixed(0)}, ${bw.toFixed(0)}×${bh.toFixed(0)}] 重叠 ` +
+              `${ox.toFixed(0)}×${oy.toFixed(0)}px`,
           );
         }
       }

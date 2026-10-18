@@ -1268,6 +1268,38 @@ def text_box_of(layer: Mapping[str, Any]) -> tuple[float, float, float, float]:
     return x, float(layer.get("y", 0.0)), width, len(lines) * (size + 4.0)
 
 
+def pitfalls_band(scene: Mapping[str, Any], base_font_size: float = BASE_FONT_SIZE) -> tuple[float, float, float, float] | None:
+    """底部 pitfalls 面板的盒子 ``(x, y, w, h)``——规则 7 的面板由渲染层自己画。
+
+    与 ``viz/shared/src/render2d.ts::drawPitfalls`` 同口径：字号 ``base-1``、行高 ``size+4``、
+    左右各留 12px、底边距 10px。**模型看不见这块面板**（它不在 Scene 里，由渲染器从
+    ``scene.pitfalls`` 现画），所以只能由校验器替它守：文本层压在面板下等于没说。
+    """
+    body = scene.get("pitfalls")
+    canvas = scene.get("canvas") or {}
+    if not isinstance(body, str) or not body.strip():
+        return None
+    w = float(canvas.get("w", 0.0))
+    h = float(canvas.get("h", 0.0))
+    if w <= 0 or h <= 0:
+        return None
+    size = float(base_font_size) - 1.0
+    per_line = max(1, int((w - 24) // BADGE_UNIT_PX))
+    lines: list[str] = []
+    cur = ""
+    for ch in f"它会怎样骗你：{body}":
+        if cur and _text_width_units(cur + ch) > per_line:
+            lines.append(cur)
+            cur = ch
+        else:
+            cur += ch
+    if cur:
+        lines.append(cur)
+    line_h = size + 4.0
+    y0 = h - 10.0 - len(lines) * line_h
+    return 8.0, y0 - 4.0, w - 16.0, len(lines) * line_h + 8.0
+
+
 def _text_deco_issues(scene: Mapping[str, Any]) -> list[str]:
     """规则 8（布局·其二）：文本层不得压住任何坐标轴的装饰带。
 
@@ -1294,6 +1326,20 @@ def _text_deco_issues(scene: Mapping[str, Any]) -> list[str]:
             if ox > 2.0 and oy > 2.0:
                 issues.append(
                     f"文本互相压住（规则 8）：{at}… 与 {bt}… 重叠 {ox:.0f}×{oy:.0f}px"
+                )
+    band = pitfalls_band(scene)
+    if band is not None:
+        bx, by, bw, bh = band
+        for layer in texts:
+            tx, ty, tw, th = text_box_of(layer)
+            if not (math.isfinite(tx) and math.isfinite(ty)):
+                continue
+            ox = min(tx + tw, bx + bw) - max(tx, bx)
+            oy = min(ty + th, by + bh) - max(ty, by)
+            if ox > 2.0 and oy > 2.0:
+                issues.append(
+                    f"文本被底部 pitfalls 面板压住（规则 7）：{str(layer.get('text', ''))[:16]}… "
+                    f"与面板 [{bx:.0f}, {by:.0f}, {bw:.0f}×{bh:.0f}] 重叠 {ox:.0f}×{oy:.0f}px"
                 )
     for axis in scene.get("axes") or []:
         if not isinstance(axis, Mapping):
