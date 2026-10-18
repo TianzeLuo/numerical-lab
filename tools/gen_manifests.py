@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import json
 import pathlib
+import time
 import sys
 from typing import Any, Iterable
 
@@ -182,6 +183,12 @@ def main(argv: Iterable[str] | None = None) -> int:
     ap.add_argument("--check", action="store_true", help="只检查是否漂移，不写盘")
     ap.add_argument("--json", action="store_true", help="机器可读输出")
     ap.add_argument("--root", type=pathlib.Path, default=ROOT, help="仓库根（测试用）")
+    ap.add_argument(
+        "--report",
+        type=pathlib.Path,
+        default=ROOT / "dist" / "reports" / "manifests.json",
+        help="证据文件（docs/PROGRESS.md 的门禁表读它）",
+    )
     args = ap.parse_args(list(argv) if argv is not None else None)
 
     root: pathlib.Path = args.root
@@ -202,6 +209,26 @@ def main(argv: Iterable[str] | None = None) -> int:
             path.write_text(text, encoding="utf-8", newline="\n")
 
     ok = not drift and not missing
+    # 证据落盘：PROTOCOLS §9 把 dist/reports/manifests.json 列为 G6 的证据，
+    # 但之前**没有任何写入者**，于是 docs/PROGRESS.md 的门禁表永远显示"未运行"。
+    if args.report is not None:
+        args.report.parent.mkdir(parents=True, exist_ok=True)
+        args.report.write_text(
+            json.dumps(
+                {
+                    "ok": ok,
+                    "mode": "check" if args.check else "write",
+                    "files": [str(p) for p in sorted(files)],
+                    "drift": drift,
+                    "missing": missing,
+                    "generated_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
     if args.json:
         print(json.dumps({"ok": ok, "written": [str(p) for p in sorted(files)], "drift": drift, "missing": missing}, ensure_ascii=False))
     else:

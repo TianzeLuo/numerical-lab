@@ -102,7 +102,8 @@ def deterministic_section(root: pathlib.Path, summary: dict[str, Any], report: d
     for c in declared + extra:
         cid = c["id"]
         blk = counts.get(cid, {})
-        cnt = blk.get("counts", {})
+        # 报告里每章的类别计数是**扁平**的 A/B/C（旧版本曾用嵌套的 counts）
+        cnt = blk.get("counts") or {k: blk.get(k, 0) for k in ("A", "B", "C")}
         kinds = f"{cnt.get('A', 0)}/{cnt.get('B', 0)}/{cnt.get('C', 0)}" if blk else "—"
         viz = f"{c['vizImplemented']}/{c['vizDeclared']}"
         mark = lambda b: "✅" if b else "—"  # noqa: E731
@@ -136,10 +137,11 @@ def volatile_section(root: pathlib.Path, summary: dict[str, Any]) -> str:
         if data is None:
             verdict = "未运行"
         else:
+            # 证据文件的 "ok" 可能嵌在 gate 里（run_asserts 把门禁结论写在 gate 下）
             ok = data.get("ok")
+            if ok is None:
+                ok = data.get("gate", {}).get("ok")
             verdict = "通过" if ok else ("失败" if ok is False else "未知")
-            if gid == "G3" and data.get("gate", {}).get("ok") is False:
-                verdict = "失败"
             if gid == "CI" and data.get("failed"):
                 verdict = f"失败（{data['failed']} 步）"
         lines.append(f"| {gid} | {what} | {verdict} | `{rel}` |")

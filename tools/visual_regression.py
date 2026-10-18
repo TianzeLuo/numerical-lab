@@ -22,6 +22,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import time
 import pathlib
 import sys
 from dataclasses import dataclass, field
@@ -483,6 +484,27 @@ def main(argv: Sequence[str] | None = None) -> int:
         # --json 时关掉逐条打印：stdout 必须只有一份机器可读的 JSON。
         quiet=args.quiet or args.json,
         require_scenes=args.require_scenes,
+    )
+    # 证据落盘：PROTOCOLS §9 把 dist/reports/visual_regression.json 列为 G8 的证据，
+    # 之前没有写入者，docs/PROGRESS.md 的门禁表因此永远显示"未运行"。
+    rep = _ROOT / "dist" / "reports" / "visual_regression.json"
+    rep.parent.mkdir(parents=True, exist_ok=True)
+    rep.write_text(
+        json.dumps(
+            {
+                "ok": bool(result.get("ok")),
+                "mode": mode,
+                "total": result.get("total"),
+                "okCount": result.get("ok"),
+                "missing": result.get("missing"),
+                "mismatched": result.get("mismatched"),
+                "generated_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
     )
     if args.json:
         print(json.dumps(result, ensure_ascii=False, indent=1))
