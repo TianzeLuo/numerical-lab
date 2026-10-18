@@ -318,6 +318,21 @@
       ]
     },
     {
+      "chapter": "4.6",
+      "hasModule": true,
+      "nViz": 4,
+      "notesFile": "chapters/4.6/notes.tex",
+      "part": "IV",
+      "summary": "谱方法把「解 PDE」换成「算模态系数」，于是所有结论都挂在一张双对数图上：系数怎么衰减、斜率是不是常数、误差每加倍降多少。光滑数据指数收敛（Poisson 核的系数恰是 rho^|k|）、尖角只按代数收敛、跳变连收敛都没有（Gibbs 振荡只被压窄）；伪谱法还要多一笔账——非线性项在 N 点网格上相乘会把高频折回低波数，2/3 截断 + 3/2 补零才把它修干净。四个可视化把这条链拆成：模态衰减（谁的斜率在变）、3/2 规则的三项账（去掉多少混叠、代价多少截断、污染落在哪）、谱 vs 差分的误差阶梯（每加倍比值是常数还是在变小）、Burgers 能谱级联（k^-2 段与能流从哪来）。",
+      "title": "谱方法与伪谱",
+      "vizzes": [
+        "modal_decay",
+        "dealias_rule",
+        "convergence_race",
+        "burgers_cascade"
+      ]
+    },
+    {
       "chapter": "5.1",
       "hasModule": true,
       "nViz": 4,
@@ -346,8 +361,38 @@
         "image_deconvolution",
         "bias_variance"
       ]
+    },
+    {
+      "chapter": "5.3",
+      "hasModule": true,
+      "nViz": 4,
+      "notesFile": "chapters/5.3/notes.tex",
+      "part": "V",
+      "summary": "离散伴随与连续伴随的分界、梯度检验的 V 形曲线（截断 vs 舍入）、伴随代价与参数个数无关的实测账、以及伴随变量作为影响场/灵敏度方向的读法。",
+      "title": "伴随方法与灵敏度分析",
+      "vizzes": [
+        "gradient_field",
+        "influence_field",
+        "gradient_check",
+        "forward_adjoint_playback"
+      ]
+    },
+    {
+      "chapter": "5.4",
+      "hasModule": true,
+      "nViz": 4,
+      "notesFile": "chapters/5.4/notes.tex",
+      "part": "V",
+      "summary": "蒙特卡洛的 1/sqrt(N) 与置信区间、拟蒙特卡洛与随机化误差估计、Sobol' 方差分解（含相关输入下的不唯一性）、多项式混沌代理模型：每个结论都配上它的实测数字与失效边界。",
+      "title": "不确定性量化与全局敏感性",
+      "vizzes": [
+        "point_fill",
+        "output_hist",
+        "sobol_bars",
+        "pce_spectrum"
+      ]
     }
   ],
-  "count": 23,
-  "totalViz": 94
+  "count": 26,
+  "totalViz": 106
 }

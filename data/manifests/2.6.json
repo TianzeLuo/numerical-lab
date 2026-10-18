@@ -233,7 +233,7 @@
         {
           "autoscaled": true,
           "id": "curves",
-          "title": "偏差²、方差、MSE vs lambda",
+          "title": "偏差^2、方差、MSE vs lambda",
           "ylabel": "MSE"
         },
         {
@@ -245,7 +245,7 @@
         }
       ],
       "dataSource": "backend",
-      "description": "拖阈值看信号、误差与三条曲线（偏差²、方差、MSE）；同一 SNR 下软/硬阈值对照。",
+      "description": "拖阈值看信号、误差与三条曲线（偏差^2、方差、MSE）；同一 SNR 下软/硬阈值对照。",
       "id": "denoise_threshold",
       "params": [
         {
