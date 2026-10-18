@@ -115,6 +115,14 @@ export const chapterIndex: ChapterIndexEntry[] = [
     "vizzes": ["energy_drift_duel", "phase_orbit", "modified_hamiltonian", "long_term_orbit"],
   },
   {
+    "chapter": "3.4",
+    "nViz": 4,
+    "part": "III",
+    "summary": "两点边值问题有两种性格完全不同的解法：打靶法把边值问题变成初值问题，灵敏度 S=|du(b)/ds| 决定它能不能用；谱方法用 N+1 个 Chebyshev 节点换指数收敛，代价是一个稠密、条件数按 N^2 长的微分矩阵。这一章把两者的「能用/不能用」都用实测数字钉住：打靶在衰减边界层上失效的长度、有限差分的整体阶被边界格式拉到几阶、指数收敛的半对数斜率与舍入地板、以及 N^4·u 的谱微分舍入放大。",
+    "title": "边值问题与谱方法",
+    "vizzes": ["shooting_scan", "convergence_rate", "node_clustering", "diff_matrix_structure"],
+  },
+  {
     "chapter": "3.5",
     "nViz": 5,
     "part": "III",

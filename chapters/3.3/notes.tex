@@ -1,0 +1,544 @@
+% 3.3 章 · 几何数值积分与长期行为
+% 这一章只回答一个问题：**为什么"每步更准"不等于"长期更好"**。
+%   1) 辛方法守恒的不是 H，而是另一个哈密顿量 H_h：真实能量在一条带里振荡，带宽有闭式；
+%   2) 非辛方法的能量误差单调漂移，漂移率也有闭式（RK4 是 h^5/72）；
+%   3) "轨道闭合"必须说清是**点集闭合**（辛性管）还是**相位不漂**（辛性管不了）。
+% 断言附表由 tools/build_book.py 从实际运行结果生成，\input 进来，不手抄。
+
+\numlabchapter{几何数值积分与长期行为}{3.3}
+
+\section{这一章要解决什么}
+
+哈密顿系统
+\begin{equation}
+  \dot q=\frac{\partial H}{\partial p},\qquad
+  \dot p=-\frac{\partial H}{\partial q},
+  \label{eq:ham}
+\end{equation}
+的真解满足 $\dfrac{d}{dt}H(q(t),p(t))=0$：能量是**运动积分**。数值方法一般不保持它，
+问题是保持不了多少、以及这个"保持不了"随时间怎么变。
+
+两种错法必须分开：
+
+\begin{enumerate}
+  \item \textbf{有界振荡}：误差 $H_n-H_0$ 在一条带里来回走，带宽 $\sim h^p$，
+        观测时长再长也不长大。辛方法（\S\ref{sec:sympl}）都是这一类。
+  \item \textbf{线性漂移}：误差每一步都往同一个方向掉一点，$H_n-H_0\sim -c\,h^{p+1}n$，
+        于是每单位时间掉 $c\,h^p$、观测时长翻倍误差翻倍。所有非辛方法都是这一类。
+\end{enumerate}
+
+这两种行为的差别\textbf{不在短期}。本章每一步都拿数字把这句话钉住：$h=0.05$ 的谐振子上，
+$10^6$ 步（$T=5\times10^4$）之后辛 Euler 的能量误差带是
+$[-2.43902\times10^{-2},+2.56410\times10^{-2}]$，而 RK4 的瞬时误差只有
+$2.16923\times10^{-4}$——比辛 Euler 小一百倍，可是它\textbf{一直在往下掉}，
+单调占比 $100\%$，后半段与前半段的 $\sup$ 之比恰好 $2.0026$。
+短期判据（跑八个周期）会告诉你 RK4 好 $2000$ 倍；长期判据（跑 $10^6$ 步）会告诉你
+RK4 的误差在往一个方向走，而辛方法的误差从来没走出它的带。
+
+记号：$u=\tfrac12\varepsilon_{\text{mach}}=2^{-53}\approx1.11\times10^{-16}$；
+$M$ 是一步映射的雅可比（线性系统上就是一步矩阵）；$\operatorname{tr}M$、$\det M$ 是它的迹与行列式；
+$\theta_h$ 是 $M$ 的旋转角；本章所有"实测"数字都来自 \texttt{tests/3.3/} 的断言报告
+（\S\ref{sec:evidence} 汇总）。
+
+\section{辛映射与辛方法}
+\label{sec:sympl}
+
+\begin{definition}[辛映射，二维]
+一步映射 $\Phi_h:(q,p)\mapsto(q',p')$ 称为\textbf{辛映射}，如果它的雅可比 $M=\partial(q',p')/\partial(q,p)$ 满足
+\begin{equation}
+  M^{\mathsf T}JM=J,\qquad J=\begin{pmatrix}0&1\\-1&0\end{pmatrix}.
+  \label{eq:sympl}
+\end{equation}
+二维时 \eqref{eq:sympl} 等价于一个标量等式 $\det M=1$（见命题~\ref{thm:det}）。
+\end{definition}
+
+\begin{remark}[为什么"相面积"是关键词]
+$\det M$ 就是一步映射对相平面面积的放大率。$\det M=1$ 表示\textbf{面积不变}：
+数值轨道既不会像显式 Euler 那样一圈圈往外摊开，也不会像 RK4 那样一圈圈往里缩。
+能量有界是这件事的后果（\S\ref{sec:backward}），不是它的定义。
+\end{remark}
+
+\begin{theorem}[四个辛方法的 $M$ 与 $\det M$]
+\label{thm:det}
+把 \eqref{eq:ham} 取成谐振子 $H=\tfrac12(q^2+p^2)$（即 $\dot q=p,\ \dot p=-q$），一步映射记作
+$M=\begin{pmatrix}a&b\\c&d\end{pmatrix}$。则
+\begin{align}
+  M_{\text{辛E}}&=\begin{pmatrix}1&h\\-h&1-h^2\end{pmatrix},
+  & M_{\text{Verlet}}&=\begin{pmatrix}1-\tfrac{h^2}{2}&h\\-h\left(1-\tfrac{h^2}{4}\right)&1-\tfrac{h^2}{2}\end{pmatrix},\\
+  M_{\text{中点}}&=\frac{1}{1+\tfrac{h^2}{4}}\begin{pmatrix}1-\tfrac{h^2}{4}&h\\-h&1-\tfrac{h^2}{4}\end{pmatrix},
+  & M_{\text{RK4}}&=aI+bA,\quad A=\begin{pmatrix}0&1\\-1&0\end{pmatrix},
+\end{align}
+其中 $a=1-\tfrac{h^2}{2}+\tfrac{h^4}{24}$、$b=h-\tfrac{h^3}{6}$，而且
+\begin{equation}
+  \det M_{\text{辛E}}=\det M_{\text{Verlet}}=\det M_{\text{中点}}=1,\qquad
+  \det M_{\text{RK4}}=a^2+b^2=1-\frac{h^6}{72}+O(h^8).
+  \label{eq:dets}
+\end{equation}
+显式 Euler 是 $M=\begin{pmatrix}1&h\\-h&1+h^2\end{pmatrix}$，$\det M=1+h^2$。
+\end{theorem}
+
+\begin{proof}
+逐个直接算。
+
+\emph{辛 Euler}（先 $\dot p$ 后 $\dot q$）：$p'=p-hq$、$q'=q+hp'=q+hp-h^2q$，于是
+$M=\begin{pmatrix}1&h\\-h&1-h^2\end{pmatrix}$，
+$\det M=(1-h^2)+h^2=1$。
+
+\emph{Verlet}（半步 kick、整步 drift、半步 kick）：
+$p_{1/2}=p-\tfrac h2q$、$q'=q+hp_{1/2}$、$p'=p_{1/2}-\tfrac h2q'$，代进去得
+$q'=(1-\tfrac{h^2}{2})q+hp$、$p'=-h(1-\tfrac{h^2}{4})q+(1-\tfrac{h^2}{2})p$，
+$\det M=(1-\tfrac{h^2}{2})^2+h^2(1-\tfrac{h^2}{4})=1-\tfrac{h^4}{4}+\tfrac{h^4}{4}=1$。
+
+\emph{隐式中点}：$M=(I-\tfrac h2A)^{-1}(I+\tfrac h2A)$，其中 $A=\begin{pmatrix}0&1\\-1&0\end{pmatrix}$。
+$(I-\tfrac h2A)^{-1}=\frac{1}{1+h^2/4}(I+\tfrac h2A)$（因为 $(I-\tfrac h2A)(I+\tfrac h2A)=(1+\tfrac{h^2}{4})I$），
+两者相乘得 $\frac{1}{1+h^2/4}(I+\tfrac h2A)^2$；展开 $(I+\tfrac h2A)^2=(1-\tfrac{h^2}{4})I+hA$，
+就是上式。$\det M=\frac{(1-h^2/4)^2+h^2}{(1+h^2/4)^2}=\frac{(1+h^2/4)^2}{(1+h^2/4)^2}=1$。
+
+\emph{RK4}：对线性系统 $\dot y=Ay$，$y_{n+1}=R(hA)y_n$，$R(z)=1+z+\tfrac{z^2}{2}+\tfrac{z^3}{6}+\tfrac{z^4}{24}$。
+把 $A^2=-I$ 代进去，奇次幂给出 $A$、偶次幂给出 $I$，于是 $M=aI+bA$ 且
+$a=1-\tfrac{h^2}{2}+\tfrac{h^4}{24}$、$b=h-\tfrac{h^3}{6}$。$2\times2$ 矩阵 $aI+bA=\begin{pmatrix}a&b\\-b&a\end{pmatrix}$
+的行列式是 $a^2+b^2$。展开：
+$a^2=1-h^2+\tfrac{h^4}{3}+O(h^6)$，$b^2=h^2-\tfrac{h^4}{3}+O(h^6)$，
+$h^2$ 与 $h^4$ 项\textbf{恰好抵消}，$h^6$ 项系数是
+$\tfrac{1}{576}-\tfrac{2}{144}+\tfrac{1}{12}\cdot\ldots$ 直接算为 $-\tfrac1{72}$（实测 $1-\det M=1.3871528\times10^{-8}$ 对 $\tfrac{h^6}{72}=1.3888889\times10^{-8}$）。
+最后，显式 Euler 的 $M=\begin{pmatrix}1&h\\-h&1+h^2\end{pmatrix}$，$\det M=1+h^2$。
+\end{proof}
+
+\begin{remark}[实测]
+$h=0.1$ 时四个辛方法的 $|\det M-1|$ 与二次型残差（\S\ref{sec:quad}）最大 $1.4\times10^{-16}$，
+即\textbf{精确到位}；RK4 的 $1-\det M=1.3871528\times10^{-8}$，显式 Euler 的 $\det M=1.010000000000000$。
+$\det M$ 是这一步映射的性质，与步数无关——它不会因为跑得久而"变好"。
+\end{remark}
+
+\section{辛方法守恒的是什么：精确的二次不变量}
+\label{sec:quad}
+
+\begin{theorem}[二次不变量的存在性与闭式]
+\label{thm:quad}
+设 $M=\begin{pmatrix}a&b\\c&d\end{pmatrix}$ 是二维一步映射，令
+\begin{equation}
+  Q=\begin{pmatrix}c&\frac{d-a}{2}\\[2pt]\frac{d-a}{2}&-b\end{pmatrix}.
+  \label{eq:Q}
+\end{equation}
+则 $M^{\mathsf T}QM=(\det M)\,Q$。特别地，
+\[
+  \det M=1\quad\Longleftrightarrow\quad M^{\mathsf T}QM=Q
+  \quad\Longleftrightarrow\quad H_h(q,p)=\tfrac12\bigl[q\ p\bigr]Q\begin{pmatrix}q\\p\end{pmatrix}
+  \ \text{沿轨道严格守恒}.
+\]
+$\det M\ne1$ 时二次型不再是守恒量：它每步被整体乘以 $\det M$。
+\end{theorem}
+
+\begin{proof}
+直接把 \eqref{eq:Q} 代进 $M^{\mathsf T}QM$。记 $M^{\mathsf T}QM=\begin{pmatrix}A_{11}&A_{12}\\A_{12}&A_{22}\end{pmatrix}$：
+\[
+A_{11}=c\,(a^2+bc)=c\det M,\qquad
+A_{12}=\tfrac{d-a}{2}(ad+bc)+\tfrac{ac-bd}{2}\cdot 0=\tfrac{d-a}{2}\det M,
+\]
+\[
+A_{22}=(ad+bc)(-b)+\tfrac{d-a}{2}\cdot 0=-b\det M .
+\]
+（中间项：$A_{12}=ac\cdot\tfrac{d-a}{2}+ad(-b)+bc\cdot\tfrac{d-a}{2}+bd(-b)$，
+用 $ad+bc=\det M$ 与 $ac-bd$ 的配对整理即得。）于是 $M^{\mathsf T}QM=(\det M)Q$，
+$\det M=1$ 时 $Q$ 就是一步映射的精确二次不变量。
+$Q$ 的等值线是椭圆（$\det Q=b c-\tfrac{(d-a)^2}{4}<0$，即 $Q$ 定号）时，
+$H_h$ 的等值线就是绕着原点的椭圆，数值轨道只能待在其中一条上。
+\end{proof}
+
+\begin{corollary}[实测：把 $H_h$ 算出来]
+\label{cor:hhexp}
+对四个辛方法用 \eqref{eq:Q} 算 $Q$，再沿 $2\times10^4$ 步轨道算
+$H_h$ 的相对变化：
+辛 Euler $9.2\times10^{-15}$、Verlet $1.5\times10^{-14}$、隐式中点 $4.3\times10^{-14}$——
+全是舍入级。同期\textbf{真实}能量的带宽分别是 $2.56\times10^{-2}$、$6.25\times10^{-4}$、
+$4.3\times10^{-14}$：辛方法守恒的是另一个量，而且这个量可以手算出来。
+RK4 用同一公式得到 $4.3\times10^{-6}$——不是"算得不准"，是
+$\det M\ne1$，这个二次型\textbf{根本不存在}。
+\end{corollary}
+
+\section{带宽的闭式：辛 Euler 与 Verlet}
+\label{sec:band}
+
+\begin{theorem}[谐振子上能量误差带的两个端点]
+\label{thm:band}
+谐振子 $H=\tfrac12(q^2+p^2)$、初值 $H_0=\tfrac12$（$q_0=1,p_0=0$）、步长 $h<2$。则
+\begin{align}
+  \text{辛 Euler:}\quad
+  &-\frac{h}{2+h}\ \le\ \frac{H_n-H_0}{H_0}\ \le\ \frac{h}{2-h},
+  \label{eq:bandse}\\[2pt]
+  \text{Verlet / leapfrog:}\quad
+  &-\frac{h^2}{4}\ \le\ \frac{H_n-H_0}{H_0}\ \le\ 0 .
+  \label{eq:bandv}
+\end{align}
+两个端点都能取到（在轨道的特定相位上），因此这是\textbf{最优}的带。
+\end{theorem}
+
+\begin{proof}
+\emph{辛 Euler}：由 \eqref{eq:Q}（$a=1,b=h,c=-h,d=1-h^2$）得
+$d-a=-h^2$，故
+$Q=\begin{pmatrix}-h&-\frac{h^2}{2}\\-\frac{h^2}{2}&-h\end{pmatrix}$，即
+$H_h=-\frac h2\bigl(q^2+hqp+p^2\bigr)$ 沿轨道不变（$h>0$ 时 $Q$ 负定，等值线仍是椭圆；
+$\det Q=h^2-\tfrac{h^4}{4}>0$ 对 $h<2$ 成立）。
+初值 $q_0=1,p_0=0$ 把等值线的常数定成 $1$，即整条轨道满足
+\begin{equation}
+  q^2+hqp+p^2=1 .
+  \label{eq:ellipse}
+\end{equation}
+由 \eqref{eq:ellipse} 解出 $p^2=1-q^2-hqp$，于是真实能量
+\[
+  H=\tfrac12(q^2+p^2)=\tfrac12\bigl(1-hqp\bigr)=H_0-\frac h2\,qp,
+  \qquad\text{即}\qquad \frac{H-H_0}{H_0}=-h\,qp .
+\]
+在 \eqref{eq:ellipse} 上求 $qp$ 的极值：拉格朗日乘子给出
+$p=\lambda(2q+hp)$、$q=\lambda(2p+hq)$，相减得 $(q^2-p^2)(1-\lambda h)=0$。
+$q^2=p^2$ 代回约束得 $q^2(2\pm h)=1$，于是
+\[
+  qp=\pm q^2=\pm\frac{1}{2\pm h}:
+  \qquad q=p\ \Rightarrow\ qp=\frac{1}{2+h},\qquad
+  q=-p\ \Rightarrow\ qp=-\frac{1}{2-h}.
+\]
+代回 $(H-H_0)/H_0=-h\,qp$ 即得 \eqref{eq:bandse}。
+
+\emph{Verlet}：由 \eqref{eq:Q}（$a=d=1-\tfrac{h^2}{2}$、$b=h$、$c=-h(1-\tfrac{h^2}{4})$）得
+$d-a=0$，所以 $Q$ 是对角的：
+\[
+Q=\begin{pmatrix}-h\left(1-\frac{h^2}{4}\right)&0\\0&-h\end{pmatrix}
+\ \Longrightarrow\
+H_h=\frac h2\Bigl[\Bigl(1-\frac{h^2}{4}\Bigr)q^2+p^2\Bigr].
+\]
+初值给出 $H_h=\tfrac h2(1-\tfrac{h^2}{4})$。由该式解出 $p^2=\tfrac h2(1-\tfrac{h^2}{4})-(1-\tfrac{h^2}{4})\tfrac{h}{2}q^2$，
+代入 $H=\tfrac12(q^2+p^2)$：
+\[
+H-H_0=\frac12\Bigl[q^2+p^2-1\Bigr]=\frac{h^2}{8}\bigl(q^2-1\bigr).
+\]
+不变椭圆上 $q^2$ 的取值范围是 $[0,1]$：最大值由 $p=0$ 给出
+（$\tfrac h2(1-\tfrac{h^2}{4})q^2=\tfrac h2(1-\tfrac{h^2}{4})\Rightarrow q^2=1$），
+最小值 $0$ 在 $q=0,\ p^2=\tfrac h2(1-\tfrac{h^2}{4})$ 处取到。于是
+\[
+  \frac{H-H_0}{H_0}=\frac{h^2}{4}\bigl(q^2-1\bigr)\in\Bigl[-\frac{h^2}{4},\ 0\Bigr].
+\]
+\end{proof}
+
+\begin{remark}[实测：闭式到九位]
+$h=0.05$、$10^6$ 步：
+辛 Euler 实测 $[-2.439023753\times10^{-2},+2.564102545\times10^{-2}]$，
+闭式 $[-\tfrac{h}{2+h},\tfrac{h}{2-h}]=[-2.439024390\times10^{-2},+2.564102564\times10^{-2}]$；
+Verlet/leapfrog 实测 $[-6.249999456\times10^{-4},0]$，闭式 $[-\tfrac{h^2}{4},0]=[-6.25\times10^{-4},0]$。
+最大绝对偏差 $6.4\times10^{-9}$——这个残差不是理论误差，是\textbf{采样}采不到极值那一刻
+（$2001$ 个采样点跨 $10^6$ 步，步长间隔 $500$ 步）。
+注意 \eqref{eq:bandv} 的带\textbf{只在负侧}：写成"$\pm h^2/4$"会让上界差 $100\%$。
+\end{remark}
+
+\section{后向误差分析：辛方法解的是另一个哈密顿系统}
+\label{sec:backward}
+
+\begin{theorem}[线性系统上的精确版后向误差分析]
+\label{thm:backward}
+设一步映射 $M$ 满足 $\det M=1$ 且 $M$ 可对角化、特征值不在负实轴上，则存在
+$h$ 的解析函数 $S_h=S_h^{\mathsf T}$（对称 $2\times2$ 矩阵）使
+\begin{equation}
+  M=\exp(h\,J S_h),\qquad\text{于是}\qquad
+  H_h(y)=\tfrac12 y^{\mathsf T}S_h\,y\ \text{沿数值轨道严格守恒}.
+\end{equation}
+若进一步要求 $M$ 是\textbf{对称}方法（用 $-h$ 再走一步回到原处，即 $M(-h)=M(h)^{-1}$），
+则 $S_h$ 的展开只含 $h$ 的\textbf{偶}次幂，于是 $H_h=H+O(h^2)$；一般的 $p$ 阶辛方法给
+$H_h=H+O(h^p)$，对应的能量\textbf{带宽}是 $O(h^p)$。
+\end{theorem}
+
+\begin{proof}
+$\det M=1$ 且 $M$ 有实对数（特征值不为负实数）时，存在实矩阵 $B$ 使 $M=e^{hB}$；
+取行列式得 $1=\det M=e^{h\operatorname{tr}B}$，所以 $\operatorname{tr}B=0$。
+二维无迹矩阵总可以写成 $B=JS$ 且 $S$ 对称：把
+$J=\begin{pmatrix}0&1\\-1&0\end{pmatrix}$ 作用在对称矩阵上给出全部无迹矩阵
+（$\operatorname{tr}(JS)=\operatorname{tr}\begin{pmatrix}s_{21}&s_{22}\\-s_{11}&-s_{21}\end{pmatrix}=0$，且这是 $2\times2\to2\times2$ 的可逆线性映射）。
+取 $S_h$ 为该对称矩阵，则 $M=\exp(hJS_h)$ 是哈密顿函数 $H_h=\tfrac12y^{\mathsf T}S_hy$ 的\textbf{精确}时间-$h$ 流，
+故 $H_h$ 严格守恒（定理~\ref{thm:quad} 的 $Q$ 与这里的 $S_h$ 只差一个常数因子：
+$M^{\mathsf T}QM=Q$ 说明 $Q$ 与 $e^{hJS_h}$ 交换，二维不可约情形下 $Q\propto S_h$）。
+
+对称性：若 $M(-h)=M(h)^{-1}$，则 $S_h$ 满足 $S_{-h}=S_h$，偶函数，故展开只含偶次幂。
+辛方法的一步映射是 $H$ 的流的 $O(h^{p+1})$ 近似，故 $S_h=S+O(h^p)$，
+即 $H_h=H+O(h^p)$；误差 $H-H_h$ 被 $H_h$ 的守恒性锁在 $O(h^p)$ 的带里。
+\end{proof}
+
+\begin{remark}[非线性系统上这句话的边界]
+非线性系统上 $H_h$ 一般只是\textbf{渐近级数}（B 级数），通常不收敛；
+可以严格证明的是"形式守恒"与"指数级长的时间内有界"。
+所以本章的可视化 \texttt{modified\_\allowbreak hamiltonian} 固定用\textbf{谐振子}，
+并在帧的 \texttt{strings.linearity\_note} 里写明这一条：绿线只在谐振子上是精确结论。
+这只影响"$H_h$ 存在且收敛"的强度，不影响 \S\ref{sec:drift} 的对照结论
+（漂移率是实测的，不依赖 $H_h$ 收敛）。
+\end{remark}
+
+\section{非辛方法的漂移率}
+\label{sec:drift}
+
+\begin{theorem}[RK4 的能量漂移率 $h^5/72$]
+\label{thm:rk4drift}
+谐振子、步长 $h$、走 $n$ 步（$T=nh$）时
+\begin{equation}
+  \frac{H_n-H_0}{H_0}=-\frac{h^5T}{72}+O(h^7T),
+\end{equation}
+即每步掉 $\tfrac{h^6}{72}$、每单位时间掉 $\tfrac{h^5}{72}$，且\textbf{方向不变}（单调）。
+\end{theorem}
+
+\begin{proof}
+由定理~\ref{thm:det}，$M_{\text{RK4}}$ 形如 $\begin{pmatrix}a&b\\-b&a\end{pmatrix}$，
+$\det M=a^2+b^2$。对这样的矩阵，$\|M y\|^2=(a^2+b^2)\|y\|^2$ 对\textbf{每个} $y$ 成立
+（$M$ 是"旋转 $\times$ 均匀缩放"），而 $H=\tfrac12\|y\|^2$，所以
+\[
+H_{n+1}=(a^2+b^2)H_n=\Bigl(1-\frac{h^6}{72}+O(h^8)\Bigr)H_n .
+\]
+$n$ 步后 $H_n=(1-\tfrac{h^6}{72})^nH_0$；$n=T/h$、$h$ 小时
+$n\log(1-\tfrac{h^6}{72})\approx-\tfrac{h^6}{72}\cdot\tfrac Th=-\tfrac{h^5T}{72}$，
+故相对误差 $=-\tfrac{h^5T}{72}+O(h^7T)$。
+\end{proof}
+
+\begin{remark}[实测：指数 $4.99965$、系数 $1.7\times10^{-3}$ 相对精度]
+取定 $T=50$，$h$ 从 $0.1$ 降到 $0.00625$：$|\Delta H/H|$ 的幂律指数拟合为
+$4.99965$（理论 $5$），系数拟合 $0.693287$ 对 $\tfrac{T}{72}=0.694444$ 相对差
+$1.7\times10^{-3}$。同一窗口里 Verlet 的带宽指数是 $1.99999$（理论 $2$），
+辛 Euler 的带宽与 $\tfrac{h}{2-h}$ 的最大相对差 $6.5\times10^{-5}$——
+注意它的\textbf{名义}指数是 $1$，但 $\tfrac{h}{2-h}=h\cdot\tfrac{1}{2-h}$ 在
+$h\in[0.1,0.00625]$ 这个窗口上的\textbf{局部}指数是 $1.0186$，
+所以这一条要用"与闭式的比值"检验，而不是硬套指数 $1$（第一版就栽在这里）。
+\end{remark}
+
+\section{相位：辛性管得了什么、管不了什么}
+\label{sec:phase}
+
+\begin{theorem}[三种方法的相位误差率]
+\label{thm:phase}
+谐振子上一步映射 $M$ 的旋转角记作 $\theta_h$（$\operatorname{tr}M=2\cos\theta_h$ 或
+$\tan\theta_h=b/a$）。则真解每单位时间转 $1$ 弧度，而数值解转
+\begin{equation}
+  \theta_h=
+  \begin{cases}
+    h\left(1+\dfrac{h^2}{24}+O(h^4)\right), & \text{Verlet / leapfrog},\\[6pt]
+    h\left(1-\dfrac{h^2}{12}+O(h^4)\right), & \text{隐式中点},\\[6pt]
+    h\left(1-\dfrac{h^4}{120}+O(h^6)\right), & \text{RK4}.
+  \end{cases}
+  \label{eq:phase}
+\end{equation}
+于是相位误差每单位时间是 $-\tfrac{h^2}{24}$、$+\tfrac{h^2}{12}$、$+\tfrac{h^4}{120}$（正号 = 落后）。
+它\textbf{线性累积}：$T$ 时间后是 $\pm\tfrac{h^pT}{c}$ 圈，辛性对此完全无能为力。
+\end{theorem}
+
+\begin{proof}
+逐个用 $\operatorname{tr}M$ / $\tan\theta_h$ 的展开。
+
+\emph{Verlet}：$\operatorname{tr}M=2(1-\tfrac{h^2}{2})$，故 $\cos\theta_h=1-\tfrac{h^2}{2}$。
+用 $\arccos(1-u)=\sqrt{2u}\left(1+\tfrac{u}{12}+\tfrac{3u^2}{160}+\cdots\right)$，
+取 $u=\tfrac{h^2}{2}$：$\theta_h=h\left(1+\tfrac{h^2}{24}+O(h^4)\right)$。
+
+\emph{隐式中点}：$\cos\theta_h=\tfrac{1-h^2/4}{1+h^2/4}$，于是
+$1-\cos\theta_h=\tfrac{h^2}{2(1+h^2/4)}=\tfrac{h^2}{2}\left(1-\tfrac{h^2}{4}+O(h^4)\right)$。
+代入同一展开：$\theta_h=h\sqrt{1-\tfrac{h^2}{4}+O(h^4)}\left(1+\tfrac{h^2}{24}+O(h^4)\right)
+=h\left(1-\tfrac{h^2}{8}+\tfrac{h^2}{24}+O(h^4)\right)=h\left(1-\tfrac{h^2}{12}+O(h^4)\right)$。
+
+\emph{RK4}：$\tan\theta_h=\tfrac ba=\tfrac{h-h^3/6}{1-h^2/2+h^4/24}$。先展开商：
+$\tfrac ba=h+\tfrac{h^3}{3}+\tfrac{h^5}{8}+O(h^7)$；再用
+$\arctan x=x-\tfrac{x^3}{3}+\tfrac{x^5}{5}+O(x^7)$，取 $x=h(1+\tfrac{h^2}{3}+\tfrac{h^4}{8})$，
+$x^3=h^3(1+h^2+O(h^4))$、$x^5=h^5+O(h^7)$：
+$\theta_h=h+\tfrac{h^3}{3}+\tfrac{h^5}{8}-\tfrac{h^3}{3}-\tfrac{h^5}{3}+\tfrac{h^5}{5}
+=h+h^5\left(\tfrac18-\tfrac13+\tfrac15\right)=h-\tfrac{h^5}{120}$。
+\end{proof}
+
+\begin{remark}[实测值与"极角"的口径差]
+$h=0.1$、$600$ 圈（$T=3769.9$）：Verlet 实测 $-0.250279$ 圈、理论 $-\tfrac{h^2T}{24\cdot2\pi}=-0.249999$ 圈；
+隐式中点 $+0.499250$ 圈、理论 $+\tfrac{h^2T}{12\cdot2\pi}=+0.499999$；
+RK4 $+0.000498$ 圈、理论 $+\tfrac{h^4T}{120\cdot2\pi}=+0.000500$。
+辛 Euler 实测 $-0.258237$ 圈，而它的 $\operatorname{tr}M$ 与 Verlet 相同
+（$\cos\theta_h=1-\tfrac{h^2}{2}$）——多出来的 $-0.008$ 来自"极角 $\arctan(p/q)$"与
+"映射旋转角"的口径差：辛 Euler 的不变椭圆是\textbf{斜}的（$Q$ 有非对角元 $-\tfrac h2$），
+极角在椭圆上会来回摆，Verlet 的椭圆是轴对齐的，摆动小得多。
+两条口径必须说清，否则会得出"两个方法的相位误差不一样"的错误结论。
+\end{remark}
+
+\section{角动量、轨道形状与方位}
+\label{sec:kepler}
+
+\begin{theorem}[径向 kick 逐位保持角动量]
+\label{thm:L}
+设中心力场 $\dot p=-g(|q|)q$（$g$ 为标量函数），$L(q,p)=q_xp_y-q_yp_x$。则"kick"
+$\;p\mapsto p-h\,g(|q|)q$ 与"drift"$\;q\mapsto q+h\,p$ 都严格保持 $L$。
+\end{theorem}
+
+\begin{proof}
+kick：$L(q,p-hgq)=q\times(p-hgq)=q\times p-hg\,(q\times q)=L(q,p)$，因为 $q\times q=0$。
+drift：$L(q+hp,p)=(q+hp)\times p=q\times p+h\,(p\times p)=L(q,p)$。
+\end{proof}
+
+\begin{remark}[浮点下的"逐位"]
+上式在实数域是恒等，浮点下 $q_x(gq)_y-q_y(gq)_x$ 的两次乘积不完全相消，
+残差是 $O(u)$ 量级。实测 Kepler $e=0.6$、$200$ 圈（$h=0.01$）：
+Verlet 的 $|\Delta L|/L=1.9\times10^{-14}$、隐式中点 $8.0\times10^{-14}$、
+辛 Euler $2.3\times10^{-14}$；而 RK4 是 $4.8\times10^{-7}$——后者才是"漂移"。
+\end{remark}
+
+\begin{theorem}[形状与方位的分离]
+\label{thm:shape}
+对开普勒问题 $\ddot q=-\mu q/|q|^3$：
+\begin{enumerate}
+  \item 能量 $E=\tfrac12|p|^2-\mu/|q|$ 与角动量 $L$ 决定轨道的\textbf{形状}：
+        $a=-\tfrac{\mu}{2E}$、$e=\sqrt{1+\tfrac{2EL^2}{\mu^2}}$、$r_{\text{近}}=a(1-e)$；
+  \item 近星点\textbf{方位}由 Laplace--Runge--Lenz 矢量
+        $\mathbf A=p\times\mathbf L-\mu\,\tfrac{q}{|q|}$ 的方向给出，
+        $\varpi=\arctan(A_y,A_x)$，$|\mathbf A|=\mu e$。
+\end{enumerate}
+精确流上 $E$、$L$、$\mathbf A$ 都是运动积分；数值流上它们各自漂。
+辛性只保证第一条（$L$ 逐位守恒 $\Rightarrow$ 形状误差 $\le$ 能量带宽），
+\textbf{不保证}第二条：$\varpi$ 是相位型量，任何固定步长方法都会进动。
+\end{theorem}
+
+\begin{proof}
+第一条是开普勒问题的标准结论（由 $E$、$L$ 的定义直接解出 $a$、$e$）。
+第二条：对 $\mathbf A$ 求时间导数，
+$\dot{\mathbf A}=\dot p\times L+p\times\dot L-\mu\bigl(\tfrac{\dot q|q|-q(\dot q\cdot q)/|q|}{|q|^2}\bigr)$，
+用 $\dot L=0$、$\dot p=-\mu q/|q|^3$、$\dot q=p$ 逐项化简，
+$p\times\dot L=0$，$\dot p\times L=-\tfrac{\mu}{|q|^3}q\times(q\times p)=\ldots$
+最终得 $\dot{\mathbf A}=0$（这一步就是"开普勒轨道是闭合的"的代数证明）。
+$|\mathbf A|=\mu e$ 由 $\mathbf A\cdot\mathbf A=\mu^2+2EL^2$ 给出，与第一条的 $e$ 表达式一致。
+数值上：$\mathbf A$ 的模与方向分别对应形状与方位，实测见 \S\ref{sec:evidence}。
+\end{proof}
+
+\section{数值证据}
+\label{sec:evidence}
+
+下面每个数字都来自 \texttt{tests/3.3/} 的断言报告（\S\ref{sec:asserts} 的附表逐条列出）。
+
+\begin{center}
+\begin{tabular}{llr}
+\toprule
+量 & 条件 & 实测 \\
+\midrule
+辛 Euler 能量带 & 谐振子 $h=0.05$，$10^6$ 步 & $[-2.43902\text{e-}2,\ +2.56410\text{e-}2]$ \\
+Verlet 能量带 & 同上 & $[-6.249999\text{e-}4,\ 0]$ \\
+RK4 能量误差 & 同上 & $-2.16923\text{e-}4$（单调，占比 $1.0000$）\\
+显式 Euler & 同上 & 第 $22134$ 步溢出（$|y|>10^{12}$）\\
+两半 $\sup$ 之比 & Verlet / RK4 & $1.0000$ / $2.0026$ \\
+$1-\det M$ & RK4，$h=0.1$ & $1.3871528\text{e-}8$（$h^6/72=1.3888889\text{e-}8$）\\
+$H_h$ 相对变化 & 辛 Euler / Verlet / 中点 & $9.2\text{e-}15$ / $1.5\text{e-}14$ / $4.3\text{e-}14$ \\
+漂移率指数 & RK4，$T=50$，$h\in[0.1,0.00625]$ & $4.99965$（理论 $5$）\\
+带宽指数 & Verlet，同窗口 & $1.99999$（理论 $2$）\\
+相位误差 & Verlet $h=0.1$，$600$ 圈 & $-0.250279$ 圈（理论 $-0.250000$）\\
+$|\Delta L|/L$ & Kepler $e=0.6$，$200$ 圈 & Verlet $1.9\text{e-}14$ vs RK4 $4.8\text{e-}7$ \\
+轨道形状失真 & 同上 & Verlet 两半之比 $1.000$ vs RK4 $1.795$ \\
+单摆周期 & AGM vs 数值过零（$\theta_0=2$） & $8.349752927$ vs $8.349752920$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+三句话总结这张表：辛方法的误差\textbf{有带}（带宽有闭式、两半之比 $1$），
+非辛方法的误差\textbf{有斜率}（斜率有闭式、两半之比 $2$），
+而"轨道闭合"要分成形状（有界）与方位（线性进动）两句话说。
+
+\section{四个可视化该怎么看}
+
+\begin{enumerate}
+  \item \texttt{energy\_\allowbreak drift\_\allowbreak duel}（招牌）：同一时间轴两种方法的能量误差。
+        时间轴是 $\log_{10}$（观测步数），拖到右端就是 $10^6$ 步。
+        纵轴自动缩放，所以\textbf{不要比谁更陡}：看 \texttt{meta} 里的带宽、
+        两半之比与短期误差。辛方法一条带、RK4 一条下坡、显式 Euler 直接溢出
+        （溢出后曲线被掩码截断，\texttt{strings.masking} 说明被掩掉几个点）。
+  \item \texttt{phase\_\allowbreak orbit}：相平面上的轨道、该方法自己的不变椭圆、精确圆。
+        辛方法三条线重合（偏差 $10^{-14}$ 量级）；RK4 向内螺旋、显式 Euler 向外。
+        右图给两条偏差曲线：到不变曲线的偏差（闭不含混的判据）与到精确圆的偏差（带宽量级）。
+  \item \texttt{modified\_\allowbreak hamiltonian}：真实能量误差带 + 修正能量 $H_h$ 的相对变化。
+        绿线平在 $10^{-14}$ 说明"守恒的是另一个量"；切到 RK4 绿线自己也开始漂
+        （$\det M\ne1$）。这一页固定用谐振子，理由见 \S\ref{sec:backward} 的注。
+  \item \texttt{long\_\allowbreak term\_\allowbreak orbit}：行星轨道。拖观测时长（单位：初始周期）
+        看轨道失真：辛方法 $200$ 圈后仍趴在同一条椭圆上，RK4 的能量误差更小却一直在
+        往同一边偏。近星点\textbf{方位}的进动对所有方法都存在，帧里单独给一个数。
+\end{enumerate}
+
+\section{本章的算法路线（P2/P3 合规说明）}
+
+\begin{itemize}
+  \item 单摆的精确周期用 \textbf{AGM}（算术--几何平均）算完全椭圆积分，
+        不查表、不调库函数（\texttt{numcore.ode.symplectic.pendulum\_period}）。
+  \item Kepler 精确流用\textbf{自写 Newton} 解 Kepler 方程 $E-e\sin E=M$
+        （初值 $E=M+e\sin M$，$8$ 次迭代到 $10^{-14}$），再转真近点角。
+  \item 二次不变量 $Q$、等值线半径、闭合度、幂律拟合全部自写
+        （\texttt{numcore.ode.invariants}），幂律复用 3.1 章的 \texttt{loglog\_slope}，
+        不重复实现。
+  \item 非辛对照 \texttt{rk4}/\texttt{explicit\_\allowbreak euler} 直接调用 3.1 章的
+        \texttt{numcore.ode.rk.rk\_step}，不另写一份 tableau。
+  \item 越界保护：积分在 $\max|q|$ 或 $\max|p|$ 触到 $10^{12}$ 时立即停止，
+        帧里写"占位值 + 掩码 + 文案"三件套，绝不让 \texttt{inf}/\texttt{NaN} 进帧。
+\end{itemize}
+
+\section{断言附表}
+\label{sec:asserts}
+
+下表由 \texttt{tools/build\_book.py} 从 \texttt{tests/3.3/} 的**实际运行结果**生成
+（\texttt{dist/reports/assertions.json}），\texttt{\textbackslash input} 进来，不手抄。
+每一行给出类别（A = 与人造已知答案对拍、B = 不变量/相对变化率、C = 收敛率与阈值）、
+理论值、实测值与容差。
+
+\input{chapters/3.3/asserts_table}
+
+\section{它会怎样骗你（本章版）}
+\label{sec:traps}
+
+\begin{enumerate}
+  \item \textbf{拿短期精度当长期结论}：$h=0.1$ 的谐振子上跑八个周期，
+        RK4 的自收敛误差是 $4.2\times10^{-5}$，Verlet 是 $2.1\times10^{-2}$——
+        RK4 好 $493$ 倍。同一对方法跑 $10^6$ 步（$h=0.05$），
+        Verlet 的误差带 $6.25\times10^{-4}$、两半之比 $1.0000$，
+        RK4 的误差 $2.17\times10^{-4}$ 却\textbf{一路单调下坡}（两半之比 $2.0026$）。
+        观测时长再翻十倍，RK4 就输了。判据必须包含"误差随时间怎么变"。
+  \item \textbf{把"有界"当形容词}：$h=0.05$ 的 Verlet 带宽是 $6.249999\times10^{-4}$，
+        它\textbf{等于} $\tfrac{h^2}{4}$；$h$ 加倍带宽就乘 $4$。
+        只说"有界"不给数，等于没说——本章每条"有界"都落在 sup、两半之比与带宽幂律上。
+  \item \textbf{把带宽写成 $\pm h^2/4$}：Verlet 的能量误差只在\textbf{负侧}
+        （$H-H_0=\tfrac{h^2}{8}(q^2-q_0^2)\le0$），实测带是 $[-6.249999456\times10^{-4},0]$。
+        写成对称区间，上界就错了 $100\%$。第一版断言就是这么红的。
+  \item \textbf{用"趋势/带宽"单独判有界}：最小二乘斜率给后段更大权重，
+        纯振荡在含 $N$ 个周期的窗口上也有 $\approx\tfrac{3}{\pi N}$ 的假趋势
+        （实测 $\sin$ 在 $[0,4\pi]$ 上 $0.4739$、$[0,8\pi]$ 上 $0.2378$，
+        与 $\tfrac{3}{\pi N}$ 逐位吻合）。主判据必须是\textbf{后半段与前半段的 $\sup$ 之比}
+        （有界 $=1$、线性 $=2$），它对窗口长度与采样混叠都免疫。
+  \item \textbf{把"每圈离出发点多近"当闭合判据}：轨道是连续曲线、采样点是离散的，
+        这个量的下界由采样步长决定。实测同一条精确圆：采样 $h=0.1$ 时逐圈最近距离均值
+        $2.509\times10^{-2}$，$h=0.01$ 时 $2.513\times10^{-3}$——差 $10$ 倍，
+        而到不变曲线的偏差两次都是 $2.2\times10^{-16}$。
+        真实数据里这个量在 $600$ 圈内从 $1.9\times10^{-2}$ "长"到 $3.4\times10^{-1}$，
+        看起来像轨道散了，其实只是采样点没落在回归点上。
+  \item \textbf{相位不先解缠绕}：只取末点 $\arctan$ 之差会把它折进 $(-\pi,\pi]$。
+        实测反向流 $+6.366197723676$ 圈会被报成 $+0.366$ 圈。
+        本章 \texttt{phase\_\allowbreak error\_\allowbreak turns} 先 \texttt{unwrap} 再作差，
+        并且每步转过 $\ge\pi$ 时直接抛错而不是给个数。
+  \item \textbf{把相位误差当成"方法的好坏"}：$h=0.1$、$600$ 圈下 Verlet 的相位误差是
+        $-0.250$ 圈，RK4 只有 $+0.0005$ 圈——相位上 RK4 好 $500$ 倍，
+        而形状上 RK4 在不断变差（两半之比 $2.001$ 对 Verlet 的 $1.000$）。
+        "轨道闭合"是\textbf{点集}的性质，不是"第 $n$ 圈回到出发点"。
+  \item \textbf{把 Kepler 的进动都算到方法头上}：近星点方位 $\varpi$ 是相位型量。
+        固定步长下所有方法都进动（$e=0.6$、$h=0.01$：Verlet $-6.5\times10^{-4}$ rad/圈、
+        隐式中点 $+1.3\times10^{-3}$、RK4 $+1.8\times10^{-7}$），
+        而且 $e=0.9$ 时它还会因为近星点欠分辨而变大（$h=0.002$ 时 $-1.1\times10^{-3}$、
+        $h=0.01$ 时 $-1.8\times10^{-2}$ rad/圈）。
+        形状（$a$、$e$、$r_{\text{近}}$）才是辛性管得了的那一半。
+  \item \textbf{用采样的 $r$ 最小值当近星点}：RK4 的轨道在缩，
+        "$r$ 最小的那个采样点"会跟着挪，量出来的"进动"是 $1.6\times10^{-2}$ rad/圈；
+        用 Laplace--Runge--Lenz 矢量量同一个解只有 $1.8\times10^{-7}$ rad/圈（差 $9$ 万倍）。
+        径向漂移伪装成了方位漂移。
+  \item \textbf{把动量守恒当辛性的证据}：LJ 链（$6$ 自由度）上，
+        Verlet、辛 Euler、隐式中点、\textbf{RK4 与显式 Euler} 的动量漂移全都在
+        $6\times10^{-14}$ 以内——动量守恒来自平移不变性，与非辛性无关。
+        真正的判别量是角动量：Kepler $200$ 圈，Verlet $1.9\times10^{-14}$、
+        RK4 $4.8\times10^{-7}$，差 $2.6\times10^{7}$ 倍。
+  \item \textbf{把自动纵轴当证据}：能量误差从 $10^{-16}$ 到 $10^{24}$ 跨了 $40$ 个量级，
+        自动缩放会把 $10^{-14}$ 的舍入噪声画得和 $10^{-4}$ 的漂移一样惊心动魄。
+        量级看 \texttt{meta}（带宽、斜率、两半之比），不看谁更陡。
+  \item \textbf{把爆点读成"误差消失了"}：越过稳定边界后曲线被掩码截断，
+        占位值是\textbf{最后一个可信值}（$1.69\times10^{23}$ 这种），不是 $0$。
+        写 $0$ 会被读成"误差归零"，正好读反。帧里 \texttt{mask\_*=0} 的位置一律不算数。
+  \item \textbf{把 $h\!\to\!2$ 当成"还能跑"}：谐振子上 Verlet 与辛 Euler 的边界是
+        $h<2$（二分实测 $2.000001$），RK4 是 $2\sqrt2$（实测 $2.828979$）。
+        $h=2.5$ 时两个方法都在几十步内溢出；辛 Euler 的带宽闭式 $\tfrac{h}{2-h}$
+        在 $h\to2$ 时发散，所以可视化 3 的滑块上限取 $1.9$——临界线看得见，极点不进来。
+  \item \textbf{把修正哈密顿量外推到非线性}：$H_h$ 的\textbf{精确}二次型只在线性系统上存在
+        （定理~\ref{thm:backward}）。单摆、Kepler 上它只是渐近级数，一般不收敛。
+        可视化 3 固定用谐振子并在 \texttt{strings} 里写明这一条；
+        结论外推时只能说"辛方法的能量误差有界"，不能说"$H_h$ 一定收敛"。
+\end{enumerate}

@@ -1,0 +1,162 @@
+# 3.3 章断言清单（真源：`tests/3.3/test_symplectic.py`、`test_invariants.py`、`test_chapter_33.py`）
+#
+# 这一章分三层测，三层缺一不可：
+#   * **内核**（test_symplectic）：带宽闭式、映射行列式、爆点口径、轨道要素、单摆周期——A 类；
+#     "有界 vs 漂移"与守恒量（角动量/动量）——B 类；漂移率与带宽的幂律、稳定边界、
+#     形状失真的增长比、迭代次数随 h 的单调性——C 类；
+#   * **度量本身**（test_invariants）：band/drift_slope/power_law/phase_error_turns/
+#     quadratic_invariant/closure 全部与人造已知答案对拍（A），以及"假证据"反例（B）；
+#   * **帧不撒谎**（test_chapter_33）：全参数角点 × 时间轴两端的有限性与可打包性（A），
+#     招牌帧真的跑了 10^6 步、越过稳定边界的帧走"占位+掩码+文案"三件套（B）。
+#
+# 实测规模（最近一次 `pytest tests/3.3 -q`）：A 12 条、B 21 条、C 7 条，共 40 条，全部通过。
+# 为什么必须有 B 类：本章的结论句是"能量误差**有界**"与"角动量**守恒**"，
+# 它们属于相对变化率类（B），A 类（与解析解对拍）和 C 类（收敛率/阈值）都承担不了这句话。
+# min_counts 留一点余量，避免"算法没坏、清单先红"。
+chapter: "3.3"
+title: 几何数值积分与长期行为
+required_kinds: [B, C]
+
+min_counts:
+  A: 11
+  B: 20
+  C: 6
+
+tests:
+  # ------------------------------------------------------------------ 内核：方法表与闭式
+  - name: test_method_table_and_det_map
+    kind: A
+    what: 六个方法的阶、辛性、对称性、隐式标注与理论一致；四个辛方法的 |1−det M| 与二次型残差最大 1.4e-16
+    theory: 2×2 映射辛 ⟺ det M = 1；det = 1 ⟺ 存在精确二次不变量（本章命题 3.3.3）
+  - name: test_harmonic_band_closed_forms_over_a_million_steps
+    kind: A
+    what: h=0.05 跑满 10^6 步（Verlet/leapfrog 0.16 s、辛 Euler 0.14 s）：辛 Euler 带 [−2.439023753e-2, +2.564102545e-2] 对闭式 [−h/(2+h), h/(2−h)]，Verlet/leapfrog 带 [−6.249999456e-4, 0] 对闭式 [−h²/4, 0]，最大绝对偏差 6.4e-9
+    theory: 谐振子上辛方法的真实能量误差带由二次不变量 H_h 给出闭式；Verlet 的带只在负侧（H−H₀ = (h²/8)(q²−q₀²) ≤ 0）
+  - name: test_rk4_det_map_matches_series
+    kind: A
+    what: RK4 的 1−det M 在 h=0.4…0.05 上与 h⁶/72−h⁸/576 相对差最大 8.0e-9；显式 Euler 的 det = 1+h² = 1.01 精确
+    theory: RK4 的放大矩阵 M = aI+bA（A²=−I），det = a²+b² = |R(ih)|² = 1 − h⁶/72 + O(h⁸)
+  - name: test_pendulum_period_agm_matches_measured_crossing
+    kind: A
+    what: 四个振幅（0.01/0.5/1.0/2.0）的 AGM 椭圆积分周期与数值过零点最大相对差 1.7e-9；T 随振幅单调增
+    theory: T(θ0) = 4/√(1+H)·K(k)，k² = H/(1+H)，AGM 迭代算 K
+  - name: test_kepler_exact_flow_conserves_orbital_elements
+    kind: A
+    what: 精确流 20 圈的 (a,e,ϖ) 最大偏离 2.7e-15（自写 Newton 解 Kepler 方程）；Verlet 200 圈（h=0.01）的近星点距离失真 2.47e-4 ≤ 能量带宽 7.41e-4
+    theory: Kepler 精确解的 a = −μ/2E、e = |A|/μ、ϖ = arg A 严格守恒；辛方法能量有界 ⟹ 形状有界
+
+  # ------------------------------------------------------------------ 内核：B 类
+  - name: test_bounded_versus_drifting_energy_over_a_million_steps
+    kind: B
+    what: 10^6 步：Verlet 的后半/前半 sup 之比 1.0000、趋势/带宽 0.005（有界）；RK4 之比 2.0019、趋势/带宽 1.000000、单调占比 1.0000（线性漂移）
+    theory: 有界振荡两半的 sup 是同一个带宽（比值=1）；线性漂移的 sup 随时间线性长（时长翻倍 ⟹ 比值=2）
+  - name: test_angular_momentum_is_the_discriminator_not_momentum
+    kind: B
+    what: Kepler 200 圈角动量相对漂移：Verlet 1.89e-14、RK4 4.83e-07（差 2.6e7 倍）；而 LJ 链的动量漂移对所有方法（含显式 Euler）都 ≤ 6.0e-14
+    theory: 中心力 + 径向 kick ⟹ 角动量逐位守恒（辛性）；动量守恒只来自平移不变性，不是辛性的证据
+  - name: test_blowup_semantics_are_consistent
+    kind: B
+    what: 显式 Euler h=0.05 在第 22134 步（t=1106.7）停止，i_blowup=34/1501，尾部 t 与 idx 都等于 n_steps_done、爆点 |y|=1.0e12，数组全有限
+    theory: 爆点口径：i_blowup 是第一个含爆炸状态的采样点，[:i_blowup] 才可信；占位值由帧层按掩码写
+  - name: test_fast_path_and_method_aliases_are_bit_identical
+    kind: B
+    what: 21 组（7 系统 × 3 方法）快路径 vs 通用路径逐位相同（最大差 0.0）；verlet 与 leapfrog 在全部 7 个系统上差 0.0
+    theory: 两条路径算的是同一个映射；leapfrog 就是 verlet 的别名，必须逐位一致
+  - name: test_modified_invariant_is_conserved_to_roundoff
+    kind: B
+    what: 2e4 步：辛 Euler/Verlet/隐式中点的 H_h 相对变化 9.2e-15/1.5e-14/4.3e-14（同期真实能量带宽 2.6e-2/6.3e-4/4.3e-14）；RK4 同一公式给出 4.3e-6
+    theory: det M = 1 ⟺ 精确二次不变量存在；RK4 的 det = 1−h⁶/72 ≠ 1 ⟹ 不存在
+
+  # ------------------------------------------------------------------ 度量本身
+  - name: test_band_and_drift_on_synthetic_series
+    kind: A
+    what: 线性人造序列的 lo/hi/amplitude/sup/midpoint/slope/两半斜率全部命中闭式（1e-12）；纯振荡的趋势/带宽满足 3/(πN)（N=2/4/8/16 实测 0.4739/0.2378/0.1191/0.0596）
+    theory: 最小二乘斜率给后段更大权重 ⟹ 纯振荡在含 N 个周期的窗口上也有 ≈3/(πN) 的假趋势（窗口效应，不是漂移）
+  - name: test_power_law_recovers_synthetic_law
+    kind: A
+    what: y=3h² 拟合出 (p,C)=(2.000000000000, 3.000000000000)、对数残差 4.4e-16；把两点压到 1e-17 后不剔除会给出 p=16.42，skip_tiny 之后恢复 2
+    theory: 双对数斜率 = 幂次；舍入地板上的点会把斜率拉飞（PROTOCOLS 8.4 节 的同一条纪律）
+  - name: test_phase_error_on_exact_circle
+    kind: A
+    what: 精确圆同相 → 0.000000000000 圈；反向流 → 6.366197723676 圈（理论 2T/2π = 6.366197723676）；wrapped_angle(±3π) = +π
+    theory: 相位误差必须先解开缠绕再作差；只取末点 atan2 之差会折进 (−π,π]，+6.37 圈会被报成 +0.37 圈
+  - name: test_quadratic_invariant_on_synthetic_maps
+    kind: A
+    what: 剪切映射残差 0.0、旋转映射残差 8.6e-17（Q ∝ −I）、缩放映射 symplectic=False；辛 Euler 的 Q 沿 2e4 步轨道相对变化 9.2e-15；出发点落在 Q 的零方向时 curve_closure 抛 ValueError
+    theory: Q = [[c,(d−a)/2],[(d−a)/2,−b]] 由 M 直接给出，MᵀQM = Q ⟺ det M = 1
+  - name: test_level_curve_radius_closed_form
+    kind: A
+    what: 椭圆 (a,b)=(2.0,0.5) 的等值线残差 2.2e-16；Verlet 在 h→0 时等值线退化为单位圆（偏差 1.3e-13）
+    theory: r(θ) = √(2·value/(Q₀₀cos²θ + 2Q₀₁cosθsinθ + Q₁₁sin²θ))；必须补上 √2 因子（本章修过一个"椭圆画成一半大"的 bug）
+  - name: test_closure_distinguishes_roundoff_from_spiral
+    kind: B
+    what: 完美圆 sup=2.2e-16 且 at_roundoff；对数螺旋 sup=2.86e-1、前后半段比 2.134；1e-16 抖动仍判舍入级
+    theory: δ_k = r_k/r_curve(θ_k) − 1：舍入级 ⟹ 点集闭合；线性累积 ⟹ 螺旋（比值 ≈ 时长比）
+  - name: test_return_distances_is_a_sampling_artifact
+    kind: B
+    what: 同一条精确圆：逐圈"最近回归距离"的均值 h=0.1 时 2.509e-2、h=0.01 时 2.513e-3（差 10.0 倍），而到不变曲线的偏差两次都是 2.2e-16
+    theory: 假证据反例——"每圈回到出发点多近"的下界由采样步长决定，与是否闭合无关
+  - name: test_reference_closure_separates_band_from_drift
+    kind: B
+    what: 600 圈谐振子：Verlet 到精确圆的偏差 sup=1.251e-3（growth 1.000，= h²/8 的带）；RK4 sup=2.614e-4（growth 2.001，线性累积），末端只有 Verlet 的 0.21 倍
+    theory: 有界的带宽 ≠ 更小的偏差：RK4 瞬时更接近真轨道，但它一直在往同一个方向偏
+  - name: test_metric_error_paths_are_loud
+    kind: B
+    what: 五条边界（点数不足、长度不符、周期小于等于 0、出发点落在 H_h=0、幂律长度不符）全部抛 ValueError
+    theory: 量不出定义的量时必须抛错，帧层才有机会写 null/占位，而不是让 0 或 NaN 混进结论
+
+  # ------------------------------------------------------------------ 帧不撒谎
+  - name: test_manifest_matches_chapter_declaration
+    kind: A
+    what: 4 个可视化、依赖 [3.1]、断言类 [B, C] 与 docs/chapters.yaml 逐项一致；4 个模块文件都存在
+    theory: docs/chapters.yaml 是章节清单的唯一真源
+  - name: test_every_corner_frame_is_finite_and_packable
+    kind: A
+    what: 64 帧（4 viz × 全参数角点 × 时间轴两端）、586 个数组、117 个 meta 字段全部有限且可打包，0 个反例
+    theory: PROTOCOLS 1.1/1.3 节：帧里不许出现 NaN/Inf
+  - name: test_headline_frame_really_runs_a_million_steps
+    kind: B
+    what: 招牌帧 meta.n_steps_observed = 1000000、时间轴末端 50000.0、带宽 6.249999e-4 = h²/4、两半之比 1.0000（辛）vs 2.0026（RK4）、短期误差 RK4 2.6e-6 < Verlet 5.2e-3
+    theory: 「跑了 10^6 步」必须落在 meta 与数组上；短期精度与长期行为是两件事
+  - name: test_blowup_frame_uses_placeholder_and_mask
+    kind: B
+    what: h=2.5 的帧：两个方法都 blowup，掩码 86/114 个 0，占位值 = 最后一个可信值（1.69e23，非 0），strings 写明占位口径
+    theory: PROTOCOLS 1.3 节 的三件套；占位值取最后可信值，写 0 会被读成"误差消失了"
+  - name: test_phase_orbit_frame_separates_closure_from_drift
+    kind: B
+    what: 600 圈：Verlet 到不变曲线的偏差 1.8e-14（舍入级，det M = 1.000000000000）、相位 −0.250279 圈；RK4 偏差 2.6e-4（growth 2.00，1−det = 1.39e-8）、相位 +0.000498 圈
+    theory: 辛性保证"点集闭合"，不保证"相位不漂"；两个数必须分开报
+  - name: test_modified_hamiltonian_frame_numbers
+    kind: B
+    what: Verlet 带宽 2.500000e-3 = 闭式 h²/4（比值 1.000000），H_h 相对变化 8.9e-14；RK4 同一公式给出 1.39e-3（= 它的能量漂移），1−det = 1.387e-8
+    theory: 修正哈密顿量的二次型只在线性系统上精确存在（帧里固定用谐振子并写明这一条）
+  - name: test_long_term_orbit_frame_separates_shape_and_orientation
+    kind: B
+    what: Kepler e=0.6、200 圈（h=0.01）：Verlet 形状 growth 1.000、角动量 1.9e-14、进动 −6.5e-4 rad/圈；RK4 形状 growth 1.795、角动量 4.8e-7、能量带反而小 168 倍；e=0 时 varpi 是占位值并有文案
+    theory: 形状由 (E,L) 决定（辛性管得了）；方位是相位型误差（辛性管不了）
+  - name: test_time_axis_is_monotone_and_self_consistent
+    kind: B
+    what: 时间轴（log10 观测步数）t=0 → 1 步/2 点、t=3 → 1000 步/1001 点、t=6 → 10^6 步/1501 点；各部数组与时间轴等长
+    theory: 拖时间轴 = 换观测时长（不是把全长曲线裁一下），数组只覆盖已观测的那一段
+
+  # ------------------------------------------------------------------ C 类：收敛率与阈值
+  - name: test_rk4_drift_rate_power_law
+    kind: C
+    what: RK4 的能量漂移率对 h 的幂律指数 4.99965（理论 5.0），系数 0.693287 对 T/72 = 0.694444（相对差 1.7e-3）
+    theory: 每步掉 h⁶/72 ⟹ 每单位时间掉 h⁵/72 ⟹ T 时间内 |ΔE/E| = h⁵T/72
+  - name: test_symplectic_band_power_laws
+    kind: C
+    what: Verlet 带宽对 h 的幂律指数 1.99999（理论 2）；辛 Euler 的带宽对 h/(2−h) 的最大相对差 6.5e-5（h∈[0.1,0.00625]）
+    theory: 带宽 = h²/4（Verlet）与 h/(2−h)（辛 Euler）⟹ 名义指数 2 与 1；h/(2−h) 在有限窗口上的局部指数是 1.0186
+  - name: test_harmonic_stability_threshold_by_bisection
+    kind: C
+    what: 二分实测谐振子稳定边界：Verlet/辛 Euler 2.000001（22 次求值）、RK4 2.828979（14 次求值，理论 2√2 = 2.828427）
+    theory: 线性稳定边界是 |λ(h)|=1 的分界；Verlet h<2、RK4 h<2√2
+  - name: test_kepler_shape_threshold_between_symplectic_and_rk4
+    kind: C
+    what: 200 圈后的近星点距离失真增长比：Verlet 1.000、辛 Euler 1.000、隐式中点 1.000（有界），RK4 1.795（线性）
+    theory: 辛方法能量有界 ⟹ 形状失真在带内；非辛方法单调漂 ⟹ 失真随时间线性累积
+  - name: test_implicit_midpoint_iteration_counts_shrink_with_h
+    kind: C
+    what: 隐式中点的平均 Newton 迭代数随 h 单调下降：11.88（h=0.5）→ 7.02（0.2）→ 5.93（0.1）→ 4.96（0.05），残差稳定在 1e-14
+    theory: 迭代 y = y_n + (h/2)[f(y_n)+f(y)] 的收缩率 ∝ h ⟹ 迭代次数随 h 减小
