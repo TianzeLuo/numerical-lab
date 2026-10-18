@@ -1,0 +1,135 @@
+# 4.6 章断言清单（真源：`tests/4.6/test_spectral_core.py`、`tests/4.6/test_chapter_frames.py`）
+#
+# 分工：
+#   * test_spectral_core.py    —— 内核：谱微分的解析对拍、Poisson 系数闭式、单模态混叠落点、
+#                                Chebyshev 微分矩阵、Gibbs 过冲极限、DOP853 对拍、模态衰减指数、
+#                                逼近误差指数、四项账、能量恒等式残差的相位敏感性、能流预算对账、
+#                                差分 2/4 阶、谱方法的"每加倍比值递减"、RK4 时间阶、Burgers k^-2 段；
+#   * test_chapter_frames.py   —— 四个可视化帧：角点有限性、掩码与地板自洽、meta 与内核同源、
+#                                时间语义、可复现性与参数生效、u 裁剪留痕。
+#
+# A 类（解析对拍，两向）：三角多项式谱微分（光滑贴舍入 / 跳变随 N 增长）、
+#   a_k = rho^|k|（小 rho 贴舍入 / 大 rho 露出 rho^(N/2) 采样尾巴）、
+#   cos(Kx)^2 的折返落点手算值 0.25（去混叠后为 0）、Chebyshev 多项式精确 / |x| 误差恒为 2.39、
+#   Gibbs 过冲 → 0.1789797、Burgers 对 DOP853、模态指数 -1/-2/-4、误差指数 +1 与"不下降"。
+# B 类（不变量）：Parseval、带限输入的逐位精确（保留带内 vs 带外）、能量恒等式残差的相位敏感性、
+#   能流与逐带预算对账、nu 越小收支越差、c=1,t=1 的退化陷阱、Chebyshev 结构不变量、帧契约六条。
+# C 类（实测率）：差分 2/4 阶与其"每加倍比值趋近 1/4、1/16"、谱方法比值严格递减（指数收敛的
+#   可执行判据）、RK4 时间阶 4、Chebyshev 三种光滑性、Burgers 能谱斜率与欠分辨失控、
+#   混叠/截断随输入谱指数的走向。
+#
+# 判据一律写进 detail：窗口（N 范围、k 范围）、R^2、用点数——"斜率"离开窗口没有意义。
+chapter: "4.6"
+title: 谱方法与伪谱
+required_kinds: [A, B, C]
+
+min_counts:
+  A: 20
+  B: 30
+  C: 16
+
+tests:
+  - name: test_fourier_derivative_exact_on_trig_and_diverges_on_jumps
+    kind: A
+    what: n=16/64 上 sin(3x)+0.5cos(7x) 的谱微分相对误差 4.66e-15 / 1.01e-14；锯齿剖面的 max|du/dx| 在 n=32/64/128 上是 6.73/13.80/27.92（增长 4.15 倍，与 N 同阶）
+    theory: 谱微分在三角多项式上是恒等算子；对跳变数据误差 ~N（Gibbs 层），所以"谱方法总能微分"是错的
+  - name: test_poisson_coefficients_are_rho_to_the_k
+    kind: A
+    what: rho=0.3 的系数与 rho^|k| 最大偏差 ≤1e-14、rho=0.6 时 ≤1e-6；rho=0.85 时偏差升到 4.1e-4（= rho^(N/2)=5.5e-3 的量级，采样网格的固有偏差）
+    theory: 连续 Poisson 核的系数是闭式 rho^|k|；采样网格会带一条 rho^(N/2) 的混叠尾巴，这是采样而非算法
+  - name: test_aliasing_lands_on_the_hand_computed_mode
+    kind: A
+    what: n=12、u=cos(2pi*4x) 的朴素乘积在 k=-4 处出现 0.25（= 2K 折回的手算值），高分辨率参照与去混叠乘积在该处都是 0（<1e-14）
+    theory: cos^2(4x)=0.5+0.5cos(8x)，8-12=-4——混叠落点可以纸笔验证
+  - name: test_chebyshev_derivative_exact_on_polynomials_and_stuck_on_corners
+    kind: A
+    what: n=16/32 上 D@x=1、D@x^2=2x 的误差 ≤1e-12；|x| 的导数误差在 n=16..128 上是 2.3881/2.3867/2.3864/2.3863（相对变化 0.08%）
+    theory: 多项式精确；C^0 折角的误差 O(1)、与 n 无关——"谱方法高阶"的前提是光滑
+  - name: test_gibbs_overshoot_approaches_the_si_constant
+    kind: A
+    what: K=4/64/1024 的过冲 0.182327/0.178918/0.178391，与 (2/pi)Si(pi)-1=0.1789797 的差 ≤1e-3 且单调下降
+    theory: 过冲有非零极限；K 增大只是压窄振荡，不消掉它
+  - name: test_burgers_matches_a_reference_integrator
+    kind: A
+    what: 同一条半离散方程（去混叠非线性项 + 黏性）上，dt=0.0025 与 DOP853(rtol=1e-12) 的偏差 ≤1e-10，dt=0.04 的偏差是它的 1e3 倍以上
+    theory: 空间算子两边共用，测的是时间积分；小步长一致、大步长可辨
+  - name: test_modal_decay_exponents_for_known_smoothness
+    kind: A
+    what: n=512 上 jump/corner/bump 的衰减指数 -0.9921/-1.9840/-3.9999（窗口 k∈[8,48]，R^2≥0.9999）；解析剖面的分段平均斜率 -3.06/-6.64/-12.77，每段至少再陡 2（实测最小 3.58）
+    theory: a_k ~ k^-(p+1) 由光滑性给出；解析剖面的"指数"没有有限幂次
+  - name: test_fourier_truncation_error_exponents
+    kind: A
+    what: 尖角逼近误差的实测指数 +1.0038（窗口 N=16..256，R^2=0.99999）；跳变的误差比 e(16)/e(256)=1.06（不下降）；解析剖面 N=256 时 ≤1e-13
+    theory: 逼近误差比系数快一阶；间断数据的 Gibbs 把误差钉住
+  - name: test_roundtrip_parseval_and_bandlimited_exactness
+    kind: B
+    what: 合成-分解往返 ≤1e-13；sum_k E_k = mean(u^2) ≤1e-14；带限输入下"2/3+3/2"对高分辨率参照 1.0e-16；同一带限输入的朴素乘积在保留带内 1.4e-16、带外 3.2e-3
+    theory: 折返落在 |k|>=N/3 之外——"混叠有没有害"取决于读哪个带
+  - name: test_energy_identity_residual_is_phase_sensitive
+    kind: B
+    what: 同一张 |a_k|=k^-1 谱换相位：全带场残差 quad/lin/rand = 7.65e-18 / 4.05e-3 / 7.17e-3（跨度 9.4e14）；带限场的朴素与去混叠乘积残差各自 3.4e-18 与 8.4e-17
+    theory: 能量恒等式残差不能当去混叠的判据（相位依赖 + 折返在带外）
+  - name: test_spectral_flux_matches_the_energy_budget
+    kind: B
+    what: n=64、nu=0.01 的算例在 t=0.3 处，k=1..32 的 Pi(k) 与 -(dE_<=k/dt + 2 nu sum k^2 E_k) 最大偏差 1.7e-6（远小于 1e-4 的判据）
+    theory: 能流必须与逐带能量收支逐点相等，否则图上的"级联"只是装饰
+  - name: test_burgers_budget_residual_grows_as_viscosity_drops
+    kind: B
+    what: n=64、t=1.2 时 nu=0.03/0.02/0.01/0.005 的收支残差 1.35e-3/6.51e-3/3.45e-2/8.30e-2 单调变差
+    theory: 欠分辨时 2/3 截断成为能量汇；残差随 nu 单调是分辨问题而非时间步问题
+  - name: test_advection_exact_is_a_shift_and_the_period_trap
+    kind: B
+    what: c=1、t=1 时精确解与初值的差 ≤1e-14，且 N=16..128 的谱误差全 ≤1e-13（与 N 无关）；c=0.85 时首档误差 >1e-4
+    theory: 整周期位移让所有格式都"精确"——这是测试选错时刻的陷阱，不是格式变准
+  - name: test_chebyshev_structure_invariants
+    kind: B
+    what: LGL 端点 ±1（≤1e-15）、微分矩阵行和 ≤1e-12、Runge 与 |x| 的奇次系数 ≤1e-15
+    theory: 网格/系数/矩阵的结构不变量是 Chebyshev 侧所有结论的地基
+  - name: test_finite_difference_orders_are_two_and_four
+    kind: C
+    what: 窗口 N=128/192/256 上实测阶 1.9704/3.9677（R^2=0.99986/0.99995，窗口 N=128/192/256）；2 的幂档的每加倍比值 0.2548/0.0638（理论 0.25/0.0625），从粗端 0.657/0.4355 单调下降；N<=64 的四阶"阶"只有 1.669（窗口没进渐近区）
+    theory: 差分阶是常数比值；窗口取错（还没进渐近区）会把四阶测成低阶
+  - name: test_spectral_error_beats_every_power_law
+    kind: C
+    what: ns=16..96 的谱误差每加倍比值 0.0555/0.0120/0.0012/4.07e-5/2.90e-8 严格递减；差分比值 0.7247..0.3472；窗口 [16,32]/[24,48]/[32,64] 的谱拟合斜率 5.03/8.39/11.57 逐段变陡（差分比值 0.72..0.35 有下界）
+    theory: 指数收敛的可执行判据是"比值是否在变小"，不是拟合出的单个 p
+  - name: test_rk4_temporal_order_is_four
+    kind: C
+    what: 积分因子 RK4 自收敛（基准 dt=T/640）：实测时间阶 3.9932（R^2=0.999999），每减半步长的误差比 0.0625/0.0627/0.0632（理论 0.0625）
+    theory: 时间阶要用自收敛量测；对连续解测会把空间误差算进来
+  - name: test_chebyshev_convergence_degrades_off_smoothness
+    kind: C
+    what: Runge 的每加倍比值 0.0765/0.0202/0.0045/4.8e-4/1.9e-5/2.2e-7 严格递减、|x| 的误差指数 +0.9990、sign 的误差 1.9944->1.9540（比值 1.02）不下降
+    theory: 换基不换结论：指数 / 代数 / 不收敛三种命运由光滑性决定
+  - name: test_burgers_cascade_slope_in_the_inertial_window
+    kind: C
+    what: n=128、nu=0.02、t=1.5 在窗口 [3,8] 上斜率 -2.1994（R^2=0.999983，k_d=5.77）；nu=0.002 时能流末端 -4.280、收支残差 1.605、E 从 0.500 涨到 0.840（判据：末端应当 ≈0）
+    theory: k^-2 段是激波谱；"Pi≈eps 才是惯性区"这条判据在这里会读到假的不守恒
+  - name: test_alias_and_truncation_cost_decay_with_input_spectrum
+    kind: C
+    what: decay=0.5/1.0/2.0/2.5 的混叠误差单调下降 6.64e-2/1.20e-2/1.73e-4/2.14e-5（对 decay 的幂律指数 -4.96，R^2=0.948）；截断代价/混叠误差之比 2.10/3.13/5.65/6.74
+    theory: 两笔账都随谱变陡而变小，但比值几乎不变——报"去混叠改善精度"必须说清报的是哪一笔
+  - name: test_every_corner_frame_is_finite_and_complete
+    kind: B
+    what: 4 个 viz 的参数角点 × 时间端点共 56 帧：所有数组无 NaN/Inf、meta 只有有限标量或 None、requiredAux 全部命中、strings 带时间与非有限值口径
+    theory: 用户一拖滑块就白屏的那类失败（除零、奇异、meta 塞 NaN 导致整帧编码失败）
+  - name: test_floor_placeholders_match_their_masks
+    kind: B
+    what: 11 对显式列出的掩码/底数组 + 自动发现的 *_mask 对：形状一致、取值 0/1、掩码内的值不超过地板
+    theory: 对数轴上的 0 必须由"地板 + 掩码"表达，不能用 NaN 断线，也不能把非地板点标进掩码
+  - name: test_chapter_meta_matches_numcore_recomputation
+    kind: B
+    what: 四个 viz 的关键 meta 全部独立复算：viz1 的 fit_p/fit_r2/err_corner_slope、viz2 的四项账与 m_used、viz3 的 slope_fd2/shift/ratio_fd4_last、viz4 的 slope_fit/energy_drift/budget_error_max，偏差 <1e-9
+    theory: 图上写的必须就是代码算的（防"图一套、码一套"）
+  - name: test_time_semantics_are_honoured
+    kind: B
+    what: time.mode=none 的两个 viz 换 t 后帧逐位不变、且不声明 tMax；两个 scrub viz 的 t=0 与 t=tMax 端点确实不同
+    theory: 时间轴语义不是装饰：没有时间轴的帧不许有进度条，有时间轴的帧不能是死的
+  - name: test_frames_are_reproducible
+    kind: B
+    what: 同参同 t 的帧逐位可复现（含随机相位场，种子固定）；角点参数必须改变数组或 meta
+    theory: 随机相位场走 numcore.utils.rng 的固定种子——否则每刷新一次图就变一次
+  - name: test_solution_clipping_is_declared
+    kind: B
+    what: nu=0.002、t=1.5 的帧：|u|>=1.6 的位置全部打上 u_clipped 掩码、u 不超过上限、meta.n_clipped 与掩码计数一致
+    theory: 显示用的裁剪必须留痕（掩码 + 计数 + strings 说明），否则读者会把它当成物理

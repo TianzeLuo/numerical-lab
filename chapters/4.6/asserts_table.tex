@@ -1,0 +1,89 @@
+% 本文件由 tools/build_book.py 从 dist/reports/assertions.json 生成，请勿手改。
+\begin{longtable}{@{}p{0.06\textwidth}p{0.32\textwidth}p{0.22\textwidth}p{0.16\textwidth}@{}}
+\caption{章节 4.6 数值断言（生成时间 2026-10-18T18:30:41-0400）}\\
+\toprule
+类别 & 断言 & 理论值 & 实测值 \\
+\midrule
+\endfirsthead
+\toprule
+类别 & 断言 & 理论值 & 实测值 \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+
+B & 角点帧总数 & 4 个 viz $\times$ 各自角点 $\times$ 时间端点 & 56 \checkmark \\
+B & 检查过的掩码对 & 每个 *\_mask 都要有对应的底数组，且掩码内只剩地板值 & 14 \checkmark \\
+B & viz1 的 fit\_\allowbreak{}p 与内核同源 & modal\_decay\_fit 给出的 -7.1290 & -7.12896 \checkmark \\
+B & viz2 的四项账与内核同源 & alias /\allowbreak{} truncation /\allowbreak{} pad\_only /\allowbreak{} dealias 四个量各自独立 & 0.0119569 \checkmark \\
+B & viz3 的差分阶与 shift 与内核同源 & -2 /\allowbreak{} -4，shift =\allowbreak{} c$\cdot$t =\allowbreak{} 0.510 & -1.97043 \checkmark \\
+B & viz4 的能谱斜率与能量账与内核同源 & 窗口 [3,\allowbreak{}10] 上的幂律拟合 & -3.2071 \checkmark \\
+B & convergence\_\allowbreak{}race 的时间端点确实不同 & t=\allowbreak{}0 与 t=\allowbreak{}tMax 的解不能相同 & 3.99855 \checkmark \\
+B & burgers\_\allowbreak{}cascade 的时间端点确实不同 & t=\allowbreak{}0 与 t=\allowbreak{}tMax 的解不能相同 & 0.992988 \checkmark \\
+B & modal\_\allowbreak{}decay 的帧可复现且参数生效 & 同参同 t 逐位相同；角点参数必须改变数组或 meta & 15 \checkmark \\
+B & dealias\_\allowbreak{}rule 的帧可复现且参数生效 & 同参同 t 逐位相同；角点参数必须改变数组或 meta & 13 \checkmark \\
+B & convergence\_\allowbreak{}race 的帧可复现且参数生效 & 同参同 t 逐位相同；角点参数必须改变数组或 meta & 15 \checkmark \\
+B & burgers\_\allowbreak{}cascade 的帧可复现且参数生效 & 同参同 t 逐位相同；角点参数必须改变数组或 meta & 16 \checkmark \\
+B & 裁剪掩码与 meta 计数一致 & n\_clipped =\allowbreak{} count(\allowbreak{}u\_clipped) & 8 \checkmark \\
+A & n=16 三角多项式谱微分相对误差 & $\le$ 1e-13(\allowbreak{}舍入级) & $4.659\times 10^{-15}$ \checkmark \\
+A & n=64 三角多项式谱微分相对误差 & $\le$ 1e-13(\allowbreak{}舍入级) & $1.009\times 10^{-14}$ \checkmark \\
+A & 两种 N 上的谱微分误差都在舍入级 & $\le$ 1e-13(\allowbreak{}误差是 u 量级，不是「很小」) & $1.009\times 10^{-14}$ \checkmark \\
+A & 跳变剖面谱微分的幅度随 N 增长 & $\approx$ (\allowbreak{}N\_hi/\allowbreak{}N\_lo)(\allowbreak{}Gibbs 层导数 \textasciitilde{} N) & 4.14636 \checkmark \\
+A & rho=0.3 的系数偏离 rho\textasciicircum{}|k| & $\le$ 1e-14 & $5.551\times 10^{-17}$ \checkmark \\
+A & rho=0.6 的系数偏离 rho\textasciicircum{}|k| & $\le$ 1e-06 & $2.245\times 10^{-11}$ \checkmark \\
+A & rho=0.85 的混叠尾巴 & rho\textasciicircum{}(\allowbreak{}N/\allowbreak{}2) =\allowbreak{} 5.5e-3(\allowbreak{}采样网格的固有偏差) & 0.000411632 \checkmark \\
+A & 朴素乘积在 k=-N/3 处的假模态 & 0.25(\allowbreak{}=\allowbreak{} cos\textasciicircum{}2 的 2K 分量折回；真值 0) & 0.25 \checkmark \\
+A & n=16: D@x = 1 & $\le$ 1e-12 & $3.553\times 10^{-15}$ \checkmark \\
+A & n=16: D@x\textasciicircum{}2 = 2x & $\le$ 1e-12 & $1.421\times 10^{-14}$ \checkmark \\
+A & n=32: D@x = 1 & $\le$ 1e-12 & $5.684\times 10^{-14}$ \checkmark \\
+A & n=32: D@x\textasciicircum{}2 = 2x & $\le$ 1e-12 & $7.105\times 10^{-14}$ \checkmark \\
+A & |x| 的 Chebyshev 导数误差不随 n 下降 & O(\allowbreak{}1)：实测约 2.39(\allowbreak{}与 n 无关，跳变量为 2) & 2.38805 \checkmark \\
+A & Gibbs 过冲随模态数的走向 & (\allowbreak{}2/\allowbreak{}pi)Si(\allowbreak{}pi)-1 =\allowbreak{} 0.1789797 & 0.000588555 \checkmark \\
+A & dt=0.0025 与 DOP853 的相对偏差 & $\le$ 1e-10 & $1.426\times 10^{-12}$ \checkmark \\
+A & 时间步从 0.04 缩到 0.0025 的偏差下降 & $\ge$ 1e4(\allowbreak{}四阶：16\textasciicircum{}4) & 65228.9 \checkmark \\
+A & jump 的衰减指数 & -1 & -0.992147 \checkmark \\
+A & corner 的衰减指数 & -2 & -1.98404 \checkmark \\
+A & bump 的衰减指数 & -4 & -3.99992 \checkmark \\
+A & 解析剖面的局部斜率一路变陡(不存在有限代数指数) & 每段至少再陡 2(\allowbreak{}指数衰减的可执行判据) & 3.58018 \checkmark \\
+A & 尖角的逼近误差指数 & +1(\allowbreak{}a\_k\textasciitilde{}k\textasciicircum{}-2 的尾巴积分给出 N\textasciicircum{}-1) & 1.00376 \checkmark \\
+A & 跳变的逼近误差不随 N 下降 & $\le$ 1.2(\allowbreak{}Gibbs 把误差钉住) & 1.05856 \checkmark \\
+A & 解析剖面 N=256 的误差 & $\le$ 1e-13(\allowbreak{}地板) & $7.105\times 10^{-15}$ \checkmark \\
+B & 合成-分解往返 & $\le$ 1e-13(\allowbreak{}舍入级) & $1.199\times 10^{-14}$ \checkmark \\
+B & Parseval：sum\_\allowbreak{}k E\_\allowbreak{}k = mean(u\textasciicircum{}2) & $\le$ 1e-14 & $2.776\times 10^{-16}$ \checkmark \\
+B & 带限输入的去混叠乘积 vs 高分辨率参照 & $\le$ 1e-13 & $1.035\times 10^{-16}$ \checkmark \\
+B & 带限输入的朴素乘积偏差(保留带内) & $\le$ 1e-13(\allowbreak{}折返落在保留带外) & $1.438\times 10^{-16}$ \checkmark \\
+B & 带限输入的朴素乘积偏差(保留带外) & 非零：折返就落在这里 & 0.00322086 \checkmark \\
+B & 全带场的能量残差(quad 相位) & 朴素乘积应当非零，但量级随相位剧烈变化 & $7.654\times 10^{-18}$ \checkmark \\
+B & 全带场的能量残差(lin 相位) & 朴素乘积应当非零，但量级随相位剧烈变化 & 0.00405371 \checkmark \\
+B & 全带场的能量残差(rand 相位) & 朴素乘积应当非零，但量级随相位剧烈变化 & 0.00716665 \checkmark \\
+B & 同谱不同相位的残差跨度 & $\ge$ 1e3(\allowbreak{}相位决定混叠是否打中能量账) & $9.364\times 10^{14}$ \checkmark \\
+B & 带限场：朴素乘积的残差 & $\le$ 1e-15(\allowbreak{}折返在带外) & $3.424\times 10^{-18}$ \checkmark \\
+B & 带限场：去混叠乘积的残差 & $\le$ 1e-15 & $8.446\times 10^{-17}$ \checkmark \\
+B & 逐带预算的最大偏差(k=1..32) & $\le$ 1e-4(\allowbreak{}有限差分 + 账目) & $1.731\times 10^{-6}$ \checkmark \\
+B & nu 从 0.03 降到 0.005 的收支残差 & 单调变差(\allowbreak{}欠分辨时 2/\allowbreak{}3 截断成为能量汇) & 0.0830384 \checkmark \\
+B & c=1,t=1 的精确解 = 初值 & $\le$ 1e-14 & $4.885\times 10^{-15}$ \checkmark \\
+B & c=1,t=1 时谱方法的误差 & $\le$ 1e-13(\allowbreak{}与 N 无关的退化) & $9.992\times 10^{-16}$ \checkmark \\
+B & LGL 左端点 = +1 & $\le$ 1e-15 & 0 \checkmark \\
+B & LGL 右端点 = -1 & $\le$ 1e-15 & 0 \checkmark \\
+B & D 的行和 = 0(常数导数为 0) & $\le$ 1e-12 & $2.842\times 10^{-14}$ \checkmark \\
+B & Runge(偶函数)的奇次系数 & $\le$ 1e-15 & $2.741\times 10^{-16}$ \checkmark \\
+B & |x|(偶函数)的奇次系数 & $\le$ 1e-15 & $7.841\times 10^{-16}$ \checkmark \\
+C & 二阶差分实测阶 & 2 & 1.97043 \checkmark \\
+C & 四阶差分实测阶 & 4 & 3.96771 \checkmark \\
+C & 二阶每加倍比值(最细两级) & 0.25(\allowbreak{}渐近值，粗网格端偏大) & 0.00476949 \checkmark \\
+C & 四阶每加倍比值(最细两级) & 0.0625 & 0.00128826 \checkmark \\
+C & 差分的每加倍比值从上方单调趋近理论值 & 单调下降且有下界 0.25 /\allowbreak{} 0.0625(\allowbreak{}粗网格端还没进渐近区) & 0.657009 \checkmark \\
+C & 小 N 段四阶格式的假阶 & $\le$ 3.5(\allowbreak{}还没进渐近区) & 1.66885 \checkmark \\
+C & 谱误差每加倍比值严格递减 & 严格递减(\allowbreak{}指数收敛) & $5.229\times 10^{-7}$ \checkmark \\
+C & 谱方法每加倍比值 vs 差分每加倍比值 & $\le$ 0.01(\allowbreak{}差两个数量级以上) & $8.358\times 10^{-8}$ \checkmark \\
+C & 谱误差的局部斜率逐段变陡 & 每段至少 +1.5(\allowbreak{}对数-对数图上向下弯) & 6.54561 \checkmark \\
+C & 积分因子 RK4 实测时间阶 & 4 & 3.99315 \checkmark \\
+C & 每减半步长的误差比值 & $\approx$ 1/\allowbreak{}16 =\allowbreak{} 0.0625 & 0.000740736 \checkmark \\
+C & Runge 的误差每加倍比值递减 & 严格递减(\allowbreak{}指数) & $2.909\times 10^{-6}$ \checkmark \\
+C & |x| 的 Chebyshev 误差指数 & +1(\allowbreak{}尖角 $\Rightarrow$ 误差 \textasciitilde{} n\textasciicircum{}-1) & 0.998951 \checkmark \\
+C & sign(x) 的误差不随 n 下降 & $\le$ 1.2(\allowbreak{}跳变) & 1.02069 \checkmark \\
+C & 能谱斜率(窗口 [3,8]) & -2(\allowbreak{}激波/\allowbreak{}间断的谱) & -2.19941 \checkmark \\
+C & 欠分辨(nu=0.002)时能流末端 & 应当 $\approx$ 0(\allowbreak{}非线性项守恒总能量) & -4.28001 \checkmark \\
+C & 截断代价 / 混叠误差 之比 & 2 \textasciitilde{} 7(\allowbreak{}截断这一笔更大) & 2.10352 \checkmark \\
+C & 混叠误差随 decay 的幂律指数 & 负指数(\allowbreak{}谱越陡混叠越小) & -4.96326 \checkmark \\
+\end{longtable}
