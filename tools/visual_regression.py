@@ -256,11 +256,20 @@ def fallback_entries(
     width: float,
     height: float,
     t: float,
+    chapters: Sequence[str] | None = None,
 ) -> list[Entry]:
-    """对 ``dist/scenes`` 没覆盖到的 (chapter, viz) 用标准探针场景兜底。"""
+    """对 ``dist/scenes`` 没覆盖到的 (chapter, viz) 用标准探针场景兜底。
+
+    ``chapters`` 给出时只兜底这些章——**必须**跟着 ``--chapter`` 走：兜底要为每个
+    未覆盖的 viz 现算一帧（跑真 compute），全仓兜底在并发开发时会被别的章节的半成品
+    直接打崩（真踩过：`--check --chapter 2.2` 崩在 2.6 章正在写的函数里）。
+    """
+    wanted = set(chapters) if chapters else None
     covered_pairs = {(e.chapter, e.viz) for e in covered.values()}
     out: list[Entry] = []
     for entry in registry.all():
+        if wanted is not None and entry.id not in wanted:
+            continue
         for viz_id in entry.viz_ids:
             if (entry.id, viz_id) in covered_pairs:
                 continue
@@ -330,7 +339,9 @@ def run(
     entries: list[Entry] = []
     primary = discover_scenes(scenes_dir, width=width, height=height)
     entries.extend(primary.values())
-    entries.extend(fallback_entries(registry, primary, width=width, height=height, t=t))
+    entries.extend(
+        fallback_entries(registry, primary, width=width, height=height, t=t, chapters=chapters)
+    )
     if chapters:
         entries = [e for e in entries if e.chapter in set(chapters)]
     if vizzes:

@@ -2169,7 +2169,13 @@ def _draw_axis(canvas: Canvas, axis: Mapping[str, Any], opts: RenderOptions) -> 
             canvas.text_vertical(rx - 42, ry + rh / 2, str(axis["ylabel"]), opts.base_font_size, _DEFAULT_FONT_COLOR, bold=True)
 
 
-def _draw_line_layer(canvas: Canvas, axis: Mapping[str, Any], layer: Mapping[str, Any]) -> None:
+def _draw_line_layer(
+    canvas: Canvas,
+    axis: Mapping[str, Any],
+    layer: Mapping[str, Any],
+    *,
+    avoid: Sequence[tuple[float, float, float, float]] = (),
+) -> None:
     for s in layer.get("series", []):
         path = _clip_series_to_axis(axis, layer_to_pixel_path(axis, s.get("x"), s.get("y")))
         color = s.get("color", "#4c78a8")
@@ -2199,7 +2205,30 @@ def _draw_line_layer(canvas: Canvas, axis: Mapping[str, Any], layer: Mapping[str
                 if path[i] is not None and path[i + 1] is not None:
                     last = (path[i], path[i + 1])
             if last is not None:
-                canvas.text(last[0] + 4, last[1] - 2, str(s["label"]), _BASE_FONT_SIZE - 1, color, align="left", baseline="bottom")
+                # 标签锚在末点，但**不许越出绘图区**：右栏文字是场景层的文本，渲染器看不见，
+                # 越栏的标签会正好压在上面（2.2 章的曲线标签就压过右栏说明，PNG 上才看得见）。
+                # 放不下就翻到末点左侧（右对齐），再放不下就贴着绘图区右边界内侧。
+                label = str(s["label"])
+                size = _BASE_FONT_SIZE - 1
+                rx, _ry, rw, _rh = (float(v) for v in axis["rect"])
+                lw = float(_font().measure(label, size))
+                box_h = size + 4.0
+                # 标签锚在末点，但**必须同时满足**：不越出绘图区、不压住场景文本。
+                # 越栏会伸进右栏说明、挤进绘图区又会压住模型的说明行（1.3 章的曲线标签
+                # 两种都犯过）——所以放不下就**不画**：角标与说明里本来就有它的名字，
+                # 宁可不画，也不许叠着说（防误导七条第一条：不许静默，也不许含糊）。
+                for x in (last[0] + 4.0, last[0] - 4.0 - lw):
+                    if x < rx or x + lw > rx + rw:
+                        continue
+                    box = (x, last[1] - 2.0 - box_h, lw, box_h)
+                    if any(
+                        min(box[0] + box[2], b[0] + b[2]) - max(box[0], b[0]) > 2.0
+                        and min(box[1] + box[3], b[1] + b[3]) - max(box[1], b[1]) > 2.0
+                        for b in avoid
+                    ):
+                        continue
+                    canvas.text(x, last[1] - 2, label, size, color, align="left", baseline="bottom")
+                    break
 
 
 def _draw_band_layer(canvas: Canvas, axis: Mapping[str, Any], layer: Mapping[str, Any]) -> None:
@@ -2380,13 +2409,18 @@ def _draw_loglogfit_layer(canvas: Canvas, axis: Mapping[str, Any], layer: Mappin
     canvas.text(rx + rw - 8, y_top + _BASE_FONT_SIZE + 2, str(layer.get("theoryLabel", "")), _BASE_FONT_SIZE - 1, theory_color, align="right", baseline="top")
 
 
+def _scene_text_boxes(scene: Mapping[str, Any]) -> list[tuple[float, float, float, float]]:
+    """场景里所有文本层的估算盒子（给"渲染器自己画的标签"避让用）。"""
+    return [text_box_of(t) for t in (scene.get("texts") or []) if isinstance(t, Mapping)]
+
+
 def _draw_layer(canvas: Canvas, scene: Mapping[str, Any], layer: Mapping[str, Any]) -> None:
     axis = next((a for a in scene.get("axes", []) if a.get("id") == layer.get("axes")), None)
     if axis is None:
         return
     kind = layer.get("kind")
     if kind == "line":
-        _draw_line_layer(canvas, axis, layer)
+        _draw_line_layer(canvas, axis, layer, avoid=_scene_text_boxes(scene))
     elif kind == "band":
         _draw_band_layer(canvas, axis, layer)
     elif kind == "scatter":

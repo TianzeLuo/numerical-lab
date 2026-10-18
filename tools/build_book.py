@@ -55,6 +55,7 @@ PREAMBLE = r"""% 本文件由 tools/build_book.py 生成，请勿手改。
 \newtheorem{theorem}{定理}[chapter]
 \newtheorem{lemma}[theorem]{引理}
 \newtheorem{corollary}[theorem]{推论}
+\newtheorem{proposition}[theorem]{命题}
 \theoremstyle{definition}
 \newtheorem{definition}[theorem]{定义}
 \newtheorem{example}[theorem]{例}
@@ -210,12 +211,17 @@ def soft_breaks(s: str) -> str:
 #: "missing glyphs"，而那时数字已经印进 PDF 的正文里了。所以在**生成附表之前**就查一遍。
 #: 判定用白名单：ASCII + CJK + 希腊字母 + 已在本仓库 30+ 页构建里验证过的数学符号。
 _SAFE_EXTRA = set("αβγδεζηθικλμνξπρστυφχψωΓΔΘΛΞΠΣΦΨΩ"
-                  "∑∏∫√≈≠≤≥±×÷∞→←↔∂∇∈∉⊂⊆∪∩⋅·°′″⌈⌉⌊⌋")
+                  "∑∏∫√≈≠≤≥±×÷∞→←↔∂∇∈∉⊂⊆∪∩⋅·°′″§")
 _SAFE_RANGES = ((0x20, 0x7E), (0x3000, 0x303F), (0x4E00, 0x9FFF), (0xFF00, 0xFFEF), (0x2010, 0x2027), (0x2018, 0x201D))
 
 
-def latex_risky_chars(text: str) -> list[str]:
-    """返回文本里"附表/笔记里 xelatex 没有字形"的字符（去重、按出现顺序）。"""
+def latex_risky_chars(text: str, *, with_context: bool = False) -> list[str] | list[tuple[str, str]]:
+    """返回文本里"附表/笔记里 xelatex 没有字形"的字符（去重、按出现顺序）。
+
+    ``with_context=True`` 时每项是 ``(字符, 首次出现的上下文)``——作者第一次踩的时候
+    只看"是哪两个字符"定位不到源头（3.5 章的 `ż` 藏在一条 label 里，只能 grep），
+    带上片段就能直接改。
+    """
     bad: list[str] = []
     for ch in text:
         if ch in _SAFE_EXTRA or any(lo <= ord(ch) <= hi for lo, hi in _SAFE_RANGES):
@@ -224,7 +230,19 @@ def latex_risky_chars(text: str) -> list[str]:
             continue
         if ch not in bad:
             bad.append(ch)
-    return bad
+    if not with_context:
+        return bad
+    out: list[tuple[str, str]] = []
+    for ch in bad:
+        where = ""
+        for line in text.splitlines():
+            if ch in line:
+                where = line.strip()
+                if len(where) > 70:
+                    where = where[:67] + "..."
+                break
+        out.append((ch, where))
+    return out
 
 
 def write_asserts_table(
@@ -283,13 +301,14 @@ def check_structure(root: pathlib.Path, cid: str) -> tuple[list[str], pathlib.Pa
     # "Missing character"，而且它**不会**让编译失败——数字就那么少了一撇）。
     table = root / "chapters" / cid / "asserts_table.tex"
     if table.exists():
-        bad = latex_risky_chars(table.read_text(encoding="utf-8"))
+        bad = latex_risky_chars(table.read_text(encoding="utf-8"), with_context=True)
         if bad:
-            shown = "、".join(repr(c) for c in bad[:6])
+            shown = "；".join(f"{c!r}（出现在：{where}）" for c, where in bad[:4])
             problems.append(
-                f"{cid}: asserts_table.tex 含 xelatex 无字形的字符：{shown}"
-                f"（共 {len(bad)} 种）——请把断言文本里的上标/下标 Unicode 改成 ASCII 写法"
-                "（`bᵀ` → `b^T`、`Q⁻¹` → `Q^{-1}`）"
+                f"{cid}: asserts_table.tex 含 xelatex 无字形的字符 {len(bad)} 种——{shown}"
+                "。请把断言文本里的上标/下标 Unicode 改成 ASCII 写法"
+                "（`bᵀ` → `b^T`、`Q⁻¹` → `Q^{-1}`），或把该字符加进 `_SAFE_EXTRA`（只有确认"
+                "ctex 有字形时才加）。"
             )
     notes = root / "chapters" / cid / "notes.tex"
     if not notes.exists():
