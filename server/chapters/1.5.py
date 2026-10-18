@@ -996,7 +996,11 @@ def _precond_effect(params: Mapping[str, Any], t: float) -> Frame:
         n_ritz_post=int(sp_post.ritz.size),
         spectrum_steps=int(sp_pre.n_steps),
         spectrum_orthogonality=float(sp_pre.orthogonality),
+        # -1 = "这个预条件子没有丢弃概念"（Jacobi/SSOR），**不是**"丢弃了 -1 个填充"。
+        # 哨兵必须能自解释：所以同时给出语义字符串与显式布尔，前端不必猜 -1 的含义。
         ilu_dropped=int(M.dropped) if isinstance(M, ILU0Precond) else -1,
+        ilu_dropped_applicable=bool(isinstance(M, ILU0Precond)),
+        ilu_dropped_sentinel=-1,
         precond_nnz=int(M.nnz) if M is not None else 0,
         matrix_nnz=int(A.nnz),
         residual=float(resid[-1]),
@@ -1008,6 +1012,10 @@ def _precond_effect(params: Mapping[str, Any], t: float) -> Frame:
         precond_name=_method_name(name),
         solver=solver,
         note=_precond_note(name, kappa_pre, kappa_post, int(resid.size - 1), kappa_eff, M),
+        sentinel_note=(
+            "meta.ilu_dropped = -1 表示「这个预条件子没有丢弃概念」（Jacobi/SSOR），"
+            "不是「丢弃了 −1 个填充」；用 meta.ilu_dropped_applicable 判是否有意义。"
+        ),
     )
     return fr
 

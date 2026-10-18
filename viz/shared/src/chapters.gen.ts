@@ -75,6 +75,14 @@ export const chapterIndex: ChapterIndexEntry[] = [
     "vizzes": ["projection", "convergence_rates", "equioscillation", "zeros_evolution"],
   },
   {
+    "chapter": "2.4",
+    "nViz": 4,
+    "part": "II",
+    "summary": "把 ∫f 算出来，并且知道它有多准：Newton–Cotes 族的误差阶、Romberg 外推、Gauss–Legendre 的 2n−1 次精确度、端点奇异与振荡的处理，以及三件最容易骗人的事——权重会放大输入误差、非光滑函数上量到的是光滑度的阶、误差估计器估的是它自己的误差。",
+    "title": "数值积分",
+    "vizzes": ["area_convergence", "gauss_vs_equispaced", "romberg_table", "singular_endpoint"],
+  },
+  {
     "chapter": "3.2",
     "nViz": 5,
     "part": "III",

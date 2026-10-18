@@ -472,14 +472,22 @@ def _lu_note(res: Any, dominance: float, n: int) -> str:
 # --------------------------------------------------------------------------- #
 # viz 2：单位球的形变
 # --------------------------------------------------------------------------- #
-def _forward_error_curve(shear: float, pivot: str, b_angle: float, n_grid: int = 61) -> tuple[np.ndarray, np.ndarray]:
+def _forward_error_curve(
+    shear: float, pivot: str, b_angle: float, n_grid: int = 61
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """在 :math:`\\log_{10}\\kappa \\in [0, 17]` 上实测前向误差曲线。
 
     每个 κ 都真跑一次 LU + 回代，与 :func:`numcore.linalg.lu.exact_solve` 的有理解对比。
     这是"实测值"，不是把 :math:`\\kappa u` 画出来——两者的差别正是断言要看的东西。
+
+    返回 ``(exps, errs, valid)``：κ 大到让 A 在浮点下**真的奇异**时（``pivot="none"`` 时
+    从很小的 κ 就开始），那里没有误差可测——``valid[i] = False``，``errs[i]`` 写 0 当占位符。
+    **不写 NaN**：数组里出现 NaN 会被帧契约拒绝，前端拿到也会静默丢段；
+    占位符 + 掩码 + 文案才是可读的"这里没有有限值"。
     """
     exps = np.linspace(0.0, 17.0, n_grid)
     errs = np.zeros(n_grid, dtype=float)
+    valid = np.zeros(n_grid, dtype=float)
     th = np.deg2rad(b_angle)
     b = np.array([np.cos(th), np.sin(th)])
     for i, e in enumerate(exps):
@@ -489,11 +497,15 @@ def _forward_error_curve(shear: float, pivot: str, b_angle: float, n_grid: int =
             res = lu_decompose(A, pivot="partial" if pivot == "partial" else "none")
             x = lu_solve(res, b)
         except (ZeroDivisionError, ValueError):
-            errs[i] = np.nan
+            valid[i] = 0.0
             continue
         denom = float(np.max(np.abs(x_exact)))
-        errs[i] = float(np.max(np.abs(x - x_exact))) / denom if denom > 0.0 else np.nan
-    return exps, errs
+        if denom <= 0.0:
+            valid[i] = 0.0
+            continue
+        errs[i] = float(np.max(np.abs(x - x_exact))) / denom
+        valid[i] = 1.0
+    return exps, errs, valid
 
 
 def _unit_ball(params: Mapping[str, Any], t: float) -> Frame:
@@ -522,7 +534,9 @@ def _unit_ball(params: Mapping[str, Any], t: float) -> Frame:
         x_num = lu_solve(lres, b)
     except (ZeroDivisionError, ValueError):
         singular = True
-        x_num = np.full(2, np.nan)
+        # 奇异时 x̂ 没有有限值：数组里写 0 当占位符（写 NaN 会被帧契约拒绝），
+        # 真实状态由 meta.singular 与 strings.status 给出。
+        x_num = np.zeros(2, dtype=float)
     denom = float(np.max(np.abs(x_exact))) if np.max(np.abs(x_exact)) > 0.0 else 1.0
     fwd_err = float("nan") if singular else float(np.max(np.abs(x_num - x_exact))) / denom
 
@@ -531,9 +545,12 @@ def _unit_ball(params: Mapping[str, Any], t: float) -> Frame:
     det_u = float(lres.U[0, 0] * lres.U[1, 1])
     det_err = abs(det_a - det_l * det_u)
 
-    exps, errs = _forward_error_curve(shear, pivot, b_angle)
+    exps, errs, err_valid = _forward_error_curve(shear, pivot, b_angle)
     # 当前位置在曲线上的标记（找最近的格点）
     j = int(np.argmin(np.abs(exps - log_kappa)))
+    n_err_invalid = int(np.count_nonzero(err_valid == 0.0))
+    first_invalid = float(exps[int(np.argmax(err_valid == 0.0))]) if n_err_invalid else None
+    err_mark_valid = bool(err_valid[j] > 0.0)
 
     fr = Frame(chapter="1.2", viz="unit_ball", kind="frame")
     fr.add("theta", theta, unit="rad", label="参数角")
@@ -549,13 +566,30 @@ def _unit_ball(params: Mapping[str, Any], t: float) -> Frame:
     fr.add("x_num", np.array([0.0, x_num[0], 0.0, x_num[1]]), unit="1", label="数值解 x̂")
     fr.add("x_exact", np.array([0.0, x_exact[0], 0.0, x_exact[1]]), unit="1", label="精确解 x")
     fr.add("kappa_grid", exps, unit="1", label="log10 κ")
-    fr.add("error", errs, unit="1", label="前向误差（实测）")
-    fr.add("error_mark", np.array([errs[j]], dtype=float), unit="1", label="当前位置的误差")
+    fr.add(
+        "error",
+        errs,
+        unit="1",
+        label="前向误差（实测）" if n_err_invalid == 0 else "前向误差（实测；无解处占位 0，见 error_valid）",
+    )
+    fr.add("error_valid", err_valid, unit="1", label="1=该 κ 有有限误差，0=浮点下不可解（占位 0）")
+    fr.add(
+        "error_mark",
+        np.array([errs[j]], dtype=float),
+        unit="1",
+        label="当前位置的误差" if err_mark_valid else "当前位置的误差（不可解：占位 0）",
+    )
+    fr.add("x_num_valid", np.array([1.0 - float(singular)]), unit="1", label="1=x̂ 有有限值，0=奇异（占位 0）")
     fr.add("kappa_mark", np.array([exps[j]], dtype=float), unit="1", label="当前位置的 log10 κ")
     smin, smax = singular_values_2x2(A)
     fr.set_meta(
         shear=shear,
         log10_kappa=log_kappa,
+        n_error_invalid=n_err_invalid,
+        error_invalid_from_log10_kappa=first_invalid,
+        error_mark_valid=err_mark_valid,
+        x_num_valid=not singular,
+        array_placeholder=0.0,
         kappa=kappa,
         # κ = σmax/σmin 在 σmin = 0 时是**无穷**：JSON 里没有 Infinity（allow_nan=False），
         # 硬塞 float("inf") 会让整帧编码失败。用 null 表示"无有限值"，文案里说清为什么。
@@ -589,6 +623,17 @@ def _unit_ball(params: Mapping[str, Any], t: float) -> Frame:
         pivot_key=pivot,
         status="数值奇异：κ > 1/u，A 的浮点分解出现零主元" if singular else "",
         note=_ball_note(log_kappa, fwd_err, det_err, singular=singular),
+        nonfinite_policy=(
+            "这一帧里**没有 NaN**（帧契约要求所有数组有限）："
+            "「这里没有有限值」一律写成占位符 0 + 掩码 + meta 标记，"
+            "读图时必须先看掩码。"
+        ),
+        mask_note=(
+            "error_valid[i]=0 表示该 κ 在浮点下不可解（LU 出现零主元），error[i] 的 0 是占位符不是误差；"
+            f"实测前 {n_err_invalid} 个格点不可解"
+            + (f"（从 log10κ = {first_invalid:.1f} 起）" if first_invalid is not None else "")
+            + "。x_num_valid=0 时 x̂ 的两个分量同样是占位 0，不要读成「解在原点」。"
+        ),
     )
     return fr
 

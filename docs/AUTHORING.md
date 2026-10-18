@@ -230,6 +230,13 @@ def _lu_frame(params: Mapping[str, Any], t: float) -> Frame:
 - [ ] 每个 `axes[]` 都有显式 `autoscaled`。
 - [ ] `pitfalls` ≥ 60 字，且**具体**（说清哪个图在什么参数下会骗人）。
 - [ ] 帧里没有把字符串塞进 `meta`；没有在 `server/` 里写数学。
+- [ ] `meta` 里没有 NaN/Inf（"没有有限值"写 `None`），**数组里也没有**（占位值 + 掩码 + `strings`
+      说明三件套，见 `PROTOCOLS.md` §1.3.1；`Frame.validate()` 现在会当场拒绝）。
+- [ ] **参数上界真的扫到过**：每个参数的 `min`/`max`、每个 enum 的两端、`t ∈ {0, tMax}`
+      都要能构建并编码（`tests/test_frames_contract.py` 会逐个跑；单章可自己再扫一遍）。
+- [ ] **数值路线失败要变成可见状态，不许冒充**：某条路线没有有限解时，帧里要说得清
+      "哪条路线失败 + 其余路线照常"（1.3 的 `method_singular`、1.2 的 `error_valid`、
+      3.2 的 `abs_R_pole` 是三个范例）。用 0、上限值或 NaN 冒充失败是最严重的误导。
 
 跑：`python3 tools/gen_manifests.py --check`（G6）、`make pytest`（`tests/test_manifest.py`、`tests/test_registry.py`）。
 

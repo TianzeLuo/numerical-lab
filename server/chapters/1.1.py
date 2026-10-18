@@ -515,8 +515,16 @@ def _float_zoom(params: Mapping[str, Any], t: float) -> Frame:
     lo = float(pts[0])
     hi = float(pts[-1])
     in_window = bool(lo <= landing <= hi)
-    landing_off = float(fp.signed_ulp_offset(center, landing)) if in_window else float("nan")
-    ideal_off = float(fp.signed_ulp_offset(center, ideal)) if (lo <= ideal <= hi) else float("nan")
+    ideal_in_window = bool(lo <= ideal <= hi)
+    # 窗口外的落点**没有** ulp 偏移可写：这里写 NaN 会被帧契约拒绝（数组也必须有限，
+    # 而且前端拿到 NaN 会静默丢段）。所以数组里写 0.0 当占位符，同时把
+    # `landing_in_window`/`ideal_in_window` 放进 meta、在 strings 里说明"0 是占位符"。
+    landing_off_meta = float(fp.signed_ulp_offset(center, landing)) if in_window else None
+    ideal_off_meta = float(fp.signed_ulp_offset(center, ideal)) if ideal_in_window else None
+    landing_off = 0.0 if landing_off_meta is None else landing_off_meta
+    ideal_off = 0.0 if ideal_off_meta is None else ideal_off_meta
+    landing_label = "0.1+0.2 的落点" if in_window else "0.1+0.2 的落点（窗口外：占位 0）"
+    ideal_label = "数学上的 0.3" if ideal_in_window else "数学上的 0.3（窗口外：占位 0）"
     residual_0102_03 = float((float(0.1) + float(0.2)) - 0.3)
 
     # 1e16 + 1：必须显式说明"图上看起来没变"不是画错
@@ -533,9 +541,9 @@ def _float_zoom(params: Mapping[str, Any], t: float) -> Frame:
     fr.add("boundary_spacing_ratio", bspacing_ratio, unit="1", label="间距 / ulp(2 的幂)：跨过它减半")
     fr.add("center_offset", np.array([0.0]), unit="ulp", label="放大中心")
     fr.add("center_y", np.array([0.0]), unit="1", label="放大中心")
-    fr.add("landing_offset", np.array([landing_off]), unit="ulp", label="0.1+0.2 的落点")
+    fr.add("landing_offset", np.array([landing_off]), unit="ulp", label=landing_label)
     fr.add("landing_y", np.array([1.0]), unit="1", label="0.1+0.2 的落点")
-    fr.add("ideal_offset", np.array([ideal_off]), unit="ulp", label="数学上的 0.3")
+    fr.add("ideal_offset", np.array([ideal_off]), unit="ulp", label=ideal_label)
     fr.add("ideal_y", np.array([1.0]), unit="1", label="数学上的 0.3")
     fr.add("k_grid", np.arange(ACC_COUNT + 1, dtype=float), unit="1", label="累加次数 k")
     fr.add("residual", residual, unit="1", label="与数学值 k/10 的残差（精确 0 以 u/2·|k/10| 显示）")
@@ -560,9 +568,11 @@ def _float_zoom(params: Mapping[str, Any], t: float) -> Frame:
         window_lo=lo,
         window_hi=hi,
         window_ulps=half,
-        landing_ulps=_scalar(landing_off),
+        landing_ulps=landing_off_meta,
         landing_in_window=in_window,
-        ideal_ulps=_scalar(ideal_off),
+        ideal_ulps=ideal_off_meta,
+        ideal_in_window=ideal_in_window,
+        marker_placeholder=0.0,
         residual_0102_03=residual_0102_03,
         residual_0102_03_ulps=float(fp.residual_ulps(landing, ideal)),
         residual_floor=float(residual_floor[k]),
@@ -587,6 +597,11 @@ def _float_zoom(params: Mapping[str, Any], t: float) -> Frame:
         zero_note=(
             f"副轴是对数轴：残差恰好为 0 的步数（{n_exact_zero} 步）被地板 u/2·|k/10| 抬起显示，"
             "不能读成「误差不为零」。"
+        ),
+        marker_note=(
+            "落点标记（landing_offset / ideal_offset）在**窗口外**时数组里写 0，"
+            "同时 meta.landing_in_window / ideal_in_window 为 false——0 只是占位符，"
+            "不要读成「落点就在放大中心」。帧里不写 NaN：NaN 会在前端静默丢段。"
         ),
     )
     return fr

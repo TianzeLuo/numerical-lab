@@ -118,7 +118,7 @@
 | 1.1 `cond_ellipsoid`：`kappa_u`（κ 非有限时） | `None` | `note`：`κu = … ≥ 1：A 在 float64 里已经和奇异矩阵无法区分…` |
 | 1.2 `unit_ball`：`forward_error` / `backward_error` / `residual` / `x_num_absmax` | `None`（`singular=True` 时） | `status`：`数值奇异：κ > 1/u，A 的浮点分解出现零主元`；另有 `note` 说明 |
 | 2.2 曲率能量：`energy_ratio`（τ=1 时能量恰为 0） | `None` | `note`：`tau=1：弯矩为 0，曲线就是折线——C1 已经断了，曲率能量恒为 0（比值因此无定义）` |
-| 1.5 `preconditioner`：`ilu_dropped`（预条件不是 ILU(0) 时） | `-1` 哨兵 | **必须在 `strings` 里写明 `-1` = 不适用**；当前只在 manifest 描述里提了"ILU(0) 丢弃的填充次数"，见 `docs/ROADMAP.md` §4 的已知缺口 |
+| 1.5 `preconditioner`：`ilu_dropped`（预条件不是 ILU(0) 时） | `-1` 哨兵 | `sentinel_note`：`meta.ilu_dropped = -1 表示「这个预条件子没有丢弃概念」（Jacobi/SSOR）…`；另有 `ilu_dropped_applicable` 布尔与 `ilu_dropped_sentinel` 便于前端判读 |
 
 **共同纪律**：帧里出现 `None` 或 `-1` 这类哨兵值，`strings` 里就必须有一句解释它为什么不是数字；
 枚举/字符串参数（主元策略、边界条件、方法名）一律走 `fr.set_strings(...)`，不进 `meta`。
@@ -126,6 +126,38 @@
 （前者钉 `meta` 的类型契约，后者把每一章的每个 viz 在默认参数与边界参数上**真的编码一遍**——
 NaN 会在那里当场炸）；单章还可以跑 `python3 tools/precompute.py --chapter <id>`，
 同样在这一步抛 `NlfError`，而不是等到前端解码那一帧。
+
+#### 1.3.1 数组里的非有限值：占位值 + 掩码（`Frame.validate()` 也拒绝）
+
+`meta` 的 NaN 会在 JSON 层炸；**数组段的 NaN 不一样**——它是裸 float64，**编码得进去**，
+于是问题一路走到前端：一条 NaN 折线在画布上就是"这段数据凭空消失"，而且**不报错**。
+所以从这一版起 `Frame.validate()` 对浮点数组做同样的硬检查：
+
+```text
+数组 'error' 有 3/61 个非有限值——请写占位值（并在 strings 里说明）+ 掩码数组，
+或改放 meta 的 null（PROTOCOLS §1.3）
+```
+
+**规定写法（占位值 + 掩码 + 文案三件套）**，已落地的三处：
+
+| 章 / viz | 什么时候没有有限值 | 数组里写什么 | 掩码 / meta | `strings` |
+|---|---|---|---|---|
+| 1.2 `unit_ball` | κ ≳ 1/u，LU 出现零主元 | `error[i]=0`、`x_num=0` | `error_valid[i]=0`、`x_num_valid=0`、`meta.n_error_invalid`、`meta.error_invalid_from_log10_kappa`、`meta.singular` | `mask_note`（"0 是占位符，读图先看掩码"）+ `nonfinite_policy` |
+| 1.3 `projection_3d` | 正规方程 AᵀA 在 κ ≳ u^(−1/2) 后没有有限解 | 缺陷数组写地板 `1e-18` | `method_singular[i]=1`、`meta.n_singular_methods`、`meta.selected_singular`；选中路线失败时三个标量 meta 写 `None` | `status`/`note` |
+| 3.2 `stability_region` 等 | BDF-k 的**真极点**（|R|=+∞）落在网格点上 | 格子写显示上限 `1e6` | `abs_R_pole[i]=1`、`meta.n_pole_cells`、`meta.pole_current` | `pole_note`、`nonfinite_policy` |
+
+三条纪律：
+
+1. **占位值必须是"读图时不会反过来误导"的那个数**。3.2 章第一版把极点写成 `0.0`，
+   图上读成"非常稳定"——正好读反；改成显示上限才对。1.2 的 0 必须配掩码，因为
+   对数轴上的 0 画不出来。
+2. **前端必须照着掩码做**：截断/空心点/跳过，都不许把占位值当真值画（1.2 的
+   `unit_ball.model.ts` 按 `error_valid` 把曲线截在第一个不可解点之前，并跳过 `x̂` 箭头）。
+3. **"哪一条路线失败"要能读出来**：1.3 的 `method_singular` 逐路线标注（normal 失败而
+   QR/SVD 照常），这比"整帧失败"或"整帧降级"都更有信息量。
+
+自检：`python3 -m pytest tests/test_nlf.py tests/test_frames_contract.py -q`
+（前者有三条专门钉这条规则的元测试，后者扫全仓 522 帧的参数角点）。
 
 ---
 

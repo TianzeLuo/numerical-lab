@@ -1,0 +1,83 @@
+% 本文件由 tools/build_book.py 从 dist/reports/assertions.json 生成，请勿手改。
+\begin{longtable}{@{}p{0.06\textwidth}p{0.32\textwidth}p{0.22\textwidth}p{0.16\textwidth}@{}}
+\caption{章节 1.3 数值断言（生成时间 2026-10-18T15:08:54-0400）}\\
+\toprule
+类别 & 断言 & 理论值 & 实测值 \\
+\midrule
+\endfirsthead
+\toprule
+类别 & 断言 & 理论值 & 实测值 \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+
+A & 正规方程斜率 = 2(未饱和窗口) & 2 & 1.98091 \checkmark \\
+A & QR 斜率 = 1 & 1 & 0.973565 \checkmark \\
+A & 三条曲线的实测斜率 & normal 2 /\allowbreak{} qr 1 /\allowbreak{} svd 1 & normal 1.981,\allowbreak{} qr 0.974,\allowbreak{} svd 0.988(\allowbreak{}拟合窗口上界 $\kappa$ =\allowbreak{} 3.2e+07 /\allowbreak{} 1.0e+12) \checkmark \\
+A & err\_\allowbreak{}normal / err\_\allowbreak{}qr(应当 \textasciitilde{} $\kappa$) & 比值 $\in$ [$\kappa$/\allowbreak{}100,\allowbreak{} 100$\kappa$] & $\kappa$=\allowbreak{}1e+04: 1.9e+04；$\kappa$=\allowbreak{}1e+06: 1.6e+07；$\kappa$=\allowbreak{}1e+08: 7.9e+07；实测比值-$\kappa$ 的斜率 0.90 \checkmark \\
+A & 与 LAPACK 的相对差(正规方程 /$\kappa$$^2$u，QR 与 SVD /$\kappa$u) & $\le$ c & normal=\allowbreak{}0.394；qr=\allowbreak{}0.657；svd=\allowbreak{}0.396(\allowbreak{}20x8/\allowbreak{}$\kappa$=\allowbreak{}1e+02,\allowbreak{} 30x12/\allowbreak{}$\kappa$=\allowbreak{}1e+04,\allowbreak{} 26x10/\allowbreak{}$\kappa$=\allowbreak{}1e+08) \checkmark \\
+A & 最小范数解与 LAPACK 的相对差 & $\|$x\_svd$\|$ =\allowbreak{} $\|$x\_LAPACK$\|$(\allowbreak{}最小范数)，且 $\|$x\_svd$\|$ $\le$ $\|$x\_任意解$\|$ & $\|$x\_svd$\|$=\allowbreak{}3.569390；$\|$x\_lapack$\|$=\allowbreak{}3.569390；$\|$x\_任意解$\|$=\allowbreak{}3.575530；残差 3.96e-15；相对差 4.20e-16 \checkmark \\
+A & k\_\allowbreak{}opt $\le$ k\_\allowbreak{}dp + 1 成立的比例 & 全部成立(\allowbreak{}偏差原则偏保守) & 64/\allowbreak{}64；最大超出 0；样例 decay/\allowbreak{}1e4/\allowbreak{}$\delta$=\allowbreak{}1e-4: k\_opt=\allowbreak{}6 $\le$ k\_dp=\allowbreak{}10；decay/\allowbreak{}1e4/\allowbreak{}$\delta$=\allowbreak{}1e-6: k\_opt=\allowbreak{}7 $\le$ k\_dp=\allowbreak{}10；decay/\allowbreak{}1e4/\allowbreak{}$\delta$=\allowbreak{}1e-8: k\_opt=\allowbreak{}10 $\le$ k\_dp=\allowbreak{}10；decay/\allowbreak{}1e4/\allowbreak{}$\delta$=\allowbreak{}1e-10: k\_opt=\allowbreak{}10 $\le$ k\_dp=\allowbreak{}10 \checkmark \\
+A & 椭圆上残差的相对起伏(相对 $\rho$) & $\le$ c$\cdot$$\kappa$u + 1e-12 & $\kappa$=\allowbreak{}1e+02:7.4e-13；$\kappa$=\allowbreak{}1e+06:1.6e-10；$\kappa$=\allowbreak{}1e+10:1.4e-06 \checkmark \\
+A & max$\|$$\delta$x$\|$/($\kappa$$\cdot$$\delta$)；最短半轴 /$\delta$ & 放大 $\le$ $\kappa$$\delta$(\allowbreak{}比值 $\le$ 1)；$\delta$ $\gg$ $\kappa$u 时最短半轴 $\approx$ $\delta$ & $\kappa$=\allowbreak{}1e+02: max 2.81e-07 =\allowbreak{} 0.281$\cdot$$\kappa$$\delta$,\allowbreak{} min 0.28$\cdot$$\delta$；$\kappa$=\allowbreak{}1e+06: max 2.81e-03 =\allowbreak{} 0.281$\cdot$$\kappa$$\delta$,\allowbreak{} min 0.28$\cdot$$\delta$；$\kappa$=\allowbreak{}1e+08: max 2.81e-01 =\allowbreak{} 0.281$\cdot$$\kappa$$\delta$,\allowbreak{} min 0.25$\cdot$$\delta$；$\kappa$=\allowbreak{}1e10(\allowbreak{}$\kappa$u=\allowbreak{}1.1e-06 $\gg$ $\delta$=\allowbreak{}1e-08)最短半轴 8.66$\cdot$$\delta$ \checkmark \\
+B & $\|$A$^{\mathsf T}$r̂$\|$ /(n$\cdot$u$\cdot$$\|$A$\|$\_\allowbreak{}F($\|$b$\|$+$\|$A$\|$\_\allowbreak{}F$\|$x̂$\|$)) & $\le$ c(\allowbreak{}三条路线、\allowbreak{}$\kappa$ 从 1e2 到 1e10 都与 $\kappa$ 无关) & 0.180 \checkmark \\
+B & $\|$x\_\allowbreak{}k$\|$ 非减(decay) & nondecreasing & 违反 0 处 \checkmark \\
+B & 残差非增(decay) & nonincreasing & 违反 0 处 \checkmark \\
+B & $\|$x\_\allowbreak{}k$\|$ 非减(cliff) & nondecreasing & 违反 0 处 \checkmark \\
+B & 残差非增(cliff) & nonincreasing & 违反 0 处 \checkmark \\
+B & $\|$x\_\allowbreak{}k$\|$ 非减(plateau) & nondecreasing & 违反 0 处 \checkmark \\
+B & 残差非增(plateau) & nonincreasing & 违反 0 处 \checkmark \\
+B & 通过单调性检查的谱形状数 & 3 & 3 \checkmark \\
+B & 四种谱的 L 曲线拐点 & 拐点由 log-log 离散曲率最大处给出 & decay:k=\allowbreak{}5；cliff:k=\allowbreak{}8；plateau:k=\allowbreak{}4；two\_clusters:k=\allowbreak{}2 \checkmark \\
+B & max|P$^2$$-$P|、max|P$^{\mathsf T}$$-$P|、max$\|$Pv$\|$/$\|$v$\|$ & $\le$ c$\cdot$$\kappa$u(\allowbreak{}$\kappa$=\allowbreak{}1e6 时实测 1.1e-11)、\allowbreak{}0、\allowbreak{}$\le$ 1 & 1.06e-11、\allowbreak{}1.49e-11、\allowbreak{}0.756856 \checkmark \\
+B & 端点误差 & t=\allowbreak{}0: (\allowbreak{}p\_t,\allowbreak{}r\_t)=\allowbreak{}(\allowbreak{}p,\allowbreak{}r\_LS)；t=\allowbreak{}1: $\|$r\_t$\|$=\allowbreak{}0、\allowbreak{}p\_t=\allowbreak{}b；任意 t: $\|$p\_t+r\_t$-$b$\|$ $\le$ u$\|$b$\|$ & t=\allowbreak{}0 $\|$r\_t$-$(\allowbreak{}b$-$p\_LS)$\|$=\allowbreak{}0.000e+00；t=\allowbreak{}1 $\|$r\_t$\|$=\allowbreak{}0.000e+00、\allowbreak{}$\|$p\_t$-$b$\|$=\allowbreak{}0.000e+00；t=\allowbreak{}0.5 合成误差 1.241e-16 \checkmark \\
+B & 实测 $\kappa$ / 目标 $\kappa$ $-$ 1；四种谱 & $\le$ 1e-6(\allowbreak{}$\sigma$\_min 只精确到 \textasciitilde{}$\kappa$u) & 4.56e-08；decay:$\sigma$\_min=\allowbreak{}1.0e-08；cliff:$\sigma$\_min=\allowbreak{}1.0e-08；plateau:$\sigma$\_min=\allowbreak{}1.0e-08；two\_clusters:$\sigma$\_min=\allowbreak{}1.0e-08 \checkmark \\
+B & 通过自检的 (viz, t) 组合数 & 4 个可视化 $\times$ 各自的时间采样点 & 12；projection\_3d:15数组/\allowbreak{}18meta；normal\_vs\_qr:18数组/\allowbreak{}32meta；svd\_truncation:17数组/\allowbreak{}22meta；uncertainty\_fan:17数组/\allowbreak{}25meta \checkmark \\
+B & 实测 $\kappa$ 与网格的相对差($\kappa$ 本身只能精确到 \textasciitilde{}$\kappa$u) & $\le$ 1.00000e-06 & $1.551\times 10^{-8}$ \checkmark \\
+B & 曲线有限性 /(地板 u) 与 $\kappa$ 一致性 & 全部有限且 $\ge$ u =\allowbreak{} 1.1e-16 & $\kappa$ 相对差 1.55e-08；11 条曲线全部有限；地板 1.110e-16 \checkmark \\
+B & GCV 残差随 $\lambda$ 非减 & nondecreasing & 违反 0 处 \checkmark \\
+B & GCV 解范数随 $\lambda$ 非增 & nonincreasing & 违反 0 处 \checkmark \\
+B & CV 曲线最小值位置与曲线条数 & 最小值在网格内部(\allowbreak{}不是端点) & $\lambda$ $\in$ [1.0e-09,\allowbreak{} 1.0e+01]，k\_cv =\allowbreak{} 8，最小 CV =\allowbreak{} 2.948e-14(\allowbreak{}真最优 k\_opt =\allowbreak{} 5，L 曲线拐点 =\allowbreak{} 5) \checkmark \\
+B & 角点帧数(build+pack+有限性) & 4 个 viz $\times$ 参数角点 $\times$ 时间端点 & 94 帧全部通过；分章：normal\_vs\_qr 22、\allowbreak{}projection\_3d 23、\allowbreak{}svd\_truncation 23、\allowbreak{}uncertainty\_fan 26 \checkmark \\
+B & $\kappa$=1e12 角点：帧可编码 + 奇异被标注 / $\kappa$=1e3 上解仍正确 & 奇异 $\to$ meta 用 None/\allowbreak{}True + strings 说明；健康点 $\to$ 解与 pinv 一致(\allowbreak{}< 1e-10) & 3 种 method $\times$ 3 个 t 全部编码成功；selected=\allowbreak{}normal 时 3 个 meta 均为 None；$\kappa$=\allowbreak{}1e3 的 QR 投影相对差 1.1e-14 \checkmark \\
+A & 重建误差 /(n$\cdot$u$\cdot$$\|$A$\|$\_\allowbreak{}F) & $\le$ 1 & 0.940(\allowbreak{}各形状 2x2:4.4e-16,\allowbreak{} 8x5:2.2e-15,\allowbreak{} 5x8:1.3e-15,\allowbreak{} 12x12:1.8e-15,\allowbreak{} 20x4:1.9e-15,\allowbreak{} 30x30:6.2e-15,\allowbreak{} 40x12:3.1e-15,\allowbreak{} 6x40:2.7e-15) \checkmark \\
+B & 正交性缺陷 /(n$\cdot$u) & $\le$ 10 & 2 \checkmark \\
+A & $\|$Hx$-$$\alpha$e$_1$$\|$/$\|$x$\|$(稳定取号 vs 朴素取号) & 稳定 \textasciitilde{}u；朴素 \textasciitilde{}$\|$x\_perp$\|$/\allowbreak{}$\|$x$\|$ & $\varepsilon$=\allowbreak{}1e-02: 稳定 4.4e-16 /\allowbreak{} 朴素 1.0e-02(\allowbreak{}横向 1.1e-02)；$\varepsilon$=\allowbreak{}1e-05: 稳定 2.3e-21 /\allowbreak{} 朴素 1.0e-05(\allowbreak{}横向 1.1e-05)；$\varepsilon$=\allowbreak{}1e-08: 稳定 6.6e-26 /\allowbreak{} 朴素 1.0e-08(\allowbreak{}横向 1.1e-08)；$\varepsilon$=\allowbreak{}1e-11: 稳定 6.6e-35 /\allowbreak{} 朴素 1.0e-11(\allowbreak{}横向 1.1e-11) \checkmark \\
+B & 正交性 Q$^{\mathsf T}$Q = I & $\le$ 2.66454e-15 & $3.331\times 10^{-16}$ \checkmark \\
+A & 重建误差 /(n$\cdot$u$\cdot$$\|$A$\|$\_\allowbreak{}F)，旋转个数 & $\le$ 1；旋转数 =\allowbreak{} $\Sigma$\_\{col<k\}(\allowbreak{}m$-$1$-$col) & 最大 0.837；个数 2x2:1,\allowbreak{} 8x5:25,\allowbreak{} 5x8:10,\allowbreak{} 12x12:66,\allowbreak{} 20x4:70,\allowbreak{} 30x30:435,\allowbreak{} 40x12:402,\allowbreak{} 6x40:15(\allowbreak{}全部等于闭式计数) \checkmark \\
+A & $\|$A$^{\mathsf T}$r$\|$ /(n$\cdot$u$\cdot$$\|$A$\|$\_\allowbreak{}F$\cdot$($\|$b$\|$+$\|$A$\|$\_\allowbreak{}F$\|$x̂$\|$)) & $\le$ c(\allowbreak{}与 $\kappa$ 无关) & 0.180(\allowbreak{}$\kappa$=\allowbreak{}1e+02:0.042,\allowbreak{} $\kappa$=\allowbreak{}1e+06:0.038,\allowbreak{} $\kappa$=\allowbreak{}1e+10:0.180)；与 LAPACK 解的最大相对差 2.87e-08 \checkmark \\
+A & 秩亏 $\to$ 数值秩 3；近秩亏 $\to$ 数值秩 4 & 判秩用 |r\_nn| $\le$ max(\allowbreak{}m,\allowbreak{}n)u|r$_1$$_1$|(\allowbreak{}启发式)；可证明的是 |r$_1$$_1$| $\ge$ $\sigma$$_1$/\allowbreak{}$\surd$n 与体积界(\allowbreak{}含舍入松弛) & 秩亏 rank=\allowbreak{}3(\allowbreak{}|r$_4$$_4$|=\allowbreak{}7.35e-16 $\le$ tol=\allowbreak{}8.57e-15)，近秩亏 rank=\allowbreak{}4；|r\_kk|/\allowbreak{}$\sigma$\_k=\allowbreak{}[0.9  0.99 0.91 2.07]；|r\_kk|/\allowbreak{}$\sigma$\_k=\allowbreak{}[0.9  0.99 0.91 1.22] \checkmark \\
+A & n\_\allowbreak{}ops 与 qr\_\allowbreak{}flops 的最大差 & 0(\allowbreak{}逐位相等) & 0；实测 4x4:160,\allowbreak{} 10x6:860,\allowbreak{} 30x30:47740,\allowbreak{} 40x12:12736 \checkmark \\
+A & max\_\allowbreak{}i |$\Delta$$\sigma$\_\allowbreak{}i|/$\sigma$\_\allowbreak{}i $\div$ (n$\cdot$u$\cdot$$\sigma$\_\allowbreak{}max/$\sigma$\_\allowbreak{}i) & $\le$ 1 & jacobi=\allowbreak{}0.342；kogbetliantz=\allowbreak{}0.361；golub\_kahan=\allowbreak{}0.271(\allowbreak{}形状 2x2,\allowbreak{} 8x5,\allowbreak{} 5x8,\allowbreak{} 12x12,\allowbreak{} 20x4,\allowbreak{} 30x30,\allowbreak{} 40x12,\allowbreak{} 6x40) \checkmark \\
+A & 重建误差 /(n$\cdot$u$\cdot$$\|$A$\|$\_\allowbreak{}F) 与两翼正交性缺陷 /(n$\cdot$u) & 两者都 $\le$ c & 重建比 4.585，正交性比 5.000 \checkmark \\
+A & 奇异向量残差 /(u$\cdot$$\|$A$\|$\_\allowbreak{}F) & $\le$ c & 42.08 \checkmark \\
+A & 四条定义式的最大缺陷 /(n$\cdot$u) & $\le$ c & 0.392；9x5:3.9e-16,\allowbreak{} 9x5:1.9e-16,\allowbreak{} 14x4:5.6e-16；与 LAPACK pinv 的元素最大差 5.0e-16 \checkmark \\
+A & 秩亏矩阵的数值秩；$\kappa$$_2$ 与 LAPACK 的相对差 & 秩 =\allowbreak{} 4；$\kappa$$_2$ 相对差 $\le$ c$\cdot$$\kappa$$\cdot$u & 秩 \{'jacobi': 4,\allowbreak{} 'kogbetliantz': 4,\allowbreak{} 'golub\_kahan': 4\}；$\kappa$$_2$ 实测 1.000000001e+08 vs LAPACK 1.000000001e+08，相对差 6.36e-10 \checkmark \\
+A & 双对角化重建误差 /(n$\cdot$u$\cdot$$\|$A$\|$\_\allowbreak{}F) & $\le$ 1；非对角外元素 =\allowbreak{} 0 & 0.803 \checkmark \\
+A & max|$\sigma$ $-$ $\sigma$\_\allowbreak{}解析| / (n$\cdot$u$\cdot$$\sigma$\_\allowbreak{}max) & $\le$ 1 & 0.750(\allowbreak{}[[1,\allowbreak{}1],\allowbreak{}[0,\allowbreak{}1]],\allowbreak{} diag(\allowbreak{}3,\allowbreak{}1,\allowbreak{}0.5),\allowbreak{} 4$\cdot$Q(\allowbreak{}4x3)) \checkmark \\
+A & 小奇异值相对误差 /(n$\cdot$u$\cdot$$\kappa$) & $\le$ c(\allowbreak{}相对误差 \textasciitilde{} $\kappa$u，不是 (\allowbreak{}$\kappa$u)$^2$) & 最大比 0.040；$\kappa$=\allowbreak{}1e+02: 3.5e-15/\allowbreak{}1.7e-15/\allowbreak{}1.1e-15；$\kappa$=\allowbreak{}1e+06: 9.9e-13/\allowbreak{}2.1e-12/\allowbreak{}1.8e-12；$\kappa$=\allowbreak{}1e+10: 1.3e-07/\allowbreak{}1.9e-08/\allowbreak{}1.1e-08；$\kappa$=\allowbreak{}1e+14: 8.6e-04/\allowbreak{}2.3e-04/\allowbreak{}2.2e-04 \checkmark \\
+B & 结构检查通过的形状数 & 8 & 8 \checkmark \\
+B & |r\_\allowbreak{}kk| 非增 (12x6) & nonincreasing & 违反 0 处 \checkmark \\
+B & 剩余列范数非增 (12x6) & nonincreasing & 违反 0 处 \checkmark \\
+B & |r\_\allowbreak{}kk| 非增 (20x8) & nonincreasing & 违反 0 处 \checkmark \\
+B & 剩余列范数非增 (20x8) & nonincreasing & 违反 0 处 \checkmark \\
+B & |r\_\allowbreak{}kk| 非增 (30x5) & nonincreasing & 违反 0 处 \checkmark \\
+B & 剩余列范数非增 (30x5) & nonincreasing & 违反 0 处 \checkmark \\
+B & offdiag 范数非增 (8x5) & nonincreasing & 违反 0 处 \checkmark \\
+B & offdiag 范数非增 (12x8) & nonincreasing & 违反 0 处 \checkmark \\
+B & offdiag 范数非增 (20x6) & nonincreasing & 违反 0 处 \checkmark \\
+B & 三种形状扫描 4 次后的 offdiag 范数 & 单调不增 & 起点 1.45e+00,\allowbreak{} 3.19e+00,\allowbreak{} 1.78e+00 \checkmark \\
+B & 排序/符号规范化后的奇异向量残差 /(u$\cdot$$\|$A$\|$\_\allowbreak{}F) & $\sigma$ 降序非负；残差 $\le$ c & 21.23 \checkmark \\
+B & Givens 矩阵正交 & $\le$ 3.55271e-15 & $2.665\times 10^{-17}$ \checkmark \\
+B & Givens 矩阵正交 & $\le$ 3.55271e-15 & 0 \checkmark \\
+B & Givens 矩阵正交 & $\le$ 3.55271e-15 & 0 \checkmark \\
+B & Givens 矩阵正交 & $\le$ 3.55271e-15 & 0 \checkmark \\
+B & Givens 矩阵正交 & $\le$ 3.55271e-15 & 0 \checkmark \\
+B & |c$^2$+s$^2$$-$1| 与 |det G $-$ 1| 的最大值 & $\le$ u & 0.00e+00 /\allowbreak{} 0.00e+00 \checkmark \\
+B & 回代最大相对误差 & $\le$ n$\cdot$u$\cdot$$\kappa$(\allowbreak{}R) & 1.86e-16 \checkmark \\
+B & k=n 的截断解与伪逆解的逐位差 & 0 & 4.44e-16 \checkmark \\
+B & Householder 矩阵正交 & $\le$ 6.21725e-15 & $5.551\times 10^{-16}$ \checkmark \\
+B & Householder 矩阵正交 & $\le$ 1.33227e-14 & $2.220\times 10^{-16}$ \checkmark \\
+B & 列范数最大绝对差 & $\le$ u$\cdot$$\|$a\_j$\|$ & 8.88e-16 \checkmark \\
+\end{longtable}

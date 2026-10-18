@@ -156,24 +156,21 @@
 - `docs/CHAPTERS.md` §6 的建议是**先只做 M0 + M1**，然后设检查点按兴趣续做，**允许砍章**。
 - 关键路径（`docs/chapters.yaml` 的 `critical_path`）：`1.1 → 1.2 → 1.4 → 1.5 → 4.1 → 4.2 → 4.3 → 6.1`；
   这条链上的任何一章延期，都会顺延 M4/M5。
-- **缺口清单（2026-10-18 复核：✅ 已闭合 2 条、⬜ 未闭合 4 条、⚠ 已知取舍 1 组）**：
+- **缺口清单（2026-10-18 第二轮复核：✅ 已闭合 5 条、⬜ 未闭合 1 条、⚠ 已知取舍 1 组）**：
   - ✅ 已闭合：`tools/gen_colorscales.py --check` 曾经「有实现但没有门禁调用」，色标漂移无人守；
     现已并入 **G6**（`tools/ci.sh` 里与 `gen_manifests.py --check` 用 `&&` 串成一条命令，
     见 `docs/POLICY.md` §5）。
   - ✅ 已闭合：`dist/reports/{manifests,visual_regression}.json` 曾经没有写入者，
     导致 `docs/PROGRESS.md` 的 G6/G8 恒显示「未运行」；`gen_manifests.py` 与 `visual_regression.py`
     现在跑门禁时会把证据落盘（提交 `54c51d9`）。
-  - ⬜ 仍未闭合（文档已写、实现待补）：`tools/raster.py::validate_scene` 还没有复刻
-    「文本层压住坐标轴装饰带」这条规则 8——TS 侧 `viz/shared/src/scene.ts::validateScene` 已实现，
-    由 `dump_scenes.ts` 在转储时拦下；Python 侧目前只查角标盒的越界/重叠
-    （`docs/PROTOCOLS.md` §6.2）。补法：把 TS 的 `textBoxOf`（按 `maxWidth` 折行、行高 `size+4`）
-    与 `axisDecoBands` 一起搬到 `tools/raster.py`，在文本循环里做相交判定。
-  - ⬜ 仍未闭合（文档已写、实现待补）：1.5 章 `preconditioner` 帧的 `ilu_dropped = -1` 哨兵
-    没有在 `strings` 里说明含义（只有 manifest 描述提到「ILU(0) 丢弃的填充次数」），
-    而 `docs/PROTOCOLS.md` §1.3 要求哨兵值必须在 `strings` 里有一句解释。
-  - ⬜ 仍未闭合（实现已写、测试待补）：`Frame.validate()` 拒绝非有限 `meta` 这条硬约束
-    （`docs/PROTOCOLS.md` §1.3）在 `tests/test_nlf.py` 里还没有对应的单测——
-    现在只有 `tests/test_frames_contract.py` 的全仓编码测试会在某章真写出 NaN 时兜住。
+  - ✅ 已闭合：`tools/raster.py::validate_scene` 没有复刻规则 8 的第二条（文本层压住
+    坐标轴装饰带）。现在 `axis_deco_bands` / `text_box_of` / `_text_deco_issues` 与 TS 侧
+    `axisDecoBands` / `textBoxOf` 同口径（含"按 `maxWidth` 折行、装饰带按需生成"两个细节），
+    31 个场景在两侧都报 0 条布局问题。
+  - ✅ 已闭合：1.5 章 `ilu_dropped = -1` 哨兵没有在 `strings` 里说明含义；现在帧里
+    多了 `sentinel_note` 与 `ilu_dropped_applicable` / `ilu_dropped_sentinel`。
+  - ✅ 已闭合：`Frame.validate()` 拒绝非有限 `meta` 没有单测；`tests/test_nlf.py` 现在
+    有三条：meta 的 NaN/Inf、**数组**的 NaN/Inf（新规则，见下）、以及 `pack_frame` 端到端拒绝。
   - ⬜ 仍未闭合：`dist/reports/progress.json` 既没有写入者、也没有读取者。文档里已不再引用它
     （`docs/PROTOCOLS.md` §9 那一行已删）——要恢复这个文件，先得有一个真实的消费方。
   - ⚠ 已知取舍（有意如此，不是缺口）：**两个渲染层各自实现同一套几何**——装饰带/角标盒的常量由

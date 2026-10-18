@@ -1,0 +1,335 @@
+% 1.3 章 · 最小二乘与正交化
+% 这一章要把"解一个不相容的方程组"拆成三件互不相同的事：
+%   1) 正交化——把问题换成列正交的坐标再做，误差从 kappa^2 u 掉到 kappa u；
+%   2) 截断——右端项的噪声把高频分量放大 1/sigma，必须扔掉一部分奇异方向；
+%   3) 几何——解不唯一时"哪一个是你要的"，由等残差集与扰动扇面说清楚。
+% 断言附表由 tools/build_book.py 从实际运行结果生成，\input 进来，不手抄。
+
+\numlabchapter{最小二乘与正交化}{1.3}
+
+\section{这一章要解决什么}
+
+给定 $A\in\mathbb{R}^{m\times n}$（$m\ge n$）与 $b\in\mathbb{R}^m$，方程 $Ax=b$ 一般**无解**。
+退而求其次，我们要的是
+\[
+  x_{\mathrm{LS}}=\arg\min_{x}\|Ax-b\|_2 .
+\]
+这件事看起来只是"解一个方程"，实际上要同时回答三个互相独立的问题：
+
+\begin{enumerate}
+  \item \textbf{用什么坐标解？} 正规方程 $A^{\mathsf T}Ax=A^{\mathsf T}b$ 在数学上完全正确，
+        在浮点里却把条件数**平方**；QR/SVD 用正交变换把误差拉回 $\kappa u$ 量级。
+  \item \textbf{什么时候该停下来？} 当 $b$ 里混了噪声，$\sigma_i$ 很小的那些方向会把噪声
+        放大成 $1/\sigma_i$；截断 SVD 用"少用几个奇异方向"换取稳定。
+  \item \textbf{"解"到底指哪一个？} 秩亏时解集是一张仿射子空间，
+        "最小范数"是一条额外约定；$\kappa$ 大到一定程度，"解"本身就没有可表示的有效位。
+\end{enumerate}
+
+记号：$u=\tfrac12\varepsilon_{\text{mach}}=2^{-53}\approx1.11\times10^{-16}$ 是单位舍入；
+$\kappa=\kappa_2(A)=\sigma_1/\sigma_n$（$\sigma_1\ge\cdots\ge\sigma_n>0$ 是奇异值）；
+$\hat{\cdot}$ 表示浮点算出来的量；$\|\cdot\|$ 缺省指 $2$ 范数。
+
+\section{最小二乘的正交性刻画}
+
+\begin{definition}[最小二乘解]
+$x_{\mathrm{LS}}$ 称为最小二乘解，若 $\|Ax_{\mathrm{LS}}-b\|_2\le\|Ax-b\|_2$ 对所有
+$x\in\mathbb{R}^n$ 成立。残差记为 $r=b-Ax_{\mathrm{LS}}$。
+\end{definition}
+
+\begin{theorem}[正规方程]
+\label{thm:normal}
+$x$ 是最小二乘解，当且仅当 $A^{\mathsf T}(b-Ax)=0$，即 $A^{\mathsf T}Ax=A^{\mathsf T}b$。
+\end{theorem}
+
+\begin{proof}
+对任意 $z\in\mathbb{R}^n$ 展开目标函数：
+\[
+  \|A(x+z)-b\|_2^2=\|Ax-b\|_2^2+2z^{\mathsf T}A^{\mathsf T}(Ax-b)+\|Az\|_2^2 .
+\]
+若 $A^{\mathsf T}(Ax-b)=0$，则右端 $\ge\|Ax-b\|_2^2$，故 $x$ 最小。
+反之若 $A^{\mathsf T}(Ax-b)=w\ne0$，取 $z=-\epsilon w$，则
+$\|A(x+z)-b\|_2^2=\|Ax-b\|_2^2-2\epsilon\|w\|_2^2+O(\epsilon^2)<\|Ax-b\|_2^2$
+（$\epsilon>0$ 充分小），与最小性矛盾。
+\end{proof}
+
+\begin{corollary}[残差与列空间正交]
+\label{cor:orth}
+$A^{\mathsf T}r=0$，即 $r\perp\operatorname{range}(A)$；于是
+$\|b\|_2^2=\|Ax_{\mathrm{LS}}\|_2^2+\|r\|_2^2$（勾股定理）。
+\end{corollary}
+
+\begin{proof}
+由定理 \ref{thm:normal}，$A^{\mathsf T}r=0$ 意味着 $r$ 与 $A$ 的每一列正交。
+又 $Ax_{\mathrm{LS}}\in\operatorname{range}(A)$，两向量正交，故勾股定理成立。
+\end{proof}
+
+\begin{remark}[正交性是三条路线的共同点]
+本章的 A 类断言 \texttt{test\_qr\_least\_squares\_residual\_is\_orthogonal} 与
+\texttt{test\_all\_solvers\_satisfy\_normal\_equations} 实测：$\kappa$ 从 $10^{2}$ 涨到 $10^{10}$，
+$\|A^{\mathsf T}\hat r\|$ 与后向误差刻度 $n\,u\,\|A\|_F(\|b\|+\|A\|_F\|\hat x\|)$ 的比值始终
+$\le0.18$。**正交性与 $\kappa$ 无关**——会随 $\kappa$ 变坏的只有解本身。
+\end{remark}
+
+\section{为什么不能直接解正规方程}
+
+\begin{theorem}[条件数的平方]
+\label{thm:kappa2}
+设 $A$ 列满秩，则 $\kappa_2(A^{\mathsf T}A)=\kappa_2(A)^2$。
+\end{theorem}
+
+\begin{proof}
+设 $A=U\Sigma V^{\mathsf T}$ 是薄 SVD（$\Sigma=\operatorname{diag}(\sigma_1,\dots,\sigma_n)$）。
+则 $A^{\mathsf T}A=V\Sigma^2V^{\mathsf T}$ 是 $A^{\mathsf T}A$ 的特征分解，
+特征值为 $\sigma_i^2$。对称正定矩阵的 $\kappa_2$ 是最大最小特征值之比，
+故 $\kappa_2(A^{\mathsf T}A)=\sigma_1^2/\sigma_n^2=\kappa_2(A)^2$。
+\end{proof}
+
+\begin{theorem}[前向误差的两把尺子]
+\label{thm:forward}
+设 $\hat x$ 是任一后向稳定算法给出的最小二乘解，$\|A\hat x-b\|$ 与残差同量级，
+则
+\[
+  \frac{\|\hat x-x_{\mathrm{LS}}\|}{\|x_{\mathrm{LS}}\|}
+  \;\lesssim\; c\,u\,\kappa_2(A)\quad\text{(正交化方法)},\qquad
+  \frac{\|\hat x-x_{\mathrm{LS}}\|}{\|x_{\mathrm{LS}}\|}
+  \;\lesssim\; c\,u\,\kappa_2(A)^2\quad\text{(正规方程)} .
+\]
+\end{theorem}
+
+\begin{proof}[证明思路]
+把 $x_{\mathrm{LS}}$ 写成 $A^{+}b$，对 $A$ 与 $b$ 的扰动做一阶展开：
+$\delta x=-A^{+}\,\delta A\,x_{\mathrm{LS}}+A^{+}\,\delta b+O(\|\delta\|^2)$，
+取范数得 $\|\delta x\|\le\|A^{+}\|\,\|\delta A\|\,\|x_{\mathrm{LS}}\|+\|A^{+}\|\,\|\delta b\|$。
+正交化方法作用在 $A$ 上，$\|A^{+}\|=\sigma_n^{-1}$，相对误差是 $u\,\|A\|\cdot\sigma_n^{-1}=u\kappa$；
+正规方程作用在 $A^{\mathsf T}A$ 上，其条件数是 $\kappa^2$，而右端 $A^{\mathsf T}b$ 的
+浮点误差也被 $\|A\|^2$ 放大，两处相乘给出 $\kappa^2u$。
+\end{proof}
+
+实测（A 类断言 \texttt{test\_error\_slopes\_are\_two\_and\_one\_on\_log\_log\_axes}）：
+在未饱和窗口内双对数斜率分别是 $1.981$（正规方程）、$0.974$（QR）、$0.988$（SVD），
+理论值 $2,1,1$ 全部落在 $\pm0.1$ 内；同一问题上
+$\mathrm{err}_{\text{normal}}/\mathrm{err}_{\text{qr}}$ 实测 $1.9\times10^{4}$（$\kappa=10^{4}$）、
+$1.6\times10^{7}$（$10^{6}$）、$7.9\times10^{7}$（$10^{8}$）——量级就是 $\kappa$。
+
+\begin{remark}[残差小不等于解准]
+定理 \ref{thm:forward} 里的"后向稳定"是**共同前提**：正规方程与 QR 的残差都能小到 $u\|A\|\|x\|$，
+但前向误差差 $\kappa$ 倍。本章 \texttt{normal\_vs\_qr} 的主轴同时画误差与残差，
+就是为了让这两条曲线在同一个对数坐标系里分道扬镳。
+\end{remark}
+
+\section{QR 分解与列主元判秩}
+
+\begin{theorem}[Householder QR]
+\label{thm:qr}
+任意 $A\in\mathbb{R}^{m\times n}$（$m\ge n$）都可写成 $A=QR$，
+其中 $Q\in\mathbb{R}^{m\times m}$ 正交，$R\in\mathbb{R}^{m\times n}$ 上三角。
+本库返回**薄**形式：$Q$ 取 $m\times k$、$R$ 取 $k\times n$，$k=\min(m,n)$。
+\end{theorem}
+
+\begin{proof}
+对 $j=1,\dots,k$，取 $x=A_{j:m,j}$（第一步后是当前子列），
+令 $v=x-\alpha e_1$，$\alpha=-\operatorname{sign}(x_1)\|x\|$，
+$H_j=I-2vv^{\mathsf T}/\|v\|^2$ 是对称正交矩阵（$H_j^2=I$）且把 $x$ 映到 $\alpha e_1$。
+逐列作用 $H_k\cdots H_1A=R$，则 $A=H_1\cdots H_kR=QR$，$Q$ 是正交矩阵之积。
+符号取 $-\operatorname{sign}(x_1)$ 是为了让 $v_1=x_1-\alpha=x_1+\operatorname{sign}(x_1)\|x\|$
+成为**加法**，从而不丢有效位。
+\end{proof}
+
+实测（A 类断言 \texttt{test\_householder\_qr\_reconstruction\_and\_orthogonality}）：
+8 种形状（含 $m<n$）上 $\|A-QR\|_F/(n\,u\,\|A\|_F)\le0.94$、
+$\max|Q^{\mathsf T}Q-I|/(n\,u)\le0.94$；运算量与闭式 $2n^2(m-n/3)$ **逐位相等**。
+
+\begin{theorem}[列主元 QR 能给的两条界]
+\label{thm:rrqr}
+设 $\Pi A=QR$ 是列主元 QR（$|r_{11}|\ge|r_{22}|\ge\cdots$），则
+\[
+  |r_{11}|\;\ge\;\frac{\sigma_1}{\sqrt n},
+  \qquad
+  \prod_{j=1}^{k}|r_{jj}|\;\le\;\prod_{j=1}^{k}\sigma_j\quad(k=1,\dots,n).
+\]
+\end{theorem}
+
+\begin{proof}
+第一式：$|r_{11}|$ 是 $A$ 的最大列范数，而
+$\|A\|_F^2=\sum_i\sigma_i^2\le n\sigma_1^2$ 与
+$\max_j\|a_j\|_2\ge\|A\|_F/\sqrt n$ 给出 $|r_{11}|\ge\|A\|_F/\sqrt n\ge\sigma_1/\sqrt n$。
+第二式：$\prod_{j\le k}|r_{jj}|=|\det A_k|$（$A_k$ 是前 $k$ 个主元列组成的方阵，
+上三角的行列式就是对角元之积），而 $\det$ 的绝对值等于奇异值之积，
+截取 $k$ 列只会让奇异值变小：$|\det A_k|=\prod_{j\le k}\sigma_j(A_k)\le\prod_{j\le k}\sigma_j(A)$。
+\end{proof}
+
+\begin{remark}[判秩是启发式，不是定理]
+常见说法"$|r_{kk}|\approx\sigma_k$"**不成立**：本章实测
+$|r_{kk}|/\sigma_k$ 在秩亏矩阵上可取 $0.90,0.99,0.91,2.07$，
+Kahan 矩阵更是经典反例（$|r_{nn}|$ 远大于 $\sigma_n$）。
+能用的只有定理 \ref{thm:rrqr} 的两条界，加一句工程约定：
+$|r_{kk}|\le\max(m,n)\,u\,|r_{11}|\Rightarrow$ 数值秩 $<k$。
+判据里必须带容差，秩是"矩阵加容差"的性质。
+\end{remark}
+
+\section{奇异值分解}
+
+\begin{theorem}[SVD 的存在性]
+\label{thm:svd}
+任意 $A\in\mathbb{R}^{m\times n}$ 可写成 $A=U\Sigma V^{\mathsf T}$，
+$U\in\mathbb{R}^{m\times m}$、$V\in\mathbb{R}^{n\times n}$ 正交，
+$\Sigma$ 非负对角（前 $\min(m,n)$ 个位置）。
+\end{theorem}
+
+\begin{proof}
+$A^{\mathsf T}A$ 对称半正定，取特征分解 $A^{\mathsf T}A=V\Lambda V^{\mathsf T}$，
+$\Lambda=\operatorname{diag}(\lambda_1\ge\cdots\ge\lambda_n\ge0)$，$\sigma_i=\sqrt{\lambda_i}$。
+对 $\sigma_i>0$ 定义 $u_i=Av_i/\sigma_i$，则
+$u_i^{\mathsf T}u_j=v_i^{\mathsf T}A^{\mathsf T}Av_j/(\sigma_i\sigma_j)
+=\lambda_jv_i^{\mathsf T}v_j/(\sigma_i\sigma_j)=\delta_{ij}$：
+正奇异值对应的 $u_i$ 已经标准正交，补全成 $\mathbb{R}^m$ 的标准正交基即可，
+于是 $AV=U\Sigma$，即 $A=U\Sigma V^{\mathsf T}$。
+\end{proof}
+
+\begin{theorem}[Eckart--Young--Mirsky：截断是最优的低秩逼近]
+\label{thm:eym}
+记 $A_k=\sum_{i\le k}\sigma_iu_iv_i^{\mathsf T}$，则
+$\|A-A_k\|_2=\sigma_{k+1}$，且对任意 $\operatorname{rank}(B)\le k$ 有
+$\|A-B\|_2\ge\sigma_{k+1}$。
+\end{theorem}
+
+\begin{proof}
+第一式直接计算：$A-A_k=\sum_{i>k}\sigma_iu_iv_i^{\mathsf T}$，其最大奇异值是 $\sigma_{k+1}$。
+第二式用维数论证：设 $\operatorname{rank}(B)\le k$，则 $\ker B$ 的维数 $\ge n-k$，
+与 $\operatorname{span}(v_1,\dots,v_{k+1})$ 必有非零交向量 $z$（维数之和 $>n$），
+取 $\|z\|=1$ 得
+$\|A-B\|_2^2\ge\|(A-B)z\|_2^2=\|Az\|_2^2=\sum_{i\le k+1}\sigma_i^2(v_i^{\mathsf T}z)^2\ge\sigma_{k+1}^2$。
+\end{proof}
+
+\begin{theorem}[伪逆与最小范数解]
+\label{thm:pinv}
+设 $A=U\Sigma V^{\mathsf T}$，$A^{+}=V\Sigma^{+}U^{\mathsf T}$（正奇异值取倒数、零保持零），
+则所有最小二乘解中 $x=A^{+}b$ 的范数最小。
+\end{theorem}
+
+\begin{proof}
+把 $b$ 按 $U$ 的列展开，$\|Ax-b\|_2^2=\sum_i(\sigma_iz_i-c_i)^2+\sum_{i>r}c_i^2$，
+其中 $z=V^{\mathsf T}x$、$c=U^{\mathsf T}b$、$r=\operatorname{rank}(A)$：
+后一项与 $x$ 无关，前一项在 $z_i=c_i/\sigma_i\ (i\le r)$ 时取零。
+自由度只剩 $z_{r+1},\dots,z_n$，它们只会增加 $\|x\|_2=\|z\|_2$，故取零最小。
+\end{proof}
+
+实测：四个 Moore--Penrose 条件归一化后最大 $0.39$；
+$\|A^{+}-A^{+}_{\text{LAPACK}}\|_{\max}\le5.0\times10^{-16}$；
+$\kappa$ 从 $10^{2}$ 到 $10^{14}$ 时 $\sigma_{\min}$ 的相对误差随 $\kappa u$ 线性增长
+（$10^{14}$ 时 $8.6\times10^{-4}$）——**大 $\kappa$ 下小奇异值只有相对精度，没有绝对精度**。
+
+\section{两种算法：Jacobi 与 Golub--Kahan}
+
+本库实现了两条独立路线，互为对拍：
+
+\begin{itemize}
+  \item \textbf{单边 Jacobi}：反复对 $A$ 的列对 $(p,q)$ 施加右 Givens 旋转，
+        使两列正交；旋转角满足 $\cot(2\theta)=(\|a_q\|^2-\|a_p\|^2)/(2a_p^{\mathsf T}a_q)$。
+        收敛后用列范数作 $\sigma_i$、归一化列作 $v_i$。
+        它几乎不需要证明收敛性之外的技巧，但轮数多、只在 $n$ 小时好用。
+  \item \textbf{Golub--Kahan}：先用 Householder 双对角化把 $A$ 化成只有对角与一条次对角线
+        非零的 $B$（$A=U_1BV_1^{\mathsf T}$），再对 $B$ 做隐式位移 QR
+        （Wilkinson 位移取自尾部 $2\times2$ 块），最后回代累积变换。
+        运算量 $O(mn^2)$，是 LAPACK 的做法。
+\end{itemize}
+
+\begin{remark}[宽矩阵的双对角形式]
+$m<n$ 时 $r\times r$ 的**上**双对角形式不存在：最后一行的尾巴经反射只能变成
+$(\beta,0,\dots,0)$，那个 $\beta$ 落在第 $r$ 列之外。本库在 $m<n$ 时转置处理，
+返回 \texttt{orientation="lower"} 的**下**双对角 $B$，并显式声明朝向——
+这是实现里真踩过的坑（曾导致 $10^{14}$ 倍的重建误差）。
+\end{remark}
+
+\section{截断：Picard 条件、L 曲线与偏差原则}
+
+\begin{theorem}[Picard 条件]
+\label{thm:picard}
+设 $b=\sum_ic_iu_i$，则最小二乘解的系数是 $c_i/\sigma_i$。
+若 $b$ 由"精确右端 $b_{\text{exact}}=Ax^{\dagger}$ + 噪声 $\eta$"组成，
+$\|\eta\|\approx\delta$，则当 $i$ 大到 $\sigma_i\ll\delta/\|x^{\dagger}\|$ 时，
+$c_i/\sigma_i$ 主要由噪声贡献，且随 $i$ 增大而**上升**。
+\end{theorem}
+
+\begin{proof}
+$b=Ax^{\dagger}+\eta$，而 $Ax^{\dagger}=\sum_i\sigma_i(u_i^{\mathsf T}x^{\dagger})u_i$，
+故 $c_i=\sigma_i(u_i^{\mathsf T}x^{\dagger})+u_i^{\mathsf T}\eta$。
+当 $\sigma_i|u_i^{\mathsf T}x^{\dagger}|\ll|u_i^{\mathsf T}\eta|\le\|\eta\|$ 时，
+$|c_i/\sigma_i|\approx|u_i^{\mathsf T}\eta|/\sigma_i$，随 $\sigma_i$ 下降而上升。
+\end{proof}
+
+实测（\texttt{test\_discrepancy\_principle\_bounds\_the\_optimal\_truncation}）：
+在 64 组（四种谱形状 $\times$ 四个 $\kappa$ $\times$ 四个噪声水平）配置上，
+"偏差原则"给出的截断阶 $k_{\text{dp}}=\#\{\sigma_i>\delta\|b\|/\|x^{\dagger}\|\}$
+**从不早于**真实最优：$k_{\text{opt}}\le k_{\text{dp}}+1$ 全部成立，最大超出 $0$。
+它是安全的上界，不是最优——L 曲线拐点与 GCV 最小值则可能偏早或偏晚
+（实测 cliff 谱上 $k_{\text{opt}}=5$ 而 $k_{\text{cv}}=10$、$k_{\text{corner}}=8$）。
+
+\section{几何：投影、等残差椭圆与噪声扇面}
+
+\begin{theorem}[等残差集是椭球]
+\label{thm:ellipse}
+设 $x_{\mathrm{LS}}=A^{+}b$、$r_{\min}=b-Ax_{\mathrm{LS}}$，
+则 $\{x:\|Ax-b\|_2=\rho\}$（$\rho>\|r_{\min}\|$）是以 $x_{\mathrm{LS}}$ 为中心、
+半轴为 $\sqrt{\rho^2-\|r_{\min}\|^2}/\sigma_i$、方向为 $v_i$ 的椭球。
+\end{theorem}
+
+\begin{proof}
+$\|Ax-b\|_2^2=\|A(x-x_{\mathrm{LS}})\|_2^2+\|r_{\min}\|_2^2$
+（交叉项 $2(A(x-x_{\mathrm{LS}}))^{\mathsf T}r_{\min}=0$ 由推论 \ref{cor:orth}）。
+令 $y=V^{\mathsf T}(x-x_{\mathrm{LS}})$，则 $\|A(x-x_{\mathrm{LS}})\|_2^2=\sum_i\sigma_i^2y_i^2$，
+于是 $\|Ax-b\|_2=\rho$ 等价于 $\sum_i(y_i/(\sqrt{\rho^2-\|r_{\min}\|^2}/\sigma_i))^2=1$，
+即一个沿 $v_i$ 的半轴为 $\sqrt{\rho^2-\|r_{\min}\|^2}/\sigma_i$ 的椭球。
+\end{proof}
+
+\begin{theorem}[右端扰动在解上的放大]
+\label{thm:fan}
+设 $b$ 扰动到 $b+\delta b$，$\|\delta b\|=\rho$，
+则 $\|\delta x\|_2\le\kappa_2(A)\,\rho/\sigma_1$，且当 $\delta b\parallel u_n$ 时等号成立。
+\end{theorem}
+
+\begin{proof}
+$\delta x=A^{+}\delta b$，$\|A^{+}\|_2=1/\sigma_n$，故 $\|\delta x\|\le\rho/\sigma_n
+=\kappa_2(A)\rho/\sigma_1$；取 $\delta b=\rho u_n$ 得 $\delta x=\rho v_n/\sigma_n$，达到上界。
+\end{proof}
+
+实测：$\max\|\delta x\|/(\kappa\delta)=0.281$（三个 $\kappa$ 上完全一致），
+最短半轴 $0.28\,\delta$——上界可达但不常达到。
+更要紧的是**分辨极限**：解本身自带 $\kappa u$ 的相对舍入，
+$\kappa=10^{10}$ 时 $\kappa u\approx1.1\times10^{-6}$ 已经大于默认噪声 $10^{-8}$，
+此时扇面量到的是舍入而不是噪声（最短半轴从 $0.28\delta$ 涨到 $8.7\delta$）。
+帧里的 \texttt{meta.resolvable} 就是这条判据。
+
+\begin{remark}[病态到一定程度，正规方程不是"算不准"，而是"解不出来"]
+$\kappa(A)\gtrsim u^{-1/2}\approx10^{8}$ 之后，$A^{\mathsf T}A$ 的条件数超过 $u^{-1}$：
+它的两个特征值在浮点里已经分不开，$A^{\mathsf T}A$ 变成一个**数值奇异**矩阵。
+本章的可视化里这不是一句空话：$\kappa=10^{12}$ 时 $3\times2$ 的例子上，
+$A^{\mathsf T}A$ 的 LU 回代遇到恰好为 $0$ 的对角元而抛错，
+正规方程这条路线**没有有限解**；同一帧里 QR 与 SVD 照常给值，
+它们的正交性缺陷 $\|A^{\mathsf T}\hat r\|$ 约为 $10^{-4}\approx\kappa u$。
+所以帧里用 \texttt{null}（Python 的 \texttt{None}）而不是 $0$ 或 \texttt{NaN}
+表示"没有有限值"，并在 \texttt{strings} 里说明原因：
+把"没有数"画成"数很小"或"数很大"都是在编数据。
+\end{remark}
+
+\section{它会怎样骗你（本章版）}
+
+\begin{enumerate}
+  \item \textbf{把残差小读成解准}：正规方程与 QR 的残差都是 $u\|A\|\|x\|$ 量级，
+        前向误差却差 $\kappa$ 倍。实测 $\kappa=10^{8}$ 时 $\|A^{\mathsf T}\hat r\|$ 仍 $\le0.18$ 倍刻度。
+  \item \textbf{在饱和段上拟合斜率}：误差到 $O(1)$ 之后幂律就断了，
+        把整段塞进拟合会把斜率从 $1.98$ 拉到 $1.52$——拟合窗口必须写明。
+  \item \textbf{尺子选错}：同一个 $\|A^{\mathsf T}\hat r\|$，除以 $n\,u\,\|A\|\|b\|$
+        在 $\kappa=10^{10}$ 时给出 $5.4\times10^{8}$，除以
+        $n\,u\,\|A\|(\|b\|+\|A\|\|\hat x\|)$ 只有 $0.18$：病态时 $\|\hat x\|$ 自己就大。
+  \item \textbf{自适应坐标把针画成圆}：等残差椭圆的长短轴之比就是 $\kappa$，
+        两轴各自缩放之后 $\kappa=10^{6}$ 的针会变成一个圆，结论当场反转。
+  \item \textbf{把 $|r_{kk}|$ 当 $\sigma_k$}：实测比值可以到 $2.07$，Kahan 矩阵更极端。
+  \item \textbf{把 L 曲线拐点当最优截断}：实测 cliff 谱上 $k_{\text{corner}}=8$、$k_{\text{opt}}=5$；
+        GCV 也会偏（$k_{\text{cv}}=10$）。偏差原则偏保守但方向是安全的。
+  \item \textbf{$\kappa u$ 淹没噪声还谈"噪声放大"}：见定理 \ref{thm:fan} 后的实测。
+  \item \textbf{把时间轴当时间}：本节各帧的 $t$ 是"扫描进度"或"沿残差滑向 $b$ 的进度"，
+        拖到头就夹住，真正要看的是 \texttt{meta} 里的实测值。
+\end{enumerate}
+
+\input{chapters/1.3/asserts_table}

@@ -245,6 +245,17 @@ class Frame:
                 raise NlfError(f"order 非法：{s.order!r}")
             if s.nbytes != s.size * s.itemsize:
                 raise NlfError(f"nbytes 与 shape/dtype 不符：{s.name!r}")
+            arr = self._arrays.get(s.name)
+            if arr is not None and arr.size and arr.dtype.kind == "f" and not bool(np.all(np.isfinite(arr))):
+                # 数组段是裸 float64，NaN/Inf **编码得进去**（不像 meta 那样在 JSON 层就炸），
+                # 于是问题会跑到前端：一条 NaN 折线在画布上就是"这段数据凭空消失"，还不报错。
+                # 这里的口径与 meta 一致："没有有限值"要写成占位值 + 掩码 + strings 说明
+                # （见 PROTOCOLS §1.3 与 3.2 章极点、1.2 章奇异点的处理）。
+                n_bad = int(np.count_nonzero(~np.isfinite(arr)))
+                raise NlfError(
+                    f"数组 {s.name!r} 有 {n_bad}/{arr.size} 个非有限值——"
+                    '请写占位值（并在 strings 里说明）+ 掩码数组，或改放 meta 的 null（PROTOCOLS §1.3）'
+                )
         for k, v in self.meta.items():
             if isinstance(v, str):
                 raise NlfError(f"meta[{k!r}] 是字符串——请改放进 strings（PROTOCOLS §1.1）")

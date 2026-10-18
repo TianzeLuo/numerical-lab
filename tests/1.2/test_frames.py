@@ -253,6 +253,88 @@ def test_overflow_flag_tracks_the_drawn_objects() -> None:
     )
 
 
+@assertion("B", "参数角点上所有数组与 meta 都有限，不可解处用掩码如实标注", chapter="1.2")
+def test_every_frame_corner_stays_finite_and_masks_the_unsolvable_points() -> None:
+    r"""帧里**不许出现 NaN/Inf**：数组里出现 NaN 会在前端静默丢段（`.nlf` 编得进去）。
+
+    这条测试的由来：全仓契约测试（`tests/test_frames_contract.py`）第一次跑就抓到
+    `unit_ball` 在 `shear=0` 下的 `error`/`x_num`/`error_mark` 是 NaN——那是"这里没有
+    有限值"的**正确判断**，但用的是**错误的表达方式**。现在的口径是：
+
+    * `error[i] = 0` 是**占位符**，`error_valid[i] = 0` 才是"该 κ 在浮点下不可解"这件事；
+      `meta.n_error_invalid` 给出个数、`meta.error_invalid_from_log10_kappa` 给出起点；
+    * 奇异时 `x_num` 同样是占位 0，`meta.x_num_valid = 0`、`meta.singular = true`；
+    * `strings.mask_note` 把"0 是占位符、读图先看掩码"写在帧里（前端照着做）。
+
+    采样口径与全仓契约测试一致：默认参数 + 每个参数的 min/max（枚举取两端）+ `t ∈ {0, tMax}`。
+    """
+    entry = _entry()
+    checked = 0
+    problems: list[str] = []
+    for spec in entry.manifest.vizzes:
+        base = {p.name: p.default for p in spec.params}
+        corners: list[dict] = [dict(base)]
+        for p in spec.params:
+            if p.type == "enum" and len(p.options) >= 2:
+                corners.append({**base, p.name: p.options[0]})
+                corners.append({**base, p.name: p.options[-1]})
+            elif p.type in ("int", "float") and p.min is not None and p.max is not None:
+                corners.append({**base, p.name: p.min})
+                corners.append({**base, p.name: p.max})
+            elif p.type == "bool":
+                corners.append({**base, p.name: not base[p.name]})
+        if spec.time.mode == "none":
+            times = [0.0]
+        else:
+            t_max = float(spec.time.t_max or 0.0)
+            times = [0.0, t_max] if t_max > 0 else [0.0]
+        for params in corners:
+            for t in times:
+                checked += 1
+                label = f"{spec.id} {params} t={t:g}"
+                try:
+                    frame = build_frame(entry, spec.id, params, t, strict=True)
+                    nlf_mod.pack_frame(frame)
+                except Exception as exc:  # noqa: BLE001
+                    problems.append(f"{label}: {type(exc).__name__}: {exc}")
+                    continue
+                for arr_spec, arr in nlf_mod.iter_arrays(frame):
+                    bad = int(np.count_nonzero(~np.isfinite(arr))) if arr.size else 0
+                    if bad:
+                        problems.append(f"{label}: 数组 {arr_spec.name} 有 {bad}/{arr.size} 个非有限值")
+                for key, val in frame.meta.items():
+                    if isinstance(val, float) and not np.isfinite(val):
+                        problems.append(f"{label}: meta[{key!r}] = {val}")
+                if spec.id == "unit_ball":
+                    n_invalid = int(frame.meta.get("n_error_invalid", 0) or 0)
+                    valid = frame["error_valid"] if "error_valid" in frame else None
+                    if n_invalid > 0:
+                        if valid is None:
+                            problems.append(f"{label}: n_error_invalid={n_invalid} 但没有 error_valid 掩码")
+                        else:
+                            n_zero_mask = int(np.count_nonzero(valid == 0.0))
+                            if n_zero_mask != n_invalid:
+                                problems.append(f"{label}: error_valid 的 0 有 {n_zero_mask} 个，meta 说 {n_invalid} 个")
+                            if not np.all(frame["error"][valid == 0.0] == 0.0):
+                                problems.append(f"{label}: 掩码为 0 的位置 error 不是占位 0")
+                    if bool(frame.meta.get("singular")) and float(frame.meta.get("x_num_valid", 1)) != 0.0:
+                        problems.append(f"{label}: singular=true 但 x_num_valid≠0")
+                    if "mask_note" not in (frame.strings or {}):
+                        problems.append(f"{label}: 缺 strings.mask_note（占位符约定必须写在帧里）")
+    if checked < 12:
+        problems.append(f"采样点只有 {checked} 个：测试可能没真的跑起来（预期 ≥ 12）")
+    rec = record(
+        label="帧角点：数组/meta 全有限 + 掩码自洽",
+        theory="数组与 meta 全有限；不可解处写占位 0 并用掩码标注（NaN 会在前端静默丢段）",
+        measured=f"{checked} 帧、{len(problems)} 条问题",
+        tol="0 条问题",
+        passed=not problems,
+        detail="；".join(problems[:8]) or "全部通过",
+        kind="B",
+    )
+    assert rec.passed, f"{len(problems)} 条问题：\n  - " + "\n  - ".join(problems[:12])
+
+
 @assertion("B", "wilkinson_matrix 的经典增长因子 ρ = 2^(n−1)", chapter="1.2")
 def test_wilkinson_growth_is_two_to_the_n_minus_one() -> None:
     """``pivot="partial"`` 下 ρ(Wilkinson(n)) = 2^{n−1}；完全主元把它压到 2。

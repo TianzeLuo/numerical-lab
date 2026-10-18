@@ -42,6 +42,50 @@ def _basic_frame() -> Frame:
 
 
 # --------------------------------------------------------------------------- #
+# 非有限值的硬约束（meta 与数组**都**不许有 NaN/Inf）
+# --------------------------------------------------------------------------- #
+def test_validate_rejects_non_finite_meta_with_actionable_message() -> None:
+    """meta 里的 NaN/Inf 必须在写入前被拒（头是 JSON，`allow_nan=False` 会让整帧失败）。"""
+    for bad in (float("nan"), float("inf"), float("-inf")):
+        fr = _basic_frame()
+        fr.set_meta(broken=bad)
+        with pytest.raises(NlfError) as exc:
+            fr.validate()
+        msg = str(exc.value)
+        assert "broken" in msg and "有限数" in msg
+        # 报文必须给出可执行的改法，否则调用方只会把 NaN 换成 0（那就变成假数据了）
+        assert "None" in msg and "strings" in msg
+
+
+def test_validate_rejects_non_finite_arrays_because_they_encode_silently() -> None:
+    r"""数组段的 NaN **编码得进去**，所以只能在 `validate()` 里拦。
+
+    这条是 3.2 章作者提的口径问题：`meta` 的 NaN 会在 JSON 层炸，而数组是裸 float64，
+    NaN 会一路走到前端——一条 NaN 折线在画布上就是"这段数据凭空消失"，而且不报错。
+    正确做法是占位值 + 掩码数组 + `strings` 说明（见 PROTOCOLS §1.3）。
+    """
+    fr = _basic_frame()
+    fr.add("y", np.array([1.0, float("nan"), 3.0]))
+    with pytest.raises(NlfError) as exc:
+        fr.validate()
+    msg = str(exc.value)
+    assert "'y'" in msg and "1/3" in msg
+    assert "掩码" in msg and "占位" in msg
+    # 整数数组没有 NaN 的概念：不该被这条规则牵连（布尔/整数走各自的 kind）
+    ok = _basic_frame()
+    ok.add("i", np.array([1, 2, 3], dtype=np.int32), unit="1")
+    ok.validate()
+
+
+def test_pack_frame_rejects_non_finite_arrays_end_to_end() -> None:
+    """`pack_frame` 会调 `validate()`：坏数组不能"编码成功"再让前端去撞。"""
+    fr = _basic_frame()
+    fr.add("y", np.array([0.0, float("inf")]))
+    with pytest.raises(NlfError, match="非有限值"):
+        pack_frame(fr)
+
+
+# --------------------------------------------------------------------------- #
 # 往返
 # --------------------------------------------------------------------------- #
 def test_roundtrip_preserves_arrays_and_metadata() -> None:

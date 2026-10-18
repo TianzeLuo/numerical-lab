@@ -12,7 +12,7 @@
  * | 5 | line | `main` | 向量 `b`（箭头：杆 + 两支箭头 + 端点圆点） |
  * | 6 | line | `main` | 数值解 `x̂` |
  * | 7 | line | `main` | 精确解 `x` |
- * | 8 | line | `aux` | `error` 随 `kappa_grid`（log 纵轴，NaN/0 处断开） |
+ * | 8 | line | `aux` | `error` 随 `kappa_grid`（log 纵轴；在第一个不可解点处截断） |
  * | 9 | scatter | `aux` | 当前位置标记（`kappa_mark`, `error_mark`） |
  *
  * 角标槽位（固定，见 `SLOT`）：0 来源 / 1 主轴固定 ±3 / 2 副轴自适应 / 3 状态（κ、有效位）/
@@ -35,8 +35,10 @@
  *    账上也没有，正是规则 1 禁止的。所以模型自己算与轴框的交点、画到边上，并把真实端点写进
  *    数值行与溢出说明。`meta.overflow` 只覆盖"单位圆的像"是否越界（实际构造下恒为 false，
  *    像只会变小变细），向量的越界由模型这一侧负责补上。
- * 4. **NaN 与 0 分开报数**：`error` 里 NaN 表示"该 κ 上后端算不出解"（`exact_solve`/回代退化），
- *    0 表示"误差恰好为 0"；两者在对数轴上都画不出，但含义完全不同，所以文本里分别计数。
+ * 4. **帧里没有 NaN，改用"占位符 + 掩码"**（帧契约要求所有数组有限）：某 κ 上后端算不出解时，
+ *    `error[i]=0` 是**占位符**、`error_valid[i]=0` 才是事实本身；`x_num_valid=0` 同理。
+ *    模型必须①按掩码把曲线截断（占位 0 在对数轴上会画成"误差掉到地板"的假象）、
+ *    ②奇异时不画 `x̂` 箭头（否则会画出"解在原点"的假箭头）、③在文本里把两个数分开报。
  * 5. **不画 κu 理论线**：那需要前端自己算 κ·u（P8 禁止前端造物理量）。帧 `strings.note`
  *    已经给出"实测前向误差 vs κu"的对比，模型只搬运，不重算。
  */
@@ -53,6 +55,7 @@ import {
   degradedBadge,
   finitePositiveMinMax,
   metaNumber,
+  optionalArray,
   palette,
   paramSummary,
   placeBadge,
@@ -135,6 +138,10 @@ export const unitBallModel: SceneModel = (frame, opts) => {
   const xExact = requireArray(frame, "x_exact");
   const kappaGrid = requireArray(frame, "kappa_grid");
   const error = requireArray(frame, "error");
+  // 掩码（可选）：后端把"这个 κ 在浮点下不可解"写成占位符 0 + `error_valid[i]=0`。
+  // 缺掩码时退化成"error>0 即有效"（老帧），并在降级角标里说明——**不猜**。
+  const errorValid = optionalArray(frame, "error_valid");
+  const errorMask = (i: number): boolean => (errorValid === undefined ? error[i]! > 0 : (errorValid[i] ?? 0) > 0.5);
   const errorMark = requireArray(frame, "error_mark");
   const kappaMark = requireArray(frame, "kappa_mark");
   requireSameLength(circleX, circleY, "帧数组 circle_x 与 circle_y");
@@ -176,6 +183,11 @@ export const unitBallModel: SceneModel = (frame, opts) => {
   const residual = metaNumber(frame, "residual");
   const nTheta = metaNumber(frame, "n_theta");
   const frameOverflow = (metaNumber(frame, "overflow") ?? 0) > 0.5;
+  const singular = (metaNumber(frame, "singular") ?? 0) > 0.5;
+  const xNumValid = errorValid === undefined ? !singular : (metaNumber(frame, "x_num_valid") ?? (singular ? 0 : 1)) > 0.5;
+  if (singular && xNumValid) {
+    degraded.push("帧 meta.singular=true 但 x_num_valid 不是 0：按 singular 处理（占位 0 不画成解）");
+  }
   const pivotName = stringOf(frame, "pivot");
   if (pivotName === undefined) degraded.push("帧 strings 缺 pivot：不显示主元策略名（不按参数猜）");
   const note = stringOf(frame, "note");
@@ -252,9 +264,14 @@ export const unitBallModel: SceneModel = (frame, opts) => {
   // —— 图层 5~7：b、x̂、x 三条向量（箭头；冲出画面的按方向裁到轴边）——
   const arrows: { arrow: Arrow; color: string; dash?: number[] }[] = [
     { arrow: toArrow("b（右端项）", bVec), color: pal.note, dash: [7, 4] },
-    { arrow: toArrow("x̂（数值解）", xNum), color: pal.marker },
     { arrow: toArrow("x（精确解）", xExact), color: pal.ink, dash: [3, 3] },
   ];
+  if (xNumValid) {
+    arrows.splice(1, 0, { arrow: toArrow("x̂（数值解）", xNum), color: pal.marker });
+  } else {
+    // 奇异时 x̂ 是占位 0：画出来会得到一个"解在原点"的假箭头，必须明确不画。
+    degraded.push("x̂ 在该参数下没有有限值（浮点奇异）：不画 x̂ 箭头，位置由状态角标与错位说明给出");
+  }
   const clipped: string[] = [];
   for (const item of arrows) {
     const drawn = clipArrow(item.arrow, MAIN_LIM);
@@ -267,14 +284,38 @@ export const unitBallModel: SceneModel = (frame, opts) => {
   }
 
   // —— 图层 8~9：副轴（规则 3 的误差场）——
-  let nNaN = 0;
+  // 不可解点（掩码 0）与"误差恰好为 0"是两件事，分开计数；
+  // 曲线**在第一个不可解点处截断**：占位 0 在对数轴上会被画成"误差掉到地板"的假象。
+  let nInvalid = 0;
   let nZero = 0;
+  let firstInvalid = -1;
+  let prefix = -1; // 第一个不可解点**之前**的有效点数：曲线的可画前缀
+  const kappaOk: number[] = [];
+  const errOk: number[] = [];
   for (let i = 0; i < error.length; i += 1) {
-    const v = error[i];
-    if (!Number.isFinite(v)) nNaN += 1;
-    else if (v === 0) nZero += 1;
+    const v = error[i] ?? Number.NaN;
+    if (!errorMask(i) || !Number.isFinite(v)) {
+      nInvalid += 1;
+      if (firstInvalid < 0) {
+        firstInvalid = i;
+        prefix = kappaOk.length;
+      }
+      continue;
+    }
+    if (v === 0) nZero += 1;
+    if (v > 0) {
+      kappaOk.push(kappaGrid[i] ?? Number.NaN);
+      errOk.push(v);
+    }
   }
-  const errSeries = segmentedSeries(kappaGrid, error, pal.residual, {
+  if (errorValid === undefined) {
+    degraded.push("帧里没有 error_valid 掩码：按「error>0 即有效」处理（老帧），不可解点无法与精确 0 区分");
+  }
+  // 只画"第一个不可解点之前"的连续前缀：跳过中间的洞继续画，会读成"这段 κ 上误差仍然很小"。
+  const drawCount = prefix < 0 ? kappaOk.length : prefix;
+  const kappaDraw = errorValid === undefined ? kappaOk : kappaOk.slice(0, drawCount);
+  const errDraw = errorValid === undefined ? errOk : errOk.slice(0, drawCount);
+  const errSeries = segmentedSeries(kappaDraw, errDraw, pal.residual, {
     width: 1.6,
     label: "实测前向误差（每个 κ 都真跑一次 LU + 回代）",
     accept: (v) => v > 0,
@@ -283,7 +324,8 @@ export const unitBallModel: SceneModel = (frame, opts) => {
   else degraded.push(`帧 error 的 ${error.length} 个样本没有一个 > 0：log 轴上画不出曲线`);
   const markX = kappaMark[0];
   const markY = errorMark[0];
-  if (Number.isFinite(markX) && Number.isFinite(markY) && markY > 0) {
+  const markValid = (metaNumber(frame, "error_mark_valid") ?? (Number.isFinite(markY) && markY > 0 ? 1 : 0)) > 0.5;
+  if (markValid && Number.isFinite(markX) && Number.isFinite(markY) && markY > 0) {
     scene.layers.push(scatterLayer("aux", [markX], [markY], { r: 4.5, color: pal.marker, label: "当前 log10 κ 处的误差" }));
   } else {
     degraded.push(`当前位置标记不可画（kappa_mark=${String(markX)}、error_mark=${String(markY)}）：只画曲线`);
@@ -341,7 +383,9 @@ export const unitBallModel: SceneModel = (frame, opts) => {
   const auxLines: string[] = [];
   if (note !== undefined) auxLines.push(`帧 note：${note}`);
   auxLines.push(
-    `误差曲线 ${error.length} 点：${nNaN} 个 NaN（该 κ 上后端未给出解）、${nZero} 个恰好为 0（log 轴画不出）——两者含义不同，分开计数`,
+    `误差曲线 ${error.length} 点：${nInvalid} 个不可解（error_valid=0，占位 0）、${nZero} 个恰好为 0` +
+      (firstInvalid >= 0 ? `；曲线在 log10 κ=${formatNumber(kappaGrid[firstInvalid] ?? Number.NaN, 3)} 处截断` : "") +
+      "——「没有有限值」与「误差为零」是两件事，分开计数",
   );
   if (backwardError !== undefined || residual !== undefined) {
     auxLines.push(

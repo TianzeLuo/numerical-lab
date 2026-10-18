@@ -1,0 +1,189 @@
+# 1.3 章断言清单（真源：`tests/1.3/test_qr_svd.py` 与 `tests/1.3/test_lstsq.py`）
+#
+# 分工：
+#   * `test_qr_svd.py`  —— 分解本身：Householder/Givens QR、列主元判秩、双对角化、
+#     两种 SVD、Moore–Penrose 四个条件、与 LAPACK 的逐位对拍；
+#   * `test_lstsq.py`   —— 用分解去解问题：正规方程的 κ² 与 QR/SVD 的 κ、
+#     截断（L 曲线 / Picard / 偏差原则 / GCV）、等残差椭圆与噪声扇面。
+#
+# A 类（解析对拍）：有闭式理论值或可证明的界，实测与理论并列写出；
+# B 类（不变量）：结构、单调性、端点、帧契约——它们不告诉你"多准"，只告诉你"必须成立"。
+# 本章不声明 C 类：这里没有需要二分的阈值（阈值型结论在 3.2/3.3 章）。
+chapter: "1.3"
+title: 最小二乘与正交化
+required_kinds: [A, B]
+
+# 与最近一次 `python3 -m pytest tests/1.3` 的实测量一致（A 23 / B 45）。
+# 记录条数 > 测试函数个数：`numcore.verify` 的 assert_* 辅助函数每条都会记账。
+min_counts:
+  A: 23
+  B: 45
+
+tests:
+  # ---- QR 分解 ----
+  - name: test_householder_qr_reconstruction_and_orthogonality
+    kind: A
+    what: 8 种形状上 ‖A−QR‖_F/(n·u·‖A‖_F) 与 max|QᵀQ−I|/(n·u) 的最大值
+    theory: Householder QR 后向稳定：‖A−QR‖ ≲ c·n·u·‖A‖，Q 正交到 c·n·u
+  - name: test_householder_sign_choice_avoids_cancellation
+    kind: A
+    what: x=(1e8,1e-8,…) 时 ‖v‖ 与 α 的相对误差、以及"取 +‖x‖ 侧写"的抵消量对比
+    theory: α = −sign(x₁)‖x‖ 使 v₁ = x₁−α 变成加法，‖v‖ 不丢有效位
+  - name: test_givens_qr_reconstruction_and_rotation_count
+    kind: A
+    what: 5 种形状的重建误差与旋转次数（与闭式 Σ_{col<min(m,n)}(m−1−col) 逐位相等）
+    theory: Givens QR 的旋转数 = Σ_{col<k}(m−1−col)，重建 ≲ c·n·u·‖A‖_F
+  - name: test_qr_least_squares_residual_is_orthogonal
+    kind: A
+    what: κ=1e2/1e6/1e10 时 ‖Aᵀr̂‖/(n·u·‖A‖_F(‖b‖+‖A‖_F‖x̂‖)) 与 LAPACK 解的最大相对差
+    theory: Aᵀr = 0；正交性与 κ 无关（用后向误差刻度衡量）
+  - name: test_column_pivot_qr_rank_revealing
+    kind: A
+    what: 秩亏矩阵数值秩 3、近秩亏 4；|r₁₁| ≥ σ₁/√n 与体积界 ∏|r_jj| ≤ ∏σ_j
+    theory: 列主元判秩是启发式；可证明的只有主元单调、|r₁₁| 界与体积界
+  - name: test_qr_flop_accounting_matches_formula
+    kind: A
+    what: 运行时累加的运算量与闭式 2n²(m−n/3) 逐位相等（7 种形状）
+    theory: Householder QR 的运算量 = 2n²(m−n/3)
+  - name: test_qr_factor_shape_invariants
+    kind: B
+    what: 6 种形状的 R 上三角、perm 是置换、反射子长度递减且首个为 m、主元长度 min(m,n)
+    theory: 薄 QR 的容器结构：Q(m×k)、R(k×n)、k=min(m,n)，反射子按列压缩存储
+  - name: test_pivoted_qr_diagonal_is_nonincreasing
+    kind: B
+    what: 6 组矩阵的主元序列 |r_jj| 非增、剩余列范数非增、perm 合法
+    theory: 列主元每步取最大剩余列范数 ⟹ 主元序列单调不增
+  - name: test_back_substitution_and_orthogonality_measure
+    kind: B
+    what: 3 组上三角回代与 LAPACK 的相对差；orthogonality_measure 对 r=0 返回 0
+    theory: 回代 = 解上三角方程；正交性度量的退化情形必须有定义
+  - name: test_givens_rotation_stability
+    kind: B
+    what: 5 组极端 (a,b)（含 1e±150）的 c²+s²−1、c·a+s·b−r、以及 r 与 a 同号
+    theory: Givens 的稳定写法不溢出不抵消，且约定 r = sign(a)·hypot(a,b)
+  - name: test_column_norms_and_householder_matrix_are_consistent
+    kind: B
+    what: 列范数与 np.sum 对拍；H = I−2vvᵀ 对称、对合、把 x 映到 αe₁
+    theory: 反射矩阵的定义性质：H = Hᵀ = H⁻¹，Hx = αe₁
+
+  # ---- SVD ----
+  - name: test_singular_value_parity_with_reference
+    kind: A
+    what: 8 种形状 × 三种 SVD 实现与 LAPACK 的 σ 最大相对差
+    theory: 奇异值唯一确定；三种实现必须与 LAPACK 在 u‖A‖ 精度内一致
+  - name: test_svd_reconstruction_and_orthogonality
+    kind: A
+    what: 8 种形状的 ‖A−UΣVᵀ‖/(n·u·‖A‖) 与 U/V 的正交性缺陷
+    theory: SVD 重建与正交性都只到 c·n·u
+  - name: test_singular_vector_residuals_are_at_roundoff
+    kind: A
+    what: 每个 (σ_i,u_i,v_i) 的 ‖Av−σu‖ 与 ‖Aᵀu−σv‖ 相对 u‖A‖ 的最大值
+    theory: 奇异三元组的残差 ≤ c·n·u·‖A‖
+  - name: test_pseudoinverse_satisfies_moore_penrose
+    kind: A
+    what: 四个 Moore–Penrose 条件各自归一化后的最大值（8 种形状）
+    theory: AA⁺A=A、A⁺AA⁺=A⁺、(AA⁺)ᵀ=AA⁺、(A⁺A)ᵀ=A⁺A
+  - name: test_rank_and_condition_match_reference
+    kind: A
+    what: 8 种形状的数值秩与 κ₂ 和 LAPACK 的一致性
+    theory: 数值秩与条件数由谱加容差定义
+  - name: test_bidiagonalization_structure_and_error
+    kind: A
+    what: 6 种形状（含 m<n）的 A=U₁BV₁ᵀ 误差与"只有两条对角线非零"的结构误差
+    theory: 双对角化是正交等价；宽矩阵的规范形式是下双对角（orientation="lower"）
+  - name: test_svd_matches_closed_form_on_known_matrices
+    kind: A
+    what: 对角阵、秩一矩阵、旋转缩放矩阵的 σ 与闭式解逐位对比
+    theory: 已知矩阵的奇异值有闭式，SVD 必须复现它
+  - name: test_ill_conditioned_singular_value_accuracy
+    kind: A
+    what: κ=1e8/1e12/1e14 时 σ_min 与 LAPACK 的相对差
+    theory: 大 κ 下 σ_min 只能精确到 ~κu（相对），但正数性与单调性必须保持
+  - name: test_svd_sorting_and_sign_conventions
+    kind: B
+    what: sort_and_fix_signs 的返回顺序 (U,s,V)、σ 非增非负、每列最大值处为正
+    theory: 排序与符号约定：奇异值降序、奇异向量符号任意但要一致
+  - name: test_jacobi_off_diagonal_norm_decreases
+    kind: B
+    what: one-sided Jacobi 每轮后的 off(AᵀA) 单调下降（4 组矩阵）
+    theory: Jacobi 每步消掉一个非对角元，整体非对角范数单调不增
+  - name: test_truncated_solution_endpoints
+    kind: B
+    what: k=0 给出零解、k=n 给出最小二乘解（与 LAPACK 相对差 ≤ 1e-12）
+    theory: 截断 SVD 的两个端点必须退化到已知解
+
+  # ---- 最小二乘：κ² 与 κ ----
+  - name: test_error_slopes_are_two_and_one_on_log_log_axes
+    kind: A
+    what: 未饱和窗口内双对数斜率：normal 1.981、qr 0.974、svd 0.988（±0.1）
+    theory: 正规方程前向误差 ~ κ²u，QR/SVD ~ κu
+  - name: test_normal_equations_are_kappa_times_worse_than_qr
+    kind: A
+    what: 同一问题上 err_normal/err_qr = 1.9e4(κ=1e4) / 1.6e7(1e6) / 7.9e7(1e8)
+    theory: 比值 ~ κ（比值-κ 的斜率落在 1±0.3）
+  - name: test_three_solvers_match_lapack_each_on_its_own_scale
+    kind: A
+    what: 三条路线与 LAPACK 的相对差，各按自己的尺度（κ²u / κu）归一
+    theory: 同一个实测误差换尺子就差 κ 倍——尺子必须跟着理论走
+  - name: test_rank_deficient_problem_gives_minimum_norm_solution
+    kind: A
+    what: 秩亏相容问题：‖x_svd‖=3.569390=‖x_LAPACK‖ ≤ ‖x_任意解‖=3.575530，相对差 4e-16
+    theory: 截断 SVD 给出最小范数解
+  - name: test_discrepancy_principle_bounds_the_optimal_truncation
+    kind: A
+    what: 64 组配置上 k_opt ≤ k_偏差原则 + 1 全部成立（最大超出 0）
+    theory: 偏差原则 k=#{σ_i>δ‖b‖/‖x*‖} 是真实最优截断的上界（偏保守）
+  - name: test_equal_residual_ellipse_is_really_equal_residual
+    kind: A
+    what: 椭圆上一圈点残差的相对起伏：7.4e-13(κ=1e2)、1.6e-10(1e6)、1.4e-6(1e10)
+    theory: 等残差集上 ‖Ax−b‖ 恒等于 ρ，浮点里只能稳到 ~κu
+  - name: test_noise_fan_amplification_and_resolution_limit
+    kind: A
+    what: max‖δx‖/(κδ)=0.28；κ=1e10 时最短半轴从 0.28δ 涨到 8.7δ（κu≫δ）
+    theory: 放大 ≤ κδ；δ 必须远大于 κu，否则量到的是舍入不是噪声
+
+  # ---- B 类：不变量与帧契约 ----
+  - name: test_all_solvers_satisfy_normal_equations
+    kind: B
+    what: 三条路线 × 三种 κ 的 ‖Aᵀr̂‖/(n·u·‖A‖_F(‖b‖+‖A‖_F‖x̂‖)) 最大值 0.18
+    theory: 正交性是三条路线的共同性质，与 κ 无关
+  - name: test_truncation_monotonicity_invariants
+    kind: B
+    what: 三种谱形状下 ‖x_k‖ 非减、残差非增（各 3 条记录）
+    theory: 截断 SVD 的两条单调性
+  - name: test_lcurve_corner_is_interior
+    kind: B
+    what: 四种谱的 L 曲线拐点位置，且与 lcurve_corner 的返回值一致
+    theory: 拐点由 log-log 离散曲率最大处给出
+  - name: test_projection_operator_is_idempotent_and_symmetric
+    kind: B
+    what: max|P²−P|=1.1e-11、max|Pᵀ−P|=1.5e-11（κ=1e6）、max‖Pv‖/‖v‖ ≤ 1
+    theory: P=AA⁺ 是正交投影：幂等、对称、不放大
+  - name: test_projection_blend_endpoints
+    kind: B
+    what: t=0 时 (p_t,r_t)=(p,r_LS)、t=1 时 ‖r_t‖=0 且 p_t=b、任意 t 合成误差 ≤ 1e-15
+    theory: 动画端点必须干净（t 是"沿残差滑向 b"的进度）
+  - name: test_synthetic_problems_have_prescribed_condition
+    kind: B
+    what: 造题器的实测 κ 与目标 κ 的相对差（κ=1e10 时 4.6e-8）与四种谱的递减性
+    theory: 造题器必须真的造出指定 κ；σ_min 本身只精确到 ~κu
+  - name: test_all_chapter_frames_are_well_formed
+    kind: B
+    what: 4 个 viz × 各自时间采样点：requiredAux 有对应数组、meta 全标量、数组全有限
+    theory: 帧契约：必备对照量真的存在，且画出来的每个数都是有限实数
+  - name: test_condition_sweep_is_self_consistent
+    kind: B
+    what: 扫描网格的实测 κ 相对差 1.6e-8、11 条曲线全部有限且被地板 u 托住
+    theory: 扫描器自检：κ 实测与网格一致，误差地板就是 u
+  - name: test_cross_validation_curve_is_well_behaved
+    kind: B
+    what: GCV 曲线：残差随 λ 非减、解范数随 λ 非增、最小值在网格内部
+    theory: 交叉验证只依赖 (A,b)，不需要真解；但它的选择未必等于最优截断
+  - name: test_parameter_corners_build_and_encode
+    kind: B
+    what: 94 个参数角点帧（每参数上下界、全参数同时取上界、κ/exp_max 逐整数扫全区间、时间端点）
+    theory: 角点不崩、不产生 NaN/Inf：帧必须能 build_frame(strict=True) + pack_frame 编码
+  - name: test_singular_state_is_displayed_not_crashed
+    kind: B
+    what: κ=1e12 时正规方程无有限解 → meta 用 None/True 标出、strings 说明、帧照常编码；κ=1e3 上解与 pinv 一致
+    theory: 数值奇异是一个可显示的状态（1.2 章 unit_ball 同一套处理），不是崩溃，也不是假的 0
