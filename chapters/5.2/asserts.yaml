@@ -1,0 +1,221 @@
+chapter: "5.2"
+title: "反问题与正则化"
+required_kinds: [A, B, C]
+min_counts:
+  A: 48
+  B: 110
+  C: 9
+tests:
+  # ---------------- 内核：滤波因子与解 ----------------
+  - name: test_tikhonov_factors_match_analytic_formula_and_half_power
+    kind: A
+    what: '滤波因子对拍闭式 f_i = s_i^2/(s_i^2+lambda^2)，半功率点恰在 s_i = lambda；lambda = 0 退化为最小二乘'
+    theory: 'f_i = s_i^2/(s_i^2+lambda^2)；s_i = lambda => f = 1/2；lambda=0 时与 1.3 章 SVD 最小二乘解一致'
+  - name: test_tikhonov_solution_solves_regularized_normal_equations
+    kind: A
+    what: '谱公式与 LU 解正规方程 (A^T A + lambda^2 I) x = A^T b 对拍；量出 lambda -> 0 时 kappa^2 带来的丢位'
+    theory: '谱公式与正规方程两条独立路线必须同解；正规方程条件数 = kappa(A)^2'
+  - name: test_tsvd_matches_truncated_solution_and_boundary_failure
+    kind: A
+    what: 'TSVD 与 1.3 章 truncated_solution 逐位对拍，并量出 k = n（不截断）时的误差放大'
+    theory: 'TSVD = 前 k 项奇异展开；k 越多残差越小，但噪声放大使误差先降后升'
+  - name: test_landweber_spectral_equals_matrix_iteration
+    kind: A
+    what: 'Landweber 谱形式与真正的矩阵迭代对拍；omega = 2.2/sigma_1^2 时两边同时失效（stop=''diverged''）'
+    theory: 'f_i = 1-(1-omega s_i^2)^k；|1-omega sigma_1^2| > 1 时迭代发散、因子离开 [0,1]'
+  # ---------------- 内核：TV ----------------
+  - name: test_tv_two_point_closed_form
+    kind: A
+    what: '两点信号的 TV 去噪与闭式解（差值软阈值）逐位对拍；lambda >= |d| 时解退化成常数'
+    theory: 'min 0.5||x-b||^2 + lambda|x_2-x_1| 的解是 x = (m - soft(d,lambda), m + soft(d,lambda))'
+  - name: test_tv_is_not_a_spectral_filter
+    kind: A
+    what: 'TV 的探针读数随探针改变、非对角泄漏非零；lambda = 0 时探针退化为恒等（正对照）'
+    theory: 'TV 不是 SVD 基下的对角算子，没有滤波因子；只有逐点探针读数'
+  # ---------------- 内核：偏差-方差 ----------------
+  - name: test_bias_variance_montecarlo_matches_analytic
+    kind: A
+    what: '解析（用无噪的 b_exact）与 64 个噪声样本的蒙特卡洛总误差逐点比较（4 倍标准误刻度）'
+    theory: 'E||x_lambda - x*||^2 = ||E x_lambda - x*||^2 + tr(Cov x_lambda)'
+  - name: test_montecarlo_bias_is_polluted_by_sample_mean
+    kind: A
+    what: 'lambda -> 0 时"实测偏差^2"被样本均值自身的抽样误差污染，与解析偏差^2 相差 100 倍 mse_min 以上'
+    theory: '经验均值的抽样误差 ~ sigma/sqrt(N)，它进入偏差^2 后在小 lambda 段不可忽略'
+  # ---------------- 内核：噪声放大与 Picard ----------------
+  - name: test_noise_amplification_matches_analytic_bounds
+    kind: A
+    what: '噪声对齐 u_n 时误差等于 ||e||/(sigma_n ||x*||)；并量出 kappa=1e6、噪声 1e-3 时最坏放大 1028 倍、均方根 182 倍'
+    theory: '||A^+ e|| = ||e||/sigma_n（e 沿 u_n）；最坏放大 = ||e||sqrt(sum 1/s_i^2)/||x*||'
+  - name: test_picard_slopes_match_construction
+    kind: A
+    what: '无噪时 |u_i^T b| 对 sigma_i 的斜率等于造题指数，有噪时整段斜率变平而信号段仍然成立'
+    theory: 'alpha_i = sigma_i^decay => 斜率 = decay；噪声接管后整段斜率必然变平'
+  - name: test_picard_violated_cannot_be_regularized
+    kind: A
+    what: 'Picard 不成立时 oracle 落在网格左端、正则化收益 = 1.0 倍；成立时同一算子收益 12863 倍'
+    theory: 'Picard 条件不成立时正则化只能少错一点，不能恢复真解'
+  # ---------------- 内核：图像与 CT 算子 ----------------
+  - name: test_separable_blur_tikhonov_satisfies_normal_equations
+    kind: A
+    what: '二维 Tikhonov 解满足二维正规方程；二维条件数 = 一维条件数的平方（5911 -> 3.5e7）'
+    theory: '(B^T B) X (B^T B) + lambda^2 X = B^T Y B；可分离算子的奇异值是 s_i s_j'
+  - name: test_svd_fallback_catches_jacobi_stagnation
+    kind: A
+    what: '24x24 高斯模糊矩阵上单边 Jacobi 停滞（奇异值相对误差 2221 倍），factorize 体检后回退到双边法（1.9e-13）'
+    theory: '单边 Jacobi 在重奇异值上可能停滞；factorize 用收敛 + 重建 + 正交性三道体检决定是否回退'
+  - name: test_radon_matrix_normalization_and_rank
+    kind: A
+    what: 'CT 投影矩阵行和等于弦长、伴随恒等式逐位成立；8 条角度秩 80/100、14 条角度满秩'
+    theory: '射线驱动线积分归一化；rank(A) <= min(m,n)，角度不足时零空间非平凡'
+  # ---------------- 内核：B 类不变量 ----------------
+  - name: test_tikhonov_monotonicity_in_lambda
+    kind: B
+    what: '||x_lambda|| 随 lambda 不增、相对残差不减、有效自由度不增'
+    theory: 'Tikhonov 的谱滤波因子对 lambda 单调递减 => 三个量同向单调'
+  - name: test_tsvd_monotone_and_filter_range
+    kind: B
+    what: 'TSVD 残差随截断阶 k 单调不增；滤波因子只有 0/1 两档'
+    theory: '截断阶每加一项，残差平方减少 ||u_k^T b||^2；TSVD 因子是阶跃'
+  - name: test_filters_stay_in_unit_interval
+    kind: B
+    what: '收敛区内三种滤波因子都落在 [0,1]；有效自由度不超过模态数'
+    theory: '0 < omega < 2/sigma_1^2 时 1-(1-omega s^2)^k 单调升到 1；sum f_i <= n'
+  - name: test_landweber_semi_convergence_shape
+    kind: B
+    what: 'Landweber 误差先单调下降到 k* 再被噪声抬起（半收敛）'
+    theory: '迭代解 = 谱滤波；k 越大通过的低通带越宽，超过 k* 后噪声主导'
+  - name: test_tv_objective_is_minimal_among_candidates
+    kind: B
+    what: 'TV 解的目标函数不大于真解与零解处的目标函数'
+    theory: 'TV 解是凸目标函数的极小点，任何候选点的目标值都不低于它'
+  - name: test_phantom_and_blur_structure
+    kind: B
+    what: '幻影只有四档灰度；模糊矩阵行和为 1、对称（不改变平均亮度）'
+    theory: '归一化高斯卷积核：行和 = 1；对称核 => 矩阵对称'
+  # ---------------- 内核：C 类阈值与幂律 ----------------
+  - name: test_landweber_divergence_threshold_is_bisected
+    kind: C
+    what: '二分实测发散阈值：矩阵迭代（400 步预算）2.0715，谱判据 2.0000000000009（= 2/sigma_1^2）'
+    theory: '谱条件 max|1-omega sigma_i^2| > 1 等价于 omega > 2/sigma_1^2；实测阈值偏高是步数预算效应'
+  - name: test_variance_tail_slope_is_minus_four
+    kind: C
+    what: 'lambda >> sigma_1 时方差的对数-对数斜率实测 -3.9994'
+    theory: 'f_i ~ s_i^2/lambda^2 => Var ~ lambda^(-4)'
+  - name: test_unregularized_amplification_scales_like_kappa
+    kind: C
+    what: '最坏放大倍数对 kappa 的幂律指数实测 0.978（理论 1）；与主项 1/sigma_n 的比从 1.61 降到 1.14'
+    theory: '最坏放大 = ||e||/sigma_n * sqrt(1 + sigma_n^2 sum_{i<n} 1/s_i^2)'
+  # ---------------- L 曲线与判据：A 类 ----------------
+  - name: test_curvature_corner_matches_reference_chapter
+    kind: A
+    what: '曲率拐点下标与 1.3 章 lcurve_corner 在 5 组噪声水平下逐位一致'
+    theory: '同一离散曲率公式（相邻三点中心差分）=> 同一拐点'
+  - name: test_corner_criteria_disagree_measurably
+    kind: A
+    what: '三个拐点判据的 lambda 极差实测 33 - 681 倍，下标跨度 12 - 34'
+    theory: '曲率、两段直线交点、离散二阶差分是三个不同启发式，没有理由给出同一个数'
+  - name: test_two_line_fit_constraints_are_necessary
+    kind: A
+    what: '无约束两段直线拟合在 18 组里有 11 组跳到别的答案（最大偏 126 倍）；加约束后回到内部'
+    theory: '无约束时段越短残差越小 => 切点漂移；约束 = 每段至少 25% 的点 + 交点在包围盒内'
+  - name: test_gcv_matches_reference_chapter
+    kind: A
+    what: 'GCV 曲线与 1.3 章 cross_validation_curve 的最大相对差 3.5e-12，最小点位置一致'
+    theory: 'G(lambda) = ||A x_lambda - b||^2 / (m - sum f_i)^2'
+  - name: test_gcv_argmin_and_discrepancy_target
+    kind: A
+    what: 'lambda_GCV 就是 GCV 曲线的最小点；偏差原则处残差/噪声 = 0.9855（插值误差 1.5%）'
+    theory: 'lambda_GCV = argmin G；偏差原则 ||A x_lambda - b|| = tau ||e||'
+  - name: test_oracle_minimizes_error_and_inflation_ordering
+    kind: A
+    what: 'oracle 是误差曲线最小点；四判据放大倍数 1.000 / 1.159 / 3.791 / 21.478（不正则化 12863）'
+    theory: 'lambda_oracle = argmin ||x_lambda - x*||；判据越依赖间接信息越偏向欠正则化一端'
+  - name: test_both_failure_modes_are_inside_the_grid
+    kind: A
+    what: '网格左端误差随 kappa 从 0.124 涨到 967；右端误差一律 0.992（解被压成 0）'
+    theory: '左端：噪声放大；右端：x_lambda -> 0 => 相对误差 -> ||x*||'
+  - name: test_lcurve_coordinates_match_direct_solutions
+    kind: A
+    what: 'L 曲线坐标与逐点独立解 Tikhonov 的结果逐位一致；current_solution 与 tikhonov 一致'
+    theory: 'L 曲线的每个点就是该 lambda 处解的范数与残差'
+  # ---------------- L 曲线与判据：B 类 ----------------
+  - name: test_corner_indices_are_interior
+    kind: B
+    what: '三个受约束的拐点判据都落在网格内部（1..k-2）'
+    theory: '受约束的两段拟合交点落在包围盒内 => 下标不贴端点'
+  - name: test_criterion_output_finite_and_nan_policy
+    kind: B
+    what: '有效判据读数全有限；无噪时偏差原则没有交点 -> NaN（不是 0）'
+    theory: '无交点时返回 NaN 并由调用方写成 null；不允许用 0 冒充'
+  - name: test_lcurve_monotone_coordinates
+    kind: B
+    what: 'L 曲线两个坐标随 lambda 单调；曲率数组全有限'
+    theory: '||x_lambda|| 不增、残差不减'
+  - name: test_lambda_grid_span
+    kind: B
+    what: 'lambda 网格覆盖 [sigma_n/10, 10 sigma_1] 且单调递增'
+    theory: '网格必须同时覆盖「噪声接管」与「解被压平」两端'
+  # ---------------- L 曲线与判据：C 类 ----------------
+  - name: test_lcurve_penalty_threshold_in_noise_level
+    kind: C
+    what: '二分找 L 曲线代价降到 10 倍以下的噪声水平（实测约 3e-3），代价随噪声下降从 6.5 涨到 212 倍'
+    theory: '最优 lambda 随噪声下降，L 曲线拐点滞后 => 噪声越小拐点代价越大'
+  - name: test_gcv_lambda_scales_with_noise
+    kind: C
+    what: 'lambda_GCV 对噪声水平的幂律指数 0.4667（oracle 0.4800）'
+    theory: '几何谱下 lambda_GCV ~ noise^(1/2)'
+  - name: test_left_edge_error_scales_with_kappa
+    kind: C
+    what: '网格左端误差对 kappa 的幂律指数 0.9733'
+    theory: '不做正则化时误差 ~ kappa'
+  # ---------------- 帧层：A 类 ----------------
+  - name: test_all_vizzes_build_and_pack
+    kind: A
+    what: '四个可视化在默认参数下都能构建、数组全有限、meta/strings 可 JSON 序列化；登记各自耗时'
+    theory: 'pack_frame 要求 meta 只含 number/bool/null、数组全有限'
+  - name: test_param_corners_and_time_ends_build
+    kind: A
+    what: '参数 min/max 与 t 端点共 67 帧全部通过 pack_frame，非有限 meta 数为 0'
+    theory: '奇异状态必须变成可显示的值（None + strings 说明），不能是 NaN/Inf'
+  - name: test_lcurve_frame_meta_matches_core
+    kind: A
+    what: 'L 曲线帧的 8 个关键 meta 与内核算出的值相对差 0'
+    theory: '帧只是搬运工，meta 必须逐位等于内核函数返回值'
+  - name: test_filter_frame_winner_matches_core
+    kind: A
+    what: '同自由度（dof = k_TSVD）下三方误差与 strings.winner 一致；两条误差-自由度曲线规模正确'
+    theory: '同样自由度是三种方法唯一公平的比较轴'
+  - name: test_divergence_mask_in_filter_frame
+    kind: A
+    what: 'omega_rel=2.5 的帧里 max|f| = 1.9e5、掩码出现 0；omega_rel=1.0 掩码全 1'
+    theory: '占位值三件套：夹住的值 + 掩码 + 文案'
+  - name: test_ct_rank_deficiency_and_error_floor
+    kind: A
+    what: 'CT 8 条角度零空间 20、噪声 1e-8 时误差仍 0.158；16 条角度零空间 0、误差 4e-8'
+    theory: 'm < n 必有零空间；零空间分量无法从数据恢复 => 误差地板'
+  - name: test_bias_variance_frame_curves
+    kind: A
+    what: '帧内解析/蒙特卡洛曲线最大相对差 0.099；variance_slope_high = -3.9993；两端误差 1.53 / 1.27'
+    theory: '偏差^2 + 方差 = 总误差；lambda -> 0 与 lambda -> 无穷各自是一种失败'
+  - name: test_floor_and_null_policy
+    kind: A
+    what: '对数轴曲线最小值 >= 1e-17 且 floor_note 存在；Picard 掩码 15/20 与 meta 一致；null_note 存在'
+    theory: '对数轴的 0 用地板 + 掩码 + 文案；null 表示没测到而不是 0'
+  # ---------------- 帧层：B 类 ----------------
+  - name: test_required_aux_present
+    kind: B
+    what: '每个 viz 的 requiredAux 名字都在帧数组里存在'
+    theory: 'MANIFEST 声明的辅助量与帧数组同名'
+  - name: test_manifest_text_contract
+    kind: B
+    what: '每个 viz 的 theory 至少 1 条、pitfalls 超过 60 字且含数字、criticalNote 非空'
+    theory: '文案契约：pitfalls 必须带实测数字，critical 必须解释临界含义'
+  - name: test_critical_values_inside_slider_range
+    kind: B
+    what: '所有 critical 值都落在参数 [min, max] 内'
+    theory: '临界值必须拖得到'
+  # ---------------- 帧层：C 类 ----------------
+  - name: test_worst_case_frame_time_budget
+    kind: C
+    what: '最贵参数组合下单帧耗时：CT+TV 150 步 0.56s、蒙特卡洛 256 次 0.26s'
+    theory: '交互帧预算 5s'

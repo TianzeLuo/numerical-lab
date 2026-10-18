@@ -1,0 +1,401 @@
+% 5.2 章 · 反问题与正则化
+% 这一章的笔记要把"解出来"拆成四件互不相同的事：
+%   1) 算子本身丢了什么信息（奇异值衰减、零空间、离散 Picard 条件）；
+%   2) 用什么滤波器把剩下的信息取出来（Tikhonov / TSVD / Landweber / TV）；
+%   3) 正则参数按什么判据选，以及不同判据之间差多少（oracle / L 曲线 / GCV / 偏差原则）；
+%   4) 正则化的代价：偏差与方差此消彼长，两侧各是一种失败方式。
+% 所有结论都配一条带实测数字的断言，附表由 tools/build_book.py 生成后 \input 进来。
+
+\numlabchapter{反问题与正则化}{5.2}
+
+\section{这一章要解决什么}
+
+给定 $A\in\mathbb{R}^{m\times n}$ 与带噪数据 $b=Ax^\star+e$，求 $x^\star$。
+如果 $A$ 的奇异值衰减得快（或直接秩亏），"最小二乘解" $x_{\mathrm{ls}}=A^{+}b$ 会被噪声吃光。
+本章不把 Tikhonov、TSVD、Landweber、TV 当成四张要背的公式，而是把下面五句话算清楚：
+
+\begin{enumerate}
+  \item \textbf{不做正则化会错多少？} 误差被放大 $\lVert e\rVert/\sigma_n$；$\kappa=10^6$、
+        相对噪声 $10^{-3}$ 时最坏放大实测 $1028$ 倍、均方根 $182$ 倍（定理~\ref{thm:amplify}）。
+  \item \textbf{什么时候"截断"这件事是有意义的？} 离散 Picard 条件：$\lvert u_i^{\mathsf T}b\rvert$
+        必须比 $\sigma_i$ 衰减得更快。$\mathrm{decay}=2$ 的无噪算例上斜率实测 $2.000000$，
+        噪声 $10^{-3}$ 时整段斜率被压到 $0.564$，而\emph{信号段}仍是 $1.997$
+        （定理~\ref{thm:picard}）。
+  \item \textbf{"最优 $\lambda$"是按哪个判据最优？} $\kappa=10^6$、噪声 $10^{-3}$ 时，
+        oracle $1.585\times10^{-2}$、L 曲线 $7.36\times10^{-4}$、GCV $7.36\times10^{-2}$、
+        偏差原则 $1.34\times10^{-2}$——误差放大分别是 $1.0$、$21.5$、$3.79$、$1.16$ 倍，
+        完全不正则化是 $12863$ 倍（定理~\ref{thm:discrepancy}）。
+  \item \textbf{三种滤波器可以公平比较吗？} 只能在同一条\emph{有效自由度}
+        $\sum_i f_i$ 轴上比：自由度对齐到 $8$ 时 TSVD $3.50\times10^{-3}$、
+        Tikhonov $2.83\times10^{-3}$、Landweber $9.24\times10^{-2}$
+        （定理~\ref{thm:landweber}）。
+  \item \textbf{正则化一定更准吗？} 不是。$\lambda\to0$ 时噪声接管（实测误差 $1.53$），
+        $\lambda\to\infty$ 时解被压成 $0$（实测误差 $1.27$，回到 $\lVert x^\star\rVert$），
+        中间才有最小值 $0.0199$（定理~\ref{thm:biasvar}）。
+\end{enumerate}
+
+记号：$A=U\operatorname{diag}(\sigma_1,\dots,\sigma_r)V^{\mathsf T}$ 是 1.3 章的
+thin SVD（$U\in\mathbb{R}^{m\times r}$、$V\in\mathbb{R}^{n\times r}$、$r=\min(m,n)$，
+$\sigma_1\ge\dots\ge\sigma_r>0$），$\kappa=\sigma_1/\sigma_r$；
+$e$ 是噪声、$\delta=\lVert e\rVert$；$\alpha_i=u_i^{\mathsf T}b$；
+$f_i$ 是滤波因子；$\operatorname{dof}(\lambda)=\sum_i f_i$ 是有效自由度；
+$u=\tfrac12\varepsilon_{\text{mach}}\approx1.11\times10^{-16}$。
+
+\section{病态性与噪声放大}
+
+\begin{theorem}[最小二乘解的噪声放大与等号条件]
+\label{thm:amplify}
+设 $A$ 满列秩，$x_{\mathrm{ls}}=A^{+}b$，则
+\[
+  \lVert x_{\mathrm{ls}}-x^\star\rVert_2=\lVert A^{+}e\rVert_2
+  \le \frac{\lVert e\rVert_2}{\sigma_r},
+\]
+且等号成立当且仅当 $e$ 落在 $u_r$ 张成的一维子空间上。
+若 $e$ 的各分量独立同分布、方差为 $\delta^2/m$，则
+\[
+  \mathbb{E}\lVert A^{+}e\rVert_2^2=\frac{\delta^2}{m}\sum_{i=1}^{r}\frac{1}{\sigma_i^2},
+  \qquad
+  \frac{\text{最坏放大}}{\text{均方根放大}}
+  =\frac{\delta/\sigma_r}{\delta\sqrt{\sum_i\sigma_i^{-2}}/\sqrt{m}}
+  =\frac{\sqrt{m}}{\sigma_r\sqrt{\sum_i\sigma_i^{-2}}}\ \le\ \sqrt{m},
+\]
+最后的不等号在 $\sigma_r^{-2}$ 主导求和时取到等号（几何衰减谱、$\kappa$ 大时就是这种情形）。
+\end{theorem}
+
+\begin{proof}
+把 $e$ 在 $\{u_i\}$ 下展开：$e=\sum_i (u_i^{\mathsf T}e)u_i+w$，其中 $w\perp\operatorname{range}(U)$。
+由 $A^{+}=\sum_i \sigma_i^{-1}v_iu_i^{\mathsf T}$ 得
+$A^{+}e=\sum_i \sigma_i^{-1}(u_i^{\mathsf T}e)v_i$，而 $A^{+}w=0$。
+于是 $\lVert A^{+}e\rVert_2^2=\sum_i \sigma_i^{-2}(u_i^{\mathsf T}e)^2$。
+把每一项放缩为 $\sigma_i^{-2}(u_i^{\mathsf T}e)^2\le\sigma_r^{-2}(u_i^{\mathsf T}e)^2$ 并求和，
+再用 $\sum_i(u_i^{\mathsf T}e)^2\le\lVert e\rVert^2$（$w$ 不贡献）即得最坏界；
+取 $e=\lVert e\rVert u_r$ 时 $\sum_i\sigma_i^{-2}(u_i^{\mathsf T}e)^2=\lVert e\rVert^2\sigma_r^{-2}$，等号达成。
+期望式由 $\mathbb{E}(u_i^{\mathsf T}e)^2=\delta^2/m$（正交不变性）直接得到。
+\end{proof}
+
+实测（$\kappa=10^6$、$\delta/\lVert b_{\text{exact}}\rVert=10^{-3}$、$32\times20$）：
+噪声对齐 $u_r$ 时相对误差 $900.363172$，解析值 $\delta/(\sigma_r\lVert x^\star\rVert)$ 也是
+$900.363172$（相对差 $7.9\times10^{-12}$）；最坏放大 $1028.4$、均方根 $181.8$，
+两者之比 $5.66=\sqrt{m}$ 的 $1.0$ 倍——因为这时 $\sum_i\sigma_i^{-2}$ 由 $\sigma_r^{-2}$ 主导。
+
+\begin{theorem}[离散 Picard 条件与截断的必要性]
+\label{thm:picard}
+若存在常数 $C>0$、指数 $p>1$ 使 $\lvert u_i^{\mathsf T}b_{\text{exact}}\rvert\le C\sigma_i^{p}$，
+则真解系数 $\lvert v_i^{\mathsf T}x^\star\rvert=\lvert u_i^{\mathsf T}b_{\text{exact}}\rvert/\sigma_i
+\le C\sigma_i^{p-1}$ 随 $i$ 递减；反之若 $p<1$，系数随 $i$ \emph{增长}，
+此时 $x^\star$ 的范数中来自小奇异值方向的分量占主导。
+\end{theorem}
+
+\begin{proof}
+由 $b_{\text{exact}}=Ax^\star=U\operatorname{diag}(\sigma)V^{\mathsf T}x^\star$ 得
+$u_i^{\mathsf T}b_{\text{exact}}=\sigma_i(v_i^{\mathsf T}x^\star)$，即
+$v_i^{\mathsf T}x^\star=\sigma_i^{-1}(u_i^{\mathsf T}b_{\text{exact}})$。
+把假设代入即得 $\lvert v_i^{\mathsf T}x^\star\rvert\le C\sigma_i^{p-1}$；
+$p<1$ 时 $\sigma_i^{p-1}=\sigma_i^{-(1-p)}$ 随 $i$ 增大而增大。
+在双对数坐标下，"系数对 $\sigma_i$ 的斜率 $p$"与"真解系数对 $\sigma_i$ 的斜率 $p-1$"
+是同一个事实的两种写法：$p>1$ 等价于真解系数递减。
+\end{proof}
+
+实测：造题时取 $\alpha_i=\sigma_i^{2}$，无噪时整段斜率 $2.000000$、比值斜率 $1.000000$、
+相关系数 $1.000000$；噪声 $10^{-3}$ 时整段斜率 $0.564$、信号段（前 $5$ 个模态）$1.997$，
+$20$ 个模态里 $15$ 个的 $\lvert u_i^{\mathsf T}b\rvert$ 已经落到噪声之下。
+把造题指数改成 $0.5$（Picard 不成立）后，真误差最小点移到 $\lambda$ 网格左端，
+"最优正则化解"与完全不正则化误差相同（放大 $1.000$ 倍）。
+
+\section{Tikhonov 与谱滤波}
+
+\begin{theorem}[Tikhonov 解的滤波因子形式]
+\label{thm:tikhonov}
+$A$ 的 thin SVD 如上。对任意 $\lambda>0$，
+\[
+  x_\lambda=\arg\min_x\ \lVert Ax-b\rVert_2^2+\lambda^2\lVert x\rVert_2^2
+  =\sum_{i=1}^{r} f_i(\lambda)\,\frac{u_i^{\mathsf T}b}{\sigma_i}\,v_i,
+  \qquad f_i(\lambda)=\frac{\sigma_i^{2}}{\sigma_i^{2}+\lambda^{2}} .
+\]
+并且：(i) $0<f_i<1$，$f_i$ 对 $\lambda$ 严格递减；(ii) $f_i=1/2$ 当且仅当 $\sigma_i=\lambda$；
+(iii) $\lVert x_\lambda\rVert$ 对 $\lambda$ 不增，$\lVert Ax_\lambda-b\rVert$ 对 $\lambda$ 不减，
+$\operatorname{dof}(\lambda)=\sum_if_i$ 对 $\lambda$ 不增且取值于 $(0,r)$。
+\end{theorem}
+
+\begin{proof}
+目标函数对 $x$ 求梯度并令其为零：$(A^{\mathsf T}A+\lambda^2I)x=A^{\mathsf T}b$。
+代入 $A=U\Sigma V^{\mathsf T}$ 得 $V(\Sigma^2+\lambda^2I)V^{\mathsf T}x=V\Sigma U^{\mathsf T}b$，
+即 $x_\lambda=V(\Sigma^2+\lambda^2I)^{-1}\Sigma U^{\mathsf T}b
+=\sum_i\frac{\sigma_i}{\sigma_i^2+\lambda^2}(u_i^{\mathsf T}b)v_i$，
+把 $\sigma_i/(\sigma_i^2+\lambda^2)$ 写成 $\frac{1}{\sigma_i}\cdot\frac{\sigma_i^2}{\sigma_i^2+\lambda^2}$
+即得滤波因子形式。(i) 与 (ii) 是对 $\lambda$ 求导与令 $f=1/2$ 的直接结果。
+(iii)：$\lVert x_\lambda\rVert^2=\sum_i f_i^2\alpha_i^2/\sigma_i^2$，
+逐项 $\mathrm{d}f_i/\mathrm{d}\lambda<0$ 说明它不增；
+残差 $\lVert Ax_\lambda-b\rVert^2=\sum_i(1-f_i)^2\alpha_i^2+\lVert P_\perp b\rVert^2$，
+$1-f_i=\lambda^2/(\sigma_i^2+\lambda^2)$ 对 $\lambda$ 递增；
+自由度是单调递减函数之和。
+\end{proof}
+
+实测：滤波因子与闭式的最大偏差 $0.0$，$f(\sigma=\lambda)=0.500000000000$；
+$\lambda=0$ 时与 1.3 章 \texttt{least\_squares\_svd} 的解相对差 $2.8\times10^{-11}$
+（$\kappa=10^6$ 下不得不付出的抵消误差）；
+谱公式与用 LU 解正规方程 $(A^{\mathsf T}A+\lambda^2I)x=A^{\mathsf T}b$ 的结果，
+在 $\lambda=10^{-2}$ 时相对差 $2.0\times10^{-12}$，而 $\lambda=10^{-6}$ 时退化到
+$3.2\times10^{-6}$（$\kappa(A)^2=10^{12}$，正规方程路线自己丢了 $6$ 位）。
+
+\begin{theorem}[偏差-方差分解与方差的两段幂律]
+\label{thm:biasvar}
+设 $b=b_{\text{exact}}+e$，$\mathbb{E}e=0$、$\mathbb{E}ee^{\mathsf T}=(\delta^2/m)I_m$，
+$x_\lambda$ 为 Tikhonov 解，则
+\[
+  \mathbb{E}\lVert x_\lambda-x^\star\rVert_2^2
+  =\underbrace{\sum_{i=1}^{r}(f_i-1)^2\frac{\alpha_i^2}{\sigma_i^2}}_{\text{偏差}^2}
+  +\underbrace{\frac{\delta^2}{m}\sum_{i=1}^{r}\frac{f_i^2}{\sigma_i^2}}_{\text{方差}} .
+\]
+当 $\lambda\ge10\sigma_1$ 时方差满足 $\text{方差}=\Theta(\lambda^{-4})$；
+当 $\lambda\le\sigma_r$ 时方差趋于常数 $\frac{\delta^2}{m}\sum_i\sigma_i^{-2}$。
+\end{theorem}
+
+\begin{proof}
+$b$ 只通过 $\alpha_i=u_i^{\mathsf T}b$ 进入解，而 $\mathbb{E}\alpha_i=u_i^{\mathsf T}b_{\text{exact}}$、
+$\operatorname{Var}(\alpha_i)=\delta^2/m$。于是
+$\mathbb{E}x_\lambda=\sum_i f_i\frac{\mathbb{E}\alpha_i}{\sigma_i}v_i$，偏差部分为
+$\sum_i(f_i-1)\frac{u_i^{\mathsf T}b_{\text{exact}}}{\sigma_i}v_i$，取范数平方即得第一项。
+方差部分：各 $\alpha_i$ 独立，$\operatorname{Var}(x_\lambda)=\sum_i\frac{f_i^2}{\sigma_i^2}\operatorname{Var}(\alpha_i)v_iv_i^{\mathsf T}$，
+取迹得 $\frac{\delta^2}{m}\sum_if_i^2/\sigma_i^2$。渐近式：$\lambda\gg\sigma_1$ 时
+$f_i\approx\sigma_i^2/\lambda^2$，故 $f_i/\sigma_i\approx\sigma_i/\lambda^2$，
+方差 $\approx\frac{\delta^2}{m\lambda^4}\sum_i\sigma_i^2=\Theta(\lambda^{-4})$；
+$\lambda\ll\sigma_r$ 时 $f_i\approx1$，方差 $\to\frac{\delta^2}{m}\sum_i\sigma_i^{-2}$。
+\end{proof}
+
+实测（$\kappa=10^4$、噪声 $10^{-3}$）：解析与 $64$ 个样本的蒙特卡洛总误差最大相对差
+$0.099$、方差 $0.118$（$1/\sqrt{64}=0.125$ 量级），偏差$^2+$方差$=$总误差逐位成立；
+大方差端的对数-对数斜率 $-3.9993$（理论 $-4$）；$\lambda$ 两端误差 $1.53$ 与 $1.27$，
+中间最小值 $0.0199$。注意蒙特卡洛的\emph{偏差}在小 $\lambda$ 端被样本均值污染：
+解析偏差$^2=6.4\times10^{-9}$、实测 $4.35\times10^{-2}$（相差 $106.5$ 倍 ${\rm mse}_{\min}$），
+所以偏差必须用无噪的 $b_{\text{exact}}$ 算。
+
+\section{L 曲线、GCV 与偏差原则}
+
+\begin{theorem}[残差对 $\lambda$ 的单调性与偏差原则交点的唯一性]
+\label{thm:discrepancy}
+记 $\rho(\lambda)=\lVert Ax_\lambda-b\rVert_2$。则 $\rho$ 在 $(0,\infty)$ 上连续、
+严格递增，且
+\[
+  \rho(0+)=\lVert P_\perp b\rVert_2,\qquad \rho(\infty)=\lVert b\rVert_2 .
+\]
+因此若 $\lVert P_\perp b\rVert_2<\tau\delta<\lVert b\rVert_2$（$\tau\ge1$），
+方程 $\rho(\lambda)=\tau\delta$ 在 $(0,\infty)$ 上有且只有一个解。
+\end{theorem}
+
+\begin{proof}
+由定理~\ref{thm:tikhonov} 的推导，
+$\rho(\lambda)^2=\lVert P_\perp b\rVert^2+\sum_i\bigl(\frac{\lambda^2}{\sigma_i^2+\lambda^2}\bigr)^2\alpha_i^2$。
+每一项 $\bigl(\lambda^2/(\sigma_i^2+\lambda^2)\bigr)^2\alpha_i^2$ 关于 $\lambda$ 严格递增
+（$\lambda^2/(\sigma_i^2+\lambda^2)=1-\sigma_i^2/(\sigma_i^2+\lambda^2)$，后一项严格递减），
+有限个严格递增函数之和仍严格递增，故 $\rho$ 严格递增、连续。
+$\lambda\to0$ 时每项 $\to0$，$\lambda\to\infty$ 时每项 $\to\alpha_i^2$，
+于是 $\rho(\infty)^2=\lVert P_\perp b\rVert^2+\sum_i\alpha_i^2=\lVert b\rVert^2$。
+严格单调连续函数的像是一个区间，$(\rho(0+),\rho(\infty))$ 中的每个值恰好取一次。
+\end{proof}
+
+实测：$\lambda_{\text{disc}}=1.34\times10^{-2}$ 处
+$\rho/\delta=0.985457$（对数插值带来的 $1.5\%$ 偏差，交点落在两个网格点之间）。
+注意 $m=32>r=20$ 时 $\lVert P_\perp b\rVert\approx\sqrt{1-r/m}\,\delta=0.61\,\delta$
+（$P_\perp b=P_\perp e$），它**低于**目标 $\tau\delta$，所以交点存在；
+但当 $\delta$ 小到与拟合/舍入地板同量级时，$\rho$ 的地板已经高于 $\tau\delta$，
+方程在数值上无解——帧里这时把 $\lambda_{\text{disc}}$ 写成 \texttt{null} 并在 \texttt{strings} 里说明。
+
+\begin{theorem}[GCV 函数的分母与它为何需要 $m>r$]
+\label{thm:gcv}
+\[
+  G(\lambda)=\frac{\lVert Ax_\lambda-b\rVert_2^2}{\bigl(m-\operatorname{dof}(\lambda)\bigr)^2}
+\]
+在 $\lambda\to0$ 时趋于 $\lVert P_\perp b\rVert^2/(m-r)^2$（$m>r$ 时有限）；
+若 $m=r$ 则分母趋于 $0$、$G$ 发散，$\lambda=0$ 成为一个"无穷小的分母"造出来的伪极小点。
+\end{theorem}
+
+\begin{proof}
+由定理~\ref{thm:tikhonov}，$\operatorname{dof}(\lambda)=\sum_if_i\to r$（$\lambda\to0$），
+故分母 $\to(m-r)^2$；分子 $\to\lVert P_\perp b\rVert^2$（同上）。
+$m=r$ 时分母 $\to0$ 而分子 $\to0$（若 $b\in\operatorname{range}(A)$），比值的行为由
+两者的阶数决定，实现里必须给分母一个地板，并且**不**把这一段当成有限的最小值。
+\end{proof}
+
+实测：$G$ 与 1.3 章 \texttt{cross\_validation\_curve} 的最大相对差 $3.5\times10^{-12}$，
+最小值位置一致；$\lambda_{\mathrm{GCV}}$ 对五个噪声档位（$10^{-2}\dots10^{-6}$）的
+幂律指数 $0.4667$，oracle 是 $0.4800$——两者都接近 $1/2$，GCV 的滞后量就是它们之差。
+
+\section{TSVD、Landweber 与早停}
+
+\begin{theorem}[Landweber 迭代的谱形式与收敛充要条件]
+\label{thm:landweber}
+迭代 $x_{k+1}=x_k+\omega A^{\mathsf T}(b-Ax_k)$，$x_0=0$。则
+\[
+  x_k=\sum_{i=1}^{r}\bigl(1-(1-\omega\sigma_i^2)^k\bigr)\frac{u_i^{\mathsf T}b}{\sigma_i}v_i ,
+\]
+并且 $\{x_k\}$ 对任意初值收敛的充要条件是
+\[
+  0<\omega<\frac{2}{\sigma_1^2}.
+\]
+此时滤波因子 $f_i^{(k)}=1-(1-\omega\sigma_i^2)^k$ 对 $k$ 单调不减、取值于 $[0,1)$；
+$\omega=1/\sigma_1^2$ 时最慢模态一步压到 $0$。
+\end{theorem}
+
+\begin{proof}
+误差递推：$x_{k+1}-x^\star=(I-\omega A^{\mathsf T}A)(x_k-x^\star)+\omega A^{\mathsf T}e$
+的齐次部分在 SVD 基下解耦，$V^{\mathsf T}(x_{k+1}-x_k)$ 的第 $i$ 个分量乘
+$(1-\omega\sigma_i^2)$，归纳得滤波因子形式。
+收敛性由 $\max_i\lvert1-\omega\sigma_i^2\rvert<1$ 给出，即
+$-1<1-\omega\sigma_1^2$（最坏的是最大奇异值）与 $1-\omega\sigma_r^2<1$（$\omega>0$），
+合并即 $0<\omega<2/\sigma_1^2$。
+单调性：$\omega\sigma_i^2\in(0,2)$ 时 $\lvert1-\omega\sigma_i^2\rvert<1$，故
+$(1-\omega\sigma_i^2)^k$ 的绝对值随 $k$ 递减且符号固定，$f_i^{(k)}$ 单调升向 $1$。
+\end{proof}
+
+实测：谱形式与真正的矩阵迭代（$A$ 与 $A^{\mathsf T}$ 只作为算子给出）在三组
+$(\omega_{\text{rel}},k)$ 上相对差 $2.6\times10^{-13}$ 以内；
+$\omega_{\text{rel}}=2.2$ 时矩阵迭代 \texttt{stop='diverged'}，滤波因子最大绝对值 $6.9\times10^{15}$。
+二分实测发散阈值：矩阵迭代（$400$ 步预算）$2.0715$，谱判据
+$2.0000000000009$——前者偏高 $3.6\%$，因为 $\lvert1-\omega\sigma_1^2\rvert$ 刚过 $1$ 时
+增长因子只有 $1+\epsilon$，$400$ 步涨不出可观范数。**两条阈值都要报**：只有谱判据那条
+才等于 $2/\sigma_1^2$。
+
+\medskip
+
+TSVD 的滤波因子是阶跃 $f_i=\mathbf{1}\{i\le k\}$，自由度恰好是 $k$；
+Tikhonov 的过渡带宽度约为一个 $\lambda$ 的十倍程；Landweber 的过渡带由 $k$ 控制。
+把三条误差曲线画在同一条自由度轴上（$n=20$、$\kappa=10^6$、噪声 $10^{-4}$、
+对齐到 $k=8$）：TSVD $3.50\times10^{-3}$、Tikhonov $2.83\times10^{-3}$、
+Landweber $9.24\times10^{-2}$。**形状不同不等于精度不同**，而"哪个更准"必须实测。
+
+\section{全变差}
+
+\begin{theorem}[两点信号的 TV 去噪闭式解]
+\label{thm:tv}
+设 $b\in\mathbb{R}^2$，$m=\tfrac12(b_1+b_2)$、$d=\tfrac12(b_2-b_1)$。则
+\[
+  \operatorname*{arg\,min}_{x\in\mathbb{R}^2}\ \tfrac12\lVert x-b\rVert_2^2+\lambda\lvert x_2-x_1\rvert
+  =\bigl(m-\operatorname{soft}(d,\lambda),\;m+\operatorname{soft}(d,\lambda)\bigr),
+  \qquad \operatorname{soft}(d,\lambda)=\operatorname{sign}(d)\max(\lvert d\rvert-\lambda,0).
+\]
+特别地 $\lambda=0$ 时 $x=b$；$\lambda\ge\lvert d\rvert$ 时 $x_1=x_2=m$。
+\end{theorem}
+
+\begin{proof}
+把变量换成 $(m,d)$ 坐标：$x_1=m-d$、$x_2=m+d$，则
+$\tfrac12\lVert x-b\rVert^2=\tfrac12\bigl((m-b_1+d)^2+(m-b_2-d)^2\bigr)$，
+对 $m$ 求导得 $m=\tfrac12(b_1+b_2)$（$m$ 与 $d$ 解耦）。
+剩下关于 $d$ 的一维问题 $\min_d (d-d_0)^2+2\lambda\lvert d\rvert$（$d_0=\tfrac12(b_2-b_1)$），
+其最优性条件是 $0\in 2(d-d_0)+2\lambda\partial\lvert d\rvert$：
+$d>0$ 时 $d=d_0-\lambda$，$d<0$ 时 $d=d_0+\lambda$，$d=0$ 时要求 $\lvert d_0\rvert\le\lambda$。
+合并即软阈值公式。
+\end{proof}
+
+实测：$\lambda=0,0.05,0.3,0.75,2$ 五档上与闭式解的最大逐点偏差 $1.1\times10^{-16}$；
+$\lambda\ge\lvert d\rvert$ 时两点差 $1.1\times10^{-16}$。
+TV 在 SVD 基下**不是**对角算子：用 $b=u_i$ 探针测出的"有效因子"换一个探针
+（$b=(u_1+u_n)/\sqrt2$）就改变 $0.959$，非对角泄漏 $0.144$；
+$\lambda=0$ 的正对照是探针读数与 $1$ 的偏差 $5.4\times10^{-14}$。
+
+\section{图像与投影算子}
+
+\begin{theorem}[可分离算子的奇异值]
+\label{thm:separable}
+设二维算子 $\mathcal{A}(X)=BX B^{\mathsf T}$，$B\in\mathbb{R}^{n\times n}$ 的 SVD 为
+$B=U\operatorname{diag}(s)V^{\mathsf T}$。则
+\[
+  \mathcal{A}=(U\otimes U)\operatorname{diag}(s_is_j)(V\otimes V)^{\mathsf T},
+\]
+即二维算子的奇异值是全部乘积 $s_is_j$（$i,j=1,\dots,n$），
+并且 $\kappa_{2D}=\kappa_{1D}^2$、$\operatorname{rank}(\mathcal{A})=\operatorname{rank}(B)^2$。
+\end{theorem}
+
+\begin{proof}
+把 $X$ 按列拉直，$\operatorname{vec}(BX B^{\mathsf T})=(B\otimes B)\operatorname{vec}(X)$。
+Kronecker 积的 SVD 满足 $(B\otimes B)=(U\otimes U)(\operatorname{diag}(s)\otimes\operatorname{diag}(s))(V\otimes V)^{\mathsf T}$，
+而 $\operatorname{diag}(s)\otimes\operatorname{diag}(s)=\operatorname{diag}(s_is_j)$
+（按字典序排列）。于是奇异值集合是 $\{s_is_j\}$，
+最大与最小之比为 $(s_1/s_n)^2$，秩为非零乘积的个数即 $\operatorname{rank}(B)^2$。
+\end{proof}
+
+实测：$n=24$、模糊宽度 $\sigma=2$ 时 $\kappa_{1D}=5911$、$\kappa_{2D}=3.494\times10^7=5911^2$；
+二维 Tikhonov 解满足正规方程 $(B^{\mathsf T}B)X(B^{\mathsf T}B)+\lambda^2X=B^{\mathsf T}YB$
+（相对残差 $5.1\times10^{-15}$）。
+
+\begin{theorem}[投影算子的秩上界与零空间误差地板]
+\label{thm:rank}
+设 $A\in\mathbb{R}^{m\times n}$，则 $\operatorname{rank}(A)\le\min(m,n)$，
+零空间维数 $\dim\ker A\ge n-\operatorname{rank}(A)$。
+若 $x^\star$ 在 $\ker A$ 上的投影非零，则对任意 $\lambda$ 与任意噪声水平
+\[
+  \lVert x_\lambda-x^\star\rVert_2\ \ge\ \lVert P_{\ker A}x^\star\rVert_2
+  -\ \lVert x_\lambda-P_{\operatorname{row}}x_\lambda\rVert_2 ,
+\]
+特别地当正则化解落在行空间内时误差不可能低于 $\lVert P_{\ker A}x^\star\rVert$。
+\end{theorem}
+
+\begin{proof}
+秩上界是线性代数基本事实（$A$ 的像由 $m$ 个坐标与 $n$ 个列向量共同限制）。
+对任意 $x_\lambda=x_\lambda^{\parallel}+x_\lambda^{\perp}$（行空间 $+$ 零空间分解），
+$x^\star=x^{\parallel}_\star+x^\perp_\star$，则
+$\lVert x_\lambda-x^\star\rVert\ge\lVert x_\lambda^\perp-x^\perp_\star\rVert
+\ge\lVert x^\perp_\star\rVert-\lVert x^\perp_\lambda\rVert$（三角不等式）。
+Tikhonov/TSVD 的解都在行空间内（$V$ 的列张成行空间），故 $x^\perp_\lambda=0$，
+误差下界就是 $\lVert P_{\ker A}x^\star\rVert$。
+\end{proof}
+
+实测：$10\times10$ 幻影（$n^2=100$ 个未知量），$8$ 条角度 $\times$ $10$ 条射线 $=80$ 行，
+秩 $80$、零空间 $20$，噪声拖到 $10^{-8}$ 时重建误差仍为 $0.158$；
+$14$ 条角度（$140\times100$）时满列秩、$\kappa=17.8$，噪声 $10^{-8}$ 时误差 $4.3\times10^{-8}$。
+**"CT 一定病态"在这个尺寸上不成立**：区分"条件数大"与"秩亏"是两件事。
+
+\section{四个可视化怎么读}
+\label{sec:read}
+
+\begin{enumerate}
+  \item \textbf{L 曲线交互}（\texttt{lcurve\_tradeoff}）：横轴 $\log_{10}\lVert x_\lambda\rVert$、
+        纵轴 $\log_{10}\rho(\lambda)$。拖动 $\lambda$ 时同一张图上标出四个判据
+        （oracle、L 曲线拐点、GCV、偏差原则）各自挑出的点；副轴是真误差曲线。
+        三个拐点判据的 $\lambda$ 会差 $33\sim681$ 倍，这一点必须在图上看得见。
+        把 Picard 档位从 \texttt{satisfied} 拖到 \texttt{violated}，可以看到正则化收益掉到 $1.0$ 倍。
+  \item \textbf{滤波因子}（\texttt{filter\_shapes}）：同一条 $\sigma$ 轴上画 TSVD 的阶跃、
+        Tikhonov 的平滑过渡、Landweber 的渐进过渡；TV 只能给探针读数。
+        副轴是三条误差-自由度曲线与"同自由度下谁更准"的匹配点。
+        $\omega$ 拖过 $2$ 之后 Landweber 当场发散，图上那一段是夹住并带掩码的占位值。
+  \item \textbf{图像反卷积 / 简化 CT}（\texttt{image\_deconvolution}）：四类方法重建 $24\times24$ 幻影；
+        拖噪声水平看解什么时候被噪声吞掉，拖迭代步看半收敛。
+        切到 CT 后 $8$ 条角度会看到"误差地板由零空间决定"。
+  \item \textbf{偏差-方差}（\texttt{bias\_variance}）：偏差$^2$、方差、总误差三条曲线，
+        解析与蒙特卡洛并列；$\lambda\to0$ 与 $\lambda\to\infty$ 两侧的失败数字都标出来。
+\end{enumerate}
+
+\input{chapters/5.2/asserts_table}
+
+\section{它会怎样骗你（本章版）}
+
+\begin{enumerate}
+  \item \textbf{"L 曲线拐点就是最优 $\lambda$"}：$\kappa=10^6$、噪声 $10^{-3}$ 时拐点比
+        oracle 小 $21.5$ 倍、误差放大 $21.5$ 倍；GCV 只放大 $3.79$ 倍。
+  \item \textbf{"拐点是一个客观量"}：三个判据的 $\lambda$ 极差 $33\sim681$ 倍，下标跨度 $7\sim42$。
+  \item \textbf{"无约束的两段直线拟合更客观"}：18 组里 11 组与带约束版不同，最大偏 $125.9$ 倍；
+        我最初写在 docstring 里的"它总落在网格端点"实测不成立。
+  \item \textbf{"GCV 曲线形状对就行"}：多乘一个 $\sigma$ 会让它错 $3.2\times10^4$ 倍，
+        而且 $\lambda_{\mathrm{GCV}}$ 对噪声完全不敏感（斜率 $0.000$ 而不是 $1/2$）。
+  \item \textbf{"帧里有掩码就算三件套齐了"}：掩码先夹后判会全是 $1$，
+        发散段的占位值被当成真数据。
+  \item \textbf{"用蒙特卡洛量偏差$^2$"}：小 $\lambda$ 端样本均值的抽样误差把偏差$^2$ 抬高
+        $106.5$ 倍 ${\rm mse}_{\min}$；偏差要用无噪右端项算。
+  \item \textbf{"正则化让结果更准"}：$\lambda$ 两端误差 $1.53$ 与 $1.27$，中间才有 $0.0199$；
+        偏差与方差此消彼长，但"更准"只在中间一段成立。
+  \item \textbf{"整段 Picard 斜率 $0.56$，所以不能正则化"}：信号段斜率 $1.997$；
+        噪声接管之后整段斜率必然变平。
+  \item \textbf{"Picard 不成立也能靠正则化救回来"}：此时最优 $\lambda$ 在网格左端，
+        收益 $1.000$ 倍，即"不要正则化"。
+  \item \textbf{"把 TV 画成第四条滤波曲线"}：$\lambda=0$ 时探针确实是恒等，
+        但 $\lambda>0$ 时换探针读数变 $0.959$、泄漏 $0.144$。
+  \item \textbf{"CT 是病态问题，误差降不下去是噪声的错"}：$8$ 条角度时零空间 $20$ 维，
+        噪声拖到 $10^{-8}$ 误差仍 $0.158$；$14$ 条角度时它是良态的（$\kappa=17.8$）。
+  \item \textbf{"残差小就是解准"}：Landweber 在 $k^\star$ 之后残差继续下降而误差上升；
+        早停是正则化的一部分，不是停机技巧。
+  \item \textbf{"同样自由度下三种方法形状不同，精度差不多"}：对齐自由度 $8$ 时
+        TSVD $3.50\times10^{-3}$、Tikhonov $2.83\times10^{-3}$、Landweber $9.24\times10^{-2}$，
+        相差 $33$ 倍，必须实测。
+  \item \textbf{"阈值 $2/\sigma_1^2$ 抄书就行"}：矩阵迭代在 $400$ 步预算下实测阈值 $2.0715$，
+        比理论高 $3.6\%$；两条阈值同时报才能说明"偏差是预算造成的"。
+\end{enumerate}
