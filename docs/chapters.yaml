@@ -1,0 +1,104 @@
+# 交互式数值方法实验室 · 章节机器可读清单
+# 用途：驱动子 agent 派发、依赖拓扑排序、进度追踪
+# 派发规则：每章拆 4 个独立任务 —— core / viz / notes / asserts
+
+project: numerical-lab
+version: 0.1.0
+doc: docs/CHAPTERS.md
+
+# 每章四件可并行任务的通用定义
+task_units:
+  core:
+    desc: 纯函数数值实现，无 IO
+    out: numcore/<area>/
+    gate: 单元测试通过 + 与 reference/ 对拍一致
+  viz:
+    desc: 交互可视化（参数 + 时间双主轴）
+    out: viz/chapters/<id>/
+    gate: 数据取自后端；满足防误导七条规则
+  notes:
+    desc: LaTeX 推导笔记，关键定理含完整证明
+    out: chapters/<id>/notes.tex
+    gate: 每个公式配一个数值验证脚本
+  asserts:
+    desc: 三类数值断言 + 回归测试
+    out: tests/<id>/
+    gate: 解析对拍 / 不变量 / 收敛率 全绿
+
+# 断言类型
+assert_kinds:
+  A: 解析对拍（误差阶必须等于理论阶，斜率 ±0.1）
+  B: 不变量（守恒量、正交性、对称性、单调性）
+  C: 收敛率（迭代收敛因子、特征值界、稳定阈值）
+
+chapters:
+  # ---------- Part I 基础与数值线性代数 ----------
+  - {id: "1.1", title: 浮点数、误差传播与问题条件, part: I, deps: [], viz: 4, difficulty: low,  burn: 2, modules: [numcore/fp, numcore/linalg/cond.py], asserts: [A, B]}
+  - {id: "1.2", title: 线性方程组直接法, part: I, deps: ["1.1"], viz: 4, difficulty: mid, burn: 3, modules: [numcore/linalg/lu.py, numcore/linalg/chol.py, numcore/linalg/sparse.py, numcore/linalg/ordering.py], asserts: [A, B]}
+  - {id: "1.3", title: 最小二乘与正交化, part: I, deps: ["1.2"], viz: 4, difficulty: mid, burn: 3, modules: [numcore/linalg/qr.py, numcore/linalg/svd.py, numcore/linalg/lstsq.py], asserts: [A, B]}
+  - {id: "1.4", title: 特征值、伪谱与非正规性, part: I, deps: ["1.2"], viz: 5, difficulty: high, burn: 3, modules: [numcore/linalg/eigen.py, numcore/linalg/pseudospec.py], asserts: [A, C]}
+  - {id: "1.5", title: 稀疏迭代法与预条件, part: I, deps: ["1.2", "1.4"], viz: 4, difficulty: high, burn: 3, modules: [numcore/linalg/iterative.py, numcore/linalg/precond.py, numcore/linalg/krylov.py], asserts: [A, C]}
+
+  # ---------- Part II 逼近、积分与变换 ----------
+  - {id: "2.1", title: 插值与多项式逼近, part: II, deps: ["1.1"], viz: 4, difficulty: low,  burn: 2, modules: [numcore/interp/poly.py], asserts: [A, B]}
+  - {id: "2.2", title: 样条与分段逼近, part: II, deps: ["2.1"], viz: 4, difficulty: mid, burn: 2, modules: [numcore/interp/spline.py], asserts: [A, B]}
+  - {id: "2.3", title: 正交多项式与函数逼近, part: II, deps: ["2.1"], viz: 4, difficulty: mid, burn: 3, modules: [numcore/interp/orthopoly.py, numcore/interp/approx.py], asserts: [A, B]}
+  - {id: "2.4", title: 数值积分, part: II, deps: ["2.1"], viz: 4, difficulty: low,  burn: 2, modules: [numcore/quad], asserts: [A, B]}
+  - {id: "2.5", title: 傅里叶分析与 FFT, part: II, deps: ["1.1"], viz: 5, difficulty: mid, burn: 3, modules: [numcore/transform/fft.py], asserts: [A, B]}
+  - {id: "2.6", title: 小波与多分辨分析, part: II, deps: ["2.5"], viz: 4, difficulty: high, burn: 2, modules: [numcore/transform/wavelet.py], asserts: [A, B]}
+
+  # ---------- Part III 常微分方程 ----------
+  - {id: "3.1", title: 单步法、阶条件与自适应步长, part: III, deps: ["1.1"], viz: 4, difficulty: mid, burn: 3, modules: [numcore/ode/rk.py, numcore/ode/stepsize.py], asserts: [A, C]}
+  - {id: "3.2", title: 稳定性与刚性方程, part: III, deps: ["3.1"], viz: 5, difficulty: high, burn: 3, modules: [numcore/ode/implicit.py, numcore/ode/stability.py], asserts: [A, C]}
+  - {id: "3.3", title: 几何数值积分与长期行为, part: III, deps: ["3.1"], viz: 4, difficulty: mid, burn: 3, modules: [numcore/ode/symplectic.py, numcore/ode/invariants.py], asserts: [B, C]}
+  - {id: "3.4", title: 边值问题与谱方法, part: III, deps: ["3.1", "2.3"], viz: 4, difficulty: high, burn: 2, modules: [numcore/ode/bvp.py], asserts: [A, C]}
+  - {id: "3.5", title: 动力系统、分岔与混沌, part: III, deps: ["3.1"], viz: 5, difficulty: mid, burn: 3, modules: [numcore/ode/dynamics.py, numcore/ode/lyapunov.py, numcore/ode/continuation.py], asserts: [A, C]}
+
+  # ---------- Part IV 偏微分方程与离散化 ----------
+  - {id: "4.1", title: 抛物型方程与时间推进, part: IV, deps: ["3.1", "1.5"], viz: 4, difficulty: mid, burn: 3, modules: [numcore/pde/heat.py, numcore/pde/vonneumann.py], asserts: [A, C]}
+  - {id: "4.2", title: 双曲型方程：色散、耗散与限制器, part: IV, deps: ["4.1"], viz: 4, difficulty: high, burn: 3, modules: [numcore/pde/advection.py, numcore/pde/limiters.py], asserts: [A, B, C]}
+  - {id: "4.3", title: 守恒律与有限体积, part: IV, deps: ["4.2"], viz: 4, difficulty: high, burn: 3, modules: [numcore/pde/fvm.py, numcore/pde/riemann.py], asserts: [A, B]}
+  - {id: "4.4", title: 有限元方法, part: IV, deps: ["1.3", "4.1"], viz: 4, difficulty: high, burn: 3, modules: [numcore/pde/fem], asserts: [A, B]}
+  - {id: "4.5", title: 多重网格与快速求解, part: IV, deps: ["1.5", "4.1"], viz: 4, difficulty: high, burn: 3, modules: [numcore/pde/multigrid.py], asserts: [B, C]}
+  - {id: "4.6", title: 谱方法与伪谱, part: IV, deps: ["2.5", "4.1"], viz: 4, difficulty: high, burn: 3, modules: [numcore/pde/spectral.py], asserts: [A, B]}
+
+  # ---------- Part V 反问题、优化与不确定性 ----------
+  - {id: "5.1", title: 无约束优化与拟牛顿, part: V, deps: ["1.4"], viz: 4, difficulty: mid, burn: 2, modules: [numcore/inverse/optimize.py], asserts: [A, C]}
+  - {id: "5.2", title: 反问题与正则化, part: V, deps: ["1.3", "5.1"], viz: 4, difficulty: mid, burn: 3, modules: [numcore/inverse/regularize.py, numcore/inverse/lcurve.py], asserts: [A, C]}
+  - {id: "5.3", title: 伴随方法与灵敏度分析, part: V, deps: ["3.1", "5.1"], viz: 4, difficulty: high, burn: 2, modules: [numcore/inverse/adjoint.py, numcore/inverse/sensitivity.py], asserts: [A, C]}
+  - {id: "5.4", title: 不确定性量化与全局敏感性, part: V, deps: ["2.4", "5.1"], viz: 4, difficulty: mid, burn: 3, modules: [numcore/inverse/uq], asserts: [A, B, C]}
+
+  # ---------- Part VI 综合与产出 ----------
+  - {id: "6.1", title: 二维综合仿真, part: VI, deps: ["4.1", "4.2", "4.3", "4.4", "4.5", "4.6"], viz: 4, difficulty: very_high, burn: 3, modules: [numcore/apps], asserts: [A, B]}
+  - {id: "6.2", title: 交互式教材打包与视频导出, part: VI, deps: [all], viz: 3, difficulty: mid, burn: 2, modules: [tools, viz/site], asserts: [B]}
+
+milestones:
+  - {id: M0, name: 骨架, exit: 假章节跑通全流程（核心→渲染→断言→导出）}
+  - {id: M1, name: 样板三章, chapters: ["1.2", "1.4", "3.2"], exit: 三种可视化范式成型，模板可复制}
+  - {id: M2, name: Part I 完成, exit: 线性代数地基可用}
+  - {id: M3, name: Part III 完成, exit: ODE 章可对外展示}
+  - {id: M4, name: Part IV 完成, exit: PDE 与 FEM 收尾（工作量峰值）}
+  - {id: M5, name: Part V + 6.1, exit: 反问题与综合仿真}
+  - {id: M6, name: 打包, exit: 交互教材与视频产出}
+
+parallelism:
+  units_per_chapter: 4
+  total_units: 112
+  critical_path: ["1.1", "1.2", "1.4", "1.5", "4.1", "4.2", "4.3", "6.1"]
+  suggested_width: {M1: 4, M2_plus: 12}
+
+totals:
+  chapters: 28
+  visualizations: 115
+  core_loc: [60000, 100000]
+  viz_loc: [40000, 90000]
+  notes_pages: [500, 1000]
+  assertions: 1000
+
+risks:
+  - {id: perf,  desc: 前端实时 PDE/FEM 求解性能不足, fix: WASM 内核或后端预计算帧 + 前端插值回放}
+  - {id: drift, desc: Python 与 TS 双实现漂移导致可视化撒谎, fix: CI 对拍固定基准数据，容差入库}
+  - {id: lie,   desc: 图好看但算错, fix: 每条曲线必须有理论参考线或精确解对照}
+  - {id: hard,  desc: 多重网格/伪谱/伴随做成看不懂的图, fix: 强制分步点亮动画}
+  - {id: scope, desc: 28 章范围膨胀, fix: M1 后设检查点，允许砍章}
+  - {id: scipy, desc: 误用 SciPy 替代自研实现, fix: 仅 numcore/reference/ 允许 import SciPy，CI 静态检查}

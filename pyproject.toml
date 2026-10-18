@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "numerical-lab"
+version = "0.1.0"
+description = "交互式数值方法实验室 —— 推导 / 实现 / 可视化 / 断言 / 防误导 五件套"
+readme = "README.md"
+requires-python = ">=3.11"
+
+# 注意 POLICY.md：运行期依赖被刻意压到最小。
+# numpy 仅作为“数组容器 + 逐元素原语”；scipy 只在 numcore/reference/ 出现（CI 静态强制）。
+dependencies = ["numpy>=1.24"]
+
+[project.optional-dependencies]
+# 对拍基准、精确解、高精度参考（仅 numcore/reference/ 可用）
+reference = ["scipy>=1.10", "sympy>=1.12", "mpmath>=1.3"]
+# 讲义插图与 PDF 合并（只在 tools/ 里用）
+docs = ["matplotlib>=3.7"]
+dev = ["pytest>=8.0", "pyyaml>=6.0"]
+
+[tool.setuptools]
+packages = ["numcore", "server", "tools"]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-ra --strict-markers --strict-config"
+markers = [
+    "assert_a: A 类断言 —— 解析对拍（收敛阶必须等于理论阶 ±0.1）",
+    "assert_b: B 类断言 —— 不变量（守恒 / 正交 / 对称 / 单调）",
+    "assert_c: C 类断言 —— 收敛率与稳定性阈值",
+    "slow: 运行时间 > 5s 的数值实验",
+    "parity: Python ↔ TypeScript 双实现对拍",
+    "e2e: 端到端（服务端 / 帧协议 / 导出链路）",
+    "policy: 仓库策略静态检查的元测试",
+]
+filterwarnings = ["error::RuntimeWarning"]
+
+[tool.coverage.run]
+source = ["numcore", "server", "tools"]
+omit = ["*/tests/*"]

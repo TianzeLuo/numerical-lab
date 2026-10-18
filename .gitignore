@@ -1,0 +1,40 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# ---- Node / TypeScript ----
+node_modules/
+dist/viz/
+*.tsbuildinfo
+
+# ---- Build & runtime artifacts ----
+.cache/
+dist/**
+!dist/.gitkeep
+docs/_build/
+chapters/**/figs/*.png
+chapters/**/*.aux
+chapters/**/*.log
+chapters/**/*.out
+chapters/**/*.toc
+chapters/**/*.fls
+chapters/**/*.fdb_latexmk
+chapters/**/*.synctex.gz
+data/precomputed/**/*.nlf
+data/precomputed/**/index.json
+*.nlf.gz
+
+# ---- OS / editor ----
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/

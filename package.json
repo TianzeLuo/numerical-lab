@@ -1,0 +1,22 @@
+{
+  "name": "numerical-lab-viz",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "交互层：TypeScript + Canvas/WebGL。运行期零第三方依赖，仅用 tsc 编译为浏览器原生 ESM。",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "build": "tsc -p tsconfig.json",
+    "test": "node --test --test-reporter=spec dist/viz/tests/",
+    "parity": "node dist/viz/tests/parity/run_parity.js",
+    "scene": "node dist/viz/tests/scene/dump_scenes.js",
+    "bench": "node dist/viz/tests/bench/bench_models.js"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
