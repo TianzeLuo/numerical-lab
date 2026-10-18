@@ -1,0 +1,489 @@
+% 3.1 章 · 单步法、阶条件与自适应步长
+% 这一章把「一个方法几阶」拆成两条独立可验的证据链：
+%   1) 树上的阶条件 Φ(τ)=1/γ(τ)（解析、可逐条手算，不查表）；
+%   2) 真跑积分量出来的误差斜率（数值、带拟合窗口）。
+% 自适应步长则把这套阶变成工程：误差估计器估的是**哪个解**，决定了 tol 是不是精度。
+% 断言附表由 tools/build_book.py 从实际运行结果生成，\input 进来，不手抄。
+
+\numlabchapter{单步法、阶条件与自适应步长}{3.1}
+
+\section{这一章要解决什么}
+
+显式单步法（Runge--Kutta 型）把 $y'=f(t,y)$ 的一步写成
+\begin{equation}
+  y_{n+1}=y_n+h\sum_{i=1}^{s}b_ik_i,\qquad
+  k_i=f\Bigl(t_n+c_ih,\;y_n+h\sum_{j=1}^{s}a_{ij}k_j\Bigr),
+  \label{eq:rk}
+\end{equation}
+其中 $A=(a_{ij})$ 严格下三角（显式）、$c=A\mathbf{1}$、$b$ 是权。三个问题：
+
+\begin{enumerate}
+  \item 给定 $(A,b)$，这个方法是几阶？——\textbf{阶条件}，本章用有根树把它变成
+        一组可以逐条手算的方程，\emph{不查表}；
+  \item 阶在数值上看得见吗？——\textbf{实测阶}：真跑积分，对
+        $\max_t|y_h(t)-y(t)|$ 做双对数最小二乘，看斜率；
+  \item 步长怎么选？——\textbf{自适应}：嵌入式一对方法给出局部误差估计 $\hat e$，
+        控制器按 $\hat e$ 与容差的比调整 $h$。
+        这一步里藏着一个反直觉的结论：$\hat e$ 估的究竟是哪一个解，
+        决定了「$\mathrm{tol}$ 是不是精度」。
+\end{enumerate}
+
+记号：$u=\tfrac12\varepsilon_{\text{mach}}=2^{-53}\approx1.11\times10^{-16}$；
+$p$ 是方法阶、$\hat p$ 是嵌入对里低阶解的阶；$\Phi(\tau)$ 是树 $\tau$ 的初等权、
+$\gamma(\tau)$ 是它的密度；所有「实测」数字都来自 \texttt{tests/3.1/} 的断言报告。
+
+\section{阶条件：有根树、密度与初等权}
+
+\begin{definition}[有根树、阶与密度]
+有根树递归定义为：单个节点是树（记 $\bullet$，标签 \texttt{*}）；若 $\tau_1,\dots,\tau_m$
+是树，则把它们的根都接到一个新根上得到的也是树（记 $[\tau_1,\dots,\tau_m]$）。
+树 $\tau$ 的\textbf{阶} $\rho(\tau)$ 是节点数，\textbf{密度}递归定义为
+\begin{equation}
+  \gamma(\bullet)=1,\qquad
+  \gamma(\tau)=\rho(\tau)\prod_{j=1}^{m}\gamma(\tau_j).
+  \label{eq:gamma}
+\end{equation}
+\end{definition}
+
+\begin{theorem}[树的枚举与密度表]
+\label{thm:trees}
+按 $\rho\le4$ 枚举恰有 $1,1,2,4$ 棵树，$\rho\le5$ 共 $9$ 棵；八棵小树的密度为
+\[
+  \gamma(\bullet)=1,\;\gamma([\bullet])=2,\;\gamma([\bullet,\bullet])=3,\;
+  \gamma([[\bullet]])=6,\;\gamma([\bullet,\bullet,\bullet])=4,\;
+  \gamma([\bullet,[\bullet]])=8,\;\gamma([[\bullet,\bullet]])=12,\;
+  \gamma([[[\bullet]]])=24 .
+\]
+\end{theorem}
+
+\begin{proof}
+枚举：$\rho=1$ 只有 $[\;]$ 型的一个节点；$\rho=2$ 只有 $[\bullet]$；$\rho=3$ 是把
+$3$ 个节点分成「一条链」$[[\bullet]]$ 与「一个根带两个叶子」$[\bullet,\bullet]$ 两种；
+$\rho=4$ 有 $4$ 种；$\rho=5$ 有 $9$ 种（$1,1,2,4,9$ 正是有根树的计数序列）。
+密度按 \eqref{eq:gamma} 直接算，例如
+$\gamma([\bullet,\bullet])=3\cdot1\cdot1=3$、
+$\gamma([[\bullet]])=3\cdot\gamma([\bullet])=3\cdot2=6$、
+$\gamma([\bullet,[\bullet]])=4\cdot1\cdot2=8$、
+$\gamma([[[\bullet]]])=4\cdot\gamma([[\bullet]])=4\cdot6=24$。
+代码里的实现是同一个递推，测试逐条核对（计数与密度都要求\textbf{整数相等}，
+不留容差）。\end{proof}
+
+\begin{definition}[初等权]
+树 $\tau$ 在方法 $(A,b)$ 下的\textbf{初等权}递归定义为
+\begin{equation}
+  \Phi(\bullet)=b^{\mathsf T}\mathbf{1},\qquad
+  \Phi(\tau)=\sum_{i=1}^{s}b_i\prod_{j=1}^{m}\bigl(A^{\rho(\tau_j)}\mathbf{1}\bigr)_i
+  \quad\text{当 }\tau=[\tau_1,\dots,\tau_m],
+  \label{eq:phi}
+\end{equation}
+其中 $A^{0}=\mathbf{1}$ 的记号约定为 $A^{0}\mathbf{1}=\mathbf{1}$。
+\end{definition}
+
+\begin{theorem}[Butcher 的阶条件]
+\label{thm:order-conditions}
+显式 RK \eqref{eq:rk} 的阶 $\ge p$，当且仅当对\textbf{每一个} $\rho(\tau)\le p$ 的有根树 $\tau$ 都有
+\begin{equation}
+  \Phi(\tau)=\frac{1}{\gamma(\tau)} .
+  \label{eq:order}
+\end{equation}
+\end{theorem}
+
+\begin{proof}[证明要点]
+把精确解 $y(t_n+h)$ 与一步数值解都按 $h$ 展开，逐项比较 $h^{q}$ 的系数。
+$q$ 次项对应 $\rho(\tau)=q$ 的所有树：精确解的系数是 $\frac{1}{\gamma(\tau)}y^{(\rho)}(t_n)$
+（因为把 $y^{(q)}$ 用链式法则展开成 $q$ 个 $f$ 的复合，恰好按树分类，每棵树的组合数正是
+$\gamma(\tau)$），数值解的系数是 $\Phi(\tau)y^{(\rho)}(t_n)$（把 \eqref{eq:rk} 的 $k_i$
+逐级展开成同一种树的和）。两者对一切 $f$ 相等 $\iff$ 逐棵树成立 \eqref{eq:order}。
+\end{proof}
+
+\begin{corollary}[名义阶与实测阶]
+\label{cor:measured}
+定义方法的\textbf{实测阶}为最大的 $p$ 使得 $\rho\le p$ 的树全部满足 \eqref{eq:order}
+（数值上判 $\max|1-\gamma\Phi|\le10^{-10}$）。则实测阶 $\ge p$ $\iff$ 方法阶 $\ge p$。
+八张标准表（Euler、中点、Heun、Kutta-3、RK4、Bogacki--Shampine 3(2)、
+Fehlberg 4(5)、Dormand--Prince 5(4)）的实测阶全部等于声明阶；RK4 的八条残差上界是
+$1.1\times10^{-16}$，即机器精度。
+\end{corollary}
+
+\begin{remark}[阶条件不是「近似成立就行」]
+这是本章最值得记住的一条实测结论。取 RK4 的权 $b_1=\frac16$ 改成 $b_1=\frac16+10^{-3}$
+（其余不动），则 $\Phi(\bullet)=\sum b_i=1+10^{-3}$，第一条条件就破了；真跑积分：
+$h$ 从 $0.5$ 细化 $32$ 倍到 $0.0156$，最大误差\textbf{只从 $3.15\times10^{-4}$ 变到
+$3.73\times10^{-4}$}（比 $1.19$）——误差根本不随 $h$ 下降，因为修改后的方法在解
+\emph{另一个} ODE（$y'=(1+10^{-3})f$ 的那一个）。与之对照，做一次保住 $\sum b_i=1$ 的扰动
+（$b_1+\delta$、$b_4-\delta$）只破坏二阶条件，实测阶从 $4$ 掉到 $1$、斜率实测 $1.02$。
+\textbf{阶条件决定的是 $h\to0$ 时误差往哪走，不是误差常数的大小。}
+\end{remark}
+
+\section{局部误差、全局误差与稠密输出}
+
+\begin{theorem}[局部与全局：$p+1$ 与 $p$]
+\label{thm:local-global}
+设 $f$ 充分光滑、方法 $p$ 阶且满足相容性，则在渐近区
+\begin{equation}
+  \text{局部误差 }\|y_1-y(t_0+h)\|=O(h^{p+1}),\qquad
+  \text{全局误差 }\max_{t\le T}\|y_h(t)-y(t)\|=O(h^{p}) .
+\end{equation}
+\end{theorem}
+
+\begin{proof}
+局部误差 $=Ch^{p+1}+O(h^{p+2})$ 是阶条件的直接推论（前 $p$ 项被消掉，
+第一个未被消掉的项给出 $C$）。全局误差由离散 Gronwall 累积：每步注入 $Ch^{p+1}$，
+步数 $N=T/h$，误差的传播因子是 $e^{LT}$（$L$ 是 $f$ 的 Lipschitz 常数），于是
+总误差 $\le N\cdot Ch^{p+1}e^{LT}=O(h^{p})$。反之 $h^p$ 的系数一般不为零，
+所以这个幂次是\textbf{紧的}，除非问题的结构恰好让 $C=0$。
+\end{proof}
+
+\begin{remark}[实测]
+八个方法在谐振子上的全局斜率是
+$1.049,\,1.995,\,1.995,\,2.981,\,3.981,\,2.981,\,3.982,\,4.985$，
+局部斜率是 $1.999$--$6.007$：前者等于 $p$、后者等于 $p+1$，误差都在 $\pm0.12$ 内。
+拟合窗口不是挑出来的，是按相邻点局部阶自动裁掉的
+（\texttt{rk.asymptotic\_window}）：丢掉预渐近的粗网格前缀与舍入地板尾巴，
+丢弃点数写进每条断言的 \texttt{detail}。
+\textbf{不裁窗口就会翻车}：rkf45 在指数衰减问题上全窗口斜率是 $4.16$
+（预渐近的 $h^5$ 项还很大），把「四阶」量成了 $4.16$ 阶。
+\end{remark}
+
+\begin{theorem}[稠密输出只有 $\min(p,4)$ 阶]
+\label{thm:dense}
+设用两端点信息做三次 Hermite 插值
+\begin{equation}
+  P(\theta)=H_1(\theta)y_n+H_2(\theta)hf_n+H_3(\theta)y_{n+1}+H_4(\theta)hf_{n+1},
+  \label{eq:hermite}
+\end{equation}
+则对 $f\in C^4$ 有逐点误差
+\begin{equation}
+  y(t_n+\theta h)-P(\theta)=\frac{h^4\theta^2(1-\theta)^2}{24}y^{(4)}(\xi),\qquad \theta\in[0,1].
+  \label{eq:hermite-err}
+\end{equation}
+特别地 $\max_\theta|y-P|\le h^4/384\cdot\max|y^{(4)}|$，等号在 $\theta=\frac12$ 且
+$y^{(4)}$ 为常数（例如 $y=t^4/24$）时取到。于是整段插值误差的阶是
+$\min(p,4)$：$p<4$ 时被节点值自身的 $O(h^p)$ 误差支配，$p\ge5$ 时被插值算子封顶。
+\end{theorem}
+
+\begin{proof}
+\eqref{eq:hermite-err} 是标准的 Hermite 插值余项：构造
+$g(\theta)=y(t_n+\theta h)-P(\theta)-K\theta^2(1-\theta)^2$，
+选 $K$ 使 $g$ 在某个内点为零，$g$ 有四个零点（两端点各二重），
+反复用 Rolle 定理得 $K=\frac{h^4}{24}y^{(4)}(\xi)$。对 $y=\frac{t^4}{24}$（$y^{(4)}\equiv1$）
+误差恰好是 $\frac{h^4}{24}\theta^2(1-\theta)^2$，最大值在 $\theta=\frac12$ 取到
+$\frac{h^4}{384}$——测试里这条等式是\textbf{精确}成立的（相对差 $\le10^{-12}$），
+三次多项式上误差则是 $0$（再生性）。
+\end{proof}
+
+\begin{remark}[实测]
+步内插值误差的斜率：Euler $1.095$、中点/Heun $1.994$、Kutta-3/BS23 $2.979$、
+RK4 $3.979$、RKF45 $3.978$、DOPRI5 $4.034$——全部等于 $\min(p,4)$。
+最后一行是本章最容易被忽略的结论：\textbf{五阶方法的稠密输出只有四阶}，
+把 $h$ 一再细化，节点值越来越准，插值曲线却停在 $h^4$。
+\end{remark}
+
+\begin{theorem}[端点误差不是误差]
+\label{thm:endpoint}
+对 $y'=-y$、$T=10$、$h=0.05$，有
+\begin{equation}
+  \frac{\max_{t\le T}|y_h(t)-y(t)|}{|y_h(T)-y(T)|}=O\!\left(\frac{1}{h}\right)\to\infty
+  \quad(h\to0),
+\end{equation}
+实测三个方法分别是 $908$、$875$、$810$；而 $T=2$ 时同一个比值只有 $1.36$。
+\end{theorem}
+
+\begin{proof}
+误差密度满足 $e(t)=O(h^p)$ 而端点的误差是\textbf{沿途误差经过传播因子后的代数和}。
+指数衰减问题的传播因子 $e^{-(T-t)}$ 让早期误差衰减掉，
+而远离端点的误差却在累积：$\max_t|e(t)|$ 出现在 $t\approx T-O(1)$ 处，
+量级是 $h^p\cdot O(1)$（不随 $T$ 增长），端点误差则是 $h^p\cdot O(h)$
+（因为靠近 $T$ 的那一小段贡献被 $e^{-(T-t)}$ 截断）。
+两者相差 $O(1/h)$。$T$ 很小时误差还在单调增长阶段，端点就是最大点，比值 $\approx1$。
+\end{proof}
+
+\begin{theorem}[阶的第三张面孔：稳定多项式]
+\label{thm:stab-poly}
+对显式 RK，把线性测试方程 $y'=\lambda y$ 作用一步得 $y_{n+1}=R(z)y_n$，
+\begin{equation}
+  R(z)=\sum_{j=0}^{s}c_jz^j,\qquad c_j=b^{\mathsf T}A^{\,j-1}\mathbf{1},\quad c_0=1 .
+\end{equation}
+方法 $p$ 阶 $\Longrightarrow c_j=\frac1{j!}$（$j\le p$）。$R$ 在负实轴上的左端点
+$x^\ast$（$|R(x^\ast)|=1$）给出刚性衰减率 $\lambda<0$ 下的\textbf{临界步长}
+$h^\ast=|x^\ast|/|\lambda|$。
+\end{theorem}
+
+\begin{proof}
+把 $y'=\lambda y$ 代入 \eqref{eq:rk}，级向量满足 $Y=y_n\mathbf{1}+zAY$，
+显式性使 $(I-zA)$ 可逆且逆是有限和 $\sum_{j\ge0}z^jA^j$（$A$ 幂零），
+代回 $y_{n+1}=y_n+zb^{\mathsf T}Y$ 即得。而 $c_j$ 与 \eqref{eq:order} 里
+链树 $[[\cdots[\bullet]\cdots]]$ 的初等权是同一个和（链树的 $\gamma=j!$），
+所以「$p$ 阶」等价于「$c_j=1/j!$，$j\le p$」：阶在复平面上留下指纹。
+临界步长：$|R(\lambda h)|\le1$ 要求 $\lambda h$ 落在稳定域内，
+沿负实轴最远只能到 $x^\ast$，于是 $h\le|x^\ast|/|\lambda|$。
+\end{proof}
+
+\begin{corollary}[实测：临界步长与有限观测偏差]
+\label{cor:critical}
+DOPRI5 的 $x^\ast=-3.30656789$，故 $\lambda=-1000$ 时 $h^\ast=3.3066\times10^{-3}$。
+二分实测（谓词：跑到 $T$ 后 $\max|y|\le2$）给出 $3.315\times10^{-3}$（$T=2$，
+偏高 $0.28\%$）。偏差随观测时长单调下降：$T=0.5$ 时 $+1.357\%$、
+$T=2$ 时 $+0.276\%$、同谓词 $T=20$ 时 $+0.026\%$。
+\end{corollary}
+
+\begin{proof}[偏差为什么为正]
+$|R(x)|>1$ 只说明\textbf{每步放大}，放大到「看得见」需要时间：
+偏离量为 $|R|^{N}=e^{N\log|R|}$，$N=T/h$。给定可见阈值，
+$|R|$ 只需超出 $1$ 约 $O(h/T)$ 即可被发现，于是实测临界值系统性偏大、
+且随 $T$ 增大而趋于理论值。\end{proof}
+
+\section{嵌入对、误差估计与「tol 是不是精度」}
+
+\begin{definition}[嵌入对]
+同一张表配两组权 $(b,\hat b)$，且 $\hat b$ 满足的阶条件只到 $\hat p<p$。
+每步算出两个解 $y_{p}$ 与 $y_{\hat p}$，用
+\begin{equation}
+  \hat e=(b-\hat b)^{\mathsf T}\Phi
+  \label{eq:embed}
+\end{equation}
+作为局部误差估计，接受判据是加权 RMS 度量
+\begin{equation}
+  \varepsilon=\Bigl(\frac1m\sum_i\Bigl(\hat e_i/s_i\Bigr)^2\Bigr)^{1/2},\qquad
+  s_i=\mathrm{atol}+\mathrm{rtol}\max(|y_i^{\text{new}}|,|y_i^{\text{old}}|)\ \le 1 .
+  \label{eq:accept}
+\end{equation}
+\end{definition}
+
+\begin{theorem}[估计量估的是谁]
+\label{thm:estimator-order}
+$\hat e=y_p-y_{\hat p}=O(h^{\hat p+1})$。若\textbf{推进}高阶解 $y_p$（局部外推），
+被推进解的局部误差是 $O(h^{p+1})$，于是
+\begin{equation}
+  \frac{\hat e}{\text{真局部误差}}=O(h^{\hat p-p})=
+  \begin{cases}O(1/h),& p=\hat p+1,\\ O(1),& p>\hat p+1\ \text{且首项相消}.\end{cases}
+  \label{eq:ratio}
+\end{equation}
+若\textbf{推进}低阶解 $y_{\hat p}$，两者的阶相同、比值 $O(1)$，
+但实到全局误差依赖的是 $\hat p$ 而不是 $p$。
+\end{theorem}
+
+\begin{proof}
+$\hat e$ 的展开式中，$\rho\le\hat p$ 的项被 $b-\hat b$ 的阶条件消掉
+（两者在这些树上都等于 $1/\gamma$），第一个剩下的项是 $\rho=\hat p+1$，故 $\hat e=O(h^{\hat p+1})$。
+被推进解 $y_p$ 的局部误差是 $O(h^{p+1})$，相除得 \eqref{eq:ratio}。
+$p=\hat p+1$ 时比值的幂次是 $h^{-1}$；$p>\hat p+1$ 时两个解的误差首项\textbf{同阶}，
+是否相消取决于 $(b-\hat b)$ 与 $b$ 的误差常数之比，因此比值是 $O(1)$ 而不是幂律。
+\end{proof}
+
+\begin{remark}[实测：两种比值]
+估计/真误差的 $h$ 幂次实测（正幂次表示比值随 $h\to0$ 增大）：
+Heun $h^{-0.990}$、BS23 $h^{-1.077}$、DOPRI5 $h^{-1.033}$——比值 $\sim1/h$ 无界增长，
+\textbf{悲观}（白花工作量）：最细步长处的中位数是 Heun $245$、BS23 $19.6$、DOPRI5 $57.3$；
+RKF45 是 $h^{-0.081}$（即 $O(1)$，中位数 $0.97$，四个方法里唯一同量级的）。
+\end{remark}
+
+\begin{theorem}[局部外推决定 $\mathrm{tol}$ 与精度的关系]
+\label{thm:tol-scaling}
+控制器把 $\varepsilon$ 压在 $1$ 附近（即 $\hat e\approx\mathrm{tol}$），
+于是 $h\approx(\mathrm{tol}/C)^{1/(\hat p+1)}$。若推进高阶解，全局误差
+$\approx O(h^{p})=O(\mathrm{tol}^{p/(\hat p+1)})$；若推进低阶解，则是
+$O(\mathrm{tol}^{\hat p/(\hat p+1)})$。少的那一档指数就是「容差不再是精度」的量化形式。
+\end{theorem}
+
+\begin{proof}
+由 $\hat e=Ch^{\hat p+1}=\mathrm{tol}$ 解出 $h$，代入定理 \ref{thm:local-global} 的全局阶。
+对 Heun--Euler（$p=2,\hat p=1$，但表中的 $b$ 是 Heun、$\hat b$ 是 Euler）：
+开外推时误差 $\sim\mathrm{tol}^{2/2}=\mathrm{tol}^1$，
+关外推时误差 $\sim\mathrm{tol}^{1/2}$。
+\end{proof}
+
+\begin{corollary}[实测：$389$ 倍的假收敛]
+\label{cor:fake}
+$\mathrm{tol}=10^{-6}$、指数衰减问题上实到最大误差与请求容差之比：
+Heun 开外推 $0.30$、BS23 开外推 $1.64$、DOPRI5 开外推 $0.18$；
+而 Heun \textbf{关}外推 $389$ 倍（$3.89\times10^{-4}$）、BS23 关外推 $17.5$ 倍。
+$\mathrm{tol}\to$ 误差的幂次实测：Heun $0.996$、Heun 关外推 $0.499$、BS23 关外推 $0.733$
+（理论 $1$、$1/2$、$3/4$）。
+\end{corollary}
+
+\begin{theorem}[步长控制器]
+\label{thm:controller}
+\textbf{I 控制器}：$\mathrm{fac}=\mathrm{safe}\cdot\varepsilon^{-1/(\hat p+1)}$，
+即 $h_{\text{new}}=h\cdot\mathrm{safe}\cdot(\mathrm{tol}/\hat e)^{1/(\hat p+1)}$，
+并夹在 $[0.2,5]$ 内。\textbf{PI 控制器}（Hairer--Wanner 口径）：
+\begin{equation}
+  \mathrm{fac}=\mathrm{safe}\cdot\varepsilon_n^{-\alpha}\cdot\varepsilon_{n-1}^{\beta'},
+  \qquad \alpha=\frac1{\hat p+1}-\beta',\quad \beta'=\tfrac34\beta\ (\beta=0.04).
+  \label{eq:pi}
+\end{equation}
+当 $\beta=0$ 或 $\varepsilon_{n-1}=\varepsilon_n$ 时 PI 退化为 I；
+控制器是\textbf{乘性}的，与 $h$ 的绝对大小无关。
+\end{theorem}
+
+\begin{proof}
+把 $\hat e\approx Ch^{\hat p+1}$ 反解 $h_{\text{new}}$：令
+$C h_{\text{new}}^{\hat p+1}=\mathrm{tol}$，则
+$h_{\text{new}}/h=(\mathrm{tol}/\hat e)^{1/(\hat p+1)}$，再乘安全系数
+$\mathrm{safe}<1$（留出误差估计不准与非线性变化的余量）。PI 的 {\eqref{eq:pi}}
+里 $\varepsilon_n^{-\alpha}\varepsilon_{n-1}^{\beta'}
+=\varepsilon_n^{-1/(\hat p+1)}(\varepsilon_{n-1}/\varepsilon_n)^{\beta'}$，
+是「用上一步的误差趋势提前刹车」；$\beta'=0$ 或两步误差相等时中括号为 $1$，退回 I。
+乘性来自定义本身：因子是无量纲的，$\mathrm{fac}$ 只依赖误差比。
+\end{proof}
+
+\begin{remark}[实测：PI 不是免费午餐]
+刚性算例（$\lambda=-1000$，$\mathrm{tol}=10^{-6}$）上 PI 的步长振荡指标
+$0.030$ $<$ I 的 $0.061$（拒绝 $1$ 次 vs $2$ 次）——步长被稳定性逼着走时，
+历史项确实有用。但在光滑的谐振子上（$\mathrm{tol}=10^{-8}$）PI 反而更抖：
+$0.228$ $>$ I 的 $0.127$。历史项用的是上一步的误差估计；
+当误差估计本身很平滑时，它只是把噪声带进了步长序列。
+\end{remark}
+
+\section{自适应的代价：容差、稳定性与工作-精度前沿}
+
+\begin{theorem}[刚性区间里容差控制的是稳定，不是精度]
+\label{thm:stiff-tol}
+设 $f$ 含衰减率 $\lambda<0$ 的快模态，显式方法的临界步长
+$h^\ast=|x^\ast|/|\lambda|$（定理 \ref{thm:stab-poly}）。
+当精度许可的步长 $h_{\text{acc}}=(\mathrm{tol}/C)^{1/(\hat p+1)}\gg h^\ast$ 时，
+自适应控制器会被\textbf{误差估计器}逼回 $h\approx h^\ast$：
+刚性算例上 DOPRI5、$\mathrm{tol}=10^{-6}$ 实测步长中位数 $2.98\times10^{-3}$
+（$h^\ast=3.31\times10^{-3}$ 的 $0.90$ 倍），
+整段共 $2018$ 次函数求值；同一个容差在非刚性的指数衰减问题上只要 $61$ 次
+（步长中位数 $2.42\times10^{-1}$），总求值比 $33.1$——换算成每单位时间的工作量是
+$2018$ 对 $30.5$，比 $66.2$（两个算例的积分区间长度不同：$1$ 对 $2$，
+\textbf{比代价时先说清分母}）。两者的实到误差都 $\approx\mathrm{tol}$。
+\end{theorem}
+
+\begin{proof}[为什么"多花的钱买不到精度"]
+误差估计 $\hat e$ 与真误差在刚性区是同一量级的（实测比值中位数：BS23 $0.58$、
+DOPRI5 $1.01$），所以控制器并没有被骗：它看到的是\textbf{真的}放大。
+$|R(z)|>1$ 使 $z=\lambda h$ 越界时估计量指数增长，控制器于是把 $h$ 压回稳定域。
+压回之后局部误差已经远小于容差，但$h$ 再也放不大——精度需求与稳定需求分离，
+$\mathrm{tol}$ 只能指挥后者。\end{proof}
+
+\begin{remark}[否定证据]
+原本想写「误差估计器在刚性问题上有假收敛」，实测\textbf{不成立}：
+刚性区里两个嵌入解被同一个 $|R(z)|\approx1$ 同步放大，估计器照样看得见。
+真正失效的是「$\mathrm{tol}$ 控制精度」这句话。把这条写进本章，是为了记住
+\emph{不要拿一个没验证过的直觉当结论}。
+\end{remark}
+
+\begin{theorem}[工作-精度前沿与「同一个 $\mathrm{tol}$」的陷阱]
+\label{thm:work-precision}
+设方法 $m$ 在容差 $\mathrm{tol}$ 下的实到最大误差为 $E_m(\mathrm{tol})$、
+每单位时间函数求值次数为 $W_m(\mathrm{tol})$。
+「谁更省」只有在固定精度时才有定义：
+\begin{equation}
+  W_m^\ast(E)=W_m\bigl(E_m^{-1}(E)\bigr),
+\end{equation}
+把 $E$ 当自变量比较 $W_m^\ast$。固定 $\mathrm{tol}$ 比较 $W_m(\mathrm{tol})$ 等价于
+在\textbf{不同精度}上比较。
+\end{theorem}
+
+\begin{proof}
+$E_m$ 严格单调（容差越紧误差越小），故 $E_m^{-1}$ 存在；
+$W_m^\ast(E)$ 是「要达到精度 $E$ 必须花多少」。
+而 $W_m(\mathrm{tol})=W_m^\ast(E_m(\mathrm{tol}))$ 里自变量 $E_m(\mathrm{tol})$ 依赖 $m$，
+所以固定 $\mathrm{tol}$ 时不同方法被放在了不同的 $E$ 上，比较的是两个不同的点。
+\end{proof}
+
+\begin{corollary}[实测：$10$ 倍与 $27$ 倍]
+\label{cor:spread}
+$\mathrm{tol}=10^{-6}$、指数衰减问题上：实到误差
+Heun $3.02\times10^{-7}$、BS23 $1.64\times10^{-6}$、RKF45 $1.81\times10^{-6}$、
+DOPRI5 $1.81\times10^{-7}$——最大比最小差 $10.0$ 倍；
+工作量（每单位时间求值次数）$828$、$62$、$33$、$30.5$——差 $27.1$ 倍。
+换成同一精度（取四者中最差的 $1.81\times10^{-6}$）反查工作量：
+DOPRI5 $21.2$、RKF45 $33.0$、BS23 $60.2$、Heun $339.1$。
+「每步便宜」不等于「总账便宜」：固定步长 RK4 达到 $10^{-5}$ 精度要 $38.2$ 次求值/单位时间，
+自适应 DOPRI5 只要 $18.7$。
+\end{corollary}
+
+\section{本章可视化的读法}
+
+四个可视化对应四组结论，分工是「阶 $\to$ 步长 $\to$ 条件 $\to$ 代价」：
+
+\begin{enumerate}
+  \item \texttt{order\_\allowbreak{}convergence}：主图是真跑出来的解曲线与步点（时间轴是真实时间，
+        向右拖积分往前推，节点密度就是当前 $h$）；副图是同一串 $h$ 上的四条误差曲线
+        （整段最大、终点、首步真局部、步内插值）与两条理论斜率参考线。
+        把 $h$ 拖到最细，看四条曲线在什么位置撞上 $10^{-17}$ 的地板——
+        那里不是「更准」，而是双精度量不出来了。
+  \item \texttt{adaptive\_\allowbreak{}step}：每次\textbf{试步}一根柱子：$h$、归一化误差 $\varepsilon$
+        （阈值 $1$）、以及同一尺度下的真局部误差；被拒绝的步用掩码区分。
+        把算例切到刚性、拖 $\mathrm{tol}$，看步长中位数怎么被 $h^\ast$ 钉住。
+  \item \texttt{order\_\allowbreak{}conditions}：$17$ 棵树画在单位框里，
+        副轴给每棵树的残差 $|1-\gamma\Phi|$（对数，地板 $10^{-17}$）。
+        时间轴是条件序号；勾上 $b_{\hat p}$，看同一个方法的两组权各自满足到第几条。
+  \item \texttt{work\_\allowbreak{}precision}：左图 $x=\mathrm{tol}$、$y$=实到误差（对角线是「说到做到」），
+        右图 $x$=工作量、$y$=实到误差。左图四条曲线平行但不重合，
+        这就是「同一个 $\mathrm{tol}$ 不是同一个工作点」；右图才是可比的前沿。
+        反查目标精度只做插值，超出实测区间直接拒绝作答（掩码 $+$ 文字说明）。
+\end{enumerate}
+
+\section{本章的算法路线（P2/P3 合规说明）}
+
+所有结论都由自研代码算出，没有调用任何现成的求根/插值/线性代数例程：
+
+\begin{itemize}
+  \item 阶条件 \eqref{eq:phi} 由 Butcher 表现场求和（矩阵--向量乘 + 幂零和），
+        不查表、不抄系数；树的枚举与密度是递归自写的；
+  \item 双对数斜率用自写最小二乘（\texttt{rk.loglog\_slope}），
+        与 \texttt{numcore.verify.fit\_order} 的约定一致，并在测试里逐位对拍；
+  \item \texttt{numcore} 不许 import \texttt{numcore.verify}，所以相邻点局部阶
+        （\texttt{rk.local\_orders}）与 \texttt{verify.consecutive\_orders} 是两处独立实现，
+        测试断言两者给出同一个数；
+  \item 稠密输出是自写的三次 Hermite（\eqref{eq:hermite}），
+        不调用任何插值例程；
+  \item 工作量反查用自写对数--对数插值（\texttt{stepsize.work\_at\_accuracy}），
+        \textbf{只插值、不外推}：目标超出实测区间直接抛错，帧里换成 $-1+$ 掩码；
+  \item 临界步长用二分实测（\texttt{find\_threshold}），
+        理论值 $|x^\ast|/|\lambda|$ 由稳定多项式独立算出，只用来对账。
+\end{itemize}
+
+\input{chapters/3.1/asserts_table}
+
+\section{它会怎样骗你（本章版）}
+
+\begin{enumerate}
+  \item \textbf{把「阶条件近似成立」当成「方法还是 $p$ 阶」}：把 RK4 的 $b_1$ 加 $10^{-3}$，
+        $h$ 细化 $32$ 倍误差只变 $1.19$ 倍（不下降！）。阶条件决定 $h\to0$ 时误差往哪走。
+  \item \textbf{不裁窗口就拟合斜率}：rkf45 在指数衰减问题上全窗口斜率是 $4.16$，
+        把四阶量成了 $4.16$ 阶。先看相邻点局部阶，再决定窗口，并把丢弃点数写进断言。
+  \item \textbf{在舍入地板上继续细分 $h$}：DOPRI5 在 $h=0.0039$ 处误差已到 $1.0\times10^{-15}$，
+        再细下去量到的是 $2.51$ 这种噪声斜率（实测局部阶数列的末项），不是 $5$。
+  \item \textbf{把稠密输出当成「和方法同阶」}：DOPRI5 是五阶，插值只有四阶（实测 $4.034$）。
+        五阶方法 $+$ 四阶插值 $=$ 整体只有四阶，白花了五阶的步长。
+  \item \textbf{用端点误差代表精度}：$T=10$、$h=0.05$ 时端点误差比整段最大误差小
+        $810$--$908$ 倍；$T=2$ 时同一个比只有 $1.36$。它偶然而不是规律。
+  \item \textbf{把「$|R|>1$ 会炸」当成「马上看得见」}：稳定边界是 $T\to\infty$ 的极限，
+        二分实测的临界步长在 $T=0.5$ 时偏高 $1.357\%$、$T=2$ 时 $0.276\%$、
+        $T=20$ 时 $0.026\%$。\textbf{说临界值时必须写清观测时长。}
+  \item \textbf{关掉局部外推还指望 $\mathrm{tol}$ 是精度}：Heun 关外推时实到误差是
+        请求容差的 $389$ 倍（$\mathrm{tol}=10^{-6}$ 拿到 $3.89\times10^{-4}$），
+        误差对容差的幂次从 $1$ 掉到 $0.499$。估计器估的是「两个解之差」，
+        推进低阶解时容差控制的是另一个量。
+  \item \textbf{把估计器当成真误差}：估计/真误差的比值随 $h$ 按 $1/h$ 增长
+        （Heun $+1.010$、BS23 $+1.077$、DOPRI5 $+1.033$），$\mathrm{tol}=10^{-6}$ 时
+        估计量比真误差大 $5$--$14$ 倍；只有 RKF45 是 $O(1)$（$0.94$）。
+        悲观不等于安全，它只是白花工作量。
+  \item \textbf{拿带容差的度量去对拍两个误差}：第一版用
+        $\mathrm{atol}=\mathrm{rtol}=10^{-14}$ 的接受度量除以绝对真误差，
+        比值中位数出来是 $10^{14}$ 量级，看着像「估计器差 $14$ 个数量级」——
+        其实只是分母被 $1/\mathrm{atol}$ 除了一次。两侧必须用同一把无权尺子。
+  \item \textbf{在同一个 $\mathrm{tol}$ 下比较方法}：$\mathrm{tol}=10^{-6}$ 时实到误差
+        相差 $10.0$ 倍、工作量相差 $27.1$ 倍——比的是两个不同的工作点。
+        要比就固定在精度上（本章 viz 4 的右图）。
+  \item \textbf{把「每步便宜」当「总账便宜」}：固定步长 RK4 每步 $4$ 次求值
+        （DOPRI5 要 $6$ 次），但达到 $10^{-5}$ 精度需要 $38.2$ 次求值/单位时间，
+        自适应 DOPRI5 只要 $18.7$。
+  \item \textbf{把 PI 控制器当万能药}：刚性算例上它把振荡指标从 $0.061$ 压到 $0.030$，
+        光滑谐振子上反而从 $0.127$ 抬到 $0.228$。历史项在误差估计平滑时只是噪声。
+  \item \textbf{把刚性算例上的「准」当成「便宜」}：$\mathrm{tol}=10^{-6}$ 时
+        实到误差 $\approx\mathrm{tol}$ 看着完美，代价是同精度非刚性问题的 $33.1$ 倍
+        （$2018$ vs $61$ 次求值）。容差在这里管的是稳定，不是精度。
+  \item \textbf{把「反查工作量」外推到实测区间之外}：$\mathrm{tol}=10^{-4}$ 时
+        某些方法的目标精度落在其实测容差区间之外，反查直接拒绝作答
+        （帧里给 $-1$ 与掩码）。插值可以，外推出来的工作量是编的。
+  \item \textbf{把时间轴当时间}：\texttt{adaptive\_\allowbreak{}step} 的时间轴是
+        「试步进度 $0$--$100$」、\texttt{order\_\allowbreak{}conditions} 是条件序号、
+        \texttt{work\_\allowbreak{}precision} 干脆没有时间轴。
+        每帧的 \texttt{meta} 给出当前参数与进度，拖到头就夹住，不是卡住。
+\end{enumerate}

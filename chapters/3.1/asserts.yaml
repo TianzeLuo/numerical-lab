@@ -1,0 +1,122 @@
+# 3.1 章断言清单（真源：`tests/3.1/test_rk.py` 与 `tests/3.1/test_stepsize.py`）
+#
+# 这一章分两半测：
+#   * **阶与阶条件**（上半）：有根树的计数/密度、Φ=1/γ 的逐条验算、8 张表的声明阶、
+#     稳定多项式与 3.2 章的逐位对拍、Hermite 的再生性与尖锐常数——A 类；
+#     实测阶（全局 p / 局部 p+1 / 稠密输出 min(p,4)）、端点误差与最大误差的比、
+#     临界步长的二分实测、刚性问题的代价——C 类。
+#   * **步长与代价**（下半）：控制器闭式、next_step 的乘性、求值记账——A 类；
+#     接受判据与估计器在刚性区的行为——B 类；tol→误差的幂次、估计器比值的 h 幂次、
+#     工作-精度前沿与"同一 tol 陷阱"、PI 控制器的两面性——C 类。
+#
+# 实测规模（最近一次 `python3 -m pytest tests/3.1 -q`）：A 13 条、B 10 条、C 46 条，共 69 条，
+# 全部通过。下面的 min_counts 留了余量：断言内部的记录条数会随多对拍一个方法而增减，
+# 余量避免"算法没坏、清单先红"。B 类不列入 required_kinds（本章的要求是 A + C），
+# 但辅助断言（assert_leq/assert_monotone 等）顺手登记的 B 类记录一并保留，它们是同一批实测值的对照。
+chapter: "3.1"
+title: 单步法、阶条件与自适应步长
+required_kinds: [A, C]
+
+min_counts:
+  A: 11
+  B: 8
+  C: 40
+
+tests:
+  # ------------------------------------------------------------------ 阶条件
+  - name: test_rooted_tree_enumeration_and_densities
+    kind: A
+    what: 树计数 1/1/2/4/9、密度 γ=1,2,3,6,4,8,12,24 逐条相等；RK4 对 ρ≤4 的 8 条条件残差 max 1.1e-16；Euler 的 [*] 残差恰好 1（bᵀc=0）
+    theory: 有根树的枚举计数与密度递推 γ=ρ·∏γ_i；满足 ρ≤p 的全部条件 ⟺ p 阶
+  - name: test_declared_orders_via_order_conditions
+    kind: A
+    what: 8 张表（b 与 b_hat 共 12 个权向量）的实测阶全部等于声明阶；把 RK4 的 b₁ 加 1e-3 后实测阶掉到 0（Σb=1+δ）
+    theory: 实测阶 = 满足阶条件的最大 p；扰动一个权就破坏所有含它的条件
+  - name: test_order_condition_failure_shows_in_measured_slope
+    kind: C
+    what: Σb=1+δ 时 h 细化 32 倍误差只变 1.19 倍（残差恰好 −δ=1e-3，平台高度 3.7e-4）；保住 Σb=1 的扰动实测阶 1、斜率 1.02
+    theory: 阶条件破坏的**后果**：Σb≠1 的方法在解另一个 ODE（误差趋于 O(δ) 平台）；Σb=1 而 bᵀc≠1/2 只剩一阶
+  - name: test_stability_polynomial_matches_3_2_module
+    kind: A
+    what: 4 个共有方法（euler/midpoint/heun/rk4）的 c_j=bᵀA^{j−1}e 与 numcore.ode.stability 逐位一致（max|Δ|≤16u）、且 j≤p 时 =1/j!；Euler 负实轴端点恰好 −2，RK4 与 3.2 章二分实现差 ≤1e-6
+    theory: 稳定多项式系数就是阶条件的和；C_j=1/j! 是"阶"在复平面上的指纹
+  - name: test_hermite_dense_output_exactness_and_sharp_constant
+    kind: A
+    what: 三次多项式上 Hermite 再生误差 0（≤16u）；t⁴/24 上最大误差/(h⁴/384)=1.000000000000（差 ≤1e-12），峰值在 θ=0.5
+    theory: 三次 Hermite 的误差 = h⁴θ²(1−θ)²f⁗/24，θ=1/2 处取到 h⁴/384（对四次多项式是**精确**等式）
+  - name: test_local_orders_matches_verify_helper
+    kind: A
+    what: 内核自写的 local_orders 与 numcore.verify.consecutive_orders 在 7 个局部阶上逐位相同（max|Δ|=0）
+    theory: 相邻点局部阶的定义唯一；numcore 不许 import numcore.verify，所以两处实现必须对拍
+
+  # ------------------------------------------------------------------ 实测阶
+  - name: test_global_and_local_order_match_theory
+    kind: C
+    what: 8 个方法在谐振子上：全局斜率 1.049/1.995/1.995/2.981/3.981/2.981/3.982/4.985，局部斜率 1.999–6.007，全部落在理论阶 ±0.1/±0.12 内
+    theory: 全局误差 ~ h^p、局部误差 ~ h^{p+1}；窗口由局部阶自动裁剪（rk.asymptotic_window）
+  - name: test_dense_output_order_caps_at_four
+    kind: C
+    what: 稠密输出斜率 euler 1.095、midpoint/heun 1.994、rk3/bs23 2.979、rk4 3.979、rkf45 3.978、dopri5 4.034，全部等于 min(p,4)±0.12
+    theory: 三次 Hermite 步内插值只有 4 阶：p≥5 时稠密输出**低于**方法阶（dopri5 的 5 阶解只有 4 阶插值）
+  - name: test_endpoint_error_understates_max_error
+    kind: C
+    what: T=10、h=0.05 时整段最大误差/终点误差 908.1/874.5/810.3（euler/heun/rk4）；T=2 的对照只有 1.36
+    theory: 端点误差不是误差：误差在长时程上累积，端点是"最幸运"的一点
+  - name: test_critical_step_from_stability_boundary
+    kind: C
+    what: dopri5 在 λ=−1000 上的临界步长二分实测 3.315e-3（T=2）与 |R(x*)|=1 推出的 3.3066e-3 差 0.28%；有限观测偏差随 T 单调下降 +1.357%→+0.276%（T=0.5→2；同谓词 T=20 时 +0.026%）
+    theory: h* = |x*|/|λ|，x* 是 |R(x)|=1 在负实轴上的左端点；观测时长有限会把临界值抬高
+  - name: test_stiff_tolerance_is_limited_by_stability
+    kind: C
+    what: tol=1e-6 时 dopri5 在刚性算例上整段 2018 次求值（步长中位数 2.98e-3 = 稳定极限的 0.90 倍），非刚性同类只要 61 次（2.42e-1），总求值比 33.1、每单位时间工作量比 66.2；两者实到误差都 ≈ tol
+    theory: 刚性区间里容差控制的是**稳定**而不是精度：步长被 h* 钉住，多花的钱买不到精度
+
+  # ------------------------------------------------------------------ 控制器
+  - name: test_controller_factor_closed_form
+    kind: A
+    what: fac=safe·ε^(−1/(p̂+1)) 在 4 组 (ε,p̂) 上与手算逐位一致（≤16u）；PI 的 β′ 项与 ε_{n−1}^{0.75β} 一致；裁剪端点 (5.0, 0.2)；ε<0/NaN/Inf 抛错、ε=0 给 fac_max
+    theory: I 控制器闭式；PI 的 Hairer–Wanner 口径 α=1/(p̂+1)−β′、β′=0.75β
+  - name: test_next_step_is_multiplicative
+    kind: A
+    what: next_step = h·controller_factor 逐位一致；h=0/−0.1/Inf 抛错
+    theory: 控制器只给**无量纲**因子，步长更新是乘性的（与 h 的绝对大小无关）
+  - name: test_adaptive_accounting_is_consistent
+    kind: A
+    what: rkf45（无 FSAL）在三个容差下 n_f_evals 恰好 = (接受+拒绝)×6，拒绝数 0/0/1
+    theory: 记账必须与步数一致，否则 viz 里的"代价"是估出来的
+  - name: test_pi_controller_is_not_free_lunch
+    kind: C
+    what: 刚性算例上 PI 的步长振荡 0.030 < I 的 0.061（拒绝 1 vs 2）；光滑谐振子上 PI 反而更抖 0.228 > I 0.127
+    theory: PI 的历史项在步长被稳定性逼着走时有用；误差估计本身平滑时它只是把噪声带进步长序列
+
+  # ------------------------------------------------------------------ 估计器
+  - name: test_accepted_steps_stay_within_tolerance
+    kind: B
+    what: 5 组 (方法,算例,容差) 配置里所有被接受步的归一化误差 ≤1，且至少有一次逼近容差（max ε ≥0.02）
+    theory: 接受判据 ε≤1 是控制器的不变量；ε 恒小说明步长被别的东西卡住而不是"收敛得稳"
+  - name: test_estimator_ratio_on_stiff_problem
+    kind: B
+    what: 刚性算例上估计/真误差比值中位数 0.584（bs23,h=2e-3）与 1.01（dopri5,h=3e-3），落在 [0.2,3]
+    theory: 否定证据：刚性区里估计器没有说谎（|R(z)|≈1 附近两个嵌入解同步放大），失效的是"tol 控制精度"这句话
+  - name: test_local_extrapolation_decides_tol_to_error_scaling
+    kind: C
+    what: heun 开外推时误差 ~ tol^0.996、关外推时 ~ tol^0.499；bs23 关外推 ~ tol^0.733（理论 3/4）
+    theory: 开外推 ⟹ 误差 ~ tol；关外推 ⟹ 误差 ~ tol^{p̂/p}（p̂ = 被推进解的阶）
+  - name: test_accuracy_can_miss_tolerance_by_orders
+    kind: C
+    what: tol=1e-6：heun 关外推实到/请求 = 389 倍、bs23 关外推 17.5 倍、dopri5 开外推 0.18 倍、heun 开外推 0.30 倍
+    theory: 估计器估的是"高阶解与低阶解之差"，推进低阶解时容差控制的就不是实到误差——假收敛
+  - name: test_estimator_ratio_scales_with_step
+    kind: C
+    what: 真误差/估计的 h 幂次：heun 0.990、bs23 1.077、dopri5 1.033（即估计/真 ~ 1/h，最细 h 处中位数 245/19.6/57.3 倍，悲观），rkf45 0.081（即 O(1)，中位数 0.97）
+    theory: 比值幂次由嵌入对的阶差决定：差一阶 ⟹ ~1/h；同阶组合 ⟹ O(1)
+
+  # ------------------------------------------------------------------ 工作-精度
+  - name: test_work_precision_and_the_same_tolerance_trap
+    kind: C
+    what: tol=1e-6 下四个方法的实到误差差 10.0 倍（1.6e-6–3.0e-7）、工作量差 27.1 倍（30.5–828）；同一精度下工作量 dopri5 21.2 < rkf45 33.0 < bs23 60.2 < heun 339.1；固定步长 RK4 在 1e-5 精度上要 38.2 vs 自适应 dopri5 18.7
+    theory: 同一个 tol 不是同一个工作点；"谁更省"必须固定在精度上问；每步便宜 ≠ 总账便宜
+  - name: test_local_error_reference_converges
+    kind: A
+    what: rk4 在 h=0.05 上真局部误差 n_sub=8 与 16 相差 <5%；heun 的局部阶斜率 n_sub=4 与 8 相差 <0.05
+    theory: 子步参考解只改常数、不改幂次；分母自己先要稳住，估计器对拍才有意义

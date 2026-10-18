@@ -1,0 +1,83 @@
+% 本文件由 tools/build_book.py 从 dist/reports/assertions.json 生成，请勿手改。
+\begin{longtable}{@{}p{0.06\textwidth}p{0.32\textwidth}p{0.22\textwidth}p{0.16\textwidth}@{}}
+\caption{章节 3.1 数值断言（生成时间 2026-10-18T15:51:45-0400）}\\
+\toprule
+类别 & 断言 & 理论值 & 实测值 \\
+\midrule
+\endfirsthead
+\toprule
+类别 & 断言 & 理论值 & 实测值 \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+
+A & 树计数与密度 $\gamma$($\rho$$\le$4 的 8 棵) & 1,\allowbreak{}1,\allowbreak{}2,\allowbreak{}4,\allowbreak{}9 棵；$\gamma$ =\allowbreak{} 1,\allowbreak{}2,\allowbreak{}3,\allowbreak{}6,\allowbreak{}4,\allowbreak{}8,\allowbreak{}12,\allowbreak{}24 & 计数 [1,\allowbreak{} 1,\allowbreak{} 2,\allowbreak{} 4,\allowbreak{} 9]；$\gamma$ 最大偏差 0 \checkmark \\
+B & RK4 的 8 条阶条件残差 max|1$-$$\gamma$$\Phi$| & $\le$ 1.77636e-15 & $1.110\times 10^{-16}$ \checkmark \\
+A & Euler 的 2 阶条件残差 1$-$$\gamma$$\Phi$([*]) & 1 $-$ 2$\cdot$b$^{\mathsf T}$c =\allowbreak{} 1(\allowbreak{}b$^{\mathsf T}$c =\allowbreak{} 0) & 1 \checkmark \\
+A & 8 个方法的阶条件实测阶(b 与 b\_\allowbreak{}hat) & 与 Tableau.order /\allowbreak{} order\_hat 逐条相等 & euler:1,\allowbreak{} midpoint:2,\allowbreak{} heun:2,\allowbreak{} heun(\allowbreak{}b\_hat):1,\allowbreak{} rk3:3,\allowbreak{} rk4:4,\allowbreak{} bs23:3,\allowbreak{} bs23(\allowbreak{}b\_hat):2,\allowbreak{} rkf45:4,\allowbreak{} rkf45(\allowbreak{}b\_hat):5,\allowbreak{} dopri5:5,\allowbreak{} dopri5(\allowbreak{}b\_hat):4 \checkmark \\
+A & 扰动 RK4 的 b$_1$(+1e-3)后的实测阶 & 0：$\Sigma$b =\allowbreak{} 1+1e-3 $\ne$ 1，连一阶条件都不满足 & 4 $\to$ 0 \checkmark \\
+C & $\Sigma$b=1 但二阶条件破：全局误差 \textasciitilde{} h\textasciicircum{}1 & 1 & 1.01922 \checkmark \\
+C & 两张被扰动过的 RK4 表的真实收敛行为 & $\Sigma$b$\ne$1 $\implies$ 阶 0(\allowbreak{}误差趋于 O(\allowbreak{}$\delta$) 的平台)；$\Sigma$b=\allowbreak{}1 而 b$^{\mathsf T}$c$\ne$1/\allowbreak{}2 $\implies$ 阶 1 & $\Sigma$b=\allowbreak{}1+$\delta$：h 细化 32 倍后误差只变 1.19 倍(\allowbreak{}阶条件实测 0 阶)；$\Sigma$b=\allowbreak{}1、\allowbreak{}二阶条件破：实测阶 1，斜率 1.019 \checkmark \\
+A & 稳定多项式系数：本章表 vs 3.2 章 stability(4 个方法) & 逐位一致(\allowbreak{}同一个 b$^{\mathsf T}$A\textasciicircum{}\{j$-$1\}e) & max|$\Delta$|=\allowbreak{}0.00e+00 \checkmark \\
+B & RK4 负实轴端点 vs 3.2 章实现 & $\le$ 1.00000e-06 & 0 \checkmark \\
+A & 负实轴端点 x*(|R(x*)|=1) & Euler $-$2 恰好；RK4 $-$2.7852935634 & Euler -2；RK4 -2.785293563405 \checkmark \\
+B & 三次多项式上 Hermite 的再生误差 & $\le$ 1.77636e-15 & $2.220\times 10^{-16}$ \checkmark \\
+A & Hermite 在 t$^4$/24 上的最大误差 / (h$^4$/384) & 1(\allowbreak{}误差 =\allowbreak{} h$^4$$\theta$$^2$(\allowbreak{}1$-$$\theta$)$^2$/\allowbreak{}24，$\theta$=\allowbreak{}1/\allowbreak{}2 处取等) & 1.000000000000000(\allowbreak{}三次多项式上误差 2.22e-16) \checkmark \\
+A & local\_\allowbreak{}orders(内核)vs consecutive\_\allowbreak{}orders(verify) & 同一个相邻点局部阶的定义，逐位相同 & max|$\Delta$|=\allowbreak{}0.0e+00(\allowbreak{}7 个局部阶) \checkmark \\
+C & euler 全局阶 = 1 & 1 & 1.04856 \checkmark \\
+C & euler 局部阶 = 2 & 2 & 1.99858 \checkmark \\
+C & midpoint 全局阶 = 2 & 2 & 1.99487 \checkmark \\
+C & midpoint 局部阶 = 3 & 3 & 2.99839 \checkmark \\
+C & heun 全局阶 = 2 & 2 & 1.99487 \checkmark \\
+C & heun 局部阶 = 3 & 3 & 2.99839 \checkmark \\
+C & rk3 全局阶 = 3 & 3 & 2.98097 \checkmark \\
+C & rk3 局部阶 = 4 & 4 & 3.99882 \checkmark \\
+C & rk4 全局阶 = 4 & 4 & 3.98093 \checkmark \\
+C & rk4 局部阶 = 5 & 5 & 4.99891 \checkmark \\
+C & bs23 全局阶 = 3 & 3 & 2.98097 \checkmark \\
+C & bs23 局部阶 = 4 & 4 & 3.99882 \checkmark \\
+C & rkf45 全局阶 = 4 & 4 & 3.98157 \checkmark \\
+C & rkf45 局部阶 = 5 & 5 & 5.00696 \checkmark \\
+C & dopri5 全局阶 = 5 & 5 & 4.98535 \checkmark \\
+C & dopri5 局部阶 = 6 & 6 & 6.00699 \checkmark \\
+C & 全局阶 / 局部阶 汇总(8 个方法) & 全局 p、\allowbreak{}局部 p+1 & euler: 全局 1.049/\allowbreak{}1，局部 1.999/\allowbreak{}2；midpoint: 全局 1.995/\allowbreak{}2，局部 2.998/\allowbreak{}3；heun: 全局 1.995/\allowbreak{}2，局部 2.998/\allowbreak{}3；rk3: 全局 2.981/\allowbreak{}3，局部 3.999/\allowbreak{}4；rk4: 全局 3.981/\allowbreak{}4，局部 4.999/\allowbreak{}5；bs23: 全局 2.981/\allowbreak{}3，局部 3.999/\allowbreak{}4；rkf45: 全局 3.982/\allowbreak{}4，局部 5.007/\allowbreak{}5；dopri5: 全局 4.985/\allowbreak{}5，局部 6.007/\allowbreak{}6 \checkmark \\
+C & euler 稠密输出阶 = min(p,4) = 1 & 1 & 1.09492 \checkmark \\
+C & midpoint 稠密输出阶 = min(p,4) = 2 & 2 & 1.99378 \checkmark \\
+C & heun 稠密输出阶 = min(p,4) = 2 & 2 & 1.99378 \checkmark \\
+C & rk3 稠密输出阶 = min(p,4) = 3 & 3 & 2.9794 \checkmark \\
+C & rk4 稠密输出阶 = min(p,4) = 4 & 4 & 3.97926 \checkmark \\
+C & rkf45 稠密输出阶 = min(p,4) = 4 & 4 & 3.9779 \checkmark \\
+C & dopri5 稠密输出阶 = min(p,4) = 4 & 4 & 4.03375 \checkmark \\
+C & 稠密输出阶 vs 方法阶 & min(\allowbreak{}p,\allowbreak{} 4) & euler:p=\allowbreak{}1$\to$实测 1.095；midpoint:p=\allowbreak{}2$\to$实测 1.994；heun:p=\allowbreak{}2$\to$实测 1.994；rk3:p=\allowbreak{}3$\to$实测 2.979；rk4:p=\allowbreak{}4$\to$实测 3.979；rkf45:p=\allowbreak{}4$\to$实测 3.978；dopri5:p=\allowbreak{}5$\to$实测 4.034 \checkmark \\
+C & 同一 h=0.05 下 整段最大误差 / 终点误差(T=10) & $\ge$ 500(\allowbreak{}端点误差可以小三个数量级) & min=\allowbreak{}808.7，max=\allowbreak{}907.8 \checkmark \\
+C & 同一 h=0.05 下 最大误差/终点误差(T=2 对照) & $\approx$ 1(\allowbreak{}误差单调增长时端点就是最大点) & 1.359 \checkmark \\
+C & dopri5 在 $\lambda$=$-$1000 上的临界步长(二分实测 vs |R(x*)|=1) & 0.00330657 & 0.00331569 \checkmark \\
+C & 临界步长的有限观测偏差(T=0.5$\to$20) & 偏差为正且随 T 单调减小，T$\to$$\infty$ 时趋于 0 & +1.357\%,\allowbreak{} +0.276\%,\allowbreak{} +0.026\% \checkmark \\
+C & 刚性 vs 非刚性：工作量比与步长/稳定极限比(tol=1e-6, dopri5) & 工作量比 $\gg$ 1；刚性问题上的步长被 h* 卡住(\allowbreak{}比值 \textasciitilde{}1) & 工作量比 66.2；h\_median/\allowbreak{}h* =\allowbreak{} 0.90；非刚性 h\_median=\allowbreak{}2.419e-01，刚性 h\_median=\allowbreak{}2.980e-03 \checkmark \\
+A & 真局部误差对子步数的敏感性(rk4, h=0.05) & 子步参考解自身误差 O(\allowbreak{}(\allowbreak{}h/\allowbreak{}n)\textasciicircum{}p)，n=\allowbreak{}8$\to$16 时应变化很小 & n=\allowbreak{}8: 2.582e-09，n=\allowbreak{}16: 2.583e-09，相对差 0.022\% \checkmark \\
+A & heun 局部误差斜率：n\_\allowbreak{}sub=4 vs 8 & 3(\allowbreak{}都在渐近区) & 2.986 /\allowbreak{} 2.985 \checkmark \\
+A & 控制器因子闭式对拍(I 与 PI) & safe$\cdot$$\varepsilon$\textasciicircum{}(\allowbreak{}$-$1/\allowbreak{}(\allowbreak{}p\_hat+1))；PI：$\alpha$=\allowbreak{}1/\allowbreak{}(\allowbreak{}p\_hat+1)$-$$\beta$$'$、\allowbreak{}乘 $\varepsilon$\_\{n$-$1\}\textasciicircum{}\{$\beta$$'$\}(\allowbreak{}$\beta$$'$=\allowbreak{}0.75$\beta$) & max|$\Delta$|=\allowbreak{}0.00e+00；|$\Delta$\_PI|=\allowbreak{}4.44e-16 \checkmark \\
+A & next\_\allowbreak{}step 与 h$\cdot$fac 的一致性 & h\_new =\allowbreak{} h$\cdot$fac(\allowbreak{}乘性、\allowbreak{}无量纲因子) & max|$\Delta$|=\allowbreak{}0.00e+00(\allowbreak{}h=\allowbreak{}0.125) \checkmark \\
+B & heun@exp\_\allowbreak{}decay 被接受步的 max $\varepsilon$ & $\le$ 1 & 0.81 \checkmark \\
+B & bs23@exp\_\allowbreak{}decay 被接受步的 max $\varepsilon$ & $\le$ 1 & 0.737229 \checkmark \\
+B & rkf45@logistic 被接受步的 max $\varepsilon$ & $\le$ 1 & 0.64808 \checkmark \\
+B & dopri5@oscillator 被接受步的 max $\varepsilon$ & $\le$ 1 & 0.645919 \checkmark \\
+B & bs23@oscillator 被接受步的 max $\varepsilon$ & $\le$ 1 & 0.768558 \checkmark \\
+B & 被接受步的归一化误差上界(5 组配置) & $\varepsilon$ $\le$ 1(\allowbreak{}接受判据本身) & heun@exp\_decay: max $\varepsilon$=\allowbreak{}0.810,\allowbreak{} 接受率=\allowbreak{}0.998,\allowbreak{} 求值 1656；bs23@exp\_decay: max $\varepsilon$=\allowbreak{}0.737,\allowbreak{} 接受率=\allowbreak{}0.995,\allowbreak{} 求值 560；rkf45@logistic: max $\varepsilon$=\allowbreak{}0.648,\allowbreak{} 接受率=\allowbreak{}0.917,\allowbreak{} 求值 72；dopri5@oscillator: max $\varepsilon$=\allowbreak{}0.646,\allowbreak{} 接受率=\allowbreak{}1.000,\allowbreak{} 求值 235；bs23@oscillator: max $\varepsilon$=\allowbreak{}0.769,\allowbreak{} 接受率=\allowbreak{}1.000,\allowbreak{} 求值 217 \checkmark \\
+B & 刚性问题上的估计器比值(定步长，步长在稳定极限附近) & O(\allowbreak{}1)(\allowbreak{}|R(\allowbreak{}z)|$\approx$1 附近两个嵌入解同步被放大，估计器照样看得见) & bs23@stiff\_cos(\allowbreak{}h=\allowbreak{}0.002): 中位数 0.584，区间 [0.504,\allowbreak{} 0.635]；dopri5@stiff\_cos(\allowbreak{}h=\allowbreak{}0.003): 中位数 1.015，区间 [1.010,\allowbreak{} 2.543] \checkmark \\
+C & heun(extrap=True)实到误差 \textasciitilde{} tol\textasciicircum{}1 & 1 & 0.99606 \checkmark \\
+C & heun(extrap=False)实到误差 \textasciitilde{} tol\textasciicircum{}0.5 & 0.5 & 0.498645 \checkmark \\
+C & bs23(extrap=False)实到误差 \textasciitilde{} tol\textasciicircum{}0.75 & 0.75 & 0.732549 \checkmark \\
+C & tol$\to$误差 的幂次：局部外推的作用 & 开外推：误差 \textasciitilde{} tol\textasciicircum{}1；不开：误差 \textasciitilde{} tol\textasciicircum{}\{p\_hat/\allowbreak{}p\}(\allowbreak{}p\_hat=\allowbreak{}被推进解的阶) & heun(\allowbreak{}extrap=\allowbreak{}True): 斜率 0.996(\allowbreak{}理论 1)；heun(\allowbreak{}extrap=\allowbreak{}False): 斜率 0.499(\allowbreak{}理论 0.5)；bs23(\allowbreak{}extrap=\allowbreak{}False): 斜率 0.733(\allowbreak{}理论 0.75) \checkmark \\
+C & 同一 tol=1e-6 下「实到误差/请求容差」 & 开外推时 \textasciitilde{}1 量级；不开外推(\allowbreak{}推进低阶解)可以差两个数量级 & heun(\allowbreak{}extrap=\allowbreak{}True): 实到/\allowbreak{}请求 =\allowbreak{} 0.302(\allowbreak{}3.02e-07)；heun(\allowbreak{}extrap=\allowbreak{}False): 实到/\allowbreak{}请求 =\allowbreak{} 389(\allowbreak{}3.89e-04)；bs23(\allowbreak{}extrap=\allowbreak{}True): 实到/\allowbreak{}请求 =\allowbreak{} 1.64(\allowbreak{}1.64e-06)；bs23(\allowbreak{}extrap=\allowbreak{}False): 实到/\allowbreak{}请求 =\allowbreak{} 17.5(\allowbreak{}1.75e-05)；dopri5(\allowbreak{}extrap=\allowbreak{}True): 实到/\allowbreak{}请求 =\allowbreak{} 0.181(\allowbreak{}1.81e-07) \checkmark \\
+C & heun 真误差/估计 \textasciitilde{} h\textasciicircum{}1 & 1 & 0.990133 \checkmark \\
+C & bs23 真误差/估计 \textasciitilde{} h\textasciicircum{}1 & 1 & 1.07717 \checkmark \\
+C & rkf45 真误差/估计 \textasciitilde{} h\textasciicircum{}-0 & -0 & 0.081369 \checkmark \\
+C & dopri5 真误差/估计 \textasciitilde{} h\textasciicircum{}1 & 1 & 1.03342 \checkmark \\
+C & 估计器比值的 h 幂次(4 个嵌入对) & 阶差 1 $\implies$ 比值 \textasciitilde{} 1/\allowbreak{}h；阶差 0 $\implies$ 比值 \textasciitilde{} h\textasciicircum{}0 & heun: 真误差/\allowbreak{}估计 斜率 0.990(\allowbreak{}理论 1)，估计/\allowbreak{}真(\allowbreak{}min h)=\allowbreak{}245；bs23: 真误差/\allowbreak{}估计 斜率 1.077(\allowbreak{}理论 1)，估计/\allowbreak{}真(\allowbreak{}min h)=\allowbreak{}19.6；rkf45: 真误差/\allowbreak{}估计 斜率 0.081(\allowbreak{}理论 -0)，估计/\allowbreak{}真(\allowbreak{}min h)=\allowbreak{}0.967；dopri5: 真误差/\allowbreak{}估计 斜率 1.033(\allowbreak{}理论 1)，估计/\allowbreak{}真(\allowbreak{}min h)=\allowbreak{}57.3 \checkmark \\
+C & tol=1e-6 下四个方法的实到误差与工作量 & 同一 tol 不是同一工作点：实到误差可差 10 倍、\allowbreak{}工作量可差 27 倍 & 误差比 10.0$\times$(\allowbreak{}['3.02e-07',\allowbreak{} '1.64e-06',\allowbreak{} '1.81e-06',\allowbreak{} '1.81e-07'])，工作量比 27.1$\times$(\allowbreak{}['828.0',\allowbreak{} '62.0',\allowbreak{} '33.0',\allowbreak{} '30.5']) \checkmark \\
+C & 同一精度 1e-5：固定步长 RK4 vs 自适应 dopri5 的工作量 & 每步便宜 $\ne$ 总账便宜：自适应方法用更少的求值达到同一精度 & RK4 38.2 vs dopri5 18.7(\allowbreak{}比 2.05) \checkmark \\
+C & I 与 PI 的步长振荡指标(刚性与光滑各一组) & PI 的历史项在步长被稳定性逼着走时压振荡；在光滑问题上没有免费午餐 & stiff\_cos@i: 振荡 0.061，拒绝 2，接受 333；stiff\_cos@pi: 振荡 0.030，拒绝 1，接受 335；oscillator@i: 振荡 0.127，拒绝 1，接受 58；oscillator@pi: 振荡 0.228，拒绝 1，接受 60 \checkmark \\
+A & rkf45 的求值记账(无 FSAL) & n\_f\_evals =\allowbreak{} (\allowbreak{}接受+拒绝)$\cdot$6，无隐藏的重复求值 & tol=\allowbreak{}0.0001: 接受 13，拒绝 0，求值 78；tol=\allowbreak{}1e-06: 接受 28，拒绝 0，求值 168；tol=\allowbreak{}1e-08: 接受 68，拒绝 0，求值 408 \checkmark \\
+\end{longtable}

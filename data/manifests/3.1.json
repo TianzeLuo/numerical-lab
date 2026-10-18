@@ -1,0 +1,336 @@
+{
+  "chapter": "3.1",
+  "part": "III",
+  "summary": "阶条件把「一个方法几阶」变成一组可以逐条验算的和：每棵有根树一条，Φ(τ)=1/γ(τ)。满足到第 p 棵，误差就按 h^p 走——这一章把两条证据链摆在一起：树上算出来的阶，和真跑积分量出来的斜率。自适应步长则把这套阶变成工程：估计器估的是哪个解，决定了「tol 是不是精度」。",
+  "title": "单步法、阶条件与自适应步长",
+  "vizzes": [
+    {
+      "axes": [
+        {
+          "autoscaled": true,
+          "id": "solution",
+          "title": "解曲线（当前 h 的步点画在曲线上）",
+          "ylabel": "y"
+        },
+        {
+          "autoscaled": false,
+          "id": "error",
+          "scale": "log",
+          "title": "误差 vs 步长（双对数，固定窗口）",
+          "ylabel": "误差"
+        }
+      ],
+      "dataSource": "backend",
+      "description": "主图是真算出来的解曲线与步点（时间轴就是真实时间 t，向右拖积分往前推，节点密度就是当前步长 h）。副图是同一串 h 上的四条误差曲线：整段最大误差、终点误差、首步真局部误差、步内插值（稠密输出）误差，外加两条理论斜率参考线。当前 h 用竖线标出，它的四个误差值同时高亮——端点和最大误差的关系当场可见。",
+      "id": "order_convergence",
+      "params": [
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": "rk4",
+          "label": "方法",
+          "name": "method",
+          "options": [
+            "euler",
+            "midpoint",
+            "heun",
+            "rk3",
+            "rk4",
+            "bs23",
+            "rkf45",
+            "dopri5"
+          ],
+          "type": "enum"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": "exp_decay",
+          "label": "算例",
+          "name": "problem",
+          "options": [
+            "exp_decay",
+            "exp_decay_long",
+            "logistic",
+            "oscillator"
+          ],
+          "type": "enum"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": 0.0625,
+          "label": "步长 h",
+          "max": 0.5,
+          "min": 0.00390625,
+          "name": "h",
+          "step": 0.00390625,
+          "type": "float"
+        }
+      ],
+      "pitfalls": "第一，副图是**固定窗口**的双对数图：改成自适应，四条曲线的相对位置会被拉平，「稠密输出只有 4 阶」「端点误差小三个数量级」这两个结论会当场消失。第二，斜率参考线是按**声明的阶**画的，不是按拟合出来的斜率画的；拟合窗口若含预渐近的粗网格点，量出来的斜率会偏大（rkf45 在 exp_decay 上全窗口是 4.16），所以窗口的丢弃点数写在 meta 里。第三，误差比对数的地板是 1e-17：到了地板就不是「误差很小」，而是「双精度已经量不出来了」，两条曲线在地板处贴合是假象。",
+      "requiredAux": [
+        "error"
+      ],
+      "theory": [
+        "全局误差 ~ h^p、局部误差 ~ h^{p+1}；p 由阶条件 bᵀA^{j−1}e 决定",
+        "稠密输出（三次 Hermite）的步内插值误差 ~ h^min(p,4)：p≥5 时它**低于**方法阶",
+        "终点误差 |y_N−y(T)| 与整段最大误差 max_t|y_h−y(t)| 是两个不同的量，长时程上差三个数量级"
+      ],
+      "time": {
+        "dt": 0.05,
+        "label": "t（真实时间，积分推进）",
+        "mode": "scrub",
+        "tMax": 10.0
+      },
+      "title": "阶：误差-步长双对数阶梯与真跑出来的解"
+    },
+    {
+      "axes": [
+        {
+          "autoscaled": true,
+          "id": "solution",
+          "title": "解曲线（自适应节点）",
+          "ylabel": "y"
+        },
+        {
+          "autoscaled": false,
+          "id": "hseq",
+          "scale": "log",
+          "title": "试步的步长 h（对数）",
+          "ylabel": "h"
+        },
+        {
+          "autoscaled": false,
+          "id": "errseq",
+          "scale": "log",
+          "title": "归一化误差：估计 ε 与真误差（阈值 1）",
+          "ylabel": "ε"
+        }
+      ],
+      "dataSource": "backend",
+      "description": "每次试步画一根柱子：h（对数）、归一化误差估计 ε（对数，阈值 1 是接受线）、以及同一尺度下的**真局部误差**。被拒绝的步用掩码标出。时间轴是试步进度：向右拖，序列一点点长出来。刚性算例上会看到步长被稳定极限钉在 3.3e-3 附近，而不是被精度要求放开到 2.4e-1。",
+      "id": "adaptive_step",
+      "params": [
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": "dopri5",
+          "label": "嵌入对",
+          "name": "method",
+          "options": [
+            "heun",
+            "bs23",
+            "rkf45",
+            "dopri5"
+          ],
+          "type": "enum"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": "exp_decay",
+          "label": "算例",
+          "name": "problem",
+          "options": [
+            "exp_decay",
+            "logistic",
+            "oscillator",
+            "stiff_cos"
+          ],
+          "type": "enum"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": 1e-06,
+          "label": "容差 tol",
+          "max": 0.001,
+          "min": 1e-09,
+          "name": "tol",
+          "step": 1e-09,
+          "type": "float"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": "pi",
+          "label": "控制器",
+          "name": "law",
+          "options": [
+            "pi",
+            "i"
+          ],
+          "type": "enum"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": true,
+          "label": "局部外推（推进高阶解）",
+          "name": "extrap",
+          "type": "bool"
+        }
+      ],
+      "pitfalls": "第一，varepsilon 是**归一化**的：ε=1 恰好等于容差，所以柱子穿过 1 就必然被拒绝，这不是抖动而是判据本身。第二，被拒绝的步也占用了一次函数求值（记账在 meta.n_f_evals 里），所以「步数少」不等于「便宜」。第三，真局部误差是拿同方法 6 个子步的参考解量的，它自己也有误差；两者在地板附近贴合不说明估计器准，只说明都到地板了。第四，刚性算例上估计器**没有**说谎（实测比值 0.5–1.0），真正失效的是「tol 控制精度」这句话：步长被稳定极限接管。",
+      "requiredAux": [
+        "error"
+      ],
+      "theory": [
+        "h_new = h·safe·(tol/ê)^{1/(p̂+1)}（I 控制器）；PI 再乘历史项 ε_{n−1}^{0.75β}",
+        "误差估计 ê = ‖y_{p} − y_{p̂}‖ 的加权 RMS，尺度 s = atol + rtol·max(|y_new|,|y_old|)",
+        "嵌入对的估计量与被推进解同阶时（rkf45）比值 O(1)；差一阶时比值 ~ 1/h（悲观）"
+      ],
+      "time": {
+        "dt": 1.0,
+        "label": "试步进度（0–100 = 整段积分）",
+        "mode": "scrub",
+        "tMax": 100.0
+      },
+      "title": "自适应步长序列：估计器、接受阈值与真误差"
+    },
+    {
+      "axes": [
+        {
+          "autoscaled": false,
+          "id": "trees",
+          "title": "有根树（单位框，按阶数枚举）"
+        },
+        {
+          "autoscaled": false,
+          "id": "residual",
+          "scale": "log",
+          "title": "残差 |1−γΦ|（对数，地板 1e-17）",
+          "ylabel": "残差"
+        }
+      ],
+      "dataSource": "backend",
+      "description": "副图列出全部 ≤max_order 阶的有根树（坐标为固定单位框，树间按网格排布），主图给出每棵树的阶 ρ、密度 γ 与残差 |1−γΦ|（对数轴）。时间轴是条件序号：向右拖逐条点亮。切到 b_hat（嵌入低阶权）可以看到同一个方法的高阶解与低阶解各自满足到第几条——这正是嵌入对误差估计的来源。",
+      "id": "order_conditions",
+      "params": [
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": "rk4",
+          "label": "方法",
+          "name": "method",
+          "options": [
+            "euler",
+            "midpoint",
+            "heun",
+            "rk3",
+            "rk4",
+            "bs23",
+            "rkf45",
+            "dopri5"
+          ],
+          "type": "enum"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": 4,
+          "label": "最高树阶",
+          "max": 5,
+          "min": 1,
+          "name": "max_order",
+          "step": 1,
+          "type": "int"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": false,
+          "label": "用 b_hat（低阶嵌入权）",
+          "name": "use_hat",
+          "type": "bool"
+        }
+      ],
+      "pitfalls": "第一，残差轴的地板是 1e-17：到了地板不是「残差小」，而是「双精度算不出更小」，满足与不满足之间隔着 16 个数量级，图上看不见中间地带。第二，树与树之间没有强弱之分——第 3 条不满足与第 5 条不满足都让方法掉到同一阶，别把「残差更大」读成「更靠后」。第三，坐标框是固定的：树的数量随 max_order 变（1,1,2,4,9 棵），自适应会让 5 阶的 17 棵挤成一团，反而看不出结构。第四，b_hat 的阶通常比 b 低一阶，残差从第一棵就开始大——那**不是** bug，是嵌入对的定义。",
+      "requiredAux": [
+        "residual"
+      ],
+      "theory": [
+        "Φ(τ) = Σ_i b_i ∏_j (A^{ρ_j}e)_{i}^{σ_j}；γ(τ) = ρ(τ)·∏ γ(τ_j)",
+        "方法 p 阶 ⟺ 对全部 ρ(τ) ≤ p 的树有 Φ(τ) = 1/γ(τ)",
+        "嵌入对 (b, b̂)：推进 b（高阶），用 b−b̂ 的差做误差估计；推进 b̂ 就是「不开局部外推」"
+      ],
+      "time": {
+        "dt": 1.0,
+        "label": "阶条件序号（按树枚举顺序）",
+        "mode": "scrub",
+        "tMax": 17.0
+      },
+      "title": "阶条件：每一棵有根树一条方程"
+    },
+    {
+      "axes": [
+        {
+          "autoscaled": false,
+          "id": "vs_tol",
+          "scale": "log",
+          "title": "请求容差 → 实到误差（对角线 = 说到做到）",
+          "ylabel": "实到最大误差"
+        },
+        {
+          "autoscaled": false,
+          "id": "frontier",
+          "scale": "log",
+          "title": "工作量 → 实到误差（这才是可比的前沿）",
+          "ylabel": "实到最大误差"
+        }
+      ],
+      "dataSource": "backend",
+      "description": "左图 x=请求容差 tol、y=实到最大误差（对数），四条自适应曲线外加固定步长 RK4 的曲线，对角线是 err=tol 参考线；右图 x=每单位时间的函数求值次数、y=实到误差（真正的代价前沿）。当前 tol 用竖线标出：同一个 tol 下四条曲线的高度差就是「实到误差差 10 倍」。",
+      "id": "work_precision",
+      "params": [
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": "exp_decay",
+          "label": "算例",
+          "name": "problem",
+          "options": [
+            "exp_decay",
+            "logistic",
+            "oscillator"
+          ],
+          "type": "enum"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": 1e-06,
+          "label": "当前容差 tol",
+          "max": 0.0001,
+          "min": 1e-08,
+          "name": "tol",
+          "step": 1e-08,
+          "type": "float"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": true,
+          "label": "局部外推（推进高阶解）",
+          "name": "extrap",
+          "type": "bool"
+        }
+      ],
+      "pitfalls": "第一，左图的四条曲线**不会**重合：同一个 tol 下 heun 与 dopri5 实到的误差能差 10 倍，所以「同样的容差下谁更省」这个问题本身没有定义——要比就固定在精度上比（右图）。第二，工作量单位取的是「每单位时间的函数求值次数」：换成「步数」会让高阶方法凭空占便宜，换成「总求值」又会被积分区间长度带跑。第三，固定步长 RK4 的曲线是用误差阶梯反查出来的（插值），不是真跑出来的；反查只做插值、不外推，超出实测区间会直接报错。第四，右图的下包络才是「前沿」：任何一条曲线都不该被读成「这个方法的性能」，它只是这个算例上的一条切面。",
+      "requiredAux": [
+        "error"
+      ],
+      "theory": [
+        "工作-精度：固定精度看工作量，或固定工作量看精度；两条路在同一组数据上必须自洽",
+        "tol→误差 的幂次：开局部外推是 1，不开是 p̂/p（p̂ = 被推进解的阶）",
+        "每步代价：FSAL 方法第一步 s 次求值、其后 s−1 次；稠密输出对 FSAL 是 0 次额外求值"
+      ],
+      "time": {
+        "label": "t",
+        "mode": "none"
+      },
+      "title": "工作-精度前沿：同一个 tol 不是同一个工作点"
+    }
+  ]
+}
