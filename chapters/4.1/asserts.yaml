@@ -1,0 +1,179 @@
+# 4.1 章断言清单（真源：`tests/4.1/test_heat.py` 与 `tests/4.1/test_vonneumann.py`）
+#
+# 这一章分两半测：
+#   * **格式与解**（test_heat.py）：θ 族三种格式与解析解/半离散解的对拍、单模态的精确演化、
+#     矩阵指数参照、常源稳态、空间/时间阶、二维 ADI——A 类与 C 类；
+#     守恒、残差、仿射步进、循环求解、增长率的投影必要性、初值确定性——B 类。
+#   * **谱与阈值**（test_vonneumann.py）：放大因子闭式与实测逐位对拍、符号展开系数、
+#     有限网格阈值（三种边界 × 奇偶网格）、Dirichlet 偏差的二阶常数、
+#     隐式格式"稳定但不准"、耗散方向在 r=1/6 翻转、变系数用 max 不用 mean——A/C/B 类。
+#
+# 帧级（tests/4.1/test_frames.py）另测"帧会不会撒谎"：角点有限性、掩码自洽、
+# meta 与数组一致、纯函数性——B 类。
+#
+# 实测规模（最近一次 `python3 -m pytest tests/4.1 -q`）：A 43 条、B 55 条、C 35 条，共 133 条，
+# 全部通过（A/B/C 三类齐全，required_kinds 只列 A 与 C——B 类是辅助不变量，
+# 但它们是同一批实测值的对照，一并保留）。min_counts 留了余量：
+# 断言内部的记录条数会随多对拍一个格式/一个网格而增减，余量避免"算法没坏、清单先红"。
+chapter: "4.1"
+title: 抛物型方程与时间推进
+required_kinds: [A, C]
+
+min_counts:
+  A: 40
+  B: 50
+  C: 30
+
+tests:
+  # ------------------------------------------------------------ 格式与解（A）
+  - name: test_smooth_initial_data_hides_the_explicit_threshold
+    kind: A
+    what: r=0.51 越界时正弦初值误差 3.196e-4（峰值 0.6099，比稳定的 r=0.45 还好看），同一 r 换噪声初值误差 43.48（峰值 42.8772）；实测谱半径 1.0368556804 与解析有限网格值逐位相同
+    theory: 越界与否由 max|G(φ)|>1 决定，与"解看起来好不好"无关；正弦初值不激发高频模态，噪声初值会
+  - name: test_three_schemes_match_the_analytic_solution
+    kind: A
+    what: nx=41、r=0.4、t=0.05：FTCS L∞ 2.170e-4 / L2 1.535e-4、BTCS 5.257e-4 / 3.718e-4、CN 1.547e-4 / 1.094e-4，全部落在截断误差量级内且 CN 最准
+    theory: 三者空间离散相同、时间离散不同；CN 是二阶故误差最小，BTCS 一阶最大
+  - name: test_numerical_solution_equals_the_amplification_chain
+    kind: A
+    what: 单模态下 u_j^n 与 G(φ_k)^n·sin(kπx_j) 逐点差 ≤1e-13（三个格式 × 两个波数）
+    theory: sin(kπx) 是离散 Laplace 算子的精确特征向量，故时间推进在单模态上退化成乘法链
+  - name: test_neumann_and_periodic_match_the_analytic_solution
+    kind: A
+    what: Neumann 的 1+cos(πx) 与周期 1+cos(2πx) 在三种格式下与解析解一致，且网格加倍后误差按 O(Δx²) 下降
+    theory: 两种边界的余弦族是离散特征向量；周期网格的初值必须按 L 而不是 (n−1)Δx 取周期（少补一个 Δx 误差从 5.3e-4 抬到 3.56e-2）
+  - name: test_matrix_exponential_reference_confirms_the_order_gap
+    kind: A
+    what: 半离散参照（scipy expm，仅测试内用）：CN 在 r=0.4 差 1.53e-7、r=0.05 差 2.39e-9；BTCS 是 3.71e-4 / 4.64e-5，比值 64 与 8——与"CN 二阶、BTCS 一阶"一致
+    theory: 半离散解是空间误差为零的靶子；它由离散矩阵的指数给出，与本章自研的时间误差闭式互相独立
+  - name: test_constant_source_reaches_the_exact_steady_state
+    kind: A
+    what: 常源项推进 12000 步到 t=3，与解析稳态 (f/2)x(L−x) 的 L∞ 偏差 1.67e-14
+    theory: 二次多项式的二阶中心差分无截断误差，故离散稳态方程的解就是连续稳态解（精确，不是近似）
+  - name: test_single_mode_time_error_has_a_closed_form
+    kind: A
+    what: 把时间误差投影到 sin(πx)：FTCS r=0.4 得 −3.71886e-4（首项闭式 −3.71388e-4）、BTCS +3.70891e-4、CN −1.526486e-7（闭式 −1.526485e-7，比 1.000001）；符号 FTCS<0、BTCS>0、CN<0
+    theory: log G 展开后 n log G = −λt ∓ tλ²Δt/2（CN 是 −tλ³Δt²/12）；符号就是数值耗散的方向（显式/CN 过耗散、隐式欠耗散）
+  - name: test_measured_amplification_matches_the_analytic_formula
+    kind: A
+    what: 真步进（周期余弦 + Rayleigh 商）测出的放大率与闭式 G_θ(φ) 差 3.7e-16
+    theory: von Neumann 分析的结论就是这个乘子；实测走的是 Sherman–Morrison 循环求解，不是同一条代码路径
+  - name: test_amplification_shape_and_endpoints
+    kind: A
+    what: G(0)=1 精确；G(π)=(1−4(1−θ)r)/(1+4θr) 精确；|G| 在 s²∈[0,1] 上单调；r=0.4 时 FTCS 的过零点 φ*=1.8234765819；r=0.2 时不存在
+    theory: 分子单调减、分母单调增 ⟹ 极值只在 φ=0 与 φ=π；FTCS 的符号翻转点 φ*=2arcsin(1/(2√r)) 存在 ⟺ r>1/4
+  - name: test_symbol_expansion_coefficients
+    kind: A
+    what: G 的 φ⁴ 系数与 r/12+θr² 一致（三个格式），与 Richardson 外推的实测值相对差 ≤5e-3；真解的系数是 r²/2
+    theory: 符号展开 G=1−rφ²+(r/12+θr²)φ⁴+O(φ⁶)，故耗散误差系数 r/12+r²(θ−1/2) 可以逐项手算
+
+  # ------------------------------------------------------------ 阶与阈值（C）
+  - name: test_spatial_order_is_two_for_every_scheme
+    kind: C
+    what: 固定 r=0.4、nx=11/21/41/81：FTCS 2.0159、BTCS 1.9977、CN 2.0008（±0.1）
+    theory: 空间二阶中心差分；固定 r 时 Δt=O(Δx²)，时间误差被压成同阶，故三个格式都表现为二阶
+  - name: test_temporal_order_matches_the_scheme
+    kind: C
+    what: 对半离散靶子：FTCS 1.0006、BTCS 0.9994、CN 2.0000；同一批数据对连续解是 CN −0.0004、BTCS 0.4615（反例）
+    theory: θ≠1/2 一阶、θ=1/2 二阶；测时间阶必须把空间误差解析扣掉，否则量到的是空间误差
+  - name: test_adi_is_second_order_in_time
+    kind: C
+    what: 二维 ADI 对半离散靶子的时间阶 2.0000，对连续解 −0.0018（同一个反例）
+    theory: Peaceman–Rachford 的因子 (1−z/2)/(1+z/2) 展开是 −z−z³/12，二阶
+  - name: test_second_order_spatial_convergence_in_2d
+    kind: C
+    what: 二维显式固定 r=0.2、n=11/21/41/81 的空间阶 2.0124（±0.1）
+    theory: 二维五点 Laplacian 同样二阶
+  - name: test_ftcs_thresholds_match_the_finite_grid_formula
+    kind: C
+    what: 三种边界 × nx=20/21/40/41 共 12 个阈值，二分实测与 1/(2sin²(φ_max/2)) 相对差 ≤5e-10：Dirichlet 0.5007718565（nx=41）、Neumann 0.5000000003、奇数周期 0.5007346277
+    theory: 有限网格上最危险的模态是 φ_max 那个；φ_max 由边界与网格奇偶性决定（Dirichlet <π、Neumann =π、奇数周期 2π⌊n/2⌋/n<π）
+  - name: test_dirichlet_threshold_deviation_is_second_order
+    kind: C
+    what: (r*−1/2)(n−1)² 在 n=11/21/41/81 上拟合出的阶 2.0075±0.0028（R²=0.999996）；n=11 实测 1.240516，与 π²/8=1.233701 差 0.55%
+    theory: r*−1/2=π²/(8(n−1)²)+O(n⁻⁴)，即"r≤1/2"只是 Δx→0 的极限
+  - name: test_implicit_schemes_are_unconditionally_stable_but_not_accurate
+    kind: C
+    what: BTCS 谱半径 r=50→0.6461、r=500→0.1544；CN r=50→0.9801、r=500→0.9980（全部 ≤1）；同一 r=50 下 BTCS 的 L∞ 误差是 r=0.4 的 ≥20 倍
+    theory: 无条件稳定只保证不发散；CN 的 G(π)→−1 意味着大步长下"不衰减、每步翻符号"
+  - name: test_dissipation_direction_flips_at_one_sixth
+    kind: C
+    what: FTCS 单步耗散系数在 r=1/6 变号（二分实测 0.1666666667）；CN 恒为正 r/12；实测 φ=π 处一步 |G|=0.111111（r=0.4，最短波一步掉 88.9%），φ=π/40 处是 0.997537（只掉 0.25%）
+    theory: 系数 r/12+r²(θ−1/2)：θ=1/2 恒正（欠耗散），θ=0 在 r=1/6 变号——同一个格式换个步长耗散方向就反过来
+  - name: test_variable_coefficient_threshold_uses_the_maximum_not_the_mean
+    kind: C
+    what: a(x)=1+x：二分实测 s*=0.5423415824，幂迭代与稠密特征值两条路线一致到 5e-10；平均系数口径给 0.4068（偏小 25%），冻结系数判据给 0.5（保守 8%）
+    theory: 稳定域由矩阵谱决定；用 max 而不是 mean 是对的方向，但"阈值恒为 1/2"不是（局部判据只是充分条件）
+
+  # ------------------------------------------------------------ 不变量（B）
+  - name: test_mass_is_conserved_only_without_dirichlet_flow
+    kind: B
+    what: 200 步后总热量漂移（三种格式取最大）：Neumann 3.2e-14、周期 3.4e-14（都来自 CN），显式只有 2.2e-16 / 5.6e-16；Dirichlet 掉 0.247739，解析 (2/π)(1−e^(−π²t))=0.247975（比 0.9991）
+    theory: Neumann/周期的离散算子行和恒为零 ⟹ 1ᵀu 精确守恒（任意 θ）；Dirichlet 的端点行不是零行，热量按边界通量流失
+  - name: test_algebraic_residual_is_roundoff
+    kind: B
+    what: 回代残差：FTCS 恰好 0.0、BTCS/CN ≤1.2e-16（三种边界）；仿射步进与逐步步进差 ≤2.2e-15
+    theory: 显式格式没有"解方程"这一步（右端逐点算出），残差恒为 0；隐式格式的残差就是追赶法的回代舍入
+  - name: test_affine_step_matrix_agrees_with_stepwise_stepping
+    kind: B
+    what: 预分解的仿射形式 u←Mu+c 与逐步求解在 200 步后差 ≤2.2e-15（三种边界）
+    theory: M=A⁻¹B 与常数项 c 的构造与逐步求解是同一件事；预分解只是把每个时间步的 O(n) 求解换成一次 O(n) 乘法
+  - name: test_cyclic_solver_matches_dense_reference
+    kind: B
+    what: Sherman–Morrison 循环求解与稠密 LAPACK 参照（仅测试内用）差 ≤2.1e-14，跨越正定/非正定两种对角
+    theory: 循环三对角系统 = 三对角 + 秩 2 修正；Sherman–Morrison 公式在 1+vg 不退化时精确
+  - name: test_sine_modes_are_exact_eigenvectors
+    kind: B
+    what: 离散 Laplacian 作用在 sin(kπx) 上得到 −4sin²(kπΔx/2)/Δx² 倍的自身，相对误差在未除 Δx² 的单位下 ≤1e-12
+    theory: 特征向量的精确性；除以 Δx²（=6.25e-4）会把舍入放大 1600 倍，所以对拍要在未缩放单位下做
+  - name: test_growth_measurement_needs_the_constant_mode_removed
+    kind: B
+    what: Neumann、r=0.49：不投影常数模态测得 1.000000000000，投影后 0.996978987018（真值）；Dirichlet 投影前后都是 0.996978987（差 5e-11，投影是空操作）
+    theory: 常数模态 |G|≡1 会钉死幂迭代；Dirichlet 的恒等行对应的特征值方向在右特征向量里端点为 0，步进器每步钉住端点，迭代走不到那里
+  - name: test_two_dimensional_thresholds_and_adi_stability
+    kind: B
+    what: 二维显式实测谱半径 1.3852260087 与解析值逐位一致（n=21、r=0.3，差 <1e-10）；实测阈值（n=21）0.251548489795；ADI 在 r=0.3/1/10/100 上 0.9853/0.9519/0.8176/0.97998，全部 ≤1；r=100 的幂迭代低估 1.0e-4（λ₂/λ₁=1−1.6e-4，4000 步分不开）
+    theory: ADI 放大因子是 (1−z_x/2)(1−z_y/2)/((1+z_x/2)(1+z_y/2))，每个因子模 ≤1 ⟹ 无条件稳定；幂迭代的精度受谱间隙限制
+  - name: test_initial_profiles_are_deterministic
+    kind: B
+    what: 同一 seed 的噪声初值逐位相同（差 0.0），均值为 0、端点已清零、峰值归一化到 1
+    theory: 随机数只经 numcore.utils.rng（P4），帧的可复现性来自种子而不是调用顺序
+  - name: test_resolvable_wavenumber_sets
+    kind: B
+    what: 三种边界的可分辨波数集合：Dirichlet 不含 0 与 π、Neumann 含 {0,π}、奇数周期网格不含 π（12 个阈值全部与这两个端点一致）
+    theory: 网格能表示的波数是有限的（Nyquist 上限）；哪些模态存在决定了"最危险模态"是谁
+
+  - name: test_two_dimensional_amplification_and_adi_bound
+    kind: B
+    what: 二维显式放大因子与 1−4r(a_x+a_y) 逐点一致；ADI 的因子 [(1−z_x/2)(1−z_y/2)]/[(1+z_x/2)(1+z_y/2)] 与实测一致且 |G|≤1（r 从 0.05 到 100）；阈值 1/4 附近二分实测 0.2515484898（n=21）
+    theory: ADI 每个因子都是 (1−z)/(1+z)（z≥0）的形状，模恒 ≤1 ⟹ 无条件稳定；二维显式的连续极限阈值是 1/4
+
+  # ------------------------------------------------------------ 帧级不变量（B）
+  - name: test_every_frame_corner_stays_finite_and_packs
+    kind: B
+    what: 4 个可视化 × 参数角点（默认 + 每个参数的 min/max）× t∈{0, tMax/2, tMax} 共 100+ 帧：全部能构建、能编 .nlf（allow_nan=False）、数组与 meta 全有限、requiredAux 名字命中、error_at_floor 与 error_curve 一致、decay_alive 的 0 个数 = meta.n_absent + meta.n_masked_by_roundoff 且被掩码处显示为地板值
+    theory: 帧不许出现 NaN/Inf（前端会静默丢段）；掩码必须能逐点复算出来，否则图上会出现没人认领的曲线
+  - name: test_critical_marker_and_overflow_follow_the_parameters
+    kind: B
+    what: r=0.8 时 critical={'r':0.5}、overflow=True、u_clipped 有 101 个点且值等于显示上限 1e3、与 meta.clipped_points 一致；r=0.4 时 overflow=False、无截断点；BTCS 在 r=0.6 不越界
+    theory: critical 报「当前位置最该被提及」的阈值（越界报已越过的最大的，否则报最小的）；overflow ⟺ umax 超过显示上限；截断不等于没发生
+  - name: test_t0_frames_are_the_initial_state
+    kind: B
+    what: viz1 在 t=0 的解与 sin(πx) 逐点相同（差 0.0）、n_steps=0；viz4 的三条 H(t) 历史在 t=0 全为 0 且 t_history 恒为 0、解与解析解差 0.0；viz3 的 8 个存活率在 t=0 全为 1
+    theory: 时间轴从 0 开始时帧必须给出初值本身；heat_solve(t_end=0) 会按 max(1,ceil(0/dt)) 走一步，所以帧显式传 n_steps=0
+  - name: test_dissipation_identity_holds_inside_the_frame
+    kind: B
+    what: 3 格式 × 3 个 r 的 9 帧：max|实测存活率 − |G|ⁿ| ≤ 1.5e-15，且 meta.max_amplitude_residual 与数组一致、存活模态里没有非正的存活率
+    theory: 帧里同时画了「从真的解里分解出来的存活率」与解析 |G|ⁿ，两条独立路线必须重合——只画解析曲线就没有这个检查
+  - name: test_boundary_frame_conservation_matches_the_arrays
+    kind: B
+    what: Neumann/周期：drift_now 与历史曲线峰值都 ≤1e-12、conservation_holds=True；Dirichlet：conservation_holds=False、漂移 0.2477、流失量/解析值 = 0.9991
+    theory: 守恒标志必须能从数组复算；Neumann/周期是结构性守恒（1ᵀD̃=0），Dirichlet 的流失量有解析值 (2/π)(1−e^(−π²t))
+  - name: test_order_frame_meta_matches_the_theory
+    kind: B
+    what: 6 条阶梯（2 个方向 × 3 格式）：|实测阶 − 理论阶| ≤ 0.1；time 方向对连续解的对照斜率与理论阶相差 > 0.1（CN −0.0004、BTCS 0.4615）；space 方向对照斜率 ≥1.5；h_ladder 与 error_ladder 都严格单调
+    theory: meta 里的斜率必须等于 fit_order 在同一批数组上的结果；「换靶子」的错答案要如实留在帧里（它是教学内容）
+  - name: test_frames_are_pure_functions_of_their_parameters
+    kind: B
+    what: 4 个可视化各构建两次：数组逐位相同（max|Δ|=0）、meta 完全相同
+    theory: numcore 无全局可变状态（P6），帧层同此；lru_cache 的键必须覆盖所有影响结果的参数，否则第二个帧会被第一个污染

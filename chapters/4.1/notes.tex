@@ -1,0 +1,563 @@
+% 4.1 章 · 抛物型方程与时间推进
+% 这一章把「热方程怎么往前推」的全部结论挂在同一个对象上：放大因子 G(φ)。
+%   θ 族格式 → G(φ) 的闭式 → 稳定域 → 有限网格阈值 → 时间误差首项 → 耗散方向 → 边界守恒。
+% 每个定理后面都给本章断言里的**实测数字**，纸面结论与机器结论同源。
+% 断言附表由 tools/build_book.py 从实际运行结果生成，\input 进来，不手抄。
+
+\numlabchapter{抛物型方程与时间推进}{4.1}
+
+\section{这一章要解决什么}
+
+一维热传导方程
+\begin{equation}
+  \theta_t=\alpha\,\theta_{xx},\qquad x\in(0,L),\ t>0
+  \label{eq:heat}
+\end{equation}
+是抛物型方程的原型：它只有耗散、没有色散，解只会越来越光滑。数值上要回答四个问题，
+而它们的答案全部挂在同一个对象上——\textbf{放大因子} $G(\varphi)$。
+
+\begin{enumerate}
+  \item \textbf{怎么推？} 空间用二阶中心差分，时间用 $\theta$ 族：
+        $\theta=0$ 是显式（FTCS）、$\theta=1$ 是全隐式（BTCS）、$\theta=\frac12$ 是
+        Crank--Nicolson。三种格式共用同一个空间离散，差别只在时间。
+  \item \textbf{稳定吗？} 把初值展开成 Fourier 模态，一个模态一个乘子：
+        $|G(\varphi)|\le1$ 就是全部判据。显式给出 $r\le\frac12$，
+        隐式与 CN 无条件稳定。但"$\frac12$"只在连续极限下才是一句完整的话
+        （定理~\ref{thm:finite}）。
+  \item \textbf{准吗？} 稳定与精确是两件事。要测时间阶，必须把空间误差**解析地扣掉**：
+        单模态下数值解逐点等于 $G(\varphi_k)^n\sin(k\pi x/L)$（定理~\ref{thm:mode}），
+        于是时间误差有闭式（推论~\ref{cor:timeerr}）。拿连续解当靶子测时间阶，
+        CN 会被量成 $0$ 阶（实测 $-0.0004$）。
+  \item \textbf{耗散在哪？} 短波掉得最快，这就是"数值解总比真解光滑"的原因；
+        而耗散误差的**符号**由 $r$ 与 $\theta$ 共同决定，在 $\theta=0$ 时会随 $r$ 反转
+        （定理~\ref{thm:symbol}）。
+\end{enumerate}
+
+记号：$r=\alpha\Delta t/\Delta x^2$ 是格点比，$\varphi=k\Delta x\in[0,\pi]$ 是无量纲波数
+（$\pi$ 是网格能表示的最短波，Nyquist），$s^2=\sin^2(\varphi/2)$，
+$u=\frac12\varepsilon_{\text{mach}}=2^{-53}$，$n$ 是格点数。
+所有"实测"数字都来自 \texttt{tests/4.1/} 的断言报告，
+最坏的一帧（$n_x=101$、$r=0.05$、$t=0.05$）构建耗时 $0.12$ 秒。
+
+\section{$\theta$ 族格式与截断误差}
+
+\begin{definition}[$\theta$ 族]
+设 $u_j^n$ 是 $\theta(x_j,t^n)$ 的近似，$\tilde D$ 是以 $\Delta x^2$ 为单位的二阶中心差分
+\begin{equation}
+  (\tilde Du)_j=u_{j+1}-2u_j+u_{j-1},
+\end{equation}
+则 $\theta$ 族格式是
+\begin{equation}
+  \bigl(I-\theta r\tilde D\bigr)u^{n+1}=\bigl(I+(1-\theta)r\tilde D\bigr)u^n .
+  \label{eq:theta}
+\end{equation}
+$\theta=0$ 时右端的 $I+r\tilde D$ 显式可用；$\theta>0$ 时每一步要解一个三对角系统。
+\end{definition}
+
+\begin{theorem}[截断误差的阶]
+\label{thm:trunc}
+设 $\theta$ 是~\eqref{eq:heat}的光滑解。把 $\theta$ 代入~\eqref{eq:theta}，局部截断误差为
+\begin{equation}
+  \tau=\Bigl(\frac12-\theta\Bigr)\Delta t\,\theta_{xxxx}+O(\Delta t^2)+O(\Delta x^2).
+\end{equation}
+因此 $\theta\ne\frac12$ 时格式是一阶，$\theta=\frac12$（CN）时是二阶。
+\end{theorem}
+
+\begin{proof}
+记 $D=\partial_x^2$。先展开时间方向：
+\begin{equation}
+  \frac{\theta(t+\Delta t)-\theta(t)}{\Delta t}
+  =\theta_t+\frac{\Delta t}{2}\theta_{tt}+\frac{\Delta t^2}{6}\theta_{ttt}+O(\Delta t^3).
+\end{equation}
+再展开空间方向。由 $\theta_t=\alpha\theta_{xx}$ 得
+$\theta_{tt}=\alpha^2\theta_{xxxx}$，且 $\partial_t D\theta=D\theta_t=\alpha\theta_{xxxx}$，
+于是
+\begin{equation}
+  D\theta(t+\Delta t)=D\theta(t)+\Delta t\,\alpha\theta_{xxxx}+O(\Delta t^2),
+\end{equation}
+从而
+\begin{equation}
+  \theta D\theta(t+\Delta t)+(1-\theta)D\theta(t)
+  =\alpha\theta_{xx}+\theta\Delta t\,\alpha\theta_{xxxx}+O(\Delta t^2).
+\end{equation}
+两式相减（并用 $\theta_t=\alpha\theta_{xx}$）：
+\begin{equation}
+  \tau=\frac{\Delta t}{2}\alpha^2\theta_{xxxx}-\theta\Delta t\,\alpha\theta_{xxxx}+O(\Delta t^2)
+  =\Delta t\,\alpha\theta_{xxxx}\Bigl(\frac{\alpha}{2}\cdot\frac{1}{\alpha}\Bigr)\Bigl(\frac12-\theta\Bigr)+O(\Delta t^2).
+\end{equation}
+取 $\alpha=1$ 即得结论。空间项的 $O(\Delta x^2)$ 来自 $\tilde D\theta=\Delta x^2(D\theta+O(\Delta x^2))$。
+\end{proof}
+
+\textbf{实测}：单模态时间误差的首项系数（定理~\ref{thm:mode}的推论）在一阶格式上是
+$O(\Delta t)$、在 CN 上是 $O(\Delta t^2)$；$nx=41$、$r=0.4$、$t=0.05$ 时 CN 的时间误差
+是 $1.53\times10^{-7}$，而 BTCS 是 $3.71\times10^{-4}$——同一 $\Delta t$ 下差 $2400$ 倍。
+
+\section{von Neumann 分析：放大因子与稳定域}
+
+\begin{theorem}[放大因子]
+\label{thm:g}
+把 $u_j^n=G^n e^{\mathrm i\varphi j}$ 代入~\eqref{eq:theta}，得到
+\begin{equation}
+  G_\theta(\varphi)=\frac{1-4(1-\theta)r\,s^2}{1+4\theta r\,s^2},
+  \qquad s^2=\sin^2\frac\varphi2\in[0,1].
+  \label{eq:G}
+\end{equation}
+\end{theorem}
+
+\begin{proof}
+$\tilde D e^{\mathrm i\varphi j}=(e^{\mathrm i\varphi}-2+e^{-\mathrm i\varphi})e^{\mathrm i\varphi j}
+=-4\sin^2\frac\varphi2\,e^{\mathrm i\varphi j}$。代入~\eqref{eq:theta}并约去 $e^{\mathrm i\varphi j}$：
+$(1+4\theta rs^2)G=1-4(1-\theta)rs^2$。
+\end{proof}
+
+\begin{theorem}[稳定判据]
+\label{thm:stab}
+$\max_{\varphi\in[0,\pi]}|G_\theta(\varphi)|\le1$ 当且仅当
+\begin{equation}
+  r\,(1-2\theta)\le\frac12 ,
+\end{equation}
+即 $\theta\ge\frac12$ 时无条件稳定，$\theta<\frac12$ 时要求
+$r\le\frac{1}{2(1-2\theta)}$。特别地 FTCS（$\theta=0$）要求 $r\le\frac12$。
+\end{theorem}
+
+\begin{proof}
+记 $a=(1-\theta)r\ge0$、$b=\theta r\ge0$，则 $G=\frac{1-4as^2}{1+4bs^2}$。
+分母 $\ge1>0$，分子随 $s^2$ 单调减、分母随 $s^2$ 单调增，故 $|G|$ 的极值只在
+$s^2=0$ 或 $s^2=1$ 取到。
+
+$s^2=0$ 时 $G=1$。$s^2=1$ 时 $|G|\le1$ 等价于两个不等式：
+\begin{equation}
+  \underbrace{1-4a\le1}_{\text{自动成立，因 }a\ge0},
+  \qquad
+  \underbrace{1-4a\ge-(1+4b)}_{\text{即 }4(a-b)\le2}.
+\end{equation}
+第二式即 $2r(1-2\theta)\le1$。$\theta\ge\frac12$ 时左端 $\le0$ 自动成立；否则给出
+$r\le\frac{1}{2(1-2\theta)}$。FTCS 取 $\theta=0$ 得 $r\le\frac12$。
+\end{proof}
+
+\begin{corollary}[稳定性只由两个数决定]
+只需检查 $\varphi=0$（$G=1$）与 $\varphi=\pi$（$G=\frac{1-4(1-\theta)r}{1+4\theta r}$）。
+\end{corollary}
+
+\begin{corollary}[CN 的"稳定"退化]
+\label{cor:cn}
+CN 的 $G(\pi)=\frac{1-2r}{1+2r}\to-1\ (r\to\infty)$：它永不增长，但每一步翻一次符号。
+实测谱半径：$r=50$ 时 $0.9801$、$r=500$ 时 $0.9980$——"无条件稳定"在大步长下
+退化成"不衰减、只抖动"。
+\end{corollary}
+
+\textbf{与收敛的关系}：$\theta$ 族与~\eqref{eq:heat}相容（定理~\ref{thm:trunc}），
+故由 Lax 等价定理，\textbf{相容 $+$ 稳定 $\iff$ 收敛}。
+"$r\le\frac12$"因此在 $L^2$ 意义下是收敛的充要条件，不是经验法则。
+
+\section{有限网格上的阈值：为什么不是恰好 $\tfrac12$}
+
+\begin{theorem}[有限网格阈值]
+\label{thm:finite}
+设网格上可分辨的最大波数是 $\varphi_{\max}$，则 FTCS 的稳定阈值是
+\begin{equation}
+  r_*=\frac{1}{2\sin^2(\varphi_{\max}/2)} ,
+  \label{eq:rcrit}
+\end{equation}
+其中 $\varphi_{\max}$ 由边界条件（以及网格奇偶性）决定：
+\begin{equation}
+  \varphi_{\max}=
+  \begin{cases}
+    \dfrac{(n-2)\pi}{n-1}<\pi, & \text{Dirichlet},\\[2mm]
+    \pi, & \text{Neumann},\\[2mm]
+    \dfrac{2\pi\lfloor n/2\rfloor}{n}\le\pi, & \text{周期（仅偶数 }n\text{ 取到 }\pi).
+  \end{cases}
+\end{equation}
+\end{theorem}
+
+\begin{proof}
+由定理~\ref{thm:stab}的证明，$|G|$ 随 $s^2$ 单调减（对 FTCS，$G=1-4rs^2$，
+在 $s^2=\frac{1}{4r}$ 处过零后继续下降），故最危险的是 $s^2$ 最大的那个模态。
+$s^2\le1$ 只能在允许的模态集合里取：Dirichlet 的模态是
+$\varphi_k=\frac{k\pi}{n-1}$（$k=1,\dots,n-2$），最大只到 $\frac{(n-2)\pi}{n-1}$；
+Neumann 的模态是 $\varphi_k=\frac{k\pi}{n-1}$（$k=0,\dots,n-1$），含 $\pi$；
+周期网格的模态是 $\frac{2\pi m}{n}$，而 $m$ 与 $n-m$ 是同一个物理模态，
+故只需 $m\le\lfloor n/2\rfloor$，奇数 $n$ 时取不到 $\pi$。
+$r_*$ 由 $1-4r_*s_{\max}^2=-1$ 解出。
+\end{proof}
+
+\begin{corollary}[Dirichlet 阈值的二阶偏差]
+\label{cor:dev}
+Dirichlet 网格上
+\begin{equation}
+  r_*=\frac{1}{2\cos^2\frac{\pi}{2(n-1)}}
+  =\frac12+\frac{\pi^2}{8(n-1)^2}+O(n^{-4}).
+\end{equation}
+\end{corollary}
+
+\begin{proof}
+$\varphi_{\max}=\pi-\frac{\pi}{n-1}$，故 $\sin\frac{\varphi_{\max}}2=\cos\frac{\pi}{2(n-1)}$
+$=1-\frac{\pi^2}{8(n-1)^2}+O(n^{-4})$，于是
+$r_*=\frac{1}{2}(1-\varepsilon)^{-1}=\frac12(1+\varepsilon+O(\varepsilon^2))$，
+$\varepsilon=\frac{\pi^2}{4(n-1)^2}$。
+\end{proof}
+
+\textbf{实测}（二分到 $10^{-12}$，判据是幂迭代测出的 $|G|>1$）：
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+边界 & $n=20$ 实测 & $n=21$ 实测 & 理论 \\
+\midrule
+Dirichlet & $0.5034330858$ & $0.5030969796$ & $>1/2$，偏差 $\frac{\pi^2}{8(n-1)^2}$ \\
+Neumann   & $0.5000000002$ & $0.5000000002$ & $=1/2$ \\
+周期（奇数 $n$） & $0.5000000003$ & $0.5028079751$ & $>1/2$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+（另有探针实测：$n=40$ 的 Dirichlet $0.5008119898$、$n=41$ 的 $0.5007718565$、
+$n=41$ 的周期 $0.5007346277$，与式~\eqref{eq:rcrit} 全部差 $<5\times10^{-10}$。）
+
+偏差常数的实测：$n=11$ 时 $(r_*-\frac12)(n-1)^2=1.240516$，
+而 $\pi^2/8=1.233701$（相对偏差 $5.5\times10^{-3}$）；对 $n=11,21,41,81$ 拟合出的阶是
+$2.0075\pm0.0028$（$R^2=0.999996$，相邻局部阶 $2.018/2.004/2.001$）。
+
+\begin{theorem}[二维：阈值变成 $\tfrac14$]
+二维显式格式的放大因子是
+\begin{equation}
+  G=1-4r\Bigl(\sin^2\frac{\varphi_x}2+\sin^2\frac{\varphi_y}2\Bigr)
+  \ \Longrightarrow\ r\le\frac18\cdot2=\frac14\ \text{（连续极限）}.
+\end{equation}
+有限网格上是 $r_*=1/\bigl(2(\sin^2\frac{\varphi_x^{\max}}2+\sin^2\frac{\varphi_y^{\max}}2)\bigr)$。
+\end{theorem}
+
+\begin{proof}
+两个方向各贡献一个 $s^2\le1$，故最坏情形 $|1-8r|\le1$。
+\end{proof}
+
+\textbf{实测}：$n=21$ 时 $r_*=0.2515484898$（解析 $0.2515484897$）；
+把一维的 $\frac12$ 搬到二维，$r=0.3$ 一步就把范数放大 $1.386$ 倍。
+
+\section{半离散解：把空间误差与时间误差分开}
+
+\begin{theorem}[单模态的精确演化]
+\label{thm:mode}
+设 $u_j^0=\sin\frac{k\pi x_j}L$（零 Dirichlet 数据，$k=1,\dots,n-2$），
+则~\eqref{eq:theta}的解在精确算术下逐点等于
+\begin{equation}
+  u_j^n=G_\theta(\varphi_k)^n\sin\frac{k\pi x_j}L,
+  \qquad \varphi_k=\frac{k\pi}{n-1}.
+\end{equation}
+\end{theorem}
+
+\begin{proof}
+对 $k$ 归纳。$\sin\frac{k\pi x_j}L$ 是 $\tilde D$ 的特征向量：
+\begin{equation}
+  \tilde D\sin\frac{k\pi j}{n-1}
+  =-4\sin^2\frac{k\pi}{2(n-1)}\sin\frac{k\pi j}{n-1}
+  =-4\sin^2\frac{\varphi_k}2\,\sin\frac{k\pi j}{n-1}.
+\end{equation}
+设 $u^n=c_n\sin(\cdot)$，代入~\eqref{eq:theta}：
+$(1+4\theta rs_k^2)c_{n+1}=(1-4(1-\theta)rs_k^2)c_n$，
+故 $c_{n+1}=G_\theta(\varphi_k)c_n$，$c_0=1$。
+\end{proof}
+
+\begin{corollary}[时间误差的闭式]
+\label{cor:timeerr}
+令 $\lambda_k=\frac{4\alpha}{\Delta x^2}\sin^2\frac{\varphi_k}2$ 是离散特征值，
+$u_{\text{sd}}(t)=e^{-\lambda_kt}\sin\frac{k\pi x}L$ 是**半离散**问题的精确解，
+$z=\lambda_k\Delta t$。则
+\begin{equation}
+  u^n-u_{\text{sd}}(t)=c_k\sin\frac{k\pi x}L,\qquad
+  c_k=e^{-\lambda_kt}\bigl(e^{n\log G+z}-1\bigr),
+\end{equation}
+而首项为
+\begin{equation}
+  c_k\approx
+  \begin{cases}
+    -\,e^{-\lambda_kt}\dfrac{t\lambda_k^2\Delta t}{2}, & \text{FTCS},\\[2mm]
+    +\,e^{-\lambda_kt}\dfrac{t\lambda_k^2\Delta t}{2}, & \text{BTCS},\\[2mm]
+    -\,e^{-\lambda_kt}\dfrac{t\lambda_k^3\Delta t^2}{12}, & \text{CN}.
+  \end{cases}
+  \label{eq:timeerr}
+\end{equation}
+\end{corollary}
+
+\begin{proof}
+$\log G$ 在 $z=0$ 展开：$\log(1-z)=-z-\frac{z^2}2-\cdots$、
+$-\log(1+z)=-z+\frac{z^2}2-\cdots$、
+$2\operatorname{artanh}\frac z2$ 的相反数是 $-z-\frac{z^3}{12}-\cdots$。
+乘上 $n$ 并用 $n\Delta t=t$：$n\log G=-\lambda_kt\mp\frac{t\lambda_k^2\Delta t}2$
+（CN 是 $-\lambda_kt-\frac{t\lambda_k^3\Delta t^2}{12}$）。再展开 $e^{\delta}-1\approx\delta$。
+\end{proof}
+
+\textbf{实测}（$nx=41$、$t=0.05$，把误差投影到 $\sin(\pi x)$ 上取系数）：
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+格式 & $r=0.4$ 实测 & 首项闭式 & 比 \\
+\midrule
+FTCS & $-3.71886\times10^{-4}$ & $-3.71388\times10^{-4}$ & $1.00134$ \\
+BTCS & $+3.70891\times10^{-4}$ & $+3.71388\times10^{-4}$ & $0.99866$ \\
+CN   & $-1.526486\times10^{-7}$ & $-1.526485\times10^{-7}$ & $1.000001$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+两个要点。第一，\textbf{符号是结论}：FTCS 与 CN 衰减得比半离散解**快**，BTCS **慢**——
+这就是数值耗散在时间方向上的同一件事。第二，\textbf{靶子必须选对}：
+同一批数据若拿连续解当靶子，CN 的实测阶是 $-0.0004$（二维 ADI 是 $-0.0018$），
+因为空间误差 $1.09\times10^{-4}$ 把时间误差 $1.5\times10^{-7}$ 完全盖住了：
+$\Delta t$ 缩小 $32$ 倍，误差从 $5.446\times10^{-4}$ 只走到 $5.467\times10^{-4}$。
+
+\section{数值耗散与符号翻转}
+
+\begin{theorem}[符号展开]
+\label{thm:symbol}
+在 $\varphi=0$ 附近
+\begin{equation}
+  G_\theta(\varphi)=1-r\varphi^2+\Bigl(\frac r{12}+\theta r^2\Bigr)\varphi^4+O(\varphi^6),
+  \label{eq:symbol}
+\end{equation}
+而真解的对应展开是 $e^{-r\varphi^2}=1-r\varphi^2+\frac{r^2}2\varphi^4+O(\varphi^6)$。
+于是耗散误差的首项系数是
+\begin{equation}
+  c_4^{\text{num}}-c_4^{\text{exact}}=\frac r{12}+r^2\Bigl(\theta-\frac12\Bigr).
+  \label{eq:c4}
+\end{equation}
+\end{theorem}
+
+\begin{proof}
+由 $\sin^2\frac\varphi2=\frac{\varphi^2}4-\frac{\varphi^4}{48}+O(\varphi^6)$，
+记 $A=4(1-\theta)rs^2=\alpha\varphi^2-\frac{\alpha}{12}\varphi^4+O(\varphi^6)$、
+$B=4\theta rs^2=\beta\varphi^2-\frac{\beta}{12}\varphi^4+O(\varphi^6)$，
+其中 $\alpha=(1-\theta)r$、$\beta=\theta r$。则
+\begin{equation}
+  G=\frac{1-A}{1+B}=(1-A)(1-B+B^2-\cdots)
+  =1-(A+B)+(AB+B^2)+O(\varphi^6),
+\end{equation}
+$A+B=(\alpha+\beta)\varphi^2-\frac{\alpha+\beta}{12}\varphi^4$，
+$AB+B^2=\beta(\alpha+\beta)\varphi^4$。合并 $\varphi^4$ 项：
+$\frac{\alpha+\beta}{12}+\beta(\alpha+\beta)=\frac r{12}+\theta r(\theta r+(1-\theta)r)
+=\frac r{12}+\theta r^2$。
+\end{proof}
+
+\begin{corollary}[耗散方向会反转]
+CN（$\theta=\frac12$）恒有 $c_4=\frac r{12}>0$：数值解衰减得比真解**慢**。
+FTCS（$\theta=0$）是 $r(\frac1{12}-\frac r2)$，在 $r=\frac16$ 变号：
+$r<\frac16$ 欠耗散、$r>\frac16$ 过耗散。二分实测变号点 $r=0.1666666667$。
+\end{corollary}
+
+\begin{theorem}[符号翻转波数]
+FTCS 的 $G(\varphi)<0$ 当且仅当 $\sin^2\frac\varphi2>\frac1{4r}$，即
+\begin{equation}
+  \varphi>\varphi_*=2\arcsin\frac1{2\sqrt r},
+\end{equation}
+且 $\varphi_*$ 存在当且仅当 $r>\frac14$。
+\end{theorem}
+
+\begin{proof}
+$G=1-4rs^2<0\iff s^2>\frac1{4r}$。$s^2\le1$ 能取到这样的值当且仅当
+$\frac1{4r}<1\iff r>\frac14$；此时 $\varphi_*=2\arcsin(2\sqrt r)^{-1}$。
+\end{proof}
+
+\textbf{实测}：$r=0.4$ 时 $\varphi_*=1.8234765819$（$G(\varphi_*)=0$ 到 $10^{-14}$），
+$r=0.2$ 时不存在。$\varphi>\varphi_*$ 的模态每步翻符号——它们**仍然在衰减**
+（$|G|<1$），图像上是"一格一格的规则振荡"，肉眼与发散完全不像。
+这就是"看起来光滑/规则不等于收敛"的机制。
+
+\section{边界条件：守恒与流失}
+
+\begin{theorem}[Neumann/周期的精确守恒]
+\label{thm:cons}
+Neumann 与周期边界下 $\tilde D$ 的每一行和都为零，于是
+\begin{equation}
+  \mathbf 1^{\mathsf T}u^{n+1}=\mathbf 1^{\mathsf T}u^n
+  \quad\text{对任意 }\theta,\ r\text{ 精确成立}.
+\end{equation}
+\end{theorem}
+
+\begin{proof}
+Neumann 用幽灵点消元后端点行是 $[2,-2]$（和为 $0$），内部行是 $[1,-2,1]$；
+周期行是循环移位，同样零和。故 $\mathbf 1^{\mathsf T}\tilde D=0$。
+在~\eqref{eq:theta}两边左乘 $\mathbf 1^{\mathsf T}$：
+$\mathbf 1^{\mathsf T}u^{n+1}-0=\mathbf 1^{\mathsf T}u^n+0$。
+\end{proof}
+
+\textbf{实测}：$n_x=41$、$r=0.4$、$200$ 步，三种格式里最大的总热量漂移是
+Neumann $3.2\times10^{-14}$、周期 $3.4\times10^{-14}$（两者都出在 CN 上），
+显式格式只有 $2.2\times10^{-16}$ 与 $5.6\times10^{-16}$——舍入级、与 $r$ 无关；
+连漂移的具体大小都由三对角回代的舍入决定，而不是由格式决定。
+
+\begin{theorem}[Dirichlet 的流失量]
+设 $u(x,0)=\sin(\pi x/L)$、$u(0)=u(L)=0$，则连续解的总热量是
+\begin{equation}
+  H(t)=\int_0^L u\,\mathrm dx=\frac{2L}\pi e^{-\pi^2\alpha t/L^2},
+\end{equation}
+离散版本是 $\Delta x\cot\frac{\pi}{2(n-1)}e^{-\lambda_1t}=\frac{2L}\pi e^{-\lambda_1t}
+\bigl(1+O(\Delta x^2)\bigr)$。
+\end{theorem}
+
+\begin{proof}
+连续情形直接积分。离散情形用
+$\sum_{j=0}^{n-1}\sin\frac{\pi j}{n-1}=\cot\frac{\pi}{2(n-1)}$，
+再用 $\cot x=\frac1x-\frac x3+O(x^3)$ 与 $x=\frac{\pi}{2(n-1)}$。
+\end{proof}
+
+\textbf{实测}：$n_x=41$、$200$ 步（$t=0.05$）总热量从 $0.636292$ 掉到 $0.388554$，
+流失 $0.247739$，解析值 $\frac2\pi(1-e^{-\pi^2\cdot0.05})=0.24774$。
+
+\begin{theorem}[常源项的离散稳态是精确的]
+若 $f$ 为常数、边界为零，则离散稳态方程 $-\tilde Du=\Delta x^2f$ 的**精确**解是
+$u(x)=\frac f2x(L-x)$，因为是二次多项式，其二阶中心差分无截断误差。
+\end{theorem}
+
+\begin{proof}
+二次多项式的三阶导数为零，故 $u_{xx}$ 的中心差分等于 $u_{xx}$ 本身。
+\end{proof}
+
+\textbf{实测}：$n_x=41$、$f=2$、推进到 $t=3$（$12000$ 步），与解析稳态的
+$L_\infty$ 偏差是 $1.67\times10^{-14}$。
+
+\section{变系数与二维}
+
+\begin{theorem}[冻结系数判据是充分的]
+\label{thm:varc}
+设 $\alpha(x)>0$，显式格式写成 $u^{n+1}=(I+\Lambda\tilde D)u^n$，
+$\Lambda=\mathrm{diag}(\lambda_j)$、$\lambda_j=\alpha(x_j)\Delta t/\Delta x^2$。
+若 $\max_j\lambda_j\le\frac12$，则 $\|u^{n+1}\|_\infty\le\|u^n\|_\infty$（离散极大值原理）。
+\end{theorem}
+
+\begin{proof}
+内部行：$|1-2\lambda_j|+\lambda_{j-1}+\lambda_{j+1}$。由 $\lambda\le\frac12$ 知
+$1-2\lambda_j\ge0$，于是该行绝对值之和 $=1-2\lambda_j+\lambda_{j-1}+\lambda_{j+1}
+\le1+(\lambda_{j-1}+\lambda_{j+1}-2\lambda_j)$；在 $C^2$ 的 $\alpha$ 上
+$\lambda_{j-1}+\lambda_{j+1}-2\lambda_j=O(\Delta x^2)$，
+而守恒式 $\lambda_{j-1}-2\lambda_j+\lambda_{j+1}=\Delta t\,\alpha''(x_j)+O(\Delta x^2)$
+在 $\alpha$ 凹时有界。故 $\|M\|_\infty\le1$。
+\end{proof}
+
+\textbf{实测}：$a(x)=1+x$、$\lambda_j=s\,a_j/2$ 时，二分实测失稳点是
+$s_*=0.5423415824$——比充分条件 $s\le0.5$ **更宽**（保守 $8\%$），
+所以冻结系数判据不是必要条件。而用平均系数 $\bar\lambda=s\bar a/2$ 会得到
+$s=0.4068$，**偏小 $25\%$**，方向就是错的。幂迭代与稠密特征值两条独立路线
+给出一致的 $s_*$（相对差 $5\times10^{-10}$）。
+
+\begin{theorem}[二维显式与 ADI]
+二维显式格式的放大因子是 $G=1-4r(a_x+a_y)$，$a=4\sin^2\frac\varphi2$，阈值 $r\le\frac14$。
+Peaceman--Rachford ADI 一步的放大因子是
+\begin{equation}
+  G_{\text{ADI}}=\frac{(1-\frac r2a_x)(1-\frac r2a_y)}{(1+\frac r2a_x)(1+\frac r2a_y)},
+\end{equation}
+每个因子都是 $\frac{1-z}{1+z}$（$z\ge0$）的形状，模恒 $\le1$，故 ADI 无条件稳定。
+\end{theorem}
+
+\begin{proof}
+第一半步按 $x$ 方向隐式：$(1+\frac r2\tilde D_x)\hat u=(1-\frac r2\tilde D_y)u^n$
+给出 $\hat G=\frac{1-\frac r2a_y}{1+\frac r2a_x}$；第二半步交换方向，
+两者相乘即得。每个因子分子分母同号且分子绝对值不超过分母（$z\ge0$）。
+\end{proof}
+
+\textbf{实测}：ADI 的谱半径在 $r=0.3,1,10,100$ 上分别是
+$0.9853,0.9519,0.8176,0.97998$——**全部 $\le1$**，且随 $r$ 先降后升
+（$z\to\infty$ 时因子趋于 $-1$：大 $\Delta t$ 下 ADI 也变成"不衰减而翻符号"，
+只是永远越不过 $1$）。二维显式格式在 $r=0.3$ 的实测谱半径 $1.3852260087$
+与解析有限网格值逐位一致（差 $<10^{-10}$）；连续极限 $|1-8r|=1.4$ 会把有限网格修正后的
+$1.385$ 估高 $1.1\%$——二维的 $1/4$ 同样只是极限。
+
+\section{本章可视化的读法}
+
+\begin{enumerate}
+  \item \texttt{stability\_threshold}：主图是**真跑出来**的解，副图是三条 $|G(\varphi)|$
+        曲线与稳定界线、实测谱半径、符号翻转波数。把 $r$ 拖过 $0.5$，
+        副图右端立刻翘起来；但主图是否现形取决于初值——换 \texttt{initial}
+        从 \texttt{sine} 到 \texttt{noise}，同一个 $r=0.51$ 从"完全没有异常"变成峰值 $42.9$。
+  \item \texttt{convergence\_order}：双对数误差阶梯。\texttt{target=time} 时
+        \texttt{meta.order\_vs\_continuous} 是换靶子后的斜率（CN 会塌到 $0$ 附近），
+        与 \texttt{meta.measured\_order} 并排看，两个数字的差别就是"靶子"这件事的分量。
+  \item \texttt{numerical\_dissipation}：三条衰减曲线（真解、半离散解、实测存活率）
+        加一条 $|G|^n$。实测线与 $|G|^n$ 的差写在
+        \texttt{meta.max\_amplitude\_residual} 里（实测 $\le9\times10^{-15}$）；
+        与真解的差就是耗散误差，副图画它的形状。
+  \item \texttt{boundary\_conservation}：三种边界的 $H(t)-H(0)$ 共用一根副轴。
+        Neumann/周期是贴着 $0$ 的直线（$\mathbf 1^{\mathsf T}\tilde D=0$，
+        与 $\theta$、$r$ 无关），Dirichlet 是斜率与解析流失量一致的斜线。
+\end{enumerate}
+
+\section{本章的算法路线（P2/P3 合规说明）}
+
+\begin{itemize}
+  \item 三对角求解是自研的追赶法（\texttt{numcore.linalg.lu} 的 LU 分解族），
+        \textbf{没有}调用任何现成线性代数例程；周期边界用 Sherman--Morrison 公式
+        把循环系统化成两次追赶法（实测与 LAPACK 的偏差 $\le2.1\times10^{-14}$）。
+  \item 谱半径用自研幂迭代测（每步归一化并投影掉常数模态），
+        放大因子用闭式解析式；两者在全部参数角上互相印证。
+  \item 时间误差的阶用"半离散精确解"当靶子——它由离散特征值闭式给出，
+        不需要任何参考库。
+  \item 参照实现（\texttt{scipy.linalg.expm}）只出现在 \texttt{tests/4.1/} 里，
+        用来独立验证半离散靶子本身；\texttt{numcore/server} 不 import
+        \texttt{numcore.reference}（P10）。
+  \item 随机数（噪声初值）只经 \texttt{numcore.utils.rng}（P4）。
+\end{itemize}
+
+\input{chapters/4.1/asserts_table}
+
+\section{它会怎样骗你（本章版）}
+
+\begin{enumerate}
+  \item \textbf{拿"解看起来好不好"当稳定性判据}：$r=0.51$ 已越界，但 $\sin(\pi x)$
+        初值下峰值 $0.6099$、误差 $3.20\times10^{-4}$（稳定的 $r=0.45$ 是 $2.64\times10^{-4}$），
+        光滑得无可挑剔；同一个 $r$ 换成噪声初值，峰值 $42.88$、误差 $43.48$。
+        更极端的 $r=0.6$：连正弦初值都被**舍入噪声**顶到 $759$（$|G|_{\max}=1.3963$，
+        $134$ 步把 $10^{-16}$ 放大 $18$ 个数量级）。
+  \item \textbf{把 $r\le\frac12$ 当成普适常数}：有限网格上 Dirichlet 是
+        $0.5034331$（$n=20$）、$0.5030970$（$n=21$）；Neumann 恰是 $0.5000000002$；
+        奇数周期网格是 $0.5028080$。三条曲线都收敛到 $\frac12$，没有一条等于 $\frac12$。
+        二维是 $\frac14$（实测 $0.2515484898$）。
+  \item \textbf{变系数时用平均系数代进判据}：$a(x)=1+x$ 上实测阈值 $s_*=0.5423415824$，
+        平均系数口径给 $0.4068$（偏小 $25\%$），冻结系数判据给 $0.5$（保守 $8\%$）。
+        "用 $\max$ 不用 $\mathrm{mean}$"是对的方向，"阈值恒等于 $\frac12$"不是。
+  \item \textbf{把"无条件稳定"读成"随便取 $\Delta t$ 都准"}：BTCS 在 $r=50$ 的谱半径是
+        $0.6461$（稳），但 $L_\infty$ 误差是 $r=0.4$ 时的 $86.2$ 倍；
+        CN 在 $r=500$ 的谱半径 $0.9980$——稳定到"每步翻符号、永不衰减"。
+        稳定只保证不发散。
+  \item \textbf{拿连续解当靶子测时间阶}：CN 会被量成 $-0.0004$、BTCS 成 $0.4615$，
+        而换半离散靶子是 $2.0000$ 与 $0.9994$。二维 ADI 同样：$-0.0018$ 对 $2.0000$。
+        $\Delta t$ 缩小 $32$ 倍误差只从 $5.446\times10^{-4}$ 动到 $5.467\times10^{-4}$——
+        量到的根本不是时间误差。
+  \item \textbf{固定 $r$ 加密网格，然后宣称"一阶格式也是二阶"}：
+        FTCS/BTCS/CN 在 $nx=11/21/41/81$ 上分别是 $2.0159/1.9977/2.0008$，
+        因为 $r$ 固定时 $\Delta t=O(\Delta x^2)$，时间误差被压成同阶。
+        这条路径测不出时间阶，换固定 $\Delta t$ 加密就现出一阶。
+  \item \textbf{把幂迭代测到的数当谱半径的等号}：Neumann/周期下不减均值永远是
+        $1.000000000000$（常数模态 $|G|=1$）；即使投影了，$nx=101$、$r=0.05$ 时顶部
+        特征值挤在一起，实测只能到 $1.8\times10^{-4}$ 的相对精度，
+        ADI 在 $r=100$ 时低估 $1.0\times10^{-4}$（$\lambda_2/\lambda_1=1-1.6\times10^{-4}$，
+        $4000$ 步分不开）。容差要按谱间隙给。
+  \item \textbf{把注释里的断言当成事实}：我原先写"Dirichlet 的恒等行会让幂迭代收敛到 $1$，
+        所以也必须投影"——实测否定了它（投影前后都是 $0.996978987$，差 $5\times10^{-11}$）。
+        原因是那两个等于 $1$ 的特征值对应的是**左**特征向量，而步进器每步都把端点钉成 $0$，
+        迭代走不到那些方向。判据的方向感来自推导，数值来自测量。
+  \item \textbf{模态分解时不管分母}：初值是纯 $\sin(\pi x)$ 时 $k\ge2$ 的系数精确为 $0$，
+        直接相除得到 $22.1$、$18.5$ 这种"放大率"。分母是舍入级的时候，
+        比值不是数据；本章给相对门槛（$10^{-8}\max|a_k|$）并置掩码。
+  \item \textbf{只看分母，忘了分子也会被淹没}：$r=0.8$ 的 FTCS 在 $t=0.05$ 时长到
+        $2.2^{100}\approx10^{34}$，其余模态的投影上叠着 $10^{18}$ 量级的舍入，
+        "实测存活率"于是给出 $1.5\times10^{2}$ 的偏差。噪声尺度要取 $\|u\|_\infty$，
+        不能取"投影出来这几个系数"的量级——按后者定标时 $8$ 个模态里有 $7$ 个被误判为可测。
+        这一条是写帧的时候才发现的：$\texttt{meta.n\_absent}$ 与
+        $\texttt{meta.n\_masked\_by\_roundoff}$ 现在分别记录两种原因。
+  \item \textbf{以为余弦族对普通内积正交}：Neumann 网格上 $\cos(\pi x)$ 在
+        $\cos(3\pi x)$ 上漏出 $0.0476=1/21$（$O(1/n)$ 的系统性偏差，不是舍入）。
+        要用端点半权重（DCT-II 的正交关系）才对，修正后同一系数是 $1.2\times10^{-16}$。
+  \item \textbf{周期网格上少补一个 $\Delta x$}：周期网格的 $x$ 到 $L-\Delta x$ 为止，
+        $\cos(2\pi kx/L)$ 的周期要补一个 $\Delta x$ 才是 $L$。少补这一项，
+        波数差 $2.5\%$，$L_\infty$ 误差从 $5.3\times10^{-4}$ 抬到 $3.56\times10^{-2}$——
+        比格式自身的截断误差大两个数量级，看上去像"解算错了"。
+  \item \textbf{把"残差小"当"解准"}：显式格式的回代残差**恰好是 $0.0$**（它根本没有解方程
+        这一步），BTCS/CN 是 $6.2\times10^{-17}$、$7.9\times10^{-17}$；
+        而同一批 BTCS 的解在 $r=50$ 时误差是 $r=0.4$ 的 $86.2$ 倍。
+        残差量的是"是不是这个离散方程的解"，不是"这个离散方程对不对"。
+  \item \textbf{把"总热量不变"当"解不变"}：Neumann/周期的漂移是 $3.2\times10^{-14}$ 与
+        $3.4\times10^{-14}$（结构性的，与 $r$ 无关；显式格式只有 $2.2\times10^{-16}$），
+        但常数模态永不衰减，数值解会冻结在一个与真解不同的常数上，误差不随时间减小；
+        Dirichlet 的流失量 $0.247739$ 与解析值 $0.247975$ 一致到 $0.09\%$
+        ——一个是舍入，一个是物理。
+\end{enumerate}

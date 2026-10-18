@@ -1,0 +1,148 @@
+% 本文件由 tools/build_book.py 从 dist/reports/assertions.json 生成，请勿手改。
+\begin{longtable}{@{}p{0.06\textwidth}p{0.32\textwidth}p{0.22\textwidth}p{0.16\textwidth}@{}}
+\caption{章节 4.1 数值断言（生成时间 2026-10-18T16:26:32-0400）}\\
+\toprule
+类别 & 断言 & 理论值 & 实测值 \\
+\midrule
+\endfirsthead
+\toprule
+类别 & 断言 & 理论值 & 实测值 \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+
+B & 帧角点：有限性 + requiredAux + 掩码自洽 & 数组与 meta 全有限、\allowbreak{}能编 .nlf；requiredAux 名字命中；地板/\allowbreak{}模态掩码与数据一致 & 98 帧、\allowbreak{}0 条问题 \checkmark \\
+B & critical / overflow / 截断掩码的一致性 & critical 报「当前位置最该被提及」的那条线(\allowbreak{}越界报已越过的最大的、\allowbreak{}否则报最小的)；overflow $\iff$ umax>1e3 & 越界帧截断 99/\allowbreak{}101 点、\allowbreak{}umax=\allowbreak{}6.668e+41；未越界帧 umax=\allowbreak{}5.694e-02、\allowbreak{}critical=\allowbreak{}\{'r': 0.5\}；BTCS r=\allowbreak{}0.6 umax=\allowbreak{}4.644e-02 \checkmark \\
+B & t=0 的帧 = 初值(viz1/viz3/viz4) & t=\allowbreak{}0 时 u=\allowbreak{}u$^0$、\allowbreak{}$\Delta$H=\allowbreak{}0、\allowbreak{}|a\_k(\allowbreak{}t)/\allowbreak{}a\_k(\allowbreak{}0)|=\allowbreak{}1 & viz1 差 0、\allowbreak{}viz4 漂移峰值 0、\allowbreak{}viz4 与解析解差 0 \checkmark \\
+B & viz3：实测存活率 vs |G|\textasciicircum{}n(帧内自洽) & 0(\allowbreak{}两条独立路线：正弦内积分解 vs 放大因子闭式) & max $\le$ 9.881e-15(\allowbreak{}3 格式 $\times$ 3 个 r) \checkmark \\
+B & viz4：守恒标志与数组复算一致(三种边界) & Neumann/\allowbreak{}周期 |$\Delta$H| $\le$ 1e-12(\allowbreak{}结构性守恒)；Dirichlet 流失量 =\allowbreak{} (\allowbreak{}2/\allowbreak{}$\pi$)(\allowbreak{}1$-$e\textasciicircum{}(\allowbreak{}$-$$\pi$$^2$t)) & Dirichlet 漂移 0.247739(\allowbreak{}解析比 0.9991)；neumann 漂移 3.15e-14；periodic 漂移 3.44e-14 \checkmark \\
+B & viz2：实测阶 vs 理论阶(含换靶子对照) & space 全部 2；time：ftcs/\allowbreak{}btcs 1、\allowbreak{}cn 2；连续解靶子在 time 下给不出时间阶 & space/\allowbreak{}ftcs: 半离散靶 2.0160(\allowbreak{}理论 2)、\allowbreak{}连续靶 2.0160；space/\allowbreak{}btcs: 半离散靶 1.9985(\allowbreak{}理论 2)、\allowbreak{}连续靶 1.9985；space/\allowbreak{}cn: 半离散靶 2.0014(\allowbreak{}理论 2)、\allowbreak{}连续靶 2.0014；time/\allowbreak{}ftcs: 半离散靶 1.0006(\allowbreak{}理论 1)、\allowbreak{}连续靶 0.2003；time/\allowbreak{}btcs: 半离散靶 0.9994(\allowbreak{}理论 1)、\allowbreak{}连续靶 0.4615；time/\allowbreak{}cn: 半离散靶 2.0000(\allowbreak{}理论 2)、\allowbreak{}连续靶 -0.0004 \checkmark \\
+B & 帧的纯函数性(两次构建逐位相同) & 0.0(\allowbreak{}无全局状态；缓存键必须覆盖所有影响结果的参数) & max|$\Delta$| =\allowbreak{} 0(\allowbreak{}4 个可视化) \checkmark \\
+A & r=0.51(越界)$\cdot$正弦初值的误差 & > 1(\allowbreak{}若越界就必然失控) & 3.196e-04(\allowbreak{}峰值 0.6099) \checkmark \\
+A & r=0.51(越界)$\cdot$噪声初值的误差 & > 1 & 4.348e+01(\allowbreak{}峰值 42.8772) \checkmark \\
+A & 实测谱半径 / 解析有限网格谱半径(r=0.51) & 1.0368556804 & 1.0368556804 \checkmark \\
+A & ftcs 的 L$\infty$ 误差(nx=41, r=0.4, t=0.05) & $\le$ 1e-3 & 2.170e-04 \checkmark \\
+A & btcs 的 L$\infty$ 误差(nx=41, r=0.4, t=0.05) & $\le$ 1e-3 & 5.257e-04 \checkmark \\
+A & cn 的 L$\infty$ 误差(nx=41, r=0.4, t=0.05) & $\le$ 1e-3 & 1.547e-04 \checkmark \\
+A & ftcs $\cdot$ k=1：$\|$u $-$ G\textasciicircum{}n$\cdot$sin$\|$$\infty$ & $\le$ 1e-13(\allowbreak{}舍入级) & 5.551e-16 \checkmark \\
+A & ftcs $\cdot$ k=5：$\|$u $-$ G\textasciicircum{}n$\cdot$sin$\|$$\infty$ & $\le$ 1e-13(\allowbreak{}舍入级) & 3.331e-16 \checkmark \\
+A & btcs $\cdot$ k=1：$\|$u $-$ G\textasciicircum{}n$\cdot$sin$\|$$\infty$ & $\le$ 1e-13(\allowbreak{}舍入级) & 1.554e-15 \checkmark \\
+A & btcs $\cdot$ k=5：$\|$u $-$ G\textasciicircum{}n$\cdot$sin$\|$$\infty$ & $\le$ 1e-13(\allowbreak{}舍入级) & 4.580e-16 \checkmark \\
+A & cn $\cdot$ k=1：$\|$u $-$ G\textasciicircum{}n$\cdot$sin$\|$$\infty$ & $\le$ 1e-13(\allowbreak{}舍入级) & 8.993e-15 \checkmark \\
+A & cn $\cdot$ k=5：$\|$u $-$ G\textasciicircum{}n$\cdot$sin$\|$$\infty$ & $\le$ 1e-13(\allowbreak{}舍入级) & 1.582e-15 \checkmark \\
+A & neumann $\cdot$ btcs 的 L$\infty$ 误差(nx=41) & $\le$ 1e-3 & 5.257e-04 \checkmark \\
+A & neumann $\cdot$ cn 的 L$\infty$ 误差(nx=41) & $\le$ 1e-3 & 1.547e-04 \checkmark \\
+A & periodic $\cdot$ btcs 的 L$\infty$ 误差(nx=81) & $\le$ 1e-3 & 4.669e-04 \checkmark \\
+A & periodic $\cdot$ cn 的 L$\infty$ 误差(nx=81) & $\le$ 1e-3 & 1.373e-04 \checkmark \\
+A & 周期$\cdot$CN 的误差在 nx 加倍后的下降倍数 & 4(\allowbreak{}O(\allowbreak{}$\Delta$x$^2$)) & 3.88 \checkmark \\
+A & r=0.4：|u\_\allowbreak{}CN $-$ expm($\alpha$Dt)u$_0$|$\infty$ & $\le$ 1e-6(\allowbreak{}CN 二阶) & 1.526e-07 \checkmark \\
+A & r=0.05：|u\_\allowbreak{}CN $-$ expm($\alpha$Dt)u$_0$|$\infty$ & $\le$ 1e-6(\allowbreak{}CN 二阶) & 2.385e-09 \checkmark \\
+A & dt 缩小 8 倍后的误差下降倍数(CN / BTCS) & 64 /\allowbreak{} 8 & 64.0 /\allowbreak{} 8.0 \checkmark \\
+A & t=0.05 时对源项级数解的 L$\infty$ 误差 & $\le$ 1e-3 & 3.758e-05 \checkmark \\
+A & t=3 时对解析稳态 f$\cdot$x(1$-$x)/2 的 L$\infty$ 误差 & $\le$ 1e-12(\allowbreak{}二次多项式被二阶差分精确表示) & 1.674e-14 \checkmark \\
+C & ftcs 的空间阶 & 2 & 2.01591 \checkmark \\
+C & btcs 的空间阶 & 2 & 1.99773 \checkmark \\
+C & cn 的空间阶 & 2 & 2.00082 \checkmark \\
+C & ftcs 的时间阶(半离散靶子) & 1 & 1.00056 \checkmark \\
+C & btcs 的时间阶(半离散靶子) & 1 & 0.999445 \checkmark \\
+C & cn 的时间阶(半离散靶子) & 2 & 2.00001 \checkmark \\
+C & 同一批 CN 数据改用连续解靶子时的实测阶 & 2(\allowbreak{}真正的阶) & -0.0004 \checkmark \\
+C & ADI 的时间阶(半离散靶子) & 2 & 2.00001 \checkmark \\
+C & 同一批 ADI 数据改用连续解靶子时的实测阶 & 2 & -0.0018 \checkmark \\
+C & 二维显式格式的空间阶 & 2 & 2.01242 \checkmark \\
+B & neumann$\cdot$ftcs 的总热量守恒 & 漂移 $\le$ 3.73257e-14 & $2.220\times 10^{-16}$ \checkmark \\
+B & neumann$\cdot$btcs 的总热量守恒 & 漂移 $\le$ 3.73257e-14 & $4.441\times 10^{-16}$ \checkmark \\
+B & neumann$\cdot$cn 的总热量守恒 & 漂移 $\le$ 3.73257e-14 & $3.153\times 10^{-14}$ \checkmark \\
+B & periodic$\cdot$ftcs 的总热量守恒 & 漂移 $\le$ 3.64153e-14 & $5.551\times 10^{-16}$ \checkmark \\
+B & periodic$\cdot$btcs 的总热量守恒 & 漂移 $\le$ 3.64153e-14 & $9.992\times 10^{-16}$ \checkmark \\
+B & periodic$\cdot$cn 的总热量守恒 & 漂移 $\le$ 3.64153e-14 & $3.297\times 10^{-14}$ \checkmark \\
+B & Dirichlet$\cdot$CN 的总热量流失 & $\approx$ (\allowbreak{}2/\allowbreak{}$\pi$)(\allowbreak{}1$-$e\textasciicircum{}(\allowbreak{}$-$$\pi$$^2$t)) =\allowbreak{} 0.2480 & 0.247739 \checkmark \\
+B & ftcs$\cdot$dirichlet 的归一化代数残差 & $\le$ 0 & 0.000e+00 \checkmark \\
+B & ftcs$\cdot$neumann 的归一化代数残差 & $\le$ 0 & 0.000e+00 \checkmark \\
+B & ftcs$\cdot$periodic 的归一化代数残差 & $\le$ 0 & 0.000e+00 \checkmark \\
+B & btcs$\cdot$dirichlet 的归一化代数残差 & $\le$ 1e-15 & 6.179e-17 \checkmark \\
+B & btcs$\cdot$neumann 的归一化代数残差 & $\le$ 1e-15 & 6.179e-17 \checkmark \\
+B & btcs$\cdot$periodic 的归一化代数残差 & $\le$ 1e-15 & 7.724e-17 \checkmark \\
+B & cn$\cdot$dirichlet 的归一化代数残差 & $\le$ 1e-15 & 7.946e-17 \checkmark \\
+B & cn$\cdot$neumann 的归一化代数残差 & $\le$ 1e-15 & 7.946e-17 \checkmark \\
+B & cn$\cdot$periodic 的归一化代数残差 & $\le$ 1e-15 & 1.192e-16 \checkmark \\
+B & btcs$\cdot$dirichlet：$\|$M 递推 $-$ 逐步求解$\|$$\infty$(50 步) & $\le$ 1e-12 & 1.110e-15 \checkmark \\
+B & btcs$\cdot$neumann：$\|$M 递推 $-$ 逐步求解$\|$$\infty$(50 步) & $\le$ 1e-12 & 8.882e-16 \checkmark \\
+B & btcs$\cdot$periodic：$\|$M 递推 $-$ 逐步求解$\|$$\infty$(50 步) & $\le$ 1e-12 & 1.166e-15 \checkmark \\
+B & cn$\cdot$dirichlet：$\|$M 递推 $-$ 逐步求解$\|$$\infty$(50 步) & $\le$ 1e-12 & 1.221e-15 \checkmark \\
+B & cn$\cdot$neumann：$\|$M 递推 $-$ 逐步求解$\|$$\infty$(50 步) & $\le$ 1e-12 & 2.220e-15 \checkmark \\
+B & cn$\cdot$periodic：$\|$M 递推 $-$ 逐步求解$\|$$\infty$(50 步) & $\le$ 1e-12 & 1.055e-15 \checkmark \\
+B & r=0.2, $\theta$=0.5：$\|$x $-$ x\_\allowbreak{}LAPACK$\|$$\infty$ 与 $\|$Ax$-$b$\|$$\infty$ & $\le$ 1e-12 & 3.553e-15 /\allowbreak{} 7.105e-15 \checkmark \\
+B & r=0.2, $\theta$=1.0：$\|$x $-$ x\_\allowbreak{}LAPACK$\|$$\infty$ 与 $\|$Ax$-$b$\|$$\infty$ & $\le$ 1e-12 & 3.553e-15 /\allowbreak{} 1.066e-14 \checkmark \\
+B & r=1.0, $\theta$=0.5：$\|$x $-$ x\_\allowbreak{}LAPACK$\|$$\infty$ 与 $\|$Ax$-$b$\|$$\infty$ & $\le$ 1e-12 & 1.066e-14 /\allowbreak{} 7.105e-15 \checkmark \\
+B & r=1.0, $\theta$=1.0：$\|$x $-$ x\_\allowbreak{}LAPACK$\|$$\infty$ 与 $\|$Ax$-$b$\|$$\infty$ & $\le$ 1e-12 & 7.105e-15 /\allowbreak{} 1.421e-14 \checkmark \\
+B & r=10.0, $\theta$=0.5：$\|$x $-$ x\_\allowbreak{}LAPACK$\|$$\infty$ 与 $\|$Ax$-$b$\|$$\infty$ & $\le$ 1e-12 & 7.105e-15 /\allowbreak{} 4.263e-14 \checkmark \\
+B & r=10.0, $\theta$=1.0：$\|$x $-$ x\_\allowbreak{}LAPACK$\|$$\infty$ 与 $\|$Ax$-$b$\|$$\infty$ & $\le$ 1e-12 & 2.132e-14 /\allowbreak{} 5.684e-14 \checkmark \\
+B & k=1：$\|$D$\cdot$sin + $\lambda$\_\allowbreak{}k$\Delta$x$^2$$\cdot$sin$\|$$\infty$(含 $\lambda$\_\allowbreak{}k=9.8645) & $\le$ 1e-14 & 8.600e-16 \checkmark \\
+B & k=3：$\|$D$\cdot$sin + $\lambda$\_\allowbreak{}k$\Delta$x$^2$$\cdot$sin$\|$$\infty$(含 $\lambda$\_\allowbreak{}k=88.4163) & $\le$ 1e-14 & 1.568e-15 \checkmark \\
+B & k=9：$\|$D$\cdot$sin + $\lambda$\_\allowbreak{}k$\Delta$x$^2$$\cdot$sin$\|$$\infty$(含 $\lambda$\_\allowbreak{}k=766.7009) & $\le$ 1e-14 & 2.165e-15 \checkmark \\
+B & Neumann$\cdot$r=0.49：减均值 / 不减均值 的实测谱半径 & 0.996979(\allowbreak{}最坏非平凡模态 |G|) & 0.996978987018 /\allowbreak{} 1.000000000000 \checkmark \\
+B & Dirichlet$\cdot$r=0.49：投影前后(对照) & 两者一致(\allowbreak{}端点被步进器硬钉成 0) & 0.996978987005 /\allowbreak{} 0.996978987058 \checkmark \\
+B & 二维显式格式的实测阈值(n=21) & 0.251548489664(\allowbreak{}有限网格)/\allowbreak{} 0.25(\allowbreak{}连续极限) & 0.251548489795 \checkmark \\
+B & r=0.3：ADI / 显式 的实测谱半径 & ADI $\le$ 1(\allowbreak{}无条件稳定)；显式 =\allowbreak{} |1$-$8r| 量级(\allowbreak{}越界) & 0.9853345424 /\allowbreak{} 1.385 \checkmark \\
+B & r=1.0：ADI / 显式 的实测谱半径 & ADI $\le$ 1(\allowbreak{}无条件稳定)；显式 =\allowbreak{} |1$-$8r| 量级(\allowbreak{}越界) & 0.9519439461 /\allowbreak{} 6.951 \checkmark \\
+B & r=10.0：ADI / 显式 的实测谱半径 & ADI $\le$ 1(\allowbreak{}无条件稳定)；显式 =\allowbreak{} |1$-$8r| 量级(\allowbreak{}越界) & 0.8175781101 /\allowbreak{} 78.51 \checkmark \\
+B & r=100.0：ADI / 显式 的实测谱半径 & ADI $\le$ 1(\allowbreak{}无条件稳定)；显式 =\allowbreak{} |1$-$8r| 量级(\allowbreak{}越界) & 0.9799791594 /\allowbreak{} 794.1 \checkmark \\
+B & 噪声初值的两次调用差 / 与手工 rng(20261018) 的差 & 0 /\allowbreak{} $\le$ 1e-15 & 0.000e+00 /\allowbreak{} 0.000e+00 \checkmark \\
+A & ftcs$\cdot$r=0.4：实测 c / 首项闭式 & -3.713876e-04 & -3.718860e-04(\allowbreak{}相对偏差 1.34e-03) \checkmark \\
+A & ftcs$\cdot$r=0.1：实测 c / 首项闭式 & -9.284690e-05 & -9.287802e-05(\allowbreak{}相对偏差 3.35e-04) \checkmark \\
+A & btcs$\cdot$r=0.4：实测 c / 首项闭式 & +3.713876e-04 & +3.708907e-04(\allowbreak{}相对偏差 1.34e-03) \checkmark \\
+A & btcs$\cdot$r=0.1：实测 c / 首项闭式 & +9.284690e-05 & +9.281581e-05(\allowbreak{}相对偏差 3.35e-04) \checkmark \\
+A & cn$\cdot$r=0.4：实测 c / 首项闭式 & -1.526485e-07 & -1.526486e-07(\allowbreak{}相对偏差 6.31e-07) \checkmark \\
+A & cn$\cdot$r=0.1：实测 c / 首项闭式 & -9.540534e-09 & -9.540539e-09(\allowbreak{}相对偏差 5.91e-07) \checkmark \\
+A & 三种格式的耗散方向(c 的符号) & FTCS<0、\allowbreak{}BTCS>0、\allowbreak{}CN<0 & -3.719e-04 /\allowbreak{} +3.709e-04 /\allowbreak{} -1.526e-07 \checkmark \\
+A & 实测放大因子与解析式的最大相对偏差 & $\le$ 1e-12(\allowbreak{}舍入级) & 3.667e-16 \checkmark \\
+A & ftcs$\cdot$r=0.2：G(0)$-$1、单调性、G($\pi$) & G(\allowbreak{}0)=\allowbreak{}1，G(\allowbreak{}$\pi$)=\allowbreak{}0.200000 & 0.0e+00，单调=\allowbreak{}True，G(\allowbreak{}$\pi$)=\allowbreak{}0.200000 \checkmark \\
+A & ftcs$\cdot$r=0.4：G(0)$-$1、单调性、G($\pi$) & G(\allowbreak{}0)=\allowbreak{}1，G(\allowbreak{}$\pi$)=\allowbreak{}-0.600000 & 0.0e+00，单调=\allowbreak{}True，G(\allowbreak{}$\pi$)=\allowbreak{}-0.600000 \checkmark \\
+A & btcs$\cdot$r=0.2：G(0)$-$1、单调性、G($\pi$) & G(\allowbreak{}0)=\allowbreak{}1，G(\allowbreak{}$\pi$)=\allowbreak{}0.555556 & 0.0e+00，单调=\allowbreak{}True，G(\allowbreak{}$\pi$)=\allowbreak{}0.555556 \checkmark \\
+A & btcs$\cdot$r=0.4：G(0)$-$1、单调性、G($\pi$) & G(\allowbreak{}0)=\allowbreak{}1，G(\allowbreak{}$\pi$)=\allowbreak{}0.384615 & 0.0e+00，单调=\allowbreak{}True，G(\allowbreak{}$\pi$)=\allowbreak{}0.384615 \checkmark \\
+A & cn$\cdot$r=0.2：G(0)$-$1、单调性、G($\pi$) & G(\allowbreak{}0)=\allowbreak{}1，G(\allowbreak{}$\pi$)=\allowbreak{}0.428571 & 0.0e+00，单调=\allowbreak{}True，G(\allowbreak{}$\pi$)=\allowbreak{}0.428571 \checkmark \\
+A & cn$\cdot$r=0.4：G(0)$-$1、单调性、G($\pi$) & G(\allowbreak{}0)=\allowbreak{}1，G(\allowbreak{}$\pi$)=\allowbreak{}0.111111 & 0.0e+00，单调=\allowbreak{}True，G(\allowbreak{}$\pi$)=\allowbreak{}0.111111 \checkmark \\
+A & FTCS 的符号翻转波数 $\varphi$*(r=0.4) & 2$\cdot$arcsin(\allowbreak{}1/\allowbreak{}(\allowbreak{}2$\surd$r)) =\allowbreak{} 1.8234765819 & 1.8234765819，G(\allowbreak{}$\varphi$*)=\allowbreak{}1.11e-16 \checkmark \\
+A & ftcs$\cdot$r=0.4 的 $\varphi$$^4$ 系数：解析 vs 外推 & 0.03333333 & 0.03325881(\allowbreak{}相对偏差 2.24e-03) \checkmark \\
+A & ftcs$\cdot$r=2.0 的 $\varphi$$^4$ 系数：解析 vs 外推 & 0.16666667 & 0.16673118(\allowbreak{}相对偏差 3.87e-04) \checkmark \\
+A & btcs$\cdot$r=0.4 的 $\varphi$$^4$ 系数：解析 vs 外推 & 0.19333333 & 0.19322807(\allowbreak{}相对偏差 5.44e-04) \checkmark \\
+A & btcs$\cdot$r=2.0 的 $\varphi$$^4$ 系数：解析 vs 外推 & 4.16666667 & 4.16680229(\allowbreak{}相对偏差 3.25e-05) \checkmark \\
+A & cn$\cdot$r=0.4 的 $\varphi$$^4$ 系数：解析 vs 外推 & 0.11333333 & 0.11357650(\allowbreak{}相对偏差 2.15e-03) \checkmark \\
+A & cn$\cdot$r=2.0 的 $\varphi$$^4$ 系数：解析 vs 外推 & 2.16666667 & 2.16665224(\allowbreak{}相对偏差 6.66e-06) \checkmark \\
+C & dirichlet$\cdot$nx=20 的 FTCS 稳定阈值 & 0.503433 & 0.503433 \checkmark \\
+C & dirichlet$\cdot$nx=20：实测 $-$ 1/2 & +0.0034330856 & +0.0034330858 \checkmark \\
+C & neumann$\cdot$nx=20 的 FTCS 稳定阈值 & 0.5 & 0.5 \checkmark \\
+C & neumann$\cdot$nx=20：实测 $-$ 1/2 & +0.0000000000 & +0.0000000002 \checkmark \\
+C & periodic$\cdot$nx=20 的 FTCS 稳定阈值 & 0.5 & 0.5 \checkmark \\
+C & periodic$\cdot$nx=20：实测 $-$ 1/2 & +0.0000000000 & +0.0000000003 \checkmark \\
+C & dirichlet$\cdot$nx=21 的 FTCS 稳定阈值 & 0.503097 & 0.503097 \checkmark \\
+C & dirichlet$\cdot$nx=21：实测 $-$ 1/2 & +0.0030969793 & +0.0030969796 \checkmark \\
+C & neumann$\cdot$nx=21 的 FTCS 稳定阈值 & 0.5 & 0.5 \checkmark \\
+C & neumann$\cdot$nx=21：实测 $-$ 1/2 & +0.0000000000 & +0.0000000002 \checkmark \\
+C & periodic$\cdot$nx=21 的 FTCS 稳定阈值 & 0.502808 & 0.502808 \checkmark \\
+C & periodic$\cdot$nx=21：实测 $-$ 1/2 & +0.0028079748 & +0.0028079751 \checkmark \\
+C & Dirichlet 阈值偏差 r*$-$1/2 的收敛阶 & 2 & 2.00749 \checkmark \\
+C & 偏差常数 (r*$-$1/2)(n$-$1)$^2$ 的四个取值 & $\pi$$^2$/\allowbreak{}8 =\allowbreak{} 1.233701 & 1.240516(\allowbreak{}相对偏差 5.52e-03) \checkmark \\
+C & btcs$\cdot$r=50.0 的实测谱半径 & $\le$ 1(\allowbreak{}无条件稳定) & 0.6460739372 \checkmark \\
+C & btcs$\cdot$r=500.0 的实测谱半径 & $\le$ 1(\allowbreak{}无条件稳定) & 0.1543661390 \checkmark \\
+C & cn$\cdot$r=50.0 的实测谱半径 & $\le$ 1(\allowbreak{}无条件稳定) & 0.9801439474 \checkmark \\
+C & cn$\cdot$r=500.0 的实测谱半径 & $\le$ 1(\allowbreak{}无条件稳定) & 0.9979879092 \checkmark \\
+C & BTCS 的 L$\infty$ 误差：r=50 与 r=0.4 的比 & $\gg$ 1(\allowbreak{}稳定 $\ne$ 精确) & 86.2 倍 \checkmark \\
+C & FTCS 耗散方向反转的 r & 0.166667 & 0.166667 \checkmark \\
+C & cn$\cdot$r=0.4 的耗散误差系数(正=衰减比真解慢) & sign =\allowbreak{} +1 & +0.033333 \checkmark \\
+C & btcs$\cdot$r=0.4 的耗散误差系数(正=衰减比真解慢) & sign =\allowbreak{} +1 & +0.113333 \checkmark \\
+C & ftcs$\cdot$r=0.4 的耗散误差系数(正=衰减比真解慢) & sign =\allowbreak{} -1 & -0.046667 \checkmark \\
+C & 变系数实测阈值 s*：幂迭代 vs 稠密特征值 & 两条路线必须一致 & 0.5423415826 /\allowbreak{} 0.5423415824 \checkmark \\
+C & 变系数阈值：max 口径 / mean 口径 / 冻结系数判据 & max $\lambda$ $\le$ 1/\allowbreak{}2 是充分条件(\allowbreak{}保守)；mean $\lambda$ 口径是错的 & 0.542342 /\allowbreak{} 0.406756 /\allowbreak{} 0.5 \checkmark \\
+B & 二维显式$\cdot$r=0.2：实测 / 解析有限网格谱半径 & 0.9901506725 & 0.9901506724 \checkmark \\
+B & 二维显式$\cdot$r=0.3：实测 / 解析有限网格谱半径 & 1.3852260087 & 1.3852260087 \checkmark \\
+B & ADI$\cdot$r=0.3：实测 / 解析有限网格谱半径 & 0.9853345425 & 0.9853345424 \checkmark \\
+B & ADI$\cdot$r=1.0：实测 / 解析有限网格谱半径 & 0.9519439461 & 0.9519439461 \checkmark \\
+B & ADI$\cdot$r=10.0：实测 / 解析有限网格谱半径 & 0.8175781104 & 0.8175781101 \checkmark \\
+B & ADI$\cdot$r=100.0：实测(幂迭代)/ 解析有限网格谱半径 & 0.9800770882 & 0.9799791594(\allowbreak{}低 9.99e-05) \checkmark \\
+B & nx=20 的模态集合边界 & Dirichlet: (\allowbreak{}n$-$2)$\pi$/\allowbreak{}(\allowbreak{}n$-$1) < $\pi$；Neumann: $\pi$；周期: 2$\pi$$\cdot$floor(\allowbreak{}n/\allowbreak{}2)/\allowbreak{}n & 2.9762456718 /\allowbreak{} 3.1415926536 /\allowbreak{} 3.1415926536 \checkmark \\
+B & nx=21 的模态集合边界 & Dirichlet: (\allowbreak{}n$-$2)$\pi$/\allowbreak{}(\allowbreak{}n$-$1) < $\pi$；Neumann: $\pi$；周期: 2$\pi$$\cdot$floor(\allowbreak{}n/\allowbreak{}2)/\allowbreak{}n & 2.9845130209 /\allowbreak{} 3.1415926536 /\allowbreak{} 2.9919930034 \checkmark \\
+B & nx=41 的模态集合边界 & Dirichlet: (\allowbreak{}n$-$2)$\pi$/\allowbreak{}(\allowbreak{}n$-$1) < $\pi$；Neumann: $\pi$；周期: 2$\pi$$\cdot$floor(\allowbreak{}n/\allowbreak{}2)/\allowbreak{}n & 3.0630528373 /\allowbreak{} 3.1415926536 /\allowbreak{} 3.0649684425 \checkmark \\
+\end{longtable}

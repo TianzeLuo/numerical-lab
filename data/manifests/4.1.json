@@ -1,0 +1,379 @@
+{
+  "chapter": "4.1",
+  "part": "IV",
+  "summary": "热方程 θ 族格式的全部结论都挂在一个数上：放大因子 G(φ)。显式的 r ≤ 1/2、隐式的无条件稳定、CN 的二阶、数值耗散掉得最快的是短波——都是 G(φ) 的不同侧面。这一章把三条证据链并排放：解析的 G(φ)、从真的解里分解出来的逐模态存活率、以及二分实测的稳定阈值。三个最容易被骗的地方也都标出来了：r ≤ 1/2 不是普适常数、稳定不等于精确、解看起来光滑不等于收敛。",
+  "title": "抛物型方程与时间推进",
+  "vizzes": [
+    {
+      "axes": [
+        {
+          "autoscaled": false,
+          "id": "solution",
+          "title": "解曲线（窗口固定 ±1.5：发散时冲出去，而不是被自动缩放藏起来）",
+          "ylabel": "u(x,t)"
+        },
+        {
+          "autoscaled": false,
+          "id": "amplification",
+          "title": "放大因子 |G(φ)| 与稳定界线 1（窗口固定 0–2.4）",
+          "ylabel": "|G|"
+        }
+      ],
+      "dataSource": "backend",
+      "description": "主图是当前参数下真跑出来的解曲线与参考解（时间轴是真实时间 t，向右拖推进）。副图是同一 r 上三种格式的 |G(φ)| 曲线、稳定界线 1、以及幂迭代实测的谱半径。把 r 从 0.4 拖到 0.6，显式格式的 |G| 在右端越过 1——但主图的解是否现形，完全取决于初值里有没有那个模态：这正是换 initial 能看见的东西。",
+      "id": "stability_threshold",
+      "params": [
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": "ftcs",
+          "label": "格式",
+          "name": "scheme",
+          "options": [
+            "ftcs",
+            "btcs",
+            "cn"
+          ],
+          "type": "enum"
+        },
+        {
+          "critical": [
+            0.5
+          ],
+          "criticalNote": "r=1/2 是显式格式的稳定阈值（连续极限），不适用于 BTCS/CN（它们无条件稳定）。有限网格上也各不相同：Dirichlet 略大于 1/2（端点钉住后 Nyquist 模态不存在），Neumann 与偶数周期网格恰好等于 1/2。",
+          "default": 0.45,
+          "label": "格点比 r = αΔt/Δx²",
+          "max": 0.8,
+          "min": 0.05,
+          "name": "r",
+          "step": 0.01,
+          "type": "float"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": 41,
+          "label": "格点数 nx",
+          "max": 101,
+          "min": 21,
+          "name": "nx",
+          "step": 10,
+          "type": "int"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": "dirichlet",
+          "label": "边界条件",
+          "name": "bc",
+          "options": [
+            "dirichlet",
+            "neumann",
+            "periodic"
+          ],
+          "type": "enum"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": "sine",
+          "label": "初值",
+          "name": "initial",
+          "options": [
+            "sine",
+            "noise",
+            "hat"
+          ],
+          "type": "enum"
+        }
+      ],
+      "pitfalls": "第一，换初值就能换结论：r=0.51 已经越界，但 sin(πx) 初值下解逐点光滑、峰值 0.61、误差 3.2e-4（比稳定的 r=0.45 还好看）；同一个 r 换成噪声初值，峰值 42.9。看到「光滑」就下结论是被初值骗了，判据只有 |G|>1。第二，副图的 |G| 是解析公式画的、实测谱半径是幂迭代测的；Neumann/周期下不把常数模态投影掉的话，实测值会永远停在 1.000000000000。第三，主图窗口固定 ±1.5，超过 ±1e3 的点被截断显示并置溢出掩码：截断不等于没有发生，meta.umax 是真值。",
+      "requiredAux": [
+        "error",
+        "residual"
+      ],
+      "theory": [
+        "G_θ(φ) = (1−4(1−θ)r sin²(φ/2))/(1+4θr sin²(φ/2))；|G| 的极值只在 φ=0 与 φ=π 取到",
+        "FTCS：|G|≤1 ⟺ r ≤ 1/2（连续极限）；有限网格上是 1/(2sin²(φ_max/2))，φ_max 由边界与网格奇偶性决定",
+        "BTCS/CN 无条件稳定（θ ≥ 1/2）；但 G(π)→−1 意味着不衰减而每步翻符号"
+      ],
+      "time": {
+        "dt": 0.00025,
+        "label": "t（真实时间）",
+        "mode": "scrub",
+        "tMax": 0.01
+      },
+      "title": "稳定性阈值：显式 vs 隐式 vs Crank–Nicolson"
+    },
+    {
+      "axes": [
+        {
+          "autoscaled": false,
+          "id": "ladder",
+          "scale": "log",
+          "title": "误差 vs 步长（双对数，固定窗口）",
+          "ylabel": "L2 误差"
+        },
+        {
+          "autoscaled": true,
+          "id": "profile",
+          "scale": "log",
+          "title": "最细一级的逐点误差（对数轴）",
+          "ylabel": "|误差|"
+        }
+      ],
+      "dataSource": "backend",
+      "description": "双对数误差阶梯。target=space 固定 r=0.4 加密网格（11/22/44/88/176），target=time 固定网格把 Δt 每次减半。主图画实测误差、理论斜率参考线与「对连续解」的对照曲线；副图画最细一级的逐点误差分布。meta.order_vs_continuous 是同一批数据换靶子后的斜率——时间细化时会塌到 0 附近。",
+      "id": "convergence_order",
+      "params": [
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": "cn",
+          "label": "格式",
+          "name": "scheme",
+          "options": [
+            "ftcs",
+            "btcs",
+            "cn"
+          ],
+          "type": "enum"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": "time",
+          "label": "细化方向",
+          "name": "target",
+          "options": [
+            "space",
+            "time"
+          ],
+          "type": "enum"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": 41,
+          "label": "时间细化的固定 nx",
+          "max": 81,
+          "min": 21,
+          "name": "nx",
+          "step": 20,
+          "type": "int"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": 4,
+          "label": "阶梯级数",
+          "max": 5,
+          "min": 3,
+          "name": "levels",
+          "step": 1,
+          "type": "int"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": 0.05,
+          "label": "终止时刻 T",
+          "max": 0.1,
+          "min": 0.01,
+          "name": "t_end",
+          "step": 0.01,
+          "type": "float"
+        }
+      ],
+      "pitfalls": "第一，选错靶子会得到相反的结论：时间细化必须对半离散解测。对连续解测时 CN 的实测斜率是−0.0004（空间误差 1.09e-4 完全盖住时间误差 1e-8），BTCS 是 0.46——两个都荒谬，但看上去像「格式不收敛」。第二，固定 r 加密网格会让一阶格式也测出二阶（dt=rΔx² 把时间误差压成同阶），所以空间细化那一列不代表时间精度。第三，副图的逐点误差在对数轴上有 1e-17 的地板：曲线两端贴到地板不是「边界处特别准」，而是那里本来就接近 0（正弦型误差在端点必为 0）。",
+      "requiredAux": [
+        "error"
+      ],
+      "theory": [
+        "θ 族的时间阶：θ=1/2 是 2 阶，θ≠1/2 是 1 阶；空间恒为 2 阶（二阶中心差分）",
+        "单模态下数值解精确等于半离散解乘 G^n：时间误差 = |G^n − e^(−λ_k t)|，与空间误差可分离",
+        "固定 r 时 dt=O(Δx²)，故三种格式在空间细化的阶梯上都表现为 2 阶"
+      ],
+      "time": {
+        "label": "t",
+        "mode": "none"
+      },
+      "title": "收敛阶：空间细化与时间细化（以及选错靶子的后果）"
+    },
+    {
+      "axes": [
+        {
+          "autoscaled": false,
+          "id": "decay",
+          "scale": "log",
+          "title": "逐模态存活率（对数纵轴，窗口固定 1e-17–2）",
+          "ylabel": "|a_k(t)/a_k(0)|"
+        },
+        {
+          "autoscaled": true,
+          "id": "dissipation",
+          "title": "耗散误差（实测 − 半离散；负 = 数值衰减更快）",
+          "ylabel": "Δ 存活率"
+        }
+      ],
+      "dataSource": "backend",
+      "description": "主图纵轴取对数：三条曲线分别是真解 e^(−rφ²n)、半离散解 e^(−λ_k t)、以及从真的解里按正交模态分解出来的存活率 |a_k(t)/a_k(0)|。实测线与 |G|ⁿ 逐位重合（meta.max_amplitude_residual），与半离散解的差就是这一步的耗散误差——短波（右侧）掉得最快，这就是数值耗散。时间轴是真实时间：向右拖，整条曲线往下沉。",
+      "id": "numerical_dissipation",
+      "params": [
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": "cn",
+          "label": "格式",
+          "name": "scheme",
+          "options": [
+            "ftcs",
+            "btcs",
+            "cn"
+          ],
+          "type": "enum"
+        },
+        {
+          "critical": [
+            0.5
+          ],
+          "criticalNote": "对显式格式，r>1/2 会让短波放大（图上右侧翘起来）；BTCS/CN 没有这条线。另外 r=1/6 是耗散方向的翻转点：FTCS 在 r<1/6 时衰减得比真解慢、r>1/6 时比真解快。",
+          "default": 0.4,
+          "label": "格点比 r",
+          "max": 2.0,
+          "min": 0.05,
+          "name": "r",
+          "step": 0.05,
+          "type": "float"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": 41,
+          "label": "格点数 nx",
+          "max": 101,
+          "min": 21,
+          "name": "nx",
+          "step": 20,
+          "type": "int"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": 8,
+          "label": "画出的模态数",
+          "max": 16,
+          "min": 4,
+          "name": "n_modes",
+          "step": 2,
+          "type": "int"
+        }
+      ],
+      "pitfalls": "第一，模态分解的分母可能是舍入级：初值是纯 sin(πx) 时 k≥2 的系数精确为 0，直接相除会得到 22.1、18.5 这种假放大率。本帧把这类模态判为 nan 并置掩码（decay_alive=0），存活率在这些位置显示为地板值。第二，Neumann 边界的余弦族对普通内积不正交——实测 cos(πx) 会在 cos(3πx) 上漏出 1/21=0.0476 的假分量，必须用端点半权重；本帧用 Dirichlet 正弦族正是为了避开它。第三，纵轴地板 1e-17：贴到地板意味着双精度量不出来了，不代表存活率真的等于 0。",
+      "requiredAux": [
+        "error",
+        "residual"
+      ],
+      "theory": [
+        "G(φ) = 1 − rφ² + (r/12 + θr²)φ⁴ + O(φ⁶)；真解 e^(−rφ²) = 1 − rφ² + (r²/2)φ⁴ + …",
+        "耗散误差系数 = r/12 + r²(θ−1/2)：CN 恒为正（欠耗散），FTCS 在 r=1/6 变号",
+        "短波衰减最快 ⟹ 数值解总比真解更光滑；看起来平滑本身就是耗散的证据"
+      ],
+      "time": {
+        "dt": 0.001,
+        "label": "t（真实时间）",
+        "mode": "scrub",
+        "tMax": 0.01
+      },
+      "title": "数值耗散：解析衰减、半离散衰减与实测存活率"
+    },
+    {
+      "axes": [
+        {
+          "autoscaled": false,
+          "id": "solution",
+          "title": "解曲线（窗口固定 −0.5–2.2：三种边界的初值都在范围内）",
+          "ylabel": "u(x,t)"
+        },
+        {
+          "autoscaled": false,
+          "id": "mass",
+          "title": "总热量漂移 H(t)−H(0)（窗口固定 −0.7–0.1）",
+          "ylabel": "ΔH"
+        }
+      ],
+      "dataSource": "backend",
+      "description": "主图是当前边界条件下真跑出来的解与解析解；副图把三种边界的总热量漂移H(t)−H(0) 画在同一根轴上：Neumann 与周期是贴着 0 的直线（离散算子行和为零，与格式、与 r 都无关），Dirichlet 是斜着下掉的线，流失量的解析值是 (2/π)(1−e^(−π²t))。时间轴是真实时间 t。",
+      "id": "boundary_conservation",
+      "params": [
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": "neumann",
+          "label": "边界条件",
+          "name": "bc",
+          "options": [
+            "dirichlet",
+            "neumann",
+            "periodic"
+          ],
+          "type": "enum"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": "cn",
+          "label": "格式",
+          "name": "scheme",
+          "options": [
+            "ftcs",
+            "btcs",
+            "cn"
+          ],
+          "type": "enum"
+        },
+        {
+          "critical": [
+            0.5
+          ],
+          "criticalNote": "显式格式在 r>1/2 时失稳；守恒结论与 r 无关，但解的准确性有关。",
+          "default": 0.4,
+          "label": "格点比 r",
+          "max": 0.8,
+          "min": 0.05,
+          "name": "r",
+          "step": 0.05,
+          "type": "float"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": 41,
+          "label": "格点数 nx",
+          "max": 101,
+          "min": 21,
+          "name": "nx",
+          "step": 20,
+          "type": "int"
+        }
+      ],
+      "pitfalls": "第一，「守恒」在图上长得像「一条很小的曲线」，但它是结构性的：离散算子的行和恒为 0，所以无论 θ 取多少、r 取多少，Neumann/周期都精确守恒（实测漂移 1e-15，舍入级）；Dirichlet 的端点行不是零行，热量必然按边界通量流失。第二，别把总热量不变当成解不变：Neumann 下常数模态永远不衰减，数值解会冻结在一个与真解不同的常数上，误差不随时间减小。第三，本帧三种边界用三种相容初值（sin / 1+cos / 1+cos2πx），该比较的是漂移量，不是解的绝对大小。",
+      "requiredAux": [
+        "error",
+        "residual"
+      ],
+      "theory": [
+        "Neumann 用幽灵点消元后端点行为 [2,−2]，行和为零 ⟹ 1ᵀu 精确守恒（任意 θ）",
+        "Dirichlet 的总热量按边界通量流失：sin(πx) 初值下 H(t)=(2/π)e^(−π²t)",
+        "周期循环矩阵每行和也为零 ⟹ 同样守恒；Sherman–Morrison 求解不改变这个性质"
+      ],
+      "time": {
+        "dt": 0.0025,
+        "label": "t（真实时间）",
+        "mode": "scrub",
+        "tMax": 0.05
+      },
+      "title": "边界条件：总热量守恒 vs 边界流失"
+    }
+  ]
+}
