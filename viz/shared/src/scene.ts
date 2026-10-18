@@ -185,6 +185,129 @@ export interface Scene {
 }
 
 // --------------------------------------------------------------------------- //
+// 文本宽度（模型排版与校验器**共用同一把尺子**）
+// --------------------------------------------------------------------------- //
+/**
+ * 估算一段文本的显示宽度（CJK/全角记 2，其余记 1）。
+ *
+ * 角标没有 `measureText` 可用（模型层是纯函数、不碰 DOM），所以约定这把尺子；
+ * 校验器要用**同一个**口径判断"角标放不放得下、两个角标盒子会不会相交"，
+ * 否则"模型以为放得下、校验器以为放不下"会变成无解的扯皮。
+ */
+export function textWidthUnits(text: string): number {
+  let n = 0;
+  for (const ch of text) n += (ch.codePointAt(0) ?? 0) > 0x2e80 ? 2 : 1;
+  return n;
+}
+
+/** 1 个显示宽度单位折合多少像素：`tools/raster.py` 位图字体的实测比值（保守上界）。 */
+export const BADGE_UNIT_PX = 7;
+
+/** 角标盒左右内边距之和（两个渲染层都是 5px）。 */
+export const BADGE_PAD_PX = 10;
+
+/** 角标盒的估算宽度（与 {@link textWidthUnits} 同一把尺子）。 */
+export function badgeBoxWidth(text: string): number {
+  return textWidthUnits(text) * BADGE_UNIT_PX + BADGE_PAD_PX;
+}
+
+/** 两个渲染层的缺省基准字号（`render2d.ts::opts.baseFontSize ?? 13` 与 `raster.py::_BASE_FONT_SIZE`）。 */
+export const BASE_FONT_SIZE = 13;
+
+/**
+ * 角标盒的估算高度：两个渲染层都按 `baseFontSize + 4` 画。
+ *
+ * 这里用**绘制高度**而不是"看起来差不多"的名义值：早先写死 15（对应 base=11），
+ * 而两个渲染层的缺省 base 都是 13 → 真实盒高 17。差这 2px 足以让"刚好错开"的
+ * 两枚角标在图上压住半个字，校验器却报"没问题"。
+ */
+export const BADGE_BOX_H = BASE_FONT_SIZE + 4;
+
+/**
+ * 坐标轴**装饰带**：刻度、刻度标签、轴标题、轴名占用的、紧贴 `rect` 外侧的区域。
+ *
+ * 两个渲染层都按同一套偏移画装饰（`render2d.ts::drawAxis` 与 `tools/raster.py::_draw_axis`）：
+ *  * 上：轴标题在 `top − 6`（基线 bottom）→ 占 [top−18, top−2]；
+ *  * 下：刻度标签在 `bottom + 4`（基线 top）、轴名在 `bottom + base + 16`（基线 bottom）
+ *        → 占 [bottom+3, bottom+28]；
+ *  * 左：y 刻度标签右对齐于 `left − 6`、轴名竖排在 `left − 42`
+ *        → 占 [left−56, left−4]。
+ *
+ * 为什么要把它们写成契约：模型的文本层（图例、数值块、说明）如果落进这些带里，就会与
+ * **渲染层自己画的装饰**叠在一起——`validateScene` 原来查不出来（它只看文本层之间），
+ * 而 1.2 / 0.0 章真出现过（图例压在 x 刻度标签上、数值块压在副轴刻度上）。
+ */
+export const AXIS_DECO = { top: 18, bottom: 28, left: 56 } as const;
+
+/**
+ * 一个文本层的**估算盒子**（两个渲染层都用同一套排版：按 `maxWidth` 折行、
+ * 行高 `size + 4`、`baseline = top`）。
+ *
+ * 为什么要认真算折行：`render2d.ts::drawText` 与 `raster.py` 都会在 `maxWidth` 处折行，
+ * 所以"一段长说明"实际占的是一个**几行的块**，而不是一行 749px 的横条。
+ * 早先校验器把它当单行算，于是"模型明明写了 maxWidth"却被判压住邻居（0.0 章真报过）。
+ */
+export function textBoxOf(t: { x: number; y: number; text?: string; size?: number; align?: string; maxWidth?: number }): {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  lines: number;
+  ok: boolean;
+} {
+  const size = Number(t.size ?? BASE_FONT_SIZE);
+  const body = String(t.text ?? "");
+  const maxW = Number(t.maxWidth ?? 0);
+  const perLine = maxW > 0 ? Math.max(1, Math.floor(maxW / BADGE_UNIT_PX)) : Number.POSITIVE_INFINITY;
+  const raw: string[] = [];
+  if (maxW > 0) {
+    let line = "";
+    for (const ch of body) {
+      const probe = line + ch;
+      if (textWidthUnits(probe) > perLine && line.length > 0) {
+        raw.push(line);
+        line = ch;
+      } else {
+        line = probe;
+      }
+    }
+    if (line.length > 0) raw.push(line);
+  } else {
+    raw.push(body);
+  }
+  const w = Math.max(...raw.map((l) => textWidthUnits(l)), 0) * BADGE_UNIT_PX;
+  const x0 = t.align === "right" ? t.x - w : t.align === "center" ? t.x - w / 2 : t.x;
+  return {
+    x: x0,
+    y: t.y,
+    w,
+    h: raw.length * (size + 4),
+    lines: raw.length,
+    ok: Number.isFinite(t.x) && Number.isFinite(t.y),
+  };
+}
+
+/**
+ * 某个轴的装饰带（相对画布的矩形 `[x, y, w, h]`），供校验器与模型排版共用。
+ *
+ * **按需生成**：没有刻度就不占刻度带，没有轴名/轴标题就不占那一条带。
+ * 这条细节很要紧——好几个模型刻意把 `xticks` 清空、改用 `text` 层手写类别名
+ * （`AxisOptions` 没有 `xtickLabels`），若把空刻度也当成"有装饰"，那些模型会被误报。
+ */
+export function axisDecoBands(
+  axis: { rect: [number, number, number, number]; xticks?: number[]; yticks?: number[]; xlabel?: string; ylabel?: string; title?: string },
+): [number, number, number, number][] {
+  const [x, y, w, h] = axis.rect;
+  const bands: [number, number, number, number][] = [];
+  if (axis.title) bands.push([x, y - AXIS_DECO.top, w, AXIS_DECO.top - 2]);
+  if (axis.xticks && axis.xticks.length > 0) bands.push([x, y + h + 3, w, 15]);
+  if (axis.xlabel) bands.push([x, y + h + 16, w, AXIS_DECO.bottom - 16]);
+  if (axis.yticks && axis.yticks.length > 0) bands.push([x - 41, y, 35, h]);
+  if (axis.ylabel) bands.push([x - AXIS_DECO.left, y, 14, h]);
+  return bands;
+}
+
+// --------------------------------------------------------------------------- //
 // 校验
 // --------------------------------------------------------------------------- //
 const KNOWN_KINDS = new Set(["line", "band", "scatter", "heat", "contour", "bars", "vectorfield", "loglogfit"]);
@@ -332,6 +455,68 @@ export function validateScene(scene: unknown): string[] {
     for (const b of s.badges) {
       if (!KNOWN_BADGES.has(b.kind)) issues.push(`徽标类型未知：${String(b.kind)}`);
       if (!b.text) issues.push("徽标文本不得为空");
+    }
+    // 规则 8（布局）：角标盒按共享尺子估算，必须落在画布内、且两两不相交。
+    // 为什么这条必须在**契约**里：角标坐标是模型算出来的，重叠与否只有渲染时才知道，
+    // 而"两枚角标叠在一起"在图上就是读不出来——1.2 与 0.0 章真出现过（长文案横穿到右列）。
+    const w = Number(s.canvas?.w ?? 0);
+    const h = Number(s.canvas?.h ?? 0);
+    // 防御式：这一层要能对**畸形**场景给出诊断（有的测试专门构造 `{kind:"shiny"}` 这种
+    // 半成品），所以不能假设 x/y 是有限数、text 是字符串——否则校验器自己会抛 TypeError，
+    // 把"场景非法"变成"校验器崩了"。
+    const boxes = s.badges.map((b) => ({
+      b,
+      x: Number(b.x),
+      y: Number(b.y),
+      w: badgeBoxWidth(String(b.text ?? "")),
+      h: BADGE_BOX_H,
+      ok: Number.isFinite(Number(b.x)) && Number.isFinite(Number(b.y)),
+    }));
+    for (const box of boxes) {
+      const label = String(box.b.text ?? "").slice(0, 16);
+      if (!box.ok) {
+        issues.push(`徽标 ${label}… 坐标非有限`);
+        continue;
+      }
+      if (box.x < 0 || box.y < 0 || (w > 0 && box.x + box.w > w) || (h > 0 && box.y + box.h > h)) {
+        issues.push(
+          `徽标 ${label}… 超出画布：盒子 [${box.x.toFixed(1)}, ${box.y.toFixed(1)}, ` +
+            `${box.w.toFixed(1)}×${box.h}]，画布 ${w}×${h}（规则 8：先用 placeBadge/clipBadgeText 收进列宽）`,
+        );
+      }
+    }
+    // 规则 8（布局·其二）：文本层不得落进任何坐标轴的装饰带——那里由渲染层自己画刻度与轴名。
+    const txtBoxes = (s.texts ?? []).map((t) => ({ t, ...textBoxOf(t) }));
+    for (const axis of s.axes ?? []) {
+      if (!Array.isArray(axis.rect) || axis.rect.length !== 4) continue;
+      for (const band of axisDecoBands(axis as { rect: [number, number, number, number] })) {
+        for (const box of txtBoxes) {
+          if (!box.ok) continue;
+          const [bx, by, bw, bh] = band;
+          const hit = !(box.x + box.w <= bx || bx + bw <= box.x || box.y + box.h <= by || by + bh <= box.y);
+          if (hit) {
+            issues.push(
+              `文本压住坐标轴装饰（规则 8）：${String(box.t.text ?? "").slice(0, 16)}… 的盒子 ` +
+                `[${box.x.toFixed(1)}, ${box.y.toFixed(1)}, ${box.w.toFixed(1)}×${box.h.toFixed(1)}] 与 ` +
+                `轴 ${axis.id} 的装饰带 [${bx.toFixed(1)}, ${by.toFixed(1)}, ${bw.toFixed(1)}×${bh.toFixed(1)}] 相交`,
+            );
+          }
+        }
+      }
+    }
+    for (let i = 0; i < boxes.length; i += 1) {
+      for (let j = i + 1; j < boxes.length; j += 1) {
+        const a = boxes[i]!;
+        const c = boxes[j]!;
+        if (!a.ok || !c.ok) continue; // 坐标非有限已经单独报过，这里不重复
+        const hit = !(a.x + a.w <= c.x || c.x + c.w <= a.x || a.y + a.h <= c.y || c.y + c.h <= a.y);
+        if (hit) {
+          issues.push(
+            `徽标重叠（规则 8）：${String(a.b.text ?? "").slice(0, 14)}… 与 ${String(c.b.text ?? "").slice(0, 14)}… ` +
+              `（盒子 [${a.x.toFixed(1)}, ${a.y.toFixed(1)}] 与 [${c.x.toFixed(1)}, ${c.y.toFixed(1)}]）`,
+          );
+        }
+      }
     }
   }
   if (!s.overflow) issues.push("缺少 overflow 字段（规则 1）");

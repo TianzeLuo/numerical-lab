@@ -27,6 +27,7 @@ import {
   series,
   sourceBadge,
   text,
+  textWidthUnits,
   validateScene,
   vectorFieldLayer,
   type Axis,
@@ -35,6 +36,7 @@ import {
   type Scene,
   previewBadge,
 } from "../shared/src/scene.js";
+import { badgeUnitBudget, placeBadge } from "../shared/src/model.js";
 
 /** 造一个"合法但极简"的场景，再让各测试按需破坏它。 */
 function baseScene(): Scene {
@@ -348,4 +350,49 @@ test("sceneToJson 对数值做 12 位有效数字截断，避免跨平台末位�
   s.t = 0.1 + 0.2;
   const json = sceneToJson(s);
   assert.match(json, /"t": 0\.3/);
+});
+
+// --------------------------------------------------------------------------- //
+// 规则 8（布局）：角标盒必须落在画布内、彼此不相交；placeBadge 负责裁到列宽
+// --------------------------------------------------------------------------- //
+test("placeBadge 把过长角标裁到列宽，使两列角标不再互相压住", () => {
+  // 真实踩过的坑：65 个显示宽度单位的"副轴：自适应（…）"放在 colW=344 的左列，
+  // 横穿到右列把临界值角标压在下面（1.2 与 0.0 章）。定宽槽位 + 不定长文案 = 必定重叠，
+  // 所以 placeBadge 现在负责裁剪：宁可尾部 `…`，也不许两枚角标叠在一起。
+  const long = badge("autoscale", "副轴：自适应（".padEnd(60, "宽"), 8, 8);
+  const budget = badgeUnitBudget(960);
+  placeBadge(long, 2, 960);
+  assert.ok(textWidthUnits(long.text) <= budget, `裁剪后仍超出列宽预算：${textWidthUnits(long.text)} > ${budget}`);
+  assert.ok(long.text.endsWith("…"), "被裁剪的文案必须以省略号收尾（不能静默丢字）");
+  // 短文案原样保留
+  const short = badge("source", "数据：后端 .nlf 帧", 8, 8);
+  placeBadge(short, 0, 960);
+  assert.equal(short.text, "数据：后端 .nlf 帧");
+});
+
+test("validateScene 拒绝同行的两枚长角标（规则 8）", () => {
+  const s = baseScene();
+  s.canvas = { w: 960, h: 600, background: "#ffffff" };
+  s.badges = [
+    badge("source", "数据：后端 .nlf 帧", 8, 34),
+    badge("autoscale", "副轴：自适应（log 纵轴按本帧 ρ 与残差取整；自适应会掩盖量级变化）", 8, 52),
+    badge("critical", "dominance = 1.600　理论临界 1.000*", 352, 52),
+  ];
+  const issues = validateScene(s);
+  assert.ok(
+    issues.some((i) => i.includes("规则 8") && i.includes("重叠")),
+    `应当报出角标重叠，实际：${issues.join(" | ")}`,
+  );
+  // 把长角标挪到独占一行 → 立刻合法（这条也顺带证明判据不是"只要有多枚角标就报错"）
+  s.badges[2] = badge("critical", "dominance = 1.600　理论临界 1.000*", 352, 70);
+  const after = validateScene(s).filter((i) => i.includes("规则 8"));
+  assert.deepEqual(after, [], `挪开一行后不应再报布局问题：${after.join(" | ")}`);
+});
+
+test("validateScene 拒绝冲出画布的角标（规则 8）", () => {
+  const s = baseScene();
+  s.canvas = { w: 320, h: 240, background: "#ffffff" };
+  s.badges = [badge("source", "数据：后端 .nlf 帧", 8, 34), badge("status", "很长很长".repeat(20), 8, 52)];
+  const issues = validateScene(s);
+  assert.ok(issues.some((i) => i.includes("超出画布")), `应当报出越界角标，实际：${issues.join(" | ")}`);
 });

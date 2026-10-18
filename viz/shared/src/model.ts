@@ -19,7 +19,20 @@
 
 import type { Frame, TypedArray } from "./frame.js";
 import type { Badge, LineSeries, Scene } from "./scene.js";
-import { badge, newScene, overflowBadge, series } from "./scene.js";
+import {
+  BADGE_BOX_H,
+  BADGE_PAD_PX,
+  BADGE_UNIT_PX,
+  badge,
+  badgeBoxWidth,
+  newScene,
+  overflowBadge,
+  series,
+  textWidthUnits,
+} from "./scene.js";
+// 这两个是"文本宽度尺子"的公开入口：多章模型从 `model.ts` 取（历史原因），
+// 实现在 `scene.ts`（与校验器同一份）。
+export { BADGE_BOX_H, BADGE_PAD_PX, BADGE_UNIT_PX, badgeBoxWidth, textWidthUnits };
 import { checkOverflow, type OverflowReport } from "./geometry.js";
 
 // --------------------------------------------------------------------------- //
@@ -416,6 +429,19 @@ export const BADGE_LAYOUT = {
   maxSlots: 8,
 } as const;
 
+/**
+ * 一行角标能容纳的显示宽度单位（`placeBadge` 用它裁剪过长文案）。
+ *
+ * 两列布局时就是列宽；画布窄到只剩一列时，整幅宽减去左右各 8px 都是可用的。
+ */
+export function badgeUnitBudget(width: number): number {
+  // 两列布局：预算是列宽；单列（窄画布）：预算是"整幅宽 − 左右边距"。
+  // 早先单列时错误地取了 `max(colW, width-16)`：200px 宽的导出画布于是按 344px 放行，
+  // 角标直接冲出画布（`--width 200` 的 PNG/GIF 导出场景真踩到，规则 8 当场报违规）。
+  const usable = badgeColumns(width) >= 2 ? BADGE_LAYOUT.colW : Math.max(60, width - 2 * BADGE_LAYOUT.x);
+  return Math.max(8, Math.floor((usable - BADGE_PAD_PX) / BADGE_UNIT_PX));
+}
+
 /** 画布够宽时用两列角标（列宽 344 + 列间距 24）。 */
 export function badgeColumns(width: number): number {
   return width >= 2 * BADGE_LAYOUT.colW + 24 ? 2 : 1;
@@ -436,6 +462,13 @@ export function placeBadge<T extends Badge>(b: T, slot: number, width: number): 
   const cols = badgeColumns(width);
   b.x = BADGE_LAYOUT.x + (slot % cols) * BADGE_LAYOUT.colW;
   b.y = BADGE_LAYOUT.top + Math.floor(slot / cols) * BADGE_LAYOUT.rowH;
+  // 槽位是**定宽**的（colW = 344），而角标文本长度由帧里的数值决定（状态/溢出/降级文案
+  // 都可能很长）。不定宽裁剪的后果不是"难看一点"，而是**长角标横穿到右列、把邻居压在下面**——
+  // 1.2 与 0.0 章真出现过（左侧 65 单位的"副轴：自适应…"盖住右侧的临界值角标），
+  // 而 `validateScene` 当时查不出来（它不知道文字宽度）。
+  // 现在统一在这里裁到列宽预算：宁可少显示几个字（尾部 `…`），也不许两枚角标叠在一起。
+  // 完整文案请放到面板文本 / `pitfalls` 里——角标只是索引，不是正文。
+  b.text = clipBadgeText(b.text, badgeUnitBudget(width));
   return b;
 }
 
@@ -586,13 +619,6 @@ export function canvasSize(opts: ModelOptions): { width: number; height: number 
 
 /** 降级说明的统一前缀（测试按它断言"缺字段没有静默"）。 */
 export const DEGRADED_PREFIX = "⚠ 降级：";
-
-/** 估算一段文本的显示宽度（CJK/全角记 2，其余记 1）——角标没有 measureText 可用。 */
-export function textWidthUnits(text: string): number {
-  let n = 0;
-  for (const ch of text) n += (ch.codePointAt(0) ?? 0) > 0x2e80 ? 2 : 1;
-  return n;
-}
 
 /** 把角标文本裁到 `maxUnits` 显示宽度内（超出用 `…` 收尾），避免角标横穿画布。 */
 export function clipBadgeText(text: string, maxUnits = 84): string {

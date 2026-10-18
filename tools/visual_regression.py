@@ -35,7 +35,7 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 from server.frames import build_frame  # noqa: E402
-from server.registry import default_registry  # noqa: E402
+from server.registry import Registry, RegistryError, default_registry  # noqa: E402
 from tools.png import read_png, write_rgb  # noqa: E402
 from tools.raster import (  # noqa: E402
     default_scene_for_frame,
@@ -318,7 +318,15 @@ def run(
     ``require_scenes=True`` 时"一个 TS 场景转储都没有"本身就是失败：CI 里应该这么用
     （否则 ``npm run scene`` 一没跑，G8 就退化成"只出兜底报告"，看起来还是绿的）。
     """
-    registry = default_registry()
+    # 指定了 --chapter 时只要求**这些**章节能加载：并发开发时兄弟章节可能正处于语法
+    # 半成品状态，不该把"我只想比 1.2 的图"变成一次全仓失败（与 tools/precompute.py 同一条规矩）。
+    registry = Registry(_ROOT)
+    registry.discover(strict=not chapters)
+    if chapters:
+        missing = [c for c in chapters if c not in set(registry.ids())]
+        if missing:
+            registry.discover()  # 严格再跑一次，把"为什么加载不了"完整抛出来
+            raise RegistryError(f"指定章节无法加载：{', '.join(missing)}")
     entries: list[Entry] = []
     primary = discover_scenes(scenes_dir, width=width, height=height)
     entries.extend(primary.values())

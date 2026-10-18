@@ -37,6 +37,7 @@ from tools.png import read_png, write_rgb
 from tools.raster import (
     RasterError,
     apply_cmap,
+    badge_box_width,
     build_heat_rgba,
     check_overflow,
     data_to_pixel,
@@ -895,3 +896,59 @@ def test_choose_palette_paths():
 def test_export_video_rejects_unknown_viz(capsys):
     with pytest.raises(SystemExit):
         ev.main(["--chapter", "0.0", "--viz", "nope", "--out", "/tmp/nope.gif"])
+
+
+# --------------------------------------------------------------------------- #
+# 规则 8（布局）：角标盒的估算宽度与重叠/越界判定
+# --------------------------------------------------------------------------- #
+def test_badge_box_width_matches_the_shared_metric():
+    """角标宽度用共享尺子（CJK=2、ASCII=1，1 单位 = 7px）。
+
+    这组数字同时钉在 `viz/tests/scene.test.ts` 里（同一条样例），
+    于是两侧一旦漂移就会各红一条 —— 这正是"模型以为放得下、校验器以为放不下"的解药。
+    """
+    assert badge_box_width("数据：后端 .nlf 帧") == pytest.approx(18 * 7 + 10)  # 18 单位
+    assert badge_box_width("坐标轴：固定") == pytest.approx(12 * 7 + 10)
+    # 纯 ASCII 只算 1 单位/字符
+    assert badge_box_width("abcdefghij") == pytest.approx(10 * 7 + 10)
+
+
+def test_validate_scene_flags_overlapping_badges():
+    """同一行里的两枚长角标必须被判违规（1.2 与 0.0 章真出现过）。"""
+    scene = make_scene(
+        [line_layer([0.0, 1.0], [0.0, 1.0])],
+        canvas=(960.0, 600.0),
+        badges=[
+            {"kind": "source", "text": "数据：后端 .nlf 帧", "x": 8.0, "y": 34.0},
+            {"kind": "autoscale", "text": "副轴：自适应（log 纵轴按本帧 ρ 与残差取整；自适应会掩盖量级变化）", "x": 8.0, "y": 52.0},
+            {"kind": "critical", "text": "dominance = 1.600　理论临界 1.000*", "x": 352.0, "y": 52.0},
+        ],
+    )
+    issues = validate_scene(scene)
+    assert any("规则 8" in i and "重叠" in i for i in issues), issues
+    # 挪到独占一行 → 立刻合法（证明判据不是"有多枚角标就报错"）
+    scene["badges"][2]["y"] = 70.0
+    assert [i for i in validate_scene(scene) if "规则 8" in i] == []
+
+
+def test_validate_scene_flags_badge_outside_canvas():
+    """角标盒必须落在画布内：宽画布上的长文案挪到窄画布就会越界。"""
+    scene = make_scene(
+        [line_layer([0.0, 1.0], [0.0, 1.0])],
+        canvas=(320.0, 240.0),
+        badges=[
+            {"kind": "source", "text": "数据：后端 .nlf 帧", "x": 8.0, "y": 34.0},
+            {"kind": "status", "text": "很长很长" * 20, "x": 8.0, "y": 52.0},
+        ],
+    )
+    issues = validate_scene(scene)
+    assert any("超出画布" in i for i in issues), issues
+
+
+def test_validate_scene_survives_malformed_badges():
+    """畸形角标（缺坐标、text 非字符串）要给出诊断，而不是让校验器自己炸。"""
+    scene = make_scene([line_layer([0.0, 1.0], [0.0, 1.0])])
+    scene["badges"] = [{"kind": "source", "text": "数据"}, {"kind": "status", "text": None, "x": "x", "y": None}]
+    issues = validate_scene(scene)
+    assert any("徽标文本不得为空" in i for i in issues)
+    assert any("坐标非有限" in i for i in issues)

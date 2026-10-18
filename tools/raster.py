@@ -340,6 +340,11 @@ def nice_ticks(lo: float, hi: float, target: float | None = None, *, log: bool =
     return _select_linear_step(lo, hi, tgt)[1]
 
 
+#: log 轴下界的"地板"：低于它的值一律抬到这里，避免 pad 缩小后下溢成 0。
+#: 1e-300 足够低（float64 的 min subnormal 是 5e-324），也不会与真实数据范围打架。
+_LOG_FLOOR = 1e-300
+
+
 def nice_limits(
     lo: float,
     hi: float,
@@ -361,14 +366,21 @@ def nice_limits(
     if log:
         if not (lo > 0) or not (hi > 0):
             raise ValueError(f"对数刻度要求 lo > 0 且 hi > 0，收到 [{lo}, {hi}]")
-        a, b = lo, hi
+        # 下界要有一个"地板"：亚正常数（如 1e-300，章里常拿它当 log 轴的显示地板）再
+        # 按 pad 缩小就会**下溢到 0.0**，于是 math.log10(0) 抛 math domain error。
+        # 踩过：1.4 的 qr_schur 把 error 的地板设成 1e-300，整条视觉回归流水线直接崩在
+        # 兜底探针上（不是那一章变红，而是**整跑挂掉**）。地板取 1e-300 的下一档：
+        # 只影响"低于任何真实数据的地板值"，不会把可见范围截断。
+        a, b = max(lo, _LOG_FLOOR), hi
         if a == b:
-            a /= 10
-            b *= 10
+            a = max(a / 10.0, _LOG_FLOOR)
+            b = max(b * 10.0, a * 10.0)
         if pad > 0:
             k = pad * math.log10(b / a)
-            a /= _pow10(k)
+            a = max(a / _pow10(k), _LOG_FLOOR)
             b *= _pow10(k)
+            if b <= a:
+                b = a * 10.0
         ea = _decade_exp_down(a)
         eb = _decade_exp_up(b)
         min_count = max(2, int(math.ceil(tgt / 2)))
@@ -1122,6 +1134,8 @@ def validate_scene(scene: Any) -> list[str]:
                 issues.append(f"徽标类型未知：{b.get('kind')!r}")
             if not b.get("text"):
                 issues.append("徽标文本不得为空")
+        issues.extend(_badge_layout_issues(s, badges))
+    issues.extend(_text_deco_issues(s))
 
     overflow = s.get("overflow")
     if not isinstance(overflow, Mapping):
@@ -1130,6 +1144,199 @@ def validate_scene(scene: Any) -> list[str]:
         issues.append("overflow.flag 为真时必须给出 overflow.note（规则 1）")
     if isinstance(s.get("pitfalls"), str) and len(str(s.get("pitfalls")).strip()) < 10:
         issues.append("pitfalls 太短（规则 7：必须真的说清它会怎样骗你）")
+    return issues
+
+
+#: 角标文字宽度的共享度量：1 个"显示宽度单位"（CJK/全角 = 2，其余 = 1）折合多少像素。
+#: 7.0 是本文件位图字体的**实测**比值（任意字号下都是 7.00 px/单位），比浏览器 sans-serif
+#: 略宽，因此当保守上界用。TS 侧同一常量在 ``viz/shared/src/scene.ts::BADGE_UNIT_PX``。
+BADGE_UNIT_PX = 7.0
+#: 角标盒左右内边距之和（`render2d.ts::drawBadge` 与本文件 `_draw_badge` 都是 5px）。
+BADGE_PAD_PX = 10.0
+#: 两个渲染层的缺省基准字号（``render2d.ts::opts.baseFontSize ?? 13`` 与本文件 ``_BASE_FONT_SIZE``）。
+BASE_FONT_SIZE = 13.0
+#: 角标盒高度 = 基准字号 + 4（两个渲染层都这么画）。用**绘制高度**而不是名义值：
+#: 早先写死 15（对应 base = 11），而真实盒高是 17，差这 2px 足以漏掉"刚好压住半个字"的重叠。
+BADGE_BOX_H = BASE_FONT_SIZE + 4.0
+
+
+def _text_width_units(text: str) -> int:
+    """显示宽度单位：CJK/全角记 2，其余记 1（与 ``scene.ts::textWidthUnits`` 同口径）。"""
+    return sum(2 if ord(ch) > 0x2E80 else 1 for ch in str(text))
+
+
+def badge_box_width(text: str) -> float:
+    """角标盒的估算宽度（共享尺子，见 :data:`BADGE_UNIT_PX`）。"""
+    return _text_width_units(text) * BADGE_UNIT_PX + BADGE_PAD_PX
+
+
+#: 两列角标时的列宽（与 ``viz/shared/src/model.ts::BADGE_LAYOUT.colW`` 一致）。
+BADGE_COL_W = 344.0
+#: 画布左右边距（同上，``BADGE_LAYOUT.x``）。
+BADGE_MARGIN_X = 8.0
+
+
+def badge_unit_budget(width: float) -> int:
+    """一行角标能容纳的显示宽度单位（与 TS ``badgeUnitBudget`` 同一算法）。
+
+    两列布局用列宽，单列（窄画布）用"整幅宽 − 左右边距"。导出工具会用
+    ``--width 200`` 这类窄画布跑探针场景，死守列宽会让角标冲出画布。
+    """
+    usable = BADGE_COL_W if width >= 2 * BADGE_COL_W + 24 else max(60.0, width - 2 * BADGE_MARGIN_X)
+    return max(8, int((usable - BADGE_PAD_PX) // BADGE_UNIT_PX))
+
+
+def clip_badge_text(text: str, max_units: int) -> str:
+    """把角标文案裁到 ``max_units`` 个显示宽度单位（超出用 ``…`` 收尾）。
+
+    与 ``viz/shared/src/model.ts`` 的裁剪**同口径**：宁可少显示几个字，也不许角标越界或叠住。
+    """
+    if _text_width_units(text) <= max_units:
+        return text
+    out: list[str] = []
+    used = 0
+    for ch in str(text):
+        w = 2 if ord(ch) > 0x2E80 else 1
+        if used + w > max_units - 1:
+            break
+        out.append(ch)
+        used += w
+    return "".join(out) + "…"
+
+
+#: 坐标轴装饰带（与 ``viz/shared/src/scene.ts::AXIS_DECO`` 一致）。
+AXIS_DECO_TOP = 18.0
+AXIS_DECO_BOTTOM = 28.0
+AXIS_DECO_LEFT = 56.0
+
+
+def axis_deco_bands(axis: Mapping[str, Any]) -> list[tuple[float, float, float, float]]:
+    """某个轴占用的装饰带（相对画布的 ``(x, y, w, h)``），与 TS 侧 ``axisDecoBands`` 同口径。
+
+    **按需生成**：没有刻度就不占刻度带，没有轴名/轴标题就不占那一条。
+    这条细节很要紧——好几个模型刻意把 ``xticks`` 清空、改用 ``text`` 层手写类别名
+    （``AxisOptions`` 没有 ``xtickLabels``），把空刻度也当成"有装饰"会误报。
+    """
+    rect = axis.get("rect")
+    if not isinstance(rect, Sequence) or len(rect) != 4:
+        return []
+    x, y, w, h = (float(v) for v in rect)
+    out: list[tuple[float, float, float, float]] = []
+    if axis.get("title"):
+        out.append((x, y - AXIS_DECO_TOP, w, AXIS_DECO_TOP - 2.0))
+    if axis.get("xticks"):
+        out.append((x, y + h + 3.0, w, 15.0))
+    if axis.get("xlabel"):
+        out.append((x, y + h + 16.0, w, AXIS_DECO_BOTTOM - 16.0))
+    if axis.get("yticks"):
+        out.append((x - 41.0, y, 35.0, h))
+    if axis.get("ylabel"):
+        out.append((x - AXIS_DECO_LEFT, y, 14.0, h))
+    return out
+
+
+def text_box_of(layer: Mapping[str, Any]) -> tuple[float, float, float, float]:
+    """一个文本层的估算盒子 ``(x, y, w, h)``——按 ``maxWidth`` 折行，行高 ``size + 4``。
+
+    与 ``viz/shared/src/scene.ts::textBoxOf`` 同口径：两个渲染层都在 ``maxWidth`` 处折行，
+    所以一段长说明占的是**几行的块**，不是一行横条（按单行算会误报，0.0 章真报过）。
+    """
+    size = float(layer.get("size", BASE_FONT_SIZE))
+    body = str(layer.get("text", ""))
+    max_w = float(layer.get("maxWidth", 0.0) or 0.0)
+    if max_w > 0:
+        per_line = max(1, int(max_w // BADGE_UNIT_PX))
+        lines: list[str] = []
+        cur = ""
+        for ch in body:
+            if cur and _text_width_units(cur + ch) > per_line:
+                lines.append(cur)
+                cur = ch
+            else:
+                cur += ch
+        if cur:
+            lines.append(cur)
+    else:
+        lines = [body]
+    width = max((_text_width_units(ln) for ln in lines), default=0) * BADGE_UNIT_PX
+    x = float(layer.get("x", 0.0))
+    align = layer.get("align")
+    if align == "right":
+        x -= width
+    elif align == "center":
+        x -= width / 2.0
+    return x, float(layer.get("y", 0.0)), width, len(lines) * (size + 4.0)
+
+
+def _text_deco_issues(scene: Mapping[str, Any]) -> list[str]:
+    """规则 8（布局·其二）：文本层不得压住任何坐标轴的装饰带。
+
+    那里由**渲染层自己**画刻度与轴名，模型看不见、也移不开——所以只能由模型让路：
+    给轴下留出 ``28px``（刻度标签 ``bottom+4..15``、轴名 ``bottom+16..28``）再放自己的文本，
+    或者干脆把该轴的 ``xlabel`` 置空、改用手写类别名（见 ``spy_ordering`` / ``lu_heatmap``）。
+    """
+    issues: list[str] = []
+    texts = [t for t in (scene.get("texts") or []) if isinstance(t, Mapping)]
+    for axis in scene.get("axes") or []:
+        if not isinstance(axis, Mapping):
+            continue
+        for bx, by, bw, bh in axis_deco_bands(axis):
+            for layer in texts:
+                tx, ty, tw, th = text_box_of(layer)
+                if not (math.isfinite(tx) and math.isfinite(ty)):
+                    continue
+                if not (tx + tw <= bx or bx + bw <= tx or ty + th <= by or by + bh <= ty):
+                    issues.append(
+                        f"文本压住坐标轴装饰（规则 8）：{str(layer.get('text', ''))[:16]}… 的盒子 "
+                        f"[{tx:.1f}, {ty:.1f}, {tw:.1f}×{th:.1f}] 与轴 {axis.get('id')} 的装饰带 "
+                        f"[{bx:.1f}, {by:.1f}, {bw:.1f}×{bh:.1f}] 相交"
+                    )
+    return issues
+
+
+def _badge_layout_issues(scene: Mapping[str, Any], badges: Sequence[Any]) -> list[str]:
+    """规则 8（布局）：角标盒必须落在画布内，且两两不相交。
+
+    为什么把它写进契约：角标坐标由模型算出，"两枚角标叠在一起"在图上就是读不出来，
+    而这件事**只有渲染时才知道**——1.2 与 0.0 章真出现过（左侧 65 单位的
+    "副轴：自适应…"横穿到右列，压住临界值角标），当时的校验器查不出来，因为它不知道文字宽度。
+    现在两侧用同一把尺子（:func:`badge_box_width`），于是"模型以为放得下、校验器以为放不下"
+    这种扯皮不会发生。
+    """
+    issues: list[str] = []
+    canvas = scene.get("canvas") or {}
+    cw = float(canvas.get("w") or 0.0)
+    ch = float(canvas.get("h") or 0.0)
+    boxes: list[tuple[float, float, float, float, str]] = []
+    for b in badges:
+        if not isinstance(b, Mapping):
+            continue
+        text = str(b.get("text", ""))
+        raw_x, raw_y = b.get("x", 8.0), b.get("y", 8.0)
+        try:
+            x, y = float(raw_x), float(raw_y)
+        except (TypeError, ValueError):
+            issues.append(f"徽标 {text[:12]}… 坐标非有限")
+            continue
+        if not (math.isfinite(x) and math.isfinite(y)):
+            issues.append(f"徽标 {text[:12]}… 坐标非有限")
+            continue
+        w = badge_box_width(text)
+        if x < 0 or y < 0 or (cw > 0 and x + w > cw) or (ch > 0 and y + BADGE_BOX_H > ch):
+            issues.append(
+                f"徽标 {text[:16]}… 超出画布：盒子 [{x:.1f}, {y:.1f}, {w:.1f}×{BADGE_BOX_H:g}]，"
+                f"画布 {cw:g}×{ch:g}（规则 8：先用 placeBadge/clipBadgeText 收进列宽）"
+            )
+        boxes.append((x, y, w, BADGE_BOX_H, text))
+    for i in range(len(boxes)):
+        for j in range(i + 1, len(boxes)):
+            ax, ay, aw, ah, at = boxes[i]
+            bx, by, bw, bh, bt = boxes[j]
+            if not (ax + aw <= bx or bx + bw <= ax or ay + ah <= by or by + bh <= ay):
+                issues.append(
+                    f"徽标重叠（规则 8）：{at[:14]}… 与 {bt[:14]}…"
+                    f"（盒子 [{ax:.1f}, {ay:.1f}] 与 [{bx:.1f}, {by:.1f}]）"
+                )
     return issues
 
 
@@ -2568,6 +2775,11 @@ def default_scene_for_frame(
     scene["overflow"] = {"flag": report["flag"], "note": report["note"]}
     if report["flag"]:
         badges.append({"kind": "overflow", "text": f"溢出：{report['note']}", "x": 10.0, "y": 88.0, "color": "#c53030"})
+    # 探针场景也要守规则 8：导出工具会用 `--width 200` 这类窄画布跑它，而角标文案长度
+    # 由帧里的数值决定（临界值/溢出说明可能很长）。这里按同一把尺子裁到画布宽度预算内。
+    budget = badge_unit_budget(width)
+    for b in badges:
+        b["text"] = clip_badge_text(str(b.get("text", "")), budget)
     return scene
 
 
