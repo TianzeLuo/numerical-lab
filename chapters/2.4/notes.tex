@@ -1,0 +1,525 @@
+% 2.4 章 · 数值积分
+% 这一章的笔记要把"把 ∫f 算出来"拆成五件互不相同的数学事实：
+%   1) 插值型求积公式与它的误差主项（Newton–Cotes 族，阶从哪来）；
+%   2) 复合规则：为什么阶不变、常数怎么累加、光滑性为什么能把阶压下去；
+%   3) Gauss 求积：2n−1 是免费的、也是**硬边界**，以及权重正性 = 条件数 1；
+%   4) Romberg：Euler–Maclaurin 把"误差"变成可消的资源，代价是噪声被放大
+%      （系数绝对值之和有界，实测收敛到 1.9692603）；
+%   5) 奇异性：双指数变换、换元、以及"地板 = 没采到的那块面积"这个可算的量。
+% 文中每个数字都是 tests/2.4 与 server/chapters/2.4.py 里跑出来的实测值。
+% 断言附表由 tools/build_book.py 从实际运行结果生成，\input 进来，不手抄。
+
+\numlabchapter{数值积分}{2.4}
+
+\section{这一章要解决什么}
+
+给定 $f$ 与区间 $[a,b]$，要算
+\[
+  I=\int_a^b f(x)\,\mathrm{d}x .
+\]
+解析原函数经常不存在（$e^{-x^2}$、$\sin x/x$），或者存在但贵得离谱。
+数值求积（quadrature）的整个问题是：\textbf{用有限个函数值，换一个能说清楚有多准的数}。
+
+本章把这件事拆成三问，每一问都有一个能被实测钉住的答案：
+
+\begin{enumerate}
+  \item \textbf{阶是多少}：$|Q-I|\approx C\,(b-a)h^p|f^{(p)}(\xi)|$，$p$ 由公式决定（梯形 2、Simpson 4），
+        但也可能被\textbf{被积函数的光滑性}压下去（第 \ref{thm:cap} 条）。
+  \item \textbf{边界在哪里}：Gauss 求积精确到 $2n-1$ 次，\textbf{再多一次就当场失效}——
+        只报前半边不算证明（第 \ref{thm:sharp} 条）。
+  \item \textbf{地板在哪里}：误差不会一路掉到机器零。要么被输入噪声顶住，
+        要么被"最靠近奇点的节点"与"没采到的那块面积"顶住（第 \ref{thm:floor} 条）。
+\end{enumerate}
+
+记号：$u=2^{-53}\approx1.11\times10^{-16}$ 是单位舍入；
+$h$ 是面板宽度、$n$ 是面板数，$N$ 是节点数（$N=mn+1$ 这类关系在文中逐处说明）；
+$Q$ 是求积值；误差一律取\textbf{带符号}的 $E:=Q-I$（凸函数被梯形高估，所以 $E>0$，
+三个误差常数都是正的：$C_{\text{梯}}=\tfrac1{12}$、$C_{\text{S}}=\tfrac1{180}$、$C_{3/8}=\tfrac1{80}$）。
+
+\section{插值型求积与误差主项}
+
+\begin{theorem}[插值型求积公式]
+\label{thm:nc}
+设节点 $a\le x_0<\dots<x_m\le b$，$L_j$ 是相应的 Lagrange 基多项式。令
+\[
+  w_j=\int_a^b L_j(x)\,\mathrm{d}x,\qquad Q(f)=\sum_{j=0}^{m} w_j f(x_j).
+\]
+则 $Q$ 对任意次数 $\le m$ 的多项式精确；若 $f\in C^{m+1}[a,b]$，存在 $\xi\in(a,b)$ 使
+\[
+  E=Q(f)-I=\int_a^b f[x_0,\dots,x_m,x]\prod_{j=0}^m(x-x_j)\,\mathrm{d}x
+   =\frac{f^{(m+1)}(\xi)}{(m+1)!}\int_a^b \omega(x)\,\mathrm{d}x,
+  \qquad \omega=\prod_j(x-x_j).
+\]
+\end{theorem}
+
+\begin{proof}
+第一句：$L_j$ 是次数 $m$ 的多项式且 $L_j(x_i)=\delta_{ij}$，所以对 $p\in\Pi_m$，
+$\sum_j w_jp(x_j)=\int_a^b\sum_j L_j(x)p(x_j)\,\mathrm{d}x=\int_a^b p(x)\,\mathrm{d}x$。
+
+第二句：Newton 插值的余项 $f(x)-p(x)=f[x_0,\dots,x_m,x]\,\omega(x)$，其中 $p$ 是插值多项式。
+两边积分即得第一个等号（$Q(f)=\int p$）。再把 $f[x_0,\dots,x_m,x]=f^{(m+1)}(\eta(x))/(m+1)!$
+代入：$x\mapsto f^{(m+1)}(\eta(x))$ 连续，而 $\omega$ 在 $(a,b)$ 内不变号或恰好变一次号；
+带权中值定理（$\omega$ 在 $(a,b)$ 内至多变一次号时分段使用）于是给出：存在 $\xi$ 使积分等于 $f^{(m+1)}(\xi)\int_a^b\omega\,\mathrm{d}x/(m+1)!$。
+（对等距节点，$\int_a^b\omega$ 有闭式，正是下面这张表的来源。）
+\end{proof}
+
+\begin{theorem}[Newton–Cotes 的误差主项]
+\label{thm:constants}
+对等距节点、$m$ 个面板的\textbf{复合}规则，当 $f$ 足够光滑时
+\[
+  E=C\,(b-a)\,h^{p}f^{(p)}(\xi),\qquad \xi\in(a,b),
+\]
+其中
+\[
+\begin{array}{c|c|c|c}
+  \text{规则} & m & p & C\\ \hline
+  \text{梯形} & 1 & 2 & +\tfrac1{12}\\
+  \text{Simpson (1/3)} & 2 & 4 & +\tfrac1{180}\\
+  \text{Simpson (3/8)} & 3 & 4 & +\tfrac1{80}
+\end{array}
+\]
+\end{theorem}
+
+\begin{proof}
+单个面板上把 $f$ 在面板中点展开成 Taylor 到 $p$ 阶、余项用积分形式，
+再用"$\Pi_{p-1}$ 上的多项式被精确积分"消掉前 $p-1$ 项，剩下的主项是
+$f^{(p)}(\eta)\int \omega/(p+1)!$。逐面板算 $\int\omega$：
+梯形面板 $\int_{x_0}^{x_1}(x-x_0)(x-x_1)\mathrm{d}x=-h^3/6$，配 $(p+1)!=2$ 得 $-h^3/12$，
+除以面积 $h$ 并整理成 $(b-a)h^2$ 的形式即 $C=+1/12$；
+Simpson 面板 $\int_{x_0}^{x_2}\prod_{j=0}^2(x-x_j)\mathrm{d}x$ 同法给出 $C=+1/180$；
+$3/8$ 面板给出 $C=+1/80$。三者的分子都是 $\int\omega<0$ 与 $f^{(p)}>0$ 的两次符号翻转，
+所以最终 $C>0$：\textbf{凸函数被线性/抛物插值高估}。
+
+实测（$e^x$，$[0,1]$，面板数 $6\sim384$）：
+$C_{\text{梯}}=0.143189$（理论区间 $[\tfrac1{12},\tfrac{e}{12}]=[0.0833,0.2265]$）、
+$C_{\text{S}}=0.0095455$（$[0.00556,0.01510]$）、$C_{3/8}=0.021476$（$[0.0125,0.03398]$），
+三条都落在解析区间内。带符号误差也被夹住，例：Simpson、$n=24$ 时
+$E=+2.877\times10^{-8}\in[+1.674\times10^{-8},+4.552\times10^{-8}]$。
+\end{proof}
+
+\section{复合规则：阶、常数与光滑性上限}
+
+\begin{theorem}[复合规则的误差]
+\label{thm:composite}
+把 $[a,b]$ 分成 $n$ 个宽度 $h=(b-a)/n$ 的面板，每个面板用同一个 $m$ 点规则。
+则当 $f\in C^{p}[a,b]$ 时
+\[
+  E=C\,(b-a)\,h^{p}\,\bar f^{(p)},\qquad \bar f^{(p)}=\frac1n\sum_{i=1}^n f^{(p)}(\xi_i),
+\]
+从而存在 $\xi$ 使 $\bar f^{(p)}=f^{(p)}(\xi)$；特别地 $|E|\le |C|(b-a)h^p\max|f^{(p)}|$。
+\end{theorem}
+
+\begin{proof}
+$E=\sum_{i=1}^n C\,h\,h^{p}f^{(p)}(\xi_i)$（每个面板的宽度是 $h$，套用定理 \ref{thm:constants}，
+注意那里写成 $(b-a)$ 时是指该面板的长度 $h$）。求和得
+$E=C\,h^{p+1}\sum_i f^{(p)}(\xi_i)=C\,(b-a)h^p\cdot\frac1n\sum_i f^{(p)}(\xi_i)$，
+再用 $f^{(p)}$ 的介值性（连续函数在 $[\min\xi_i,\max\xi_i]$ 上取遍中间值）。
+\end{proof}
+
+\begin{theorem}[光滑性上限：量到的是谁的阶]
+\label{thm:cap}
+设 $f(x)=x^{\alpha}g(x)$，$g$ 在 $0$ 附近 $C^\infty$、$g(0)\ne0$，$\alpha>-1$。
+用 $p$ 阶复合规则在 $[0,1]$ 上积分，则实测阶是
+\[
+  p_{\text{实测}}=\min(p,\ \alpha+1).
+\]
+\end{theorem}
+
+\begin{proof}[证明要点]
+第一面板 $[0,h]$ 上的误差是 $O(h^{\alpha+1})$ 而不是 $O(h^{p})$：把 $f$ 写成
+$x^\alpha g(x)$，规则对 $x^\alpha$ 无法精确积分，局部误差的量级由
+$\int_0^h x^\alpha\mathrm{d}x=h^{\alpha+1}/(\alpha+1)$ 决定。
+其余面板上 $f\in C^\infty$ 且 $f^{(p)}=O(x^{\alpha-p})$，它们在 $[kh,(k+1)h]$ 上的误差
+是 $O(h^{p}\cdot(kh)^{\alpha-p})=O(h^{\alpha+1}k^{\alpha-p})$；对 $k=1,\dots,n$ 求和，
+$\sum_k k^{\alpha-p}=O(1)$（$\alpha<p$），于是总量仍是 $O(h^{\alpha+1})$。
+两个量级取小：$h^{\min(p,\alpha+1)}$。
+\end{proof}
+
+实测：$f=\sqrt x$（$\alpha=1/2$）时，梯形（$p=2$）、Simpson（$p=4$）、$3/8$（$p=4$）
+的实测阶分别是 $1.486$、$1.499997$、$1.499996$——\textbf{三个不同的公式量出同一个阶}，
+因为 $1.5$ 是 $f$ 的光滑性给的，不是公式给的。
+反面教材同样干净：$f=|x|$ 的折点若恰好落在节点上，梯形逐段精确，
+$n=8$ 时 $|E|=0$、$n=9$ 时 $1.235\times10^{-2}$——差 $14$ 个数量级，
+而这个"无穷阶"只是折点与节点重合的巧合。
+
+\begin{corollary}[生效面板数]
+Simpson 要求面板数为偶数、$3/8$ 要求 $3$ 的倍数，否则规则退化成低阶的复合形式。
+实测：请求 $n=8$ 个面板的 $3/8$ 规则实际用 $9$ 个面板，
+若用 $h=(b-a)/8$ 去拟合会得到 $3.61$ 这个假阶；用生效面板数 $9$ 才回到 $4.000$。
+\end{corollary}
+
+\section{Gauss 求积：$2n-1$ 是免费的，也是硬边界}
+
+\begin{theorem}[Gauss 求积]
+\label{thm:gauss}
+设 $p_n$ 是 $[a,b]$ 上关于权 $w\equiv1$ 的 $n$ 次正交多项式（即 Legendre 多项式经仿射映射），
+$x_1,\dots,x_n$ 是它的零点，$w_k=\int_a^b L_k$。则 $Q=\sum_k w_kf(x_k)$ 对任意
+$f\in\Pi_{2n-1}$ 精确。
+\end{theorem}
+
+\begin{proof}
+任取 $f\in\Pi_{2n-1}$，做带余除法 $f=p_nq+r$，$\deg q\le n-1$，$\deg r\le n-1$。
+在零点处 $p_n(x_k)=0$，故 $Q(f)=\sum w_kr(x_k)=\int r$（$r\in\Pi_{n-1}$ 被精确积分）。
+另一方面 $\int f=\int p_nq+\int r$；而 $\deg q\le n-1$ 意味着 $p_nq\perp\Pi_{n-1}$，
+特别地 $\int p_nq=0$（这正是"$p_n$ 与所有低次多项式正交"的定义）。于是 $Q(f)=\int f$。
+\end{proof}
+
+\begin{theorem}[$2n-1$ 是硬边界]
+\label{thm:sharp}
+$n$ 点 Gauss 规则在 $x^{2n}$ 上的误差为
+\[
+  E=\frac{(n!)^4}{(2n+1)\bigl((2n)!\bigr)^2}\cdot\frac{(b-a)^{2n+1}}{2^{2n}}\cdot\kappa_n\ \ne 0,
+\]
+它有闭式下界，且随 $n$ 单调下降但永不消失。特别地不存在 $n$ 点公式能精确积分所有 $2n$ 次多项式
+（除非允许权重依赖 $f$）。
+\end{theorem}
+
+\begin{proof}
+记 $P_n$ 为首一 Legendre 多项式（在 $[-1,1]$ 上）。由定理 \ref{thm:gauss} 的除法论证，
+误差泛函只在 $\deg f\ge2n$ 时非零，而 $\int_{-1}^1P_n^2>0$ 给出
+$E(x^{2n})=\int_{-1}^1x^{2n}\mathrm{d}x-Q(x^{2n})=\int P_n^2>0$（因为 $x^{2n}-q$ 与 $P_n$ 同首项）。
+把 $\int P_n^2=2/(2n+1)$ 的标准化常数代回并乘仿射映射因子 $\bigl(\tfrac{b-a}2\bigr)^{2n+1}$ 即得表达式；
+$n$ 点公式的精确度上界 $2n-1$ 是经典的，因为误差泛函的核有 $2n$ 个零点。
+\end{proof}
+
+实测（标准区间 $[-1,1]$，$n=2,\dots,20$）：$k=2n-1$ 的矩误差\textbf{恒为 $0$}（权重对称，
+求和逐位抵消），$k=2n$ 的矩误差是
+$1.778\times10^{-1}$（$n=2$）、$4.655\times10^{-5}$（$n=8$）、$2.822\times10^{-12}$（$n=20$），
+失效因子（地板与失效值之比）从 $4.0\times10^{14}$ 降到 $5.6\times10^{3}$。
+\textbf{两个方向都要有}：只画 $k\le2n-1$，"精确到 $2n-1$ 次"与"精确到 $100$ 次"在图上无法区分。
+
+\begin{theorem}[条件数：函数值的误差怎样进到积分里]
+\label{thm:cond}
+设函数值带相对误差 $\varepsilon$（即用 $\tilde f_k=f_k(1+\delta_k)$，$|\delta_k|\le\varepsilon$）。
+则
+\[
+  |Q(\tilde f)-Q(f)|\le\varepsilon\,\|f\|_\infty\sum_k|w_k|,
+  \qquad
+  \Gamma:=\frac{\sum_k|w_k|}{|\sum_kw_k|},
+\]
+且当 $\delta_k$ 与 $w_kf_k$ 同号时等号成立（精确最坏值 $\varepsilon\sum_k|w_kf_k|$）。
+\end{theorem}
+
+\begin{proof}
+$Q(\tilde f)-Q(f)=\sum_kw_kf_k\delta_k$，逐项取绝对值并用 $|f_k|\le\|f\|_\infty$ 即得上界；
+等号在 $\delta_k=\varepsilon\,\mathrm{sign}(w_kf_k)$ 时取到。$\Gamma$ 是把
+"$\sum|w_k|$"归一化到"$\sum w_k=b-a$"的比值，故 $\Gamma\ge1$。
+\end{proof}
+
+实测：19 点等距规则的 $\Gamma=175.16$、精确最坏放大 $95.32$（上界 $\sum|w|=175.46$），
+19 点 Gauss 的 $\Gamma=1$、精确最坏 $0.574$（上界 $1.0$）。
+同一个被积函数、同一个 $\varepsilon=10^{-8}$，放大比 $166.1$——\textbf{不是函数值算坏了，
+是公式把误差放大了}。
+
+\begin{corollary}[负权重]
+对 $[a,b]$ 上的 $m$ 点闭 Newton–Cotes 规则，
+\[
+  w_j=\int_a^bL_j>0\ (m\le8),\qquad \min_jw_j<0\ (m\ge9),
+\]
+且 $\Gamma$ 随 $m\ge9$ 迅速增长。实测：$m=9$ 时 $\Gamma=1.4512$（最小权重 $-0.160$）、
+$m=13$ 时 $7.5317$、$m=17$ 时 $58.46$、$m=19$ 时 $175.46$（最小权重 $-27.6$）。
+而 $m=10$ 的权重全正、$\Gamma=1.0000$——所以判据是 $\Gamma$ 而不是点数。
+Gauss 规则的权重恒为正（$w_k=\frac{2}{(1-x_k^2)[P_n'(x_k)]^2}>0$），故 $\Gamma\equiv1$。
+\end{corollary}
+
+\section{Romberg 外推：把误差当资源用掉}
+
+\begin{theorem}[Euler–Maclaurin]
+\label{thm:em}
+设 $f\in C^{2M+2}[a,b]$，$T(h)$ 是步长 $h$ 的复合梯形值。则存在与 $h$ 无关的
+$\tau_1,\dots,\tau_M$ 使
+\[
+  T(h)=I+\tau_1h^2+\tau_2h^4+\cdots+\tau_Mh^{2M}+O(h^{2M+2}),
+  \qquad \tau_j=\frac{B_{2j}}{(2j)!}\bigl(f^{(2j-1)}(b)-f^{(2j-1)}(a)\bigr),
+\]
+$B_{2j}$ 是 Bernoulli 数；特别地 $\tau_1=\frac1{12}(f'(b)-f'(a))$（在 $[0,1]$ 上与
+定理 \ref{thm:constants} 的 $C=1/12$ 一致）。
+\end{theorem}
+
+\begin{proof}[证明要点]
+把 $T(h)$ 写成对 $f$ 的分段线性插值的积分，用周期化/Bernoulli 多项式的展开式
+$B_{2j}(x)$ 逐段积分；相邻面板的 $f^{(2j-1)}$ 项在内部节点处两两相消，
+只剩端点项，于是每个偶次幂 $h^{2j}$ 的系数只与端点导数有关。
+$j=1$ 时 $\tau_1=(f'(b)-f'(a))/12$，与单面板的 $C=1/12$ 在两个端点上的差一致。
+\end{proof}
+
+\begin{theorem}[Richardson/Romberg 递推]
+\label{thm:romberg}
+令 $T_{k,0}=T((b-a)/2^k)$，
+\[
+  T_{k,j+1}=\frac{4^{j+1}T_{k,j}-T_{k-1,j}}{4^{j+1}-1}\qquad(k\ge j+1).
+\]
+若 $f$ 满足定理 \ref{thm:em}，则
+\[
+  T_{k,j}=I+O(h_k^{2j+2}),\qquad h_k=(b-a)/2^k .
+\]
+特别地 $T_{k,1}$ 就是复合 Simpson，$T_{k,2}$ 是 Boole 规则。
+\end{theorem}
+
+\begin{proof}
+对 $j$ 归纳。$j=0$ 由定理 \ref{thm:em}。设 $T_{k,j}=I+\tau_{j+1}^{(j)}h_k^{2j+2}+O(h_k^{2j+4})$，
+其中 $h_{k-1}=2h_k$。于是
+\[
+  4^{j+1}T_{k,j}-T_{k-1,j}
+  =4^{j+1}\bigl(I+c\,h_k^{2j+2}\bigr)-\bigl(I+c\,(2h_k)^{2j+2}\bigr)+O(h^{2j+4})
+  =(4^{j+1}-1)I+O(h^{2j+4}),
+\]
+除以 $4^{j+1}-1$ 即得 $T_{k,j+1}=I+O(h_k^{2j+4})=I+O(h_k^{2(j+1)+2})$。
+$j=1$ 的显式形式 $\frac{4T_{k,0}-T_{k-1,0}}{3}$ 就是复合 Simpson（把两层的权重写开即可看到
+$\tfrac13(4,2,4,\dots)$ 的系数）。
+\end{proof}
+
+实测（$e^x$，$[0,1]$，$10$ 层）：第 $j=0,1,2,3$ 列的实测阶
+$1.9976$、$3.9946$、$5.9771$、$7.9710$，理论值 $2,4,6,8$。
+\textbf{但"列阶"必须带上窗口}：不剔掉触到舍入地板的行时，第 $3$ 列只有 $6.956$；
+剔掉之后才回到 $7.971$。
+
+\begin{theorem}[外推的代价]
+\label{thm:amp}
+$T_{k,j}=\sum_{i=0}^{j}c_i^{(j)}T_{k-i,0}$ 中的系数满足
+$\sum_ic_i^{(j)}=1$、
+\[
+  A_j:=\sum_{i=0}^{j}|c_i^{(j)}|\ \nearrow\ A_\infty=1.9692603\ldots
+\]
+即舍入噪声最多被放大 $A_\infty$ 倍（有界），而截断误差每列掉 $h^2$ 倍。
+\end{theorem}
+
+\begin{proof}
+递推 $c^{(j+1)}=\frac{4^{j+1}c^{(j)}-(\text{shifted }c^{(j)})}{4^{j+1}-1}$ 保号性：
+$\sum c=1$ 由归纳（分子 $4^{j+1}\sum c^{(j)}-\sum c^{(j)}=4^{j+1}-1$）直接得到。
+$A_j$ 的收敛性：$c_i^{(j)}$ 是 Lagrange 型系数，其绝对值之和单调有界，
+极限 $A_\infty=\prod_{i\ge1}\frac{4^i+1}{4^i-1}=1.9692603\ldots$（把递推的绝对值展开成无穷乘积）。
+\end{proof}
+
+实测：$A_0=1$、$A_1=1.6667$（$=\tfrac53$）、$A_4=1.9641$、$A_{10}=1.9692553$，
+极限 $1.9692603$；而 $\sum c_i=1$ 逐层精确成立。
+所以"外推会不会把噪声放大得失控"的答案是\textbf{不会，最多近 2 倍}；
+真正的限制是截断误差已经小到没有意义——实测 $e^x$ 的对角线在第 $6$ 层触到 $2.22\times10^{-16}$。
+
+\section{端点奇异：双指数变换、换元与地板}
+
+\begin{theorem}[双指数变换]
+\label{thm:de}
+令 $x=\phi(t)=\tanh\bigl(\tfrac\pi2\sinh t\bigr)$，$t\in\mathbb{R}$，$\phi(\pm\infty)=\pm1$；仿射映射到 $[a,b]$。
+对 $\int_{-1}^1f$，用步长 $h$ 的（截断的）梯形法：
+\[
+  Q_h=h\sum_{|t_k|\le T}f(\phi(t_k))\phi'(t_k),
+\]
+则当 $f$ 在端点附近形如 $x^\alpha$（$\alpha>-1$）或 $\ln x$ 时，
+误差随 $h\to0$ 以\textbf{超代数}（双指数）速率下降：
+$|Q_h-I|\le C\exp(-c\,e^{T})+\text{（尾部）}$。
+\end{theorem}
+
+\begin{proof}[证明要点]
+$\phi'(t)=\tfrac\pi2\cosh t/\cosh^2\bigl(\tfrac\pi2\sinh t\bigr)$ 在 $|t|\to\infty$ 时像
+$\exp\bigl(-\tfrac\pi2e^{|t|}\bigr)$ 一样衰减（双指数）。端点的代数奇异性被 $\phi$ 的
+$C^\infty$ 性抹平，剩下的误差来自"$t$ 方向的梯形法对衰减被积函数"的
+Euler–Maclaurin 分析（定理 \ref{thm:em}）：衰减越快，误差越小得越快，
+于是得到 $\exp(-c\,e^{T})$ 型的界。
+\end{proof}
+
+\begin{theorem}[地板 = 没采到的面积]
+\label{thm:floor}
+在 double 下，$\phi$ 最靠近端点的可达值是 $x_{\min}\approx u/2$：
+因为 $1-\phi(t)\approx2e^{-\pi\sinh t}$，一旦 $1-\phi(t)<u$，$\phi$ 就舍入到 $\pm1$。
+于是无论 $h$ 多小、节点多少，误差都不会小于
+\[
+  \Bigl|\int_0^{x_{\min}}f\Bigr| .
+\]
+对 $f=x^{-1/2}$ 这是 $2\sqrt{x_{\min}}\approx\sqrt{2u}=1.4901\times10^{-8}$；
+对 $f=\ln x$ 这是 $x_{\min}|\ln x_{\min}|\approx2\times10^{-15}$（$u$ 量级）。
+\end{theorem}
+
+\begin{proof}
+节点集合 $\{\phi(t_k)\}$ 完全落在 $[x_{\min},1]$ 内（更靠外的值舍入到 $1$ 或 $0$，
+其权重 $\phi'$ 也下溢到 $0$），所以求积值只依赖 $f$ 在 $[x_{\min},1]$ 上的值，
+而对 $[0,x_{\min}]$ 上的贡献一无所知；误差至少是那块面积。
+$x_{\min}=\tfrac12(1-\phi_{\text{round}})$ 而 $1-\phi_{\text{round}}\in[u/2,u]$（舍入到最近的浮点数），
+代入 $f=x^{-1/2}$ 得 $2\sqrt{x_{\min}}\in[1.05,1.49]\times10^{-8}$。
+\end{proof}
+
+实测：$f=(1+x)/\sqrt x$、$h=2^{-4}$ 时，节点数 $103\to513$（$5$ 倍）误差
+$1.9749\times10^{-8}\to1.9749\times10^{-8}$（比值 $1.000000$）；
+实测 $x_{\min}=3.331\times10^{-16}$、解析尾巴 $3.650\times10^{-8}$，
+误差/尾巴 $=0.54$（同量级）。换成 $\ln x$，同一套代码的地板是 $3.109\times10^{-15}$。
+\textbf{"双指数收敛"与"能到机器精度"是两句话}：前者说的是下降速率，后者取决于尾巴。
+
+\begin{theorem}[换元恢复阶]
+\label{thm:sub}
+设 $f(x)=x^\alpha g(x)$，$\alpha>-1$，$g$ 光滑、$g(0)\ne0$。做代换 $x=t^{p}$，$p>1$：
+\[
+  \int_0^1f(x)\,\mathrm{d}x=\int_0^1 \underbrace{p\,t^{p-1}f(t^p)}_{=:G(t)}\,\mathrm{d}t,
+  \qquad G(t)=p\,t^{p+\alpha-1}g(t^p).
+\]
+当 $p+\alpha-1\ge1$（即 $p\ge2-\alpha$）时 $G$ 在 $0$ 处连续，误差不再受 $\alpha$ 限制，
+实测阶回到公式本身的阶。
+\end{theorem}
+
+\begin{proof}
+$G(t)=pt^{p-1}\cdot t^{p\alpha}g(t^p)$，指数是 $p(1+\alpha)-1$。
+$G(0)=0$ 且 $G$ 在 $[0,1]$ 上可积；$G\in C^{k}$ 当 $p(1+\alpha)-1\ge k$。
+取 $p=2$、$\alpha=-1/2$：$G(t)=2t^{1/2}\cdot t^{-1/2}g(t^2)=2g(t^2)$，
+在 $0$ 处解析（只要 $g$ 解析），于是复合梯形法恢复二阶。
+\end{proof}
+
+实测：$f=(1+x)/\sqrt x$ 换元 $x=t^2$ 后是多项式 $2+2t^2$，梯形法实测阶 $2.0000000$
+（误差 $9.26\times10^{-3}\to9.04\times10^{-6}$，节点 $9\to129$）。
+同一个积分、同一套代码，\textbf{差别不在方法而在变量}；代价是必须知道 $\alpha$。
+不换元时，等距规则在 $x=0$ 处取到 $+\infty$，整条复合公式\textbf{没有定义}
+（实测 $8$ 个面板时有 $1$ 个非有限节点值 $\Rightarrow$ \texttt{finite=False}）。
+
+\begin{theorem}[饱和节点]
+\label{thm:sat}
+$1-\tanh z<u$ 等价于 $z>z^\ast=\tfrac12\ln(2/u)\approx18.02$，于是
+$t^\ast=\operatorname{arsinh}\bigl(\tfrac{2z^\ast}\pi\bigr)\approx3.172645$。
+当 $|t_k|>t^\ast$ 时节点在 double 里舍入到 $\pm1$、权重下溢到 $0$；
+每侧出现饱和的节点序号是 $m^\ast=\lceil t^\ast/h\rceil$，即总节点数 $2m^\ast+1$。
+\end{theorem}
+
+\begin{proof}
+$\tanh z\to1$ 的指数律：$1-\tanh z=2/(e^{2z}+1)\approx2e^{-2z}$。
+令其 $<u$ 得 $z>\tfrac12\ln(2/u)$。再解 $z=\tfrac\pi2\sinh t$ 得
+$t=\operatorname{arsinh}(2z/\pi)$。节点 $t_k=kh$，故 $|k|>t^\ast/h$ 饱和。
+\end{proof}
+
+实测：$t^\ast=3.172645$，$h=2^{-4}$ 时首个饱和出现在第 $103$ 个节点
+（解析预测 $2\lceil t^\ast/h\rceil+1=103$），$h=2^{-3}$ 是 $53$、$h=2^{-5}$ 是 $205$。
+饱和节点的贡献必须\textbf{按 $0$ 计}：直接算 $0\cdot\infty$ 会得到 NaN，
+一帧 NaN 会让整条曲线在前端消失（实测踩过这个坑）。
+
+\section{自适应求积：估计器估的是自己的误差}
+
+\begin{theorem}[局部嵌套估计]
+\label{thm:adaptive}
+在区间 $[x_0,x_1]$ 上同时算粗、细两个 Simpson 值 $S_c$、$S_f$（细的用中点再分一次）。
+若 $f\in C^6$ 且 $h^6$ 项主导，则
+\[
+  \widehat E:=\frac{S_f-S_c}{15}=I_{[x_0,x_1]}-S_f+O(h^6),
+\]
+即 $\widehat E$ 是细值的误差估计，误差 $O(h^6)$。
+\end{theorem}
+
+\begin{proof}
+Simpson 的误差主项 $E_S=C_1h^4f^{(4)}(\xi)$。细网格的步长是粗网格的一半：
+$S_c-I=c\,h^4f^{(4)}$、$S_f-I=c\,(h/2)^4f^{(4)}=(S_c-I)/16$（同一点 $\xi$ 近似），
+两式相减 $S_f-S_c=(I-S_c)-(I-S_f)=15(I-S_f)$，即 $I-S_f=(S_f-S_c)/15+O(h^6)$。
+\end{proof}
+
+\begin{theorem}[容差密度准则]
+\label{thm:tol}
+若在每个被接受的子区间 $i$ 上要求
+\[
+  |\widehat E_i|\le \text{tol}\cdot\frac{x_{i+1}-x_i}{b-a},
+\]
+则全部被接受区间上的估计误差之和 $\le$ tol，且细分自动集中在 $|f^{(4)}|$ 大的地方
+（局部误差大的区间被继续细分，直到它的宽度小到满足比例）。
+\end{theorem}
+
+\begin{proof}
+对已接受区间求和：$\sum_i|\widehat E_i|\le\text{tol}\sum_i\frac{\Delta_i}{b-a}=\text{tol}$。
+递归细分只会把"不满足"的区间一分为二，因此最终接受的划分满足每个区间的比例条件。
+\end{proof}
+
+实测（$e^x$、$\sqrt x$、Runge 三个光滑/弱奇异函数）：估计误差 / 真误差
+$=672$、$4.86$、$1.00$——估计器在光滑函数上\textbf{偏保守}，从不低估。
+
+\begin{theorem}[估计器看不见的两样东西]
+\label{thm:blind}
+(i) 输入噪声：若 $\tilde f=f+\eta$，$|\eta|\le\eta_0$（与 $h$ 无关），则当 $h\to0$ 时
+$\widehat E\to O(\eta_0)$ 之差不可分辨，而真误差 $\ge\eta_0\sum|w|$ 不再下降；
+(ii) 未分辨的特征：若 $f$ 的全部质量集中在初始三点张成的区间之外，
+则 $S_f=S_c=0$，$\widehat E=0$，而真误差是那时那块的完整积分。
+\end{theorem}
+
+\begin{proof}
+(i) $\widehat E$ 只依赖 $\tilde f$ 的差分，噪声使两个相邻尺度上的差分趋于
+$O(\eta_0)$ 的随机量，于是"估计值 $<\text{tol}$"不再蕴含"真误差 $<\text{tol}$"。
+(ii) 三点 Simpson 只用到三个函数值；若三者处的 $f$ 值与 0 不可分辨，
+则 $S_c=S_f=0$，估计与真值的差就是整块面积。
+\end{proof}
+
+实测 (ii)：$f=e^{-((x-0.3)/0.02)^2}$（峰宽 $0.02$、初始步长 $0.5$）时，
+第一个区间上 $\widehat E=4.294\times10^{-5}$ 而真误差 $3.480\times10^{-2}$，
+低估 $814$ 倍；细分到 $30$ 个区间后估计器追上（比值 $7.42$）。
+实测 (i)：给 $e^x$ 加 $10^{-9}$ 的相对噪声、tol $=10^{-14}$，
+自适应报 $2.65\times10^{-15}$ 而真误差是 $1.19\times10^{-12}$（低估 $448$ 倍）；
+Romberg 对角线同一现象：干净时 $\min\approx2.2\times10^{-16}$，
+带噪声时被抬到 $1.0\times10^{-10}$（$4.6\times10^{5}$ 倍 $u$）。
+
+\section{四个可视化该怎么看}
+
+\begin{enumerate}
+  \item \texttt{area\_convergence}——左图是"面积"本身：被积函数与当前 $k$ 个面板上的
+        分段逼近（梯形用线性、Simpson 用二次、$3/8$ 用三次，都过节点），
+        竖线是面板边界。右图是 $|Q-I|$ 对面板数的双对数曲线，
+        \textbf{同时}画实测拟合斜率与理论阶参考线。
+        实测（$e^x$）：$\text{斜率}=-1.99999$、$R^2=1.00000000$；
+        切到 $\sqrt x$：$p=4$ 的 Simpson 实测 $-1.499997$，而理论线仍是 $4$——
+        两条线的\textbf{分离}就是陷阱 2的可视化。
+        \texttt{method=adaptive} 时右图换成"估计误差 vs 真误差"两条曲线：
+        窄峰上它们先差 $800$ 倍，细分后才收敛。
+  \item \texttt{gauss\_vs\_equispaced}——左上节点与权重（Gauss 在端点加密、权重全正），
+        左下$k\le2n-1$ 与 $k=2n$ 的\textbf{双向}精确度证据，右边 $\Gamma$ 曲线。
+        拖动 $n$ 到 $9$：等距权重第一次出现负值（最小 $-0.160$），$\Gamma$ 离开 $1$；
+        拖到 $19$：$\Gamma=175.46$。
+  \item \texttt{romberg\_table}——左图每一列的误差曲线（斜率 $2j+2$）+ 对角线，
+        右图"实测阶 vs 理论阶"。时间轴是层数：拖到第 $4$ 层时只有 $2$ 列有
+        $\ge3$ 个可用点，帧里如实把其余列剔除；拖到第 $10$ 层四列齐全。
+  \item \texttt{singular\_endpoint}——左图 tanh–sinh 的误差对节点数（半对数）与
+        "换元 $x=t^2$ 之后用等距规则"的对照曲线，外加地板的理论线 $\sqrt{2u}$；
+        右图是最靠近端点的节点 $x_{\min}$ 与它带来的尾巴。
+        拖 $h$：$h$ 太大时很小的节点数就到底（$h=1/8$ 时 $65$ 个节点就到 $1.09\times10^{-8}$），
+        $h$ 太小时前段收敛慢得多（$h=1/32$ 在 $129$ 个节点时还有 $6.1\times10^{-3}$）。
+\end{enumerate}
+
+\input{chapters/2.4/asserts_table}
+
+\section{它会怎样骗你（本章版）}
+
+\begin{enumerate}
+  \item \textbf{把"函数值算得准"当成"积分算得准"}：19 点等距规则的
+        $\sum|w|/\sum w=175.16$。同一个被积函数、同样的相对扰动 $10^{-8}$，
+        Gauss 的放大是 $0.574$、等距是 $95.32$——差 $166$ 倍，而函数值一模一样。
+  \item \textbf{只看双对数图的斜率就叫"阶"}：$\sqrt x$ 上 Simpson 的实测阶是
+        $1.499997$，不是 $4$；$|x|$ 上更极端，$n=8$ 时误差是 $0$（折点在节点上）、
+        $n=9$ 时是 $1.235\times10^{-2}$。量到的是\textbf{被积函数光滑度}的阶。
+  \item \textbf{用请求的面板数当步长}：$3/8$ 规则请求 $n=8$ 实际用 $9$ 个面板，
+        用 $h=(b-a)/8$ 拟合得到 $3.61$；用生效面板数才是 $4.000$。
+  \item \textbf{把 Romberg 的最后一列当"最准"}：第 $j$ 列只有 $m-j$ 个可用点；
+        层数不够时那一列根本拟不出阶（帧里留白，不填 $0$）。
+        不剔触地板的行时第 $3$ 列是 $6.956$，剔掉才回到 $7.971$（理论 $8$）。
+  \item \textbf{以为外推会把噪声放大到失控}：系数绝对值之和是\textbf{有界}的，
+        实测 $A_0=1$、$A_4=1.9641$、极限 $1.9692603$；真正的限制是
+        "截断误差已经没了，只剩噪声"（第 $6$ 层触到 $2.2\times10^{-16}$）。
+  \item \textbf{在舍入地板上宣布收敛}：$e^x$ 的对角线在第 $6$ 层起不再下降；
+        给 $e^x$ 加 $10^{-9}$ 的噪声后，自适应估计器报 $2.65\times10^{-15}$
+        而真误差是 $1.19\times10^{-12}$。地板不是 $0$，它只是不再下降。
+  \item \textbf{把误差估计器当成真误差}：窄峰函数上初始三点全落在峰外，
+        估计器"有理有据"地报 $4.294\times10^{-5}$，真误差是 $3.480\times10^{-2}$
+        （低估 $814$ 倍）。估计器估的是\textbf{它自己那个模型}的误差。
+  \item \textbf{以为"双指数收敛"等于"能到机器精度"}：$x^{-1/2}$ 型奇异的地板是
+        $\sqrt{2u}=1.49\times10^{-8}$（不是 $u$），把节点从 $103$ 加到 $513$，
+        误差一动不动（比值 $1.000000$）。地板就是没采到的那块面积
+        $\int_0^{x_{\min}}f$，$x_{\min}\approx u$。
+  \item \textbf{把 $h$ 当唯一旋钮}：tanh–sinh 有两个旋钮。$h=1/8$ 时
+        $65$ 个节点就到 $1.09\times10^{-8}$（再减 $h$ 也没用，饱和了）；
+        $h=1/32$ 时同样 $129$ 个节点还有 $6.1\times10^{-3}$。饱和起点是
+        $2\lceil t^\ast/h\rceil+1$，实测 $h=2^{-3},2^{-4},2^{-5}$ 分别是 $53,103,205$。
+  \item \textbf{让 $0\cdot\infty$ 进到数组里}：饱和节点的权重下溢到 $0$ 而函数值是 $\infty$，
+        直接相乘得到 NaN；一帧里有一个 NaN，前端那条曲线就整段消失且\textbf{不报错}。
+        本实现先把饱和节点的贡献置 $0$ 再相乘，并把非有限点数写进 meta。
+  \item \textbf{把 $\sum w=b-a$ 当成"权重算对了"}：这条最弱的不变量只保证常数被积对。
+        更糟的是它是\textbf{算法相关}的：同一个 Lagrange 基直接在 $[0,1]$ 上展开，
+        $m=19$ 时 $\sum w$ 偏 $1.7\times10^{-3}$、$m=24$ 时偏 $21$（权重成了垃圾）；
+        先在 $[-1,1]$ 上算再乘 $(b-a)/2$，同一规模只偏 $3.3\times10^{-6}$。
+        发现这件事的正是这条不变量——它弱，但它从不说谎。
+  \item \textbf{把误差常数的符号记反}：教材常写 $I-T=-\tfrac1{12}(b-a)h^2f''(\xi)$，
+        换成 $E:=Q-I$ 就是 $+\tfrac1{12}$。符号写反时"实测误差落在解析区间内"这条断言
+        会当场失败（本实现真的写错过一次，被断言抓住）。
+  \item \textbf{把时间轴当时间}：它是"已揭示的面板数"（viz 1）、
+        "已测试到的多项式次数 $k$"（viz 2）、"已算到的 Romberg 层数"（viz 3）、
+        "每侧节点数 $m$"（viz 4）；拖到头就夹住，真实值看 \texttt{meta.step}。
+  \item \textbf{把理论参考线当成拟合结果}：图上的理论线只固定了\textbf{斜率}，
+        常数项锚在第一个实测点上；两条线重合只说明斜率对，不说明常数对
+        （常数对不对要看 $C$ 有没有落进 $C(b-a)[\min f^{(p)},\max f^{(p)}]$）。
+\end{enumerate}

@@ -1,0 +1,124 @@
+# 2.4 章断言清单（真源：`tests/2.4/` 下的两个文件）
+#
+# 这一章把"∫f 到底算得准不准"拆成三件互相独立、且都能被实测钉住的事：
+#   **公式的阶是多少**（A 类：复合规则 2/4/4、误差常数落在解析区间、带符号误差被
+#   E=C(b−a)h^p f^(p)(ξ) 夹住、Romberg 第 j 列 = 2j+2、tanh–sinh 的（超）指数收敛）；
+#   **精确度的边界在哪里**（A 类：Gauss 的 2n−1 **两个方向**都要有实测值，
+#   换元 x=t² 之后等距规则恢复 2 阶，自适应估计器在光滑函数上偏保守）；
+#   **奇异性的地板是什么**（A/B 类：地板 = 未采样尾巴 ∫_0^{x_min}f，
+#   x^{−1/2} 型是 √u 量级而不是 u，节点数 ×5 一动不动）。
+#
+# B 类守的是本章三条陷阱各自的**实测实例**：
+#   ① 函数值准 ≠ 积分准（同一扰动下放大比 = Γ_equi/Γ_gauss = 175.46）；
+#   ② 量到的是光滑度的阶（√x 把 Simpson 从 4 阶压到 1.5 阶；|x| 的奇偶效应是巧合）；
+#   ③ 误差估计器估的是自己的误差（窄峰上先低估 800 倍；1e-9 输入噪声下真误差 1.2e-12
+#     而估计器报 2.7e-15）。
+# 另外两条 B 类是"实现期真踩过的坑"的直接证据：
+#   权重 SUM 的偏差来自**算法写法**（同一个 Lagrange 基在 [0,1] 上展开，m=24 时 Σw 偏 21）、
+#   以及缺换元时必须报错而不是返回 NaN（NaN 会被地板截断悄悄"修好"）。
+#
+# 本章不声明 C 类断言：这里没有需要二分定位的临界阈值（阈值型结论在 3.1/3.2 章）。
+chapter: "2.4"
+title: 数值积分
+required_kinds: [A, B]
+
+min_counts:
+  A: 53
+  B: 26
+
+tests:
+  # ------------------------------------------------------------------ #
+  # tests/2.4/test_quadrature.py
+  # ------------------------------------------------------------------ #
+  - name: test_composite_orders_match_theory
+    kind: A
+    what: '复合梯形/Simpson/3-8 在 e^x 上的实测斜率对理论阶 2/4/4（面板数 6..384）'
+    theory: 'E = C(b−a)h^p f^(p)(ξ)：实测阶 = 2/4/4，容差 ±0.1'
+  - name: test_error_constants_and_bracket_match_theory
+    kind: A
+    what: '实测常数落在 C(b−a)[min f^(p), max f^(p)] 内，以及 9 组带符号误差被双侧不等式夹住'
+    theory: 'C = +1/12、+1/180、+1/80（约定 E := Q−I，凸函数被**高估**）；写错符号会掉出区间'
+  - name: test_smoothness_caps_the_measured_order
+    kind: A
+    what: '√x（α=1/2）上三种规则的实测阶'
+    theory: 'min(p, α+1) = 1.5：4 阶的 Simpson 与 2 阶的梯形量出来是同一个阶（陷阱②）'
+  - name: test_gauss_exactness_is_exactly_two_n_minus_one
+    kind: A
+    what: 'n=2..20 的 err(2n−1) 与 err(2n)，以及失效因子'
+    theory: 'Gauss–Legendre 的代数精度**恰好** 2n−1：前半边在地板、后半边当场失效'
+  - name: test_romberg_column_orders_match_theory
+    kind: A
+    what: '10 层 Romberg 表的前四列实测阶与相邻列加速比'
+    theory: '第 j 列 = 2j+2（2/4/6/8）；加速比恒 > 1；不剔触地板的行时第 3 列只有 6.96'
+  - name: test_tanh_sinh_floor_is_the_unsampled_tail
+    kind: A
+    what: 'inv_sqrt 与 log 在 tanh–sinh 下的误差地板、x_min、解析尾巴之比'
+    theory: '地板 = ∫_0^{x_min}f：x^{−1/2} 给 2√x_min ≈ √(2u) = 1.49e-8，ln x 给 x_min|ln x_min| ≈ 2e-15'
+  - name: test_substitution_restores_the_equispaced_order
+    kind: A
+    what: 'x=t² 换元后梯形法的实测阶，以及不换元时节点值的非有限个数'
+    theory: '换元后 g(t)=2t²(1+t²) 是多项式 ⇒ 恢复 2 阶；原始被积函数上公式里有 inf（无定义）'
+  - name: test_adaptive_estimator_is_conservative_on_smooth_functions
+    kind: A
+    what: 'e^x / Runge / √x 上 自适应估计误差 ÷ 真误差'
+    theory: '嵌套法则之差 ≥ 真误差且同量级（实测 6.7e2 / 4.9e0 / 1.0e0，估计器在光滑函数上偏保守）'
+  - name: test_weight_sums_and_condition_numbers
+    kind: B
+    what: 'm=2..20 的 Σw、Γ、负权重个数与最小权重；Gauss 的 Γ≡1'
+    theory: 'Σw=b−a（m≤20 实测最大偏差 1.5e-8）、Γ≥1；等距规则 m=9 起负权重（m=10 是反例）'
+  - name: test_function_value_error_is_amplified_by_gamma
+    kind: B
+    what: '19 点等距 vs 19 点 Gauss 在同一扰动下的实测放大因子与两者之比'
+    theory: '放大因子 ≤ Σ|w| 且量级被顶到；比值 ≈ Γ_equi/Γ_gauss = 175.46（陷阱①）'
+  - name: test_weight_computation_is_the_ill_conditioned_part
+    kind: B
+    what: '同一个 Lagrange 权重在 [0,1] 上直接展开 vs 先在 [−1,1] 上算再映射的 Σw 偏差'
+    theory: '数学恒等、数值差 9 个数量级：m=24 直接展开 Σw 偏 21，映射后偏 3.3e-6'
+  - name: test_adaptive_estimator_underestimates_on_a_narrow_spike
+    kind: B
+    what: '窄高斯峰上自适应结果**前缀**的估计误差 vs 真误差，以及细分后的比值'
+    theory: '初始三点全落在峰外 ⇒ 估计 0、真误差 3.5e-2；细分之后估计器才追上（陷阱③）'
+  - name: test_error_estimator_fakes_convergence_at_the_roundoff_floor
+    kind: B
+    what: '给 e^x 加 1e-9 相对噪声后的自适应估计/真误差，以及 Romberg 对角线的地板'
+    theory: '估计器看不见输入噪声：真误差 1.2e-12 而它报 2.7e-15；Romberg 对角线被抬高 3 个数量级'
+  - name: test_cusp_parity_effect_is_a_coincidence_not_an_order
+    kind: B
+    what: '|x| 在偶数/奇数面板上的误差（k=8..64）'
+    theory: '折点落在节点上时梯形逐段精确：偶数 1e-16、奇数 1.2e-2，差 14 个数量级（陷阱②推论）'
+  - name: test_missing_substitution_raises_instead_of_returning_nan
+    kind: B
+    what: '对没有换元的被积函数调用 substituted_error_curve 的行为，以及三支换元的定义域'
+    theory: '必须抛 ValueError：NaN 经过"地板截断"与正常曲线无法区分（半无穷换元被误用时的真实后果）'
+  - name: test_tanh_sinh_saturation_threshold_matches_the_analytic_abscissa
+    kind: B
+    what: 'h=1/8、1/16、1/32 下首个饱和节点的位置与解析预测 2·t*/h+1'
+    theory: 't* = 3.172645（1−tanh(z) < u 的临界横坐标），实测差 ≤ 4 个节点'
+
+  # ------------------------------------------------------------------ #
+  # tests/2.4/test_frames.py
+  # ------------------------------------------------------------------ #
+  - name: test_all_chapter_frames_are_well_formed
+    kind: B
+    what: '四个 viz 在默认参数与全部参数端点上的 build_frame + pack_frame，含时间轴有效性'
+    theory: 'PROTOCOLS §1 帧契约 + requiredAux 前缀匹配 + meta 只放有限标量 + 时间轴真的在动'
+  - name: test_critical_values_are_reachable_by_the_sliders
+    kind: B
+    what: '每个参数的 critical 是否落在 [min,max]、枚举参数是否误带 critical、criticalNote 是否成对'
+    theory: '防误导规则 6：拖不到的临界线永远不会在交互里出现'
+  - name: test_area_convergence_frame_reports_measured_and_theory_slopes
+    kind: A
+    what: '帧 meta 里的 slope_measured / slope_theory / slope_theory_smoothness'
+    theory: '光滑函数上实测 = 理论阶；√x 上实测 = min(p, α+1) = 1.5 而理论线仍是 4'
+  - name: test_gauss_frame_shows_both_directions_of_the_exactness_claim
+    kind: A
+    what: '帧 meta 的 err(2n−1)/err(2n)/failure_factor 与 Γ 曲线上的三个读数'
+    theory: '两个方向都在帧里；Γ_equi(m=9)=1.4512、Γ_equi(m=19)=175.46、Γ_gauss≡1'
+  - name: test_romberg_frame_column_orders_match_theory
+    kind: A
+    what: '帧数组 order_measured 与 order_theory 的逐项差，以及早期揭示时数组长度'
+    theory: '列阶 = 2j+2；t=4 时只有 2 列有 ≥3 个可用点（不够就留白，不填地板值）'
+  - name: test_singular_frame_error_plateaus_at_the_unsampled_tail
+    kind: B
+    what: '节点数 129→513 的误差比、与 √(2u) 的量级关系、首个饱和节点、h 旋钮的两个方向'
+    theory: '地板 = 未采样尾巴（√(2u)=1.49e-8）；饱和起点 103；h=1/8 早到底而 h=1/32 前段慢'

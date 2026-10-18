@@ -1,0 +1,295 @@
+{
+  "chapter": "2.4",
+  "part": "II",
+  "summary": "把 ∫f 算出来，并且知道它有多准：Newton–Cotes 族的误差阶、Romberg 外推、Gauss–Legendre 的 2n−1 次精确度、端点奇异与振荡的处理，以及三件最容易骗人的事——权重会放大输入误差、非光滑函数上量到的是光滑度的阶、误差估计器估的是它自己的误差。",
+  "title": "数值积分",
+  "vizzes": [
+    {
+      "axes": [
+        {
+          "autoscaled": false,
+          "id": "main",
+          "title": "f 与分段逼近",
+          "ylabel": "f(x)"
+        },
+        {
+          "autoscaled": true,
+          "id": "err",
+          "scale": "log",
+          "title": "|Q−I| vs 面板数（双对数）",
+          "ylabel": "误差"
+        }
+      ],
+      "dataSource": "backend",
+      "description": "左：被积函数与当前 k 个面板上的分段逼近（时间轴 = 已揭示的面板数），竖线是面板边界、点是求值节点。右：|Q−I| 对面板数的双对数曲线，同时画实测拟合斜率与理论阶参考线（规则 2）。把 method 切到 adaptive：左图变成递归细分后的区间划分，右图变成「自适应估计误差」与「真误差」两条曲线——在窄峰函数上它们能差 800 倍。",
+      "id": "area_convergence",
+      "params": [
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": "trapezoid",
+          "label": "求积方式",
+          "name": "method",
+          "options": [
+            "trapezoid",
+            "simpson",
+            "simpson38",
+            "adaptive"
+          ],
+          "type": "enum"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": "exp",
+          "label": "被积函数 f",
+          "name": "func",
+          "options": [
+            "exp",
+            "runge",
+            "sqrt",
+            "cusp",
+            "spike"
+          ],
+          "type": "enum"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": 64,
+          "label": "面板数上限 n（adaptive 模式下是区间预算）",
+          "max": 512,
+          "min": 4,
+          "name": "n",
+          "type": "int"
+        }
+      ],
+      "pitfalls": "① 双对数图上量到的斜率不一定是求积公式的阶：f=√x（端点导数无界）时，梯形与 Simpson 都会塌到 min(p, α+1)=1.5 阶——量到的是被积函数光滑度的阶。② f=|x| 折点落在节点上时梯形法逐段精确，误差直接掉到 1e-16，看起来像「阶无穷大」，其实是折点与节点重合的巧合（偶数面板时必然发生）。③ adaptive 模式下右图的「估计误差」是嵌套法则的差，不是真误差：窄峰函数上初始三点全落在峰外，估计值 4.3e-5 而真误差 3.5e-2。",
+      "requiredAux": [
+        "error"
+      ],
+      "theory": [
+        "复合误差主项 E = Q−I = C(b−a)h^p f^(p)(ξ)：C_trap=1/12、C_simp=1/180、C_3/8=1/80（笔记定理 2；凸函数被高估，所以是正号）。",
+        "非光滑端点 f ~ x^α ⇒ 实测阶 = min(p, α+1)（笔记定理 7）。",
+        "自适应 Simpson 的局部估计误差 ĥE=(S_fine−S_coarse)/15，仅当 h⁴ 项主导时才等于真误差（笔记定理 9）。"
+      ],
+      "time": {
+        "dt": 1.0,
+        "label": "已揭示的面板数 k",
+        "mode": "scrub",
+        "tMax": 64.0
+      },
+      "title": "面积逼近：阶、面板与自适应细分"
+    },
+    {
+      "axes": [
+        {
+          "autoscaled": false,
+          "id": "nodes",
+          "title": "节点与权重",
+          "ylabel": "w_k"
+        },
+        {
+          "autoscaled": true,
+          "id": "exact",
+          "scale": "log",
+          "title": "矩误差 |Q(x^k)−∫x^k|",
+          "ylabel": "误差"
+        },
+        {
+          "autoscaled": true,
+          "id": "cond",
+          "scale": "log",
+          "title": "条件数 Γ=Σ|w|/Σw",
+          "ylabel": "Γ"
+        }
+      ],
+      "dataSource": "backend",
+      "description": "左上：两种公式的节点位置与权重（Gauss 节点在端点加密，权重全正）。左下：多项式精确度测试——k ≤ 2n−1 的矩误差在舍入水平，k = 2n 当场跳起来，竖线标出 2n−1 这条边界。右：两种规则的条件数 Γ=Σ|w|/Σw 随点数的变化，等距规则在 m=9 处首次出现负权重、Γ 随即离开 1。",
+      "id": "gauss_vs_equispaced",
+      "params": [
+        {
+          "critical": [
+            9.0
+          ],
+          "criticalNote": "这条线只对**等距**规则成立：闭 Newton–Cotes 的权重在 m=9 个点处首次变负，实测 Γ=Σ|w|/Σw 从 1.000 跳到 1.451，m=13 时 7.53、m=19 时 175.46。注意 m=10 是反例（权重全正、Γ=1.000），所以判据是 Γ 不是 m；Gauss–Legendre 的权重恒为正、Γ≡1，不受这条线影响。",
+          "default": 8,
+          "label": "节点数 n",
+          "max": 20,
+          "min": 2,
+          "name": "n",
+          "type": "int"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": "exp",
+          "label": "收敛对比用的被积函数",
+          "name": "func",
+          "options": [
+            "exp",
+            "runge",
+            "sqrt"
+          ],
+          "type": "enum"
+        }
+      ],
+      "pitfalls": "① 「Gauss 很准」这句话本身没有上界：必须同时给出 k=2n 处**当场失效**的证据，否则「精确到 2n−1 次」与「精确到 100 次」在图上无法区分。② 等距高阶公式的失败不在截断误差而在条件：m=19 时 Γ=175.5，函数值里 1e-8 的相对误差会被放大成积分里 1.8e-6 的误差——「函数值算得准」不等于「积分算得准」。③ 权重和 Σw=b−a 只说明常数被积对；m=20 的 Σw 实测偏差 3.1e-8，而这已经是浮点权重本身的误差，不是公式的精度。",
+      "requiredAux": [
+        "error"
+      ],
+      "theory": [
+        "n 点 Gauss–Legendre 的代数精度**恰好**是 2n−1（笔记定理 4）。",
+        "等距闭 Newton–Cotes 的权重在 m≥9 起出现负值，Σ|w|/Σw 随 m 迅速增长（笔记定理 6）。",
+        "求积的条件数 Γ = Σ|w|/|Σw|：输入相对误差放大 Γ 倍（笔记定理 6 推论）。"
+      ],
+      "time": {
+        "dt": 1.0,
+        "label": "测试到 k 次多项式",
+        "mode": "scrub",
+        "tMax": 42.0
+      },
+      "title": "Gauss 节点 vs 等距节点：精确度的两个方向"
+    },
+    {
+      "axes": [
+        {
+          "autoscaled": false,
+          "id": "conv",
+          "scale": "log",
+          "title": "各列误差 vs 节点数（双对数）",
+          "ylabel": "|T_{k,j}−I|"
+        },
+        {
+          "autoscaled": true,
+          "id": "order",
+          "title": "每一列的实测阶 vs 列号",
+          "ylabel": "阶 p_j"
+        }
+      ],
+      "dataSource": "backend",
+      "description": "左：各列的误差对节点数的双对数曲线（第 0 列是梯形，第 j 列消掉到 h^{2j} 的项），点线是对角线（每一层能拿到的最好估计）。右：每一列的**实测**阶与理论阶 2j+2，以及外推的加速比。时间轴 = 已算到的层数。",
+      "id": "romberg_table",
+      "params": [
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": "exp",
+          "label": "被积函数 f",
+          "name": "func",
+          "options": [
+            "exp",
+            "runge",
+            "cusp"
+          ],
+          "type": "enum"
+        },
+        {
+          "critical": [
+            6.0
+          ],
+          "criticalNote": "第 6 层是对角线触到舍入地板的那一层：光滑函数上实测 |T_55−I|≈2.2e-16、|T_66−I|≈2.2e-16，再往上加层只会把输入噪声放大到 A_j≈1.969 倍而没有截断误差可消。f=|x| 时这条线不适用——折点在节点上，梯形法从第 2 层起就精确了。",
+          "default": 8,
+          "label": "最大层数 m",
+          "max": 10,
+          "min": 2,
+          "name": "levels",
+          "type": "int"
+        }
+      ],
+      "pitfalls": "① 只看最后一列会以为「Romberg 一直在加速」：列号越大，该列**能用的行**越少，第 j 列只有 m−j 个点，第 j 列的实测阶是从这几个点拟合的，m−j<3 时根本没有阶可言（帧里如实给 None 而不是 0）。② 不裁掉细端会得到假阶：第 3 列不裁尾拟合 6.96、裁掉触地板的 2 个点得 7.97（理论 8）——「误差阶」这句话必须带上窗口。③ 外推不是免费的：组合系数的绝对值之和 A_j 从 1 涨到 1.9692603（有界），舍入噪声被放大近 2 倍；A_j 收敛不等于可以无限外推。",
+      "requiredAux": [
+        "error"
+      ],
+      "theory": [
+        "Euler–Maclaurin：梯形误差 T(h)=I+τ₁h²+τ₂h⁴+…，τᵢ 与 h 无关（笔记定理 5）。",
+        "Romberg 第 j 列的误差是 O(h^{2j+2})，第 1 列就是 Simpson（笔记定理 5 推论）。",
+        "外推系数由递推给出，Σ|c_i|=1、Σ|c_i|→1.9692603（笔记定理 5 引理）。"
+      ],
+      "time": {
+        "dt": 1.0,
+        "label": "已算到的层数 k",
+        "mode": "scrub",
+        "tMax": 10.0
+      },
+      "title": "Romberg 三角：每一列的阶与外推的代价"
+    },
+    {
+      "axes": [
+        {
+          "autoscaled": true,
+          "id": "conv",
+          "scale": "log",
+          "title": "误差 vs 节点数（半对数）",
+          "ylabel": "|Q−I|"
+        },
+        {
+          "autoscaled": true,
+          "id": "tail",
+          "scale": "log",
+          "title": "未采样尾巴与饱和节点",
+          "ylabel": "∫₀^{x_min}f"
+        }
+      ],
+      "dataSource": "backend",
+      "description": "左：误差对节点数的半对数曲线——tanh–sinh 直接作用于奇异被积函数，对照曲线是「先换元 x=t² 再用等距规则」（代数收敛）。横线是地板的理论值：未被采样尾巴 ∫₀^{x_min}f 的大小。右：最靠近奇异端点的节点 x_min 与它带来的尾巴估计，以及饱和节点数（|x| 在 double 里舍入到 1、权重下溢到 0 的节点）。",
+      "id": "singular_endpoint",
+      "params": [
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": "inv_sqrt",
+          "label": "带端点奇异的被积函数",
+          "name": "func",
+          "options": [
+            "inv_sqrt",
+            "log",
+            "sqrt"
+          ],
+          "type": "enum"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": "1/16",
+          "label": "tanh–sinh 网格步长 h",
+          "name": "h",
+          "options": [
+            "1/8",
+            "1/16",
+            "1/32"
+          ],
+          "type": "enum"
+        },
+        {
+          "critical": [
+            103.0
+          ],
+          "criticalNote": "饱和起点（h=1/16 时实测）：第 103 个节点起，两端的节点在 double 里已经舍入到 ±1、权重下溢到 0，再加节点不会提高精度。h 减半会让它按 t*/h 翻倍：h=1/32 时是 205（t*=3.17264…，即满足 1−tanh(z)<u 的临界横坐标）。",
+          "default": 129,
+          "label": "节点数上限 n（取奇数）",
+          "max": 513,
+          "min": 9,
+          "name": "n",
+          "type": "int"
+        }
+      ],
+      "pitfalls": "① 原始等距规则在 (1+x)/√x 上**没有定义**（x=0 处函数值是 inf），这不是「误差大」而是公式里出现了 inf——帧里如实标 finite=false 与 inf 个数。② 「tanh–sinh 是指数收敛」不等于「能到机器精度」：实测它停在 √(2u)≈1.49e-8（h=1/16、inv_sqrt 型），因为最靠近端点的节点只能是 x_min≈u/2，尾巴 ∫₀^{x_min}x^{-1/2}dx=2√x_min 永远采不到；把节点从 129 加到 513 误差一动不动。③ h 与节点数是两个旋钮：h 太大时误差在很小的节点数上就停住（h=1/8 时 65 个节点就到 1.1e-8），h 太小则前段收敛慢得多（h=1/32 在 129 个节点时还有 6.1e-3）。",
+      "requiredAux": [
+        "error"
+      ],
+      "theory": [
+        "双指数变换 x=tanh((π/2)sinh t) 把端点奇异变成 t 方向的双指数衰减（笔记定理 8）。",
+        "换元 x=t^p 把 x^α 型奇异变成光滑被积函数，代价是必须先知道 α（笔记定理 7 推论）。",
+        "误差地板 = 未采样尾巴 ∫₀^{x_min}f，x_min≈u/2 ⇒ inv_sqrt 型地板 √(2u)（笔记定理 8 推论）。"
+      ],
+      "time": {
+        "dt": 2.0,
+        "label": "每侧节点数 m",
+        "mode": "scrub",
+        "tMax": 256.0
+      },
+      "title": "端点奇异：双指数变换 vs 换元"
+    }
+  ]
+}
