@@ -81,6 +81,7 @@ def fit_order(
     err: Any,
     *,
     skip: int = 0,
+    head: int | None = None,
     tail: int | None = None,
     min_points: int = 3,
     drop_nonpositive: bool = True,
@@ -93,8 +94,14 @@ def fit_order(
         步长与误差序列。约定按 ``h`` **递减**给出（从最粗网格到最细网格）。
     skip
         丢弃最前面的 ``skip`` 个点（尚未进入渐近区的大步长）。
+    head
+        只保留（skip 之后的）**最前面** ``head`` 个点，即**粗网格端**。
+        这是对付"舍入地板"的正确工具：``err`` 在细网格端不再下降，
+        拟合出的阶数会偏小，必须把细端切掉。
     tail
-        只用（skip 之后的）最后 ``tail`` 个点；用于剔除被舍入地板污染的细网格端。
+        只保留（skip/head 之后的）**最后** ``tail`` 个点，即**细网格端**。
+        注意方向与 ``head`` 相反——保留细端恰好会保留被舍入地板污染的点，
+        所以"尾部触地板"时应该用 ``head=`` 而不是 ``tail=``。
     drop_nonpositive
         丢弃 ``h ≤ 0`` 或 ``err ≤ 0`` 的点（0 误差意味着"精确到机器零"，
         不携带阶数信息）。
@@ -104,6 +111,10 @@ def fit_order(
     mask = np.ones(hh.size, dtype=bool)
     if skip:
         mask[: min(int(skip), hh.size)] = False
+    if head is not None:
+        idx = np.flatnonzero(mask)
+        if int(head) < idx.size:
+            mask[idx[int(head) :]] = False
     if tail is not None:
         idx = np.flatnonzero(mask)
         if int(tail) < idx.size:
@@ -186,7 +197,7 @@ class WindowDiagnosis:
     suggest_skip: int
     """建议丢弃的前导点数（最长"局部阶一致"连续段之前的部分）。"""
 
-    suggest_tail: int
+    suggest_tail: int  #: 建议保留的点数（配合 suggest_skip 用作"保后缀"窗口）
     """建议保留的点数（从 ``suggest_skip`` 起的连续段长度）。"""
 
     def slice(self) -> slice:
@@ -198,7 +209,8 @@ class WindowDiagnosis:
         if self.floored:
             return (
                 f"序列尾部已触舍入地板：尾部局部阶 {self.tail_p:.2f} 远低于头部 {self.head_p:.2f}，"
-                "请用 tail= 截掉细网格端，否则拟合出的阶数会偏小。"
+                f"请用 head={max(2, self.suggest_skip + 2)} 只保留粗网格端（注意：tail= 保留的是细端，"
+                "恰好会保留被污染的点），否则拟合出的阶数会偏小。"
             )
         if self.noisy:
             return (

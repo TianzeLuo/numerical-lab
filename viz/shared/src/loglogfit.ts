@@ -46,24 +46,33 @@ export interface OrderFit {
   nDropped: number;
 }
 
-/** 拟合选项。 */
+/** 拟合选项（`null` 一律视为"未指定"：便于把 JSON 里的 `null` 直接透传进来）。 */
 export interface FitOptions {
   /** 丢弃最前面的 `skip` 个点（尚未进入渐近区的大步长）。缺省 0。 */
-  skip?: number;
-  /** 只用（`skip` 之后的）最后 `tail` 个点；缺省不截断。 */
-  tail?: number;
+  skip?: number | null;
+  /**
+   * 只保留（`skip` 之后的）**最前面** `head` 个点，即**粗网格端**。
+   * 这是对付"舍入地板"的正确工具：`err` 在细网格端不再下降时，拟合出的阶数会偏小。
+   */
+  head?: number | null;
+  /**
+   * 只保留（`skip`/`head` 之后的）**最后** `tail` 个点，即**细网格端**；缺省不截断。
+   * 方向与 `head` 相反——"尾部触舍入地板"时用 `tail=` 恰好会保留被污染的点，
+   * 那种情况必须用 `head=`。（与 `numcore/verify/order.py::fit_order` 逐字段对齐。）
+   */
+  tail?: number | null;
   /** 最少有效点数（缺省 3，且至少 2）。 */
-  minPoints?: number;
+  minPoints?: number | null;
 }
 
-/** 窗口诊断选项。 */
+/** 窗口诊断选项（`null` 一律视为"未指定"）。 */
 export interface DiagnoseOptions {
   /** 局部阶"彼此一致"的容差（缺省 0.1，与 A 类断言的 ±0.1 同口径）。 */
-  tol?: number;
+  tol?: number | null;
   /** 判定"触舍入地板"的尾部阶阈值（缺省 0.25）。 */
-  floorP?: number;
+  floorP?: number | null;
   /** "一致段"被采纳为建议所需的最短长度（缺省 2）。 */
-  minRun?: number;
+  minRun?: number | null;
 }
 
 /**
@@ -103,9 +112,9 @@ function sanitize(h: ArrayLike<number>, err: ArrayLike<number>): number {
   return n;
 }
 
-/** 非负整数选项。 */
-function nonNegativeInt(v: number | undefined, fallback: number): number {
-  if (v === undefined) return fallback;
+/** 非负整数选项（`undefined`/`null` 取缺省）。 */
+function nonNegativeInt(v: number | null | undefined, fallback: number): number {
+  if (v === undefined || v === null) return fallback;
   if (!Number.isFinite(v)) throw new RangeError(`选项必须是有限数，收到 ${String(v)}`);
   return Math.max(0, Math.floor(v));
 }
@@ -126,17 +135,23 @@ function nonNegativeInt(v: number | undefined, fallback: number): number {
 export function fitOrder(h: ArrayLike<number>, err: ArrayLike<number>, opts: FitOptions = {}): OrderFit {
   const n0 = sanitize(h, err);
   const skip = nonNegativeInt(opts.skip, 0);
-  const tail = opts.tail === undefined ? undefined : nonNegativeInt(opts.tail, 0);
+  const head = opts.head === undefined || opts.head === null ? undefined : nonNegativeInt(opts.head, 0);
+  const tail = opts.tail === undefined || opts.tail === null ? undefined : nonNegativeInt(opts.tail, 0);
   const minPoints = Math.max(2, nonNegativeInt(opts.minPoints, 3));
 
   const keep = new Array<boolean>(n0).fill(true);
   const s = Math.min(skip, n0);
   for (let i = 0; i < s; i++) keep[i] = false;
+  if (head !== undefined) {
+    const idx: number[] = [];
+    for (let i = 0; i < n0; i++) if (keep[i]) idx.push(i);
+    for (let k = head; k < idx.length; k++) keep[idx[k] as number] = false;
+  }
   if (tail !== undefined) {
     const idx: number[] = [];
     for (let i = 0; i < n0; i++) if (keep[i]) idx.push(i);
     if (tail < idx.length) {
-      for (let k = 0; k < idx.length - tail; k++) keep[idx[k]] = false;
+      for (let k = 0; k < idx.length - tail; k++) keep[idx[k] as number] = false;
     }
   }
   for (let i = 0; i < n0; i++) {
@@ -251,8 +266,8 @@ export function diagnoseOrder(
   opts: DiagnoseOptions = {},
 ): WindowDiagnosis {
   const n0 = sanitize(h, err);
-  const tol = opts.tol === undefined ? 0.1 : opts.tol;
-  const floorP = opts.floorP === undefined ? 0.25 : opts.floorP;
+  const tol = opts.tol === undefined || opts.tol === null ? 0.1 : opts.tol;
+  const floorP = opts.floorP === undefined || opts.floorP === null ? 0.25 : opts.floorP;
   const minRun = Math.max(1, nonNegativeInt(opts.minRun, 2));
   const orders = consecutiveOrders(h, err);
   const n = orders.length;
