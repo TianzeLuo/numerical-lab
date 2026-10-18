@@ -301,14 +301,39 @@ class _PyScanner(ast.NodeVisitor):
 
 
 def scan_source(source: str, *, path: str) -> list[Violation]:
-    """扫描一段 Python 源码，返回违规列表（纯函数，便于元测试）。"""
-    try:
-        tree = ast.parse(source)
-    except SyntaxError as exc:  # 语法错误本身就是问题
-        return [Violation(rule="SYNTAX", path=_norm(path), line=exc.lineno or 1, message=f"语法错误：{exc.msg}", snippet="")]
+    r"""扫描一段 Python 源码，返回违规列表（纯函数，便于元测试）。
+
+    除了语法错误，这里还把 ``SyntaxWarning`` 升级成违规：最典型的是文档字符串里的
+    ``\i`` / ``\m`` 这类无效转义（LaTeX 写法太容易踩）。它们不影响运行，但
+    ``python -W error`` 下会直接炸，而且往往意味着作者"以为自己在写 raw 字符串"。
+    注意 ``ast.parse`` **会**发这个警告（编译器的 tokenizer 阶段），
+    但它默认只显示一次且只打到 stderr——不接住就等于没有检查（这是本规则的第一版真实 bug）。
+    """
+    import warnings as _warnings
+
+    with _warnings.catch_warnings(record=True) as caught:
+        _warnings.simplefilter("always")
+        try:
+            tree = ast.parse(source, filename=_norm(path))
+        except SyntaxError as exc:  # 语法错误本身就是问题
+            return [Violation(rule="SYNTAX", path=_norm(path), line=exc.lineno or 1, message=f"语法错误：{exc.msg}", snippet="")]
+    out: list[Violation] = []
+    for w in caught:
+        if not issubclass(w.category, SyntaxWarning):
+            continue
+        line = int(getattr(w, "lineno", 0) or 0)
+        out.append(
+            Violation(
+                rule="SYNTAX",
+                path=_norm(path),
+                line=line,
+                message=f"警告当作错误：{w.message}（无效转义请写成原始字符串 r\"\"\" 或双反斜杠）",
+                snippet=_line_of(source.splitlines(), line),
+            )
+        )
     scanner = _PyScanner(source, _norm(path))
     scanner.visit(tree)
-    return scanner.violations
+    return out + scanner.violations
 
 
 _TS_IMPORT_RE = re.compile(r"""^\s*(?:import|export)\b[^'"]*from\s*['"](?P<mod>[^'"]+)['"]""", re.MULTILINE)

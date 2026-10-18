@@ -50,9 +50,9 @@ run_gate() {
 echo "仓库：$ROOT"
 echo "python：$($PY -V 2>&1)　node：$(node -v 2>/dev/null || echo 缺失)"
 
-run_gate G1 "策略红线（POLICY P1–P9）"        "$PY tools/check_policy.py --quiet"
+run_gate G1 "策略红线（POLICY P1–P13 中的 11 条机器规则）" "$PY tools/check_policy.py --quiet"
 run_gate G2 "Python 测试（pytest，严格模式）"  "$PY -m pytest tests -q"
-run_gate G6 "manifest 无漂移"                 "$PY tools/gen_manifests.py --check"
+run_gate G6 "生成物无漂移（manifest + 色标）"   "$PY tools/gen_manifests.py --check && $PY tools/gen_colorscales.py --check"
 run_gate G4 "TypeScript 类型检查"             "npm run typecheck"
 run_gate G5 "TypeScript 测试"                 "npm run build --silent && npm test"
 # G3 复用 G2 已经写好的报告：不重复跑一遍 pytest

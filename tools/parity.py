@@ -53,6 +53,7 @@ from numcore.smoke import (  # noqa: E402
     initial_profile,
     oscillator_energy,
 )
+from numcore.linalg.lu import lu_decompose  # noqa: E402
 from numcore.verify.order import fit_order  # noqa: E402
 
 try:  # pyyaml 在 pyproject 的 dev 依赖里；缺了就明确报错，不静默降级
@@ -288,10 +289,34 @@ CASE_SPECS: tuple[dict[str, Any], ...] = (
             ]
         },
     },
+    {
+        "name": "lu_partial_pivot",
+        "algo": "lu",
+        "tolerance": "lu_partial_pivot",
+        "note": "1.2 章：Hilbert(6) 的部分主元 LU（乘子写回下三角 + 外积更新），比 L/U/置换/主元/行交换/ρ",
+        "outputs": ["l", "u", "perm", "pivots", "rowSwaps", "rho"],
+        "params": {"n": 6, "kind": "hilbert"},
+    },
+    {
+        "name": "lu_wilkinson_growth",
+        "algo": "lu",
+        "tolerance": "lu_partial_pivot",
+        "note": "1.2 章：Wilkinson(12) 的部分主元 LU——ρ = 2^11 的经典最坏情形，专门盯住选主元规则",
+        "outputs": ["l", "u", "perm", "pivots", "rowSwaps", "rho"],
+        "params": {"n": 12, "kind": "wilkinson"},
+    },
+    {
+        "name": "lu_tiny_pivot",
+        "algo": "lu",
+        "tolerance": "lu_partial_pivot",
+        "note": "1.2 章：首元 1e-14 的矩阵——不换行就会把小主元当主元，ρ 会爆炸；这条 case 守住'到底换没换行'",
+        "outputs": ["l", "u", "perm", "pivots", "rowSwaps", "rho"],
+        "params": {"n": 5, "kind": "mixed"},
+    },
 )
 
 #: 算法名 → Python 侧构造器（TS 侧 ``run_parity.ts`` 里必须有同名的分支）。
-ALGOS: tuple[str, ...] = ("heat", "amplification", "oscillator", "orderfit")
+ALGOS: tuple[str, ...] = ("heat", "amplification", "oscillator", "orderfit", "lu")
 
 
 def case_by_name(name: str) -> dict[str, Any]:
@@ -406,7 +431,53 @@ def _build_orderfit(params: dict[str, Any]) -> tuple[dict[str, Any], dict[str, A
     return {"groups": groups}, outputs, {"groups": [g["name"] for g in groups]}
 
 
+def _build_lu(params: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+    """部分主元 LU：输入是行主序展平的方阵，输出 L/U/置换/主元/行交换/增长因子。
+
+    矩阵由**参数生成**（而不是在 case 里写死 36 个数字）：`kind` 决定矩阵族，
+    这样"换成 Wilkinson 矩阵"只是改一个字符串，不必手抄一堆浮点数。
+    生成规则必须在 TS 侧可复现——不，恰恰相反：**生成规则不复制到 TS 侧**，
+    生成好的矩阵作为 `inputs.a` 落盘，TS 只读回 double 再分解（PROTOCOLS §7：
+    "输入一律由 Python 生成落盘，避免输入构造这一环被两套实现的差异污染"）。
+    """
+    n = int(params["n"])
+    kind = str(params["kind"])
+    if kind == "hilbert":
+        i = np.arange(1, n + 1, dtype=float)
+        a = 1.0 / (i[:, None] + i[None, :] - 1.0)
+    elif kind == "wilkinson":
+        from numcore.linalg.lu import wilkinson_matrix
+
+        a = wilkinson_matrix(n)
+    elif kind == "mixed":
+        # 主元会被"逼"出来的矩阵：小主元 + 一般项，避免第一个主元就恰好最大
+        idx = np.arange(n, dtype=float)
+        a = np.cos(idx[:, None] * 1.7 + idx[None, :] * 0.9) + 0.3 * idx[:, None] - 0.2 * idx[None, :]
+        a[0, 0] = 1e-14
+    else:
+        raise ParityError(f"未知的 lu kind={kind!r}（可用：hilbert / wilkinson / mixed）")
+
+    res = lu_decompose(a, pivot="partial")
+    inputs = {"n": n, "kind": kind, "a": _floats(a)}
+    outputs = {
+        "l": _floats(res.L),
+        "u": _floats(res.U),
+        "perm": _floats(res.perm),
+        "pivots": _floats(res.pivots),
+        "rowSwaps": _floats([x for pair in res.row_swaps for x in pair]),
+        "rho": float(res.rho),
+    }
+    meta = {
+        "pivot": "partial",
+        "row_swaps": [list(pair) for pair in res.row_swaps],
+        "ops": int(res.ops),
+        "singular": bool(res.singular),
+    }
+    return inputs, outputs, meta
+
+
 _BUILDERS = {
+    "lu": _build_lu,
     "heat": _build_heat,
     "amplification": _build_amplification,
     "oscillator": _build_oscillator,
