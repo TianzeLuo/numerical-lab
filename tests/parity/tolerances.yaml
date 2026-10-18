@@ -20,6 +20,17 @@
 #   ftcs_amplification_modes   max|Δ| = 0             max_rel = 0
 #   oscillator_sample          max|Δ| = 4.44e-16      max_rel = 5.49e-16
 #   order_fit_powerlaw         max|Δ| = 1.78e-15      max_rel = 8.43e-15
+#   lu_partial_pivot           max|Δ| = 0             max_rel = 0
+#   lu_wilkinson_growth        max|Δ| = 0             max_rel = 0
+#   lu_tiny_pivot              max|Δ| = 0             max_rel = 0
+#   power_iter_symmetric       max|Δ| = 4.44e-16      max_rel = 9.68e-16
+#   power_iter_tridiag         max|Δ| = 4.44e-16      max_rel = 1.16e-06   ← 相消地板（见 reason）
+#   power_iter_shear           max|Δ| = 2.11e-13      max_rel = 2.14e-13   ← 全部来自 ratios 尾巴（rayleigh 只有 8.88e-16）
+#   power_iter_angle_plateau   max|Δ| = 4.21e-13      max_rel = 1.55e-09   ← arccos 条件数
+#   power_iter_ratio_floor     max|Δ| = 1.10e-06      max_rel = 1.84e-06   ← 相消噪声，非实现差异
+#   stability_function_grid    max|Δ| = 4.44e-16      max_rel = 1.78e-15
+#   lmm_root_modulus_bdf       max|Δ| = 1.11e-16      max_rel = 2.01e+00   ← DK 残差贴舍入地板
+# （三处 max_rel 明显偏大的都不是实现差异，而是量的条件数：逐条 reason 里给了对照实验。）
 
 default:
   rtol: 1e-12
@@ -79,3 +90,99 @@ cases:
       又能在"选主元规则被改错"（那种错至少 1e-3 量级，ρ 甚至差 10 个量级）时立刻报警。
       注意 u/l 的元素里同时含 O(1) 与 O(1e-17) 两类量级（Hilbert 矩阵的 U 对角衰减极快），
       小元素靠 atol=1e-16 兜底——它们本来就是舍入噪声，不该主导判定。
+
+  # ── 1.4 幂法（power_iter）：同一份 PowerResult 按条件数拆成四条 case ──────────────
+  power_iter_symmetric:
+    rtol: 1e-13
+    atol: 1e-15
+    reason: >-
+      实对称**对角**族（diag(1, 0.35, …, 0.35^11)）：每行只有一个非零项，matvec 的求和顺序
+      无关紧要，λ ≡ 1.0 也精确，残差里没有相消——于是"跨实现差异"只剩 np.sum 的成对求和
+      与 vdot 的 1 ulp。实测 max|Δ| = 4.44e-16（rayleigh[2]）、max_rel = 9.68e-16（vector[10]）。
+      1e-13 留 ~100 倍余量；算法被改错（换成 Aᵀx、漏掉归一化、停止判据换成 ‖x_{k+1}−x_k‖）
+      至少是 1e-3 量级，这条容差照样一抓就准。
+      停止点的余量单独交代：residual[27] 比阈值低 24%（前一步高 116%），
+      1e-16 级的扰动要放大 1e14 倍才能把 nIter 挪成 26 或 28。
+  power_iter_tridiag:
+    rtol: 1e-12
+    atol: 1e-15
+    reason: >-
+      实对称**三对角**族 symmetric_tridiag(0.6^j, 0.05)：matvec 变成 3 项求和，
+      numpy 走 BLAS dgemv（SIMD/FMA）而 TS 是行内左折叠，差异 ~n·u。
+      实测 max|Δ| = 4.44e-16（rayleigh[10]）、max_rel = 4.94e-16（vector[7]）。
+      atol=1e-15（≈4.5 ulp of ‖A‖）是专给 residual 尾部的：深收敛时 residual 是
+      ‖Ax − λx‖ 的相消差，绝对差稳定在 4e-17 但相对差会放大到 1.16e-6（residual[51]），
+      相对判据在那里没有意义，只能靠绝对地板兜住。
+      停止点余量：residual[56] = 9.08e-13，比阈值 1.006e-12 低 9.8%（前一步高 50%）。
+      ratios 不在这条 case 里：它的相对差 ~1e-6 由相消噪声主导，单列 power_iter_ratio_floor。
+  power_iter_shear:
+    rtol: 1e-10
+    atol: 1e-14
+    reason: >-
+      非正规**亏格**族 shear_matrix(6, 0.4)：特征值全是 1（几何重数 1），幂法 200 步不收敛
+      （残差停在 2.66e-4），这条 case 比的是"没收敛时两侧是否给出同一段 201 点历史"。
+      200 步里每步的舍入差都会留在轨迹上（不像收敛族会被收缩掉），实测
+      max|Δ| = 8.88e-16（rayleigh[110]）、max_rel = 8.52e-16；
+      残差尾部 max_rel = 1.45e-13（绝对差 1.7e-17）、ratios max_rel = 2.14e-13（绝对差 2.1e-13）。
+      rtol=1e-10 对这三点都留 ≥450 倍余量。这里 ratios 仍然是干净量：残差 1e-4 离相消地板很远，
+      噪声只有 1e-13 量级——与 power_iter_ratio_floor 的 1e-6 形成对照，
+      说明"放宽"不是风格问题，是条件数问题。
+  power_iter_angle_plateau:
+    rtol: 1e-6
+    atol: 2e-7
+    reason: >-
+      angleStep = arccos(clamp(|⟨x_k, x_{k+1}⟩|))：**arccos 在 1 附近的条件数是 1/sin θ**。
+      inner 是 6 维点积，两条实现的绝对差 ~n·u·‖x‖‖y‖ ≈ 1.3e-15；夹角趋 0 时
+      Δangle ≈ √(2Δinner) ≈ 5e-8，最坏情形是"一侧舍入到 inner = 1.0（angle 恰好 0）而另一侧不是"。
+      实测 max|Δ| = 4.21e-13（angleStep[109]，py = 7.9e-4）、max_rel = 1.55e-9——
+      比理论上界小 5 个数量级，但上界才是跨平台该留的余量（换一条 BLAS/换一版 V8 就可能摸到），
+      所以 atol 取 2e-7 而不是贴着实测值取 1e-12。
+      这条放宽不损伤判定力：实算法错误（归一化写成 Aᵀx、夹角用 ⟨x_k, x_{k+1}⟩ 不取模）
+      会让夹角差 O(0.1)；isComplexPair 是 0/1 标志，2e-7 的 atol 照样抓得住翻转。
+  power_iter_ratio_floor:
+    rtol: 5e-4
+    atol: 1e-9
+    reason: >-
+      **这条 case 的存在本身就是那个发现**：深收敛区的实测收敛因子 ratios = res[k+1]/res[k]
+      不是跨语言可比量。residual ≈ 1e-11…1e-13 是 ‖Ax − λx‖ 的相消差，绝对误差 ~u‖A‖ 不变、
+      相对误差放大到 1e-5 量级，两个这样的残差之比自然带同量级噪声。
+      证据（同一台机器、同一份 numcore，只把 matvec 的求和对 j 逆序，模拟另一条 BLAS/SIMD 路径）：
+      ratios max|Δ| = 6.64e-7、max_rel = 1.11e-6 —— 与跨语言实测（max|Δ| = 1.10e-6@49、
+      max_rel = 1.84e-6）同量级。反面对照：把 x0 扰动 1 ulp 只差 1e-15
+      （幂法是收缩迭代，输入扰动会自己消失；能留下来的只有每步的舍入路径差）。
+      容差取 5e-4 而不是贴着实测值：噪声模型是"两条轨迹的 Δx ~ 1e-16…1e-15 经相消放大"，
+      上界 ≈ Δres/res ≈ 2e-4（两条比值各贡献一份），实测只是它的 1/100。
+      判定力没有丢：真正的算法错误（丢掉第一步瞬态、窗口取错、用相邻向量差代替残差）
+      会让比值差 O(0.1)，比这条容差大 200 倍以上。
+
+  # ── 3.2 稳定域 / 稳定函数（stability）────────────────────────────────────────
+  stability_function_grid:
+    rtol: 1e-13
+    atol: 1e-15
+    reason: >-
+      8 个方法 × 24 个 z 的 R(z)（re/im/|R| 三路）。系数全部现场算而不是抄公式：
+      RK 走 bᵀA^{j-1}e（Butcher 表）、explicit_taylor 走 1/j!、bdf 走 α 表 + 闭式/根模，
+      Horner 的复数乘加逐字对齐。实测 forward_euler / heun / explicit_taylor4 / implicit_euler /
+      trapezoidal / bdf1 六条**逐位相同**（max|Δ| = 0）；只有 rk4 与 bdf2 差 1 ulp：
+      max|Δ| = 4.44e-16（re_rk4[6]，z = −2.785293563405782 即 RK4 实轴稳定边界，R ≈ 1）、
+      max_rel = 1.78e-15（im_rk4[18]）。差异来源三条：(1) bᵀu / A@u 的求和顺序（BLAS ddot/dgemv
+      vs 左折叠）；(2) bdf2 的复数开方（numpy csqrt vs Smith/C99 公式）与除法 1 ulp；
+      (3) 模那一路 Math.hypot vs np.abs 的 1 ulp。
+      z 网格刻意避开所有极点（z=1、1.5、2：那里 |R| = +∞，对拍里非有限值一律判失败，
+      不拿 ∞ 冒充"一致"）；z=0 是 R(0) ≡ 1 的锚点；−2.785293563405782 是 |R| 正要越过 1 的边界点。
+  lmm_root_modulus_bdf:
+    rtol: 1e-12
+    atol: 1e-15
+    reason: >-
+      BDF-3/4 的稳定模 max_i|r_i(z)|（9 个 z）与 Durand–Kerner 残差。DK 的初值圆
+      （半径 1+max|monic_j|、相位 2π(j+0.5)/k + 0.35）、48 次**同时**迭代（Jacobi 式更新）、
+      极点掩码（|α_k − z| ≤ 8·eps·max|α| ⇒ +∞）两侧逐步对齐。实测 mod_bdf3 **逐位相同**
+      （max|Δ| = 0）、mod_bdf4 max|Δ| = 1.11e-16（1 ulp）；主导差异是复数除法与 exp/cos/sin 的 1 ulp。
+      resid 是 DK 收敛后的相对残差，已经贴到舍入地板（实测 1.7e-17…6.6e-17），
+      所以它的**相对**差没有意义（实测最大 2.0），必须由 atol 兜住：取 1e-15 ≈ 4.5 ulp
+      （地板本身的自然尺度）——跨平台在这个量级抖动是正常的，而极点判错会让 mod 从有限值
+      跳到 +∞、迭代次数写错会让 mod 差 O(1)，两者都远超这条容差。
+      **z 网格刻意只取单根点**：DK 在重根处退化成线性收敛且对舍入混沌——BDF-2 在 z = −0.5
+      有二重根 1/2，48 次迭代后模还差 8.6e-12，且 z 挪 2 ulp 就让模跳 6.2e-9（Python 侧实测）。
+      那种点不适合当跨实现对拍的靶子，但它是很好的本地护栏：见
+      `viz/tests/numeric.stability.test.ts` 的"重根处的 DK：残差小 ≠ 根准"。

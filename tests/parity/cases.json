@@ -244,6 +244,226 @@
    },
    "sha256": "33401e9b2b47c89f061c75c9a47effd503d02ecdc46cf5a1a14fa1447d81d140",
    "tolerance": "lu_partial_pivot"
+  },
+  {
+   "algo": "power_iter",
+   "golden": "tests/parity/golden/power_iter_symmetric.json",
+   "name": "power_iter_symmetric",
+   "note": "1.4 章：实对称对角族 diag(1, 0.35, …, 0.35^11)（ratio_matrix(12, 0.35, shear=0)），|λ₂/λ₁| = 0.35 精确可知——幂法 27 步收敛；比 λ₁、末向量、Rayleigh 商序列、残差序列、实测比值",
+   "outputs": [
+    "eigenvalue",
+    "vector",
+    "rayleigh",
+    "residual",
+    "ratios",
+    "nIter",
+    "converged"
+   ],
+   "params": {
+    "kind": "diagonal",
+    "max_iter": 200,
+    "n": 12,
+    "output_set": "numeric_ratios",
+    "ratio": 0.35,
+    "seed": 1,
+    "tol": 1e-12
+   },
+   "sha256": "4a9a8ffe31ecc531174d83962377a64c9104b4690f997e5d639979b6188b5e0f",
+   "tolerance": "power_iter_symmetric"
+  },
+  {
+   "algo": "power_iter",
+   "golden": "tests/parity/golden/power_iter_tridiag.json",
+   "name": "power_iter_tridiag",
+   "note": "1.4 章：实对称三对角族 symmetric_tridiag(0.6^j, 0.05)——56 步收敛，且停止那一刻残差只比阈值低 9.8%（不是擦边，但也不宽裕）；盯住'停止判据落在哪一步'。实测比值序列（ratios）在深收敛区被相消噪声主导，单列到 power_iter_ratio_floor",
+   "outputs": [
+    "eigenvalue",
+    "vector",
+    "rayleigh",
+    "residual",
+    "nIter",
+    "converged"
+   ],
+   "params": {
+    "diag_ratio": 0.6,
+    "kind": "tridiag",
+    "max_iter": 200,
+    "n": 8,
+    "off": 0.05,
+    "seed": 2,
+    "tol": 1e-12
+   },
+   "sha256": "0a6d7589ec4b1969d1f970fb407da086505052b7349b2e2933209f5fdf7fbfcf",
+   "tolerance": "power_iter_tridiag"
+  },
+  {
+   "algo": "power_iter",
+   "golden": "tests/parity/golden/power_iter_shear.json",
+   "name": "power_iter_shear",
+   "note": "1.4 章：非正规族 shear_matrix(6, 0.4)——特征值全是 1（代数重数 6、几何重数 1），幂法 200 步不收敛（残差停在 2.7e-4）；比完整的 201 点历史与'没收敛'分支",
+   "outputs": [
+    "eigenvalue",
+    "vector",
+    "rayleigh",
+    "residual",
+    "ratios",
+    "nIter",
+    "converged"
+   ],
+   "params": {
+    "kind": "shear",
+    "max_iter": 200,
+    "n": 6,
+    "output_set": "numeric_ratios",
+    "seed": 1,
+    "shear": 0.4,
+    "tol": 1e-12
+   },
+   "sha256": "dc9e64cd240dbc7221e6ac5bc760daead2954b9c01c88e6fca68e0b5c2bd795f",
+   "tolerance": "power_iter_shear"
+  },
+  {
+   "algo": "power_iter",
+   "golden": "tests/parity/golden/power_iter_angle_plateau.json",
+   "name": "power_iter_angle_plateau",
+   "note": "1.4 章：同一个 shear(6, 0.4) 只比 angleStep = arccos|⟨x_k, x_{k+1}⟩| 与夹角平台标志——arccos 在夹角趋 0 时条件数是 1/sin θ，inner 的 1 ulp 差能放大到 √(2u) ≈ 1.5e-8，所以这条 case 的 atol 必须单列（数值量那三条 case 保持 1e-14）",
+   "outputs": [
+    "angleStep",
+    "isComplexPair"
+   ],
+   "params": {
+    "kind": "shear",
+    "max_iter": 200,
+    "n": 6,
+    "output_set": "angles",
+    "seed": 1,
+    "shear": 0.4,
+    "tol": 1e-12
+   },
+   "sha256": "8345a78bcad69af24c0b1c9068d275102298414e35d371980500f4ebd8885656",
+   "tolerance": "power_iter_angle_plateau"
+  },
+  {
+   "algo": "power_iter",
+   "golden": "tests/parity/golden/power_iter_ratio_floor.json",
+   "name": "power_iter_ratio_floor",
+   "note": "1.4 章：同一个三对角族（seed=2）只比实测收敛因子 ratios——深收敛时 residual = ‖Ax − λx‖ 是相消差（≈1e-11…1e-13，绝对误差 ~u‖A‖ 不变、相对误差放大到 1e-5），两个这样的残差之比自然带同量级噪声：把 numcore 自己的 matvec 求和顺序反过来（Python vs Python）实测 max|Δ| = 6.6e-7，与跨语言差同量级。容差因此单独放宽并写明理由",
+   "outputs": [
+    "ratios"
+   ],
+   "params": {
+    "diag_ratio": 0.6,
+    "kind": "tridiag",
+    "max_iter": 200,
+    "n": 8,
+    "off": 0.05,
+    "output_set": "ratios",
+    "seed": 2,
+    "tol": 1e-12
+   },
+   "sha256": "8f57df75e047d680f02958b0bc398026b424284dfa713c419354a42d0dcbdca7",
+   "tolerance": "power_iter_ratio_floor"
+  },
+  {
+   "algo": "stability",
+   "golden": "tests/parity/golden/stability_function_grid.json",
+   "name": "stability_function_grid",
+   "note": "3.2 章：8 个方法（forward_euler/heun/rk4/explicit_taylor4/implicit_euler/trapezoidal/bdf1/bdf2）在 24 个 z 上的 R(z)——比实部/虚部/模三路；系数全部现场算（RK 由 Butcher 表、Taylor 由 1/j!）",
+   "outputs": [
+    "re_fe",
+    "im_fe",
+    "abs_fe",
+    "re_heun",
+    "im_heun",
+    "abs_heun",
+    "re_rk4",
+    "im_rk4",
+    "abs_rk4",
+    "re_taylor4",
+    "im_taylor4",
+    "abs_taylor4",
+    "re_ie",
+    "im_ie",
+    "abs_ie",
+    "re_trap",
+    "im_trap",
+    "abs_trap",
+    "re_bdf1",
+    "im_bdf1",
+    "abs_bdf1",
+    "re_bdf2",
+    "im_bdf2",
+    "abs_bdf2"
+   ],
+   "params": {
+    "methods": [
+     {
+      "method": "forward_euler",
+      "order": 1,
+      "tag": "fe"
+     },
+     {
+      "method": "heun",
+      "order": 2,
+      "tag": "heun"
+     },
+     {
+      "method": "rk4",
+      "order": 4,
+      "tag": "rk4"
+     },
+     {
+      "method": "explicit_taylor",
+      "order": 4,
+      "tag": "taylor4"
+     },
+     {
+      "method": "implicit_euler",
+      "order": 1,
+      "tag": "ie"
+     },
+     {
+      "method": "trapezoidal",
+      "order": 2,
+      "tag": "trap"
+     },
+     {
+      "method": "bdf",
+      "order": 1,
+      "tag": "bdf1"
+     },
+     {
+      "method": "bdf",
+      "order": 2,
+      "tag": "bdf2"
+     }
+    ],
+    "op": "function"
+   },
+   "sha256": "c3b183657cdf816c3932fbae99e9246288a496bea87dd4a7b579185ca2dfb40b",
+   "tolerance": "stability_function_grid"
+  },
+  {
+   "algo": "stability",
+   "golden": "tests/parity/golden/lmm_root_modulus_bdf.json",
+   "name": "lmm_root_modulus_bdf",
+   "note": "3.2 章：BDF-3/BDF-4 的稳定模 max_i|r_i(z)| 与 Durand–Kerner 残差（48 次同时迭代），在 9 个 z 上——多步法没有单个 R，这条 case 守住自研根求解器的初值圆/迭代次数/极点掩码",
+   "outputs": [
+    "mod_bdf3",
+    "resid_bdf3",
+    "mod_bdf4",
+    "resid_bdf4"
+   ],
+   "params": {
+    "iters": 48,
+    "op": "lmm_roots",
+    "orders": [
+     3,
+     4
+    ]
+   },
+   "sha256": "79b4fa7ec72373a15e74ccf1bd0f7f75092f23f458e60bdb5ddeeecad576203d",
+   "tolerance": "lmm_root_modulus_bdf"
   }
  ],
  "golden_dir": "tests/parity/golden",

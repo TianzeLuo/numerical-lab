@@ -169,6 +169,209 @@ def _power_law_grid(n: int) -> list[float]:
     return [2.0**-k for k in range(1, n + 1)]
 
 
+#: 3.2 章 `stability_function` 的 z 网格（`[实部, 虚部]`；**由 Python 生成落盘**，
+#: TS 侧只读回 double）：负实轴（含 RK4 实轴稳定边界 −2.785293563405782）、
+#: 虚轴、四个象限的复点、以及 z=0（那里 R(0)≡1，是"常数项没写错"的锚点）。
+#: **避开所有极点**（隐式 Euler/梯形法/BDF 的 z=1、1.5、11/6、25/12…）：极点处 |R|=+∞，
+#: 而非有限值在对拍里一律判失败（`compare_case`），那是刻意的——不拿 ∞ 冒充"一致"。
+_STABILITY_Z_GRID: tuple[tuple[float, float], ...] = (
+    (0.0, 0.0),
+    (-0.1, 0.0),
+    (-0.5, 0.0),
+    (-1.0, 0.0),
+    (-1.5, 0.0),
+    (-2.0, 0.0),
+    (-2.785293563405782, 0.0),
+    (-3.0, 0.0),
+    (-3.5, 0.0),
+    (-4.0, 0.0),
+    (-8.0, 0.0),
+    (0.0, 0.5),
+    (0.0, -0.5),
+    (0.0, 2.0),
+    (0.0, -2.0),
+    (0.5, 0.5),
+    (-1.0, 1.0),
+    (-1.0, -1.0),
+    (-2.0, 1.5),
+    (1.0, -0.5),
+    (-0.05, -0.05),
+    (-6.0, 3.0),
+    (0.25, 1.25),
+    (-0.25, 0.75),
+)
+
+#: 3.2 章多步法根模的 z 网格：远离极点（BDF-3 的 11/6、BDF-4 的 25/12）的实点 + 复点，
+#: 覆盖"根都在单位圆内"（左半平面）与"有一个根跑到圆外"（(0.5, 1.5)、(1, 1)）两种形态。
+_LMM_Z_GRID: tuple[tuple[float, float], ...] = (
+    (-0.5, 0.0),
+    (-1.0, 0.0),
+    (-2.0, 0.0),
+    (-5.0, 0.0),
+    (0.5, 1.5),
+    (-1.0, 1.0),
+    (-1.0, -1.0),
+    (1.0, 1.0),
+    (-6.0, 3.0),
+)
+
+#: `stability_function` 的对拍方法表：`(输出键前缀, Python 方法名, order)`。
+#: `dopri5` 不在这里——`numcore/ode/stability.py::METHODS` 根本没有它（那是 3.1 章的
+#: 自适应 RK 表，没有解析稳定多项式），硬塞进来等于在 TS 侧编一个 Python 没有的公式。
+_STABILITY_METHODS: tuple[tuple[str, str, int], ...] = (
+    ("fe", "forward_euler", 1),
+    ("heun", "heun", 2),
+    ("rk4", "rk4", 4),
+    ("taylor4", "explicit_taylor", 4),
+    ("ie", "implicit_euler", 1),
+    ("trap", "trapezoidal", 2),
+    ("bdf1", "bdf", 1),
+    ("bdf2", "bdf", 2),
+)
+
+
+def _power_iter_matrix(params: dict[str, Any]) -> np.ndarray:
+    """幂法 case 的矩阵族（生成规则**不复制到 TS 侧**，生成好的矩阵随 golden 落盘）。
+
+    三个族各盯住一件不同的事：
+
+    * ``diagonal``：``ratio_matrix(n, ratio, shear=0)`` = 实对称**对角**阵，
+      :math:`|\\lambda_2/\\lambda_1| = \\text{ratio}` 精确可知，幂法应当**收敛**；
+    * ``tridiag``：``symmetric_tridiag(ratio^j, off)`` = 实对称**三对角**阵，
+      谱间隔由对角几何衰减给定，收敛慢一些但仍在 ``max_iter`` 内——
+      它盯的是"停止判据落在哪一步"（`rayleigh`/`residual` 是变长数组，差一步就长度不符）；
+    * ``shear``：``shear_matrix(n, shear)`` = 非正规（亏格）族，特征值全是 1、
+      几何重数 1，:math:`\\|A^k\\|` 先长后落：幂法在 ``max_iter`` 内**不收敛**，
+      残差停在 1e-4 量级——它盯的是"没收敛时两侧是否仍然给出同一段历史"。
+    """
+    from numcore.linalg.eigen import ratio_matrix, shear_matrix, symmetric_tridiag
+
+    kind = str(params["kind"])
+    n = int(params["n"])
+    if kind == "diagonal":
+        return ratio_matrix(n, float(params["ratio"]), shear=0.0)
+    if kind == "tridiag":
+        ratio = float(params["diag_ratio"])
+        alpha = np.asarray([ratio**j for j in range(n)], dtype=float)
+        beta = np.full(max(0, n - 1), float(params["off"]), dtype=float)
+        return symmetric_tridiag(alpha, beta)
+    if kind == "shear":
+        return shear_matrix(n, float(params["shear"]))
+    raise ParityError(f"未知的 power_iter kind={kind!r}（可用：diagonal / tridiag / shear）")
+
+
+_POWER_ITER_OUTPUT_SETS: dict[str, tuple[str, ...]] = {
+    #: 主数值量（不含 ratios / angleStep：它们的条件数不同，见各自的容差 reason）
+    "numeric": ("eigenvalue", "vector", "rayleigh", "residual", "nIter", "converged"),
+    #: 主数值量 + 实测收敛因子（只在"残差离相消地板足够远"的族里才干净）
+    "numeric_ratios": ("eigenvalue", "vector", "rayleigh", "residual", "ratios", "nIter", "converged"),
+    #: 只比实测收敛因子（深收敛族的相消噪声版）
+    "ratios": ("ratios",),
+    #: 只比夹角序列（arccos 条件数放大版）
+    "angles": ("angleStep", "isComplexPair"),
+}
+
+
+def _build_power_iter(params: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+    """幂法：矩阵与初值都由 Python 生成落盘，输出 Rayleigh 商/残差/比值序列。
+
+    初值走 ``_random_start(n, seed=seed)``（PCG64 + ziggurat）。**这条生成规则不复制到 TS 侧**：
+    ``inputs.x0`` 就是那串 double，TS 只做 ``normalize``——与 ``lu`` 把矩阵直接落盘同一口径
+    （PROTOCOLS §7：输入构造这一环不许被两套实现的差异污染）。
+
+    ``output_set`` 选输出子集（见 :data:`_POWER_ITER_OUTPUT_SETS`）：同一份 ``PowerResult``
+    按**条件数**拆开比——数值量、实测收敛因子、夹角各自一条 case，容差才不会被最脏的那个量拖垮。
+    """
+    from numcore.linalg.eigen import _random_start, power_iteration
+
+    a = _power_iter_matrix(params)
+    n = int(a.shape[0])
+    seed = int(params["seed"])
+    tol = float(params["tol"])
+    max_iter = int(params["max_iter"])
+    x0 = _random_start(n, seed=seed)
+    res = power_iteration(a, x0=x0, max_iter=max_iter, tol=tol)
+    inputs = {
+        "n": n,
+        "kind": str(params["kind"]),
+        "a": _floats(a),
+        "x0": _floats(x0),
+        "max_iter": max_iter,
+        "tol": tol,
+        "seed": seed,
+    }
+    output_set = str(params.get("output_set", "numeric"))
+    if output_set not in _POWER_ITER_OUTPUT_SETS:
+        raise ParityError(
+            f"未知的 power_iter output_set={output_set!r}（可用：{sorted(_POWER_ITER_OUTPUT_SETS)}）"
+        )
+    full: dict[str, Any] = {
+        "eigenvalue": float(res.eigenvalue),
+        "vector": _floats(res.vector),
+        "rayleigh": _floats(res.rayleigh),
+        "residual": _floats(res.residual),
+        "ratios": _floats(res.ratios),
+        "nIter": float(res.n_iter),
+        "converged": 1.0 if res.converged else 0.0,
+        "angleStep": _floats(res.angle_step),
+        "isComplexPair": 1.0 if res.is_complex_pair else 0.0,
+    }
+    outputs: dict[str, Any] = {key: full[key] for key in _POWER_ITER_OUTPUT_SETS[output_set]}
+    meta = {
+        "n": n,
+        "max_iter": max_iter,
+        "tol": tol,
+        "seed": seed,
+        "converged": bool(res.converged),
+        "n_iter": int(res.n_iter),
+        "n_positive_residuals": int(np.count_nonzero(res.residual > 0.0)),
+        "is_complex_pair": bool(res.is_complex_pair),
+    }
+    return inputs, outputs, meta
+
+
+def _build_stability(params: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+    """3.2 章：稳定函数 ``R(z)``（``op="function"``）或 LMM 根模（``op="lmm_roots"``）。
+
+    两条 op 共用同一份"由 Python 生成的 z 网格"：``z_re`` / ``z_im`` 逐点落盘，
+    两侧读回的都是同一个 double，网格本身不会成为差异来源。
+    """
+    from numcore.ode.stability import bdf_coefficients, lmm_root_modulus, stability_function
+
+    op = str(params["op"])
+    grid = _STABILITY_Z_GRID if op == "function" else _LMM_Z_GRID
+    z_re = [float(re) for re, _ in grid]
+    z_im = [float(im) for _, im in grid]
+    z = np.asarray(z_re, dtype=float) + 1j * np.asarray(z_im, dtype=float)
+
+    if op == "function":
+        methods = [{"tag": tag, "method": method, "order": order} for tag, method, order in _STABILITY_METHODS]
+        outputs: dict[str, Any] = {}
+        for tag, method, order in _STABILITY_METHODS:
+            r = np.asarray(stability_function(method, order, z))
+            outputs[f"re_{tag}"] = _floats(np.real(r))
+            outputs[f"im_{tag}"] = _floats(np.imag(r))
+            outputs[f"abs_{tag}"] = _floats(np.abs(r))
+        inputs = {"op": op, "z_re": z_re, "z_im": z_im, "methods": methods}
+        meta = {"n_z": len(z_re), "methods": methods}
+        return inputs, outputs, meta
+
+    if op == "lmm_roots":
+        orders = [int(k) for k in params["orders"]]
+        iters = int(params.get("iters", 48))
+        outputs = {}
+        for k in orders:
+            alpha, beta_k = bdf_coefficients(k)
+            mods, resid = lmm_root_modulus(alpha, beta_k, z, iters=iters, return_residual=True)
+            outputs[f"mod_bdf{k}"] = _floats(mods)
+            outputs[f"resid_bdf{k}"] = _floats(resid)
+        inputs = {"op": op, "z_re": z_re, "z_im": z_im, "orders": orders, "iters": iters}
+        meta = {"n_z": len(z_re), "orders": orders, "iters": iters, "method": "durand-kerner"}
+        return inputs, outputs, meta
+
+    raise ParityError(f"未知的 stability op={op!r}（可用：function / lmm_roots）")
+
+
 def _order_groups() -> list[dict[str, Any]]:
     """5 组人造幂律：4 组纯幂律（含 skip/head/tail 三种窗口）+ 1 组带舍入地板。
 
@@ -313,10 +516,139 @@ CASE_SPECS: tuple[dict[str, Any], ...] = (
         "outputs": ["l", "u", "perm", "pivots", "rowSwaps", "rho"],
         "params": {"n": 5, "kind": "mixed"},
     },
+    {
+        "name": "power_iter_symmetric",
+        "algo": "power_iter",
+        "tolerance": "power_iter_symmetric",
+        "note": (
+            "1.4 章：实对称对角族 diag(1, 0.35, …, 0.35^11)（ratio_matrix(12, 0.35, shear=0)），"
+            "|λ₂/λ₁| = 0.35 精确可知——幂法 27 步收敛；比 λ₁、末向量、Rayleigh 商序列、残差序列、实测比值"
+        ),
+        "outputs": ["eigenvalue", "vector", "rayleigh", "residual", "ratios", "nIter", "converged"],
+        "params": {
+            "kind": "diagonal",
+            "n": 12,
+            "ratio": 0.35,
+            "seed": 1,
+            "tol": 1e-12,
+            "max_iter": 200,
+            "output_set": "numeric_ratios",
+        },
+    },
+    {
+        "name": "power_iter_tridiag",
+        "algo": "power_iter",
+        "tolerance": "power_iter_tridiag",
+        "note": (
+            "1.4 章：实对称三对角族 symmetric_tridiag(0.6^j, 0.05)——56 步收敛，"
+            "且停止那一刻残差只比阈值低 9.8%（不是擦边，但也不宽裕）；盯住'停止判据落在哪一步'。"
+            "实测比值序列（ratios）在深收敛区被相消噪声主导，单列到 power_iter_ratio_floor"
+        ),
+        "outputs": ["eigenvalue", "vector", "rayleigh", "residual", "nIter", "converged"],
+        "params": {
+            "kind": "tridiag",
+            "n": 8,
+            "diag_ratio": 0.6,
+            "off": 0.05,
+            "seed": 2,
+            "tol": 1e-12,
+            "max_iter": 200,
+        },
+    },
+    {
+        "name": "power_iter_shear",
+        "algo": "power_iter",
+        "tolerance": "power_iter_shear",
+        "note": (
+            "1.4 章：非正规族 shear_matrix(6, 0.4)——特征值全是 1（代数重数 6、几何重数 1），"
+            "幂法 200 步不收敛（残差停在 2.7e-4）；比完整的 201 点历史与'没收敛'分支"
+        ),
+        "outputs": ["eigenvalue", "vector", "rayleigh", "residual", "ratios", "nIter", "converged"],
+        "params": {
+            "kind": "shear",
+            "n": 6,
+            "shear": 0.4,
+            "seed": 1,
+            "tol": 1e-12,
+            "max_iter": 200,
+            "output_set": "numeric_ratios",
+        },
+    },
+    {
+        "name": "power_iter_angle_plateau",
+        "algo": "power_iter",
+        "tolerance": "power_iter_angle_plateau",
+        "note": (
+            "1.4 章：同一个 shear(6, 0.4) 只比 angleStep = arccos|⟨x_k, x_{k+1}⟩| 与夹角平台标志——"
+            "arccos 在夹角趋 0 时条件数是 1/sin θ，inner 的 1 ulp 差能放大到 √(2u) ≈ 1.5e-8，"
+            "所以这条 case 的 atol 必须单列（数值量那三条 case 保持 1e-14）"
+        ),
+        "outputs": ["angleStep", "isComplexPair"],
+        "params": {
+            "kind": "shear",
+            "n": 6,
+            "shear": 0.4,
+            "seed": 1,
+            "tol": 1e-12,
+            "max_iter": 200,
+            "output_set": "angles",
+        },
+    },
+    {
+        "name": "power_iter_ratio_floor",
+        "algo": "power_iter",
+        "tolerance": "power_iter_ratio_floor",
+        "note": (
+            "1.4 章：同一个三对角族（seed=2）只比实测收敛因子 ratios——深收敛时 residual = ‖Ax − λx‖ "
+            "是相消差（≈1e-11…1e-13，绝对误差 ~u‖A‖ 不变、相对误差放大到 1e-5），"
+            "两个这样的残差之比自然带同量级噪声：把 numcore 自己的 matvec 求和顺序反过来"
+            "（Python vs Python）实测 max|Δ| = 6.6e-7，与跨语言差同量级。容差因此单独放宽并写明理由"
+        ),
+        "outputs": ["ratios"],
+        "params": {
+            "kind": "tridiag",
+            "n": 8,
+            "diag_ratio": 0.6,
+            "off": 0.05,
+            "seed": 2,
+            "tol": 1e-12,
+            "max_iter": 200,
+            "output_set": "ratios",
+        },
+    },
+    {
+        "name": "stability_function_grid",
+        "algo": "stability",
+        "tolerance": "stability_function_grid",
+        "note": (
+            "3.2 章：8 个方法（forward_euler/heun/rk4/explicit_taylor4/implicit_euler/trapezoidal/bdf1/bdf2）"
+            "在 24 个 z 上的 R(z)——比实部/虚部/模三路；系数全部现场算（RK 由 Butcher 表、Taylor 由 1/j!）"
+        ),
+        "outputs": [
+            f"{part}_{tag}" for tag, _method, _order in _STABILITY_METHODS for part in ("re", "im", "abs")
+        ],
+        "params": {
+            "op": "function",
+            "methods": [
+                {"tag": tag, "method": method, "order": order} for tag, method, order in _STABILITY_METHODS
+            ],
+        },
+    },
+    {
+        "name": "lmm_root_modulus_bdf",
+        "algo": "stability",
+        "tolerance": "lmm_root_modulus_bdf",
+        "note": (
+            "3.2 章：BDF-3/BDF-4 的稳定模 max_i|r_i(z)| 与 Durand–Kerner 残差（48 次同时迭代），"
+            "在 9 个 z 上——多步法没有单个 R，这条 case 守住自研根求解器的初值圆/迭代次数/极点掩码"
+        ),
+        "outputs": [f"{part}_bdf{k}" for k in (3, 4) for part in ("mod", "resid")],
+        "params": {"op": "lmm_roots", "orders": [3, 4], "iters": 48},
+    },
 )
 
 #: 算法名 → Python 侧构造器（TS 侧 ``run_parity.ts`` 里必须有同名的分支）。
-ALGOS: tuple[str, ...] = ("heat", "amplification", "oscillator", "orderfit", "lu")
+ALGOS: tuple[str, ...] = ("heat", "amplification", "oscillator", "orderfit", "lu", "power_iter", "stability")
 
 
 def case_by_name(name: str) -> dict[str, Any]:
@@ -482,6 +814,8 @@ _BUILDERS = {
     "amplification": _build_amplification,
     "oscillator": _build_oscillator,
     "orderfit": _build_orderfit,
+    "power_iter": _build_power_iter,
+    "stability": _build_stability,
 }
 
 

@@ -482,12 +482,24 @@ Python `tools/raster.py` 用同名同值的 LUT（`tools/colorscale_tables.py` �
 
 当前覆盖（截至 2026-10-18）：`heat_explicit_step`、`heat_ftcs_run`、`ftcs_amplification_modes`、
 `oscillator_sample`、`order_fit_powerlaw`、`lu_partial_pivot`（Hilbert(6)）、`lu_wilkinson_growth`（Wilkinson(12)，ρ = 2^11）、
-`lu_tiny_pivot`（首元 1e-14）—— **8 个 case / 2387 个点**（逐 case 点数：1800 / 312 / 92 / 68 / 41 / 41 / 25 / 8，
-读数来自 `dist/reports/parity.json`；新增的 3 条 LU case 实测 `max|Δ| = 0`）。
+`lu_tiny_pivot`（首元 1e-14）—— 实测 `max|Δ| = 0`；
+1.4 章 **幂法**：`power_iter_symmetric`（实对称对角族，27 步收敛）、`power_iter_tridiag`（实对称三对角族，56 步收敛）、
+`power_iter_shear`（非正规亏格族 `shear(6, 0.4)`，200 步不收敛）；同一份 `PowerResult` 里条件数不同的两个量各自成 case：
+`power_iter_angle_plateau`（夹角序列，`arccos` 在 0 附近的条件数放大到 1e-7 量级）与
+`power_iter_ratio_floor`（深收敛区的实测收敛因子，相消噪声 ~1e-6——Python 自己换个 matvec 求和顺序就差同一个量级）；
+3.2 章 **稳定域**：`stability_function_grid`（8 个方法 × 24 个 z 的 `R(z)` 实部/虚部/模）、
+`lmm_root_modulus_bdf`（BDF-3/4 的稳定模与 Durand–Kerner 残差，9 个 z）——
+**15 个 case / 4088 个点**（逐 case 点数：41 / 41 / 8 / 1800 / 25 / 92 / 312 / 68 / 97 / 125 / 610 / 202 / 55 / 576 / 36，
+读数来自 `dist/reports/parity.json`）。
 覆盖清单（M0 起逐步补齐，加一个 case = `tools/parity.py::CASE_SPECS` 加一条 +
 `viz/shared/src/numeric/<algo>.ts` 加一个模块 + `--update-golden`）：~~`lu`~~（已完成：`luPartialPivot`，
 见 `viz/shared/src/numeric/lu.ts` + `viz/tests/numeric.lu.test.ts` 的本地护栏）、
-`qr`（Householder）、`chol`、`svd_jacobi`、`power_iter`、
+`qr`（Householder）、`chol`、`svd_jacobi`、~~`power_iter`~~（已完成：`powerIteration`，
+见 `viz/shared/src/numeric/power_iter.ts` + `viz/tests/numeric.power_iter.test.ts`；
+`dopri5` 不在覆盖内且**不该**硬塞——`numcore/ode/stability.py::METHODS` 没有它，
+稳定函数只认 `forward_euler/midpoint/heun/rk4/explicit_taylor/implicit_euler/trapezoidal/bdf`）、
+~~`stability`~~（已完成：`stabilityFunction` / `lmmRootModulus`，
+见 `viz/shared/src/numeric/stability.ts` + `viz/tests/numeric.stability.test.ts`）、
 `barycentric`、`spline_natural`、`gauss_legendre_nodes`、`fft_radix2`、`dwt_haar`、
 `rk4`、`dopri5_step`、`verlet`、`heat_explicit_step`、`upwind_step`、`sobol_seq`、`pce_basis`。
 

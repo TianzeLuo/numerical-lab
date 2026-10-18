@@ -46,6 +46,14 @@ import { ftcsAmplification, ftcsRun, ftcsStep } from "../../shared/src/numeric/h
 import { luPartialPivot } from "../../shared/src/numeric/lu.js";
 import { dampedOscillator, oscillatorEnergy } from "../../shared/src/numeric/oscillator.js";
 import { fitOrderParity } from "../../shared/src/numeric/orderfit.js";
+import { powerIteration } from "../../shared/src/numeric/power_iter.js";
+import {
+  bdfCoefficients,
+  complexAbs,
+  lmmRootModulus,
+  stabilityFunction,
+  type ComplexGrid,
+} from "../../shared/src/numeric/stability.js";
 import type { FitOptions } from "../../shared/src/loglogfit.js";
 
 /** `tests/parity/cases.json` 里的一个 case 条目。 */
@@ -220,12 +228,76 @@ function computeLu(inputs: Record<string, unknown>): Outputs {
   };
 }
 
+/**
+ * 幂法（1.4 章）：矩阵 `a` 与初值 `x0` 都是 Python 侧生成落盘的 double，
+ * 这里只按 `max_iter` / `tol` 跑迭代。布尔量写成 0/1 —— 对拍协议只认数值
+ * （`tools/parity.py::_as_vector` 把 `bool` 判成非法），所以转换发生在这一层。
+ */
+function computePowerIter(inputs: Record<string, unknown>): Outputs {
+  const n = asNumber(inputs.n, "inputs.n");
+  const a = asNumberArray(inputs.a, "inputs.a");
+  const x0 = asNumberArray(inputs.x0, "inputs.x0");
+  const maxIter = inputs.max_iter === undefined ? undefined : asNumber(inputs.max_iter, "inputs.max_iter");
+  const tol = inputs.tol === undefined ? undefined : asNumber(inputs.tol, "inputs.tol");
+  const res = powerIteration(a, n, { x0, maxIter, tol });
+  return {
+    eigenvalue: res.eigenvalue,
+    vector: res.vector,
+    rayleigh: res.rayleigh,
+    residual: res.residual,
+    ratios: res.ratios,
+    nIter: res.nIter,
+    converged: res.converged ? 1 : 0,
+    angleStep: res.angleStep,
+    isComplexPair: res.isComplexPair ? 1 : 0,
+  };
+}
+
+/** 3.2 章：`stability_function` 网格（`op="function"`）与 LMM 根模（`op="lmm_roots"`）。 */
+function computeStability(inputs: Record<string, unknown>): Outputs {
+  const op = asString(inputs.op, "inputs.op");
+  const z: ComplexGrid = {
+    re: asNumberArray(inputs.z_re, "inputs.z_re"),
+    im: asNumberArray(inputs.z_im, "inputs.z_im"),
+  };
+  const out: Outputs = {};
+  if (op === "function") {
+    const methods = inputs.methods;
+    if (!Array.isArray(methods)) throw new Error("inputs.methods 必须是数组");
+    for (const raw of methods) {
+      const m = asRecord(raw, "inputs.methods[i]");
+      const tag = asString(m.tag, "methods.tag");
+      const method = asString(m.method, "methods.method");
+      const order = asNumber(m.order, "methods.order");
+      const r = stabilityFunction(method, order, z);
+      out[`re_${tag}`] = r.re;
+      out[`im_${tag}`] = r.im;
+      out[`abs_${tag}`] = complexAbs(r);
+    }
+    return out;
+  }
+  if (op === "lmm_roots") {
+    const orders = asNumberArray(inputs.orders, "inputs.orders");
+    const iters = inputs.iters === undefined ? undefined : asNumber(inputs.iters, "inputs.iters");
+    for (const k of orders) {
+      const { alpha, betaK } = bdfCoefficients(k);
+      const res = lmmRootModulus(alpha, betaK, z, { iters, withResidual: true });
+      out[`mod_bdf${k}`] = res.mod;
+      out[`resid_bdf${k}`] = res.residual ?? [];
+    }
+    return out;
+  }
+  throw new Error(`未知的 stability op=${op}（只有 function / lmm_roots）`);
+}
+
 const ALGOS: Record<string, (inputs: Record<string, unknown>) => Outputs> = {
   heat: computeHeat,
   lu: computeLu,
   amplification: computeAmplification,
   oscillator: computeOscillator,
   orderfit: computeOrderFit,
+  power_iter: computePowerIter,
+  stability: computeStability,
 };
 
 // --------------------------------------------------------------------------- //

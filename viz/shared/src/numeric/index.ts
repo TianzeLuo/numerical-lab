@@ -16,3 +16,5 @@ export * from "./heat.js";
 export * from "./lu.js";
 export * from "./oscillator.js";
 export * from "./orderfit.js";
+export * from "./power_iter.js";
+export * from "./stability.js";

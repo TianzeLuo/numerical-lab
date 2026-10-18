@@ -661,10 +661,14 @@ python3 tools/parity.py --check-golden    # 额外确认「盘上的 golden == �
 - 靠近零点的分量相对差会自然放大，靠 `atol` 兜底；**绝不靠把 `rtol` 放大到能过**——
   「那是把门禁做成了装饰」。
 
-**当前覆盖**（实测 2026-10-18）：**8 个 case / 2387 个点**——`heat_explicit_step`、`heat_ftcs_run`、
+**当前覆盖**（实测 2026-10-18）：**15 个 case / 4088 个点**——`heat_explicit_step`、`heat_ftcs_run`、
 `ftcs_amplification_modes`、`oscillator_sample`、`order_fit_powerlaw`，
-以及 1.2 章的三条 LU 对拍：`lu_partial_pivot`（Hilbert(6)，92 点）、`lu_wilkinson_growth`（Wilkinson(12)，312 点）、
-`lu_tiny_pivot`（首元 1e-14，68 点），三条均实测 `max|Δ| = 0`。
+1.2 章的三条 LU 对拍：`lu_partial_pivot`（Hilbert(6)，92 点）、`lu_wilkinson_growth`（Wilkinson(12)，312 点）、
+`lu_tiny_pivot`（首元 1e-14，68 点），三条均实测 `max|Δ| = 0`；
+1.4 章的幂法五条（`power_iter_symmetric` 97 / `power_iter_tridiag` 125 / `power_iter_shear` 610 /
+`power_iter_angle_plateau` 202 / `power_iter_ratio_floor` 55 点——同一个 `PowerResult` 按**条件数**拆开比，
+夹角与深收敛比值的容差放宽写在各自 reason 里，那是量本身的条件数，不是实现差异）；
+3.2 章的稳定域两条（`stability_function_grid` 576 点、`lmm_root_modulus_bdf` 36 点）。
 读数命令：`python3 tools/parity.py` → `dist/reports/parity.json` 的 `n_cases` / `n_points`；
 计划清单见 `docs/PROTOCOLS.md` §7。
 
