@@ -57,7 +57,7 @@
 | `kind` | `frame` \| `dataset` \| `manifest` | `dataset` 用于对拍基准文件 |
 | `codec` | `none` \| `zlib` \| `gzip` | 只压缩 payload，header 恒为明文 |
 | `endian` | `little` | 固定 |
-| `dtype` | `f8 f4 f2 i8 i4 i2 u1 u2 u4 bool` | `f2` 仅解码端支持（写端不产生） |
+| `dtype` | `f8 f4 i8 i4 i2 u1 u2 u4 bool` | **无 `f2`**：浏览器侧没有统一的半精度类型（`Float16Array` 尚未普及），半精度只会带来"两侧行为不一致"的风险；要省带宽请用 `codec`，不要新造 dtype |
 | `shape` | 长度 1–3 的整数数组 | 3 维仅用于 RGB/体数据 |
 | `order` | `C` \| `F` | 仅对 ≥2 维有意义 |
 | `offset`+`nbytes` | 必须与 payload 长度自洽、互不重叠 | 解码时校验 |
@@ -70,8 +70,17 @@
 
 ### 1.2 参考实现
 
-- Python：`server/nlf.py` —— `pack_frame(fr: Frame) -> bytes`、`unpack_frame(buf) -> Frame`、`Frame.add(name, array, unit, label)`。
-- TypeScript：`viz/shared/src/nlf.ts` —— `decodeNlf(bytes): Promise<Frame>`、`encodeNlf(frame): Uint8Array`。
+- Python（写读双端，权威实现）：`server/nlf.py` —— `pack_frame(fr: Frame) -> bytes`、`unpack_frame(buf) -> Frame`、
+  `write_frame(path, fr)`、`read_frame(path)`、`Frame.add(name, array, unit, label)`。
+- TypeScript（读端 + 测试用写端）：`viz/shared/src/nlf.ts` ——
+  `decodeNlf(bytes): Frame`（**仅** `codec === "none"`）、`decodeNlfAsync(bytes): Promise<Frame>`（任意 codec，
+  内部用 `DecompressionStream`）、`encodeNlf(frame, opts?): Uint8Array`、`frameSummary(frame): string`。
+  调用方一律用 `decodeNlfAsync`（对未压缩帧无额外开销），这样可以不必在业务代码里分支。
+- 两侧的**报错顺序**必须一致（`version → endian → codec → dtype → order → nbytes 自洽 → 越界 → payload 总长 → 区间重叠`），
+  便于把"同一份坏字节"的判定写成跨语言对拍。
+- 有意的差异（只影响**非法输入**）：TS 端更严——`kind`、`meta` 标量性、`shape` 元素整数性、
+  `strings`/`critical`/`pitfalls` 类型都会抛 `NlfError`，而 Python 写端本来就不可能产出这些形态，
+  因此 Python 写出的帧 100% 可被 TS 解码（已用 6 夹具 × 3 codec 双向验证）。
 - 基准文件：`tests/fixtures/nlf/*.nlf`（每个 ≤ 4 KB，随仓库提交）。两侧都必须能逐点还原，
   还原结果写入 `tests/parity/golden/nlf_*.json` 供 G7 逐值比对。
 
