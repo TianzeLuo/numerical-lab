@@ -184,6 +184,66 @@
    },
    "sha256": "a0b408c46b95ff5ca447a84e0bf8597e630bee8e54ef62b8acf46588180196b1",
    "tolerance": "order_fit_powerlaw"
+  },
+  {
+   "algo": "lu",
+   "golden": "tests/parity/golden/lu_partial_pivot.json",
+   "name": "lu_partial_pivot",
+   "note": "1.2 章：Hilbert(6) 的部分主元 LU（乘子写回下三角 + 外积更新），比 L/U/置换/主元/行交换/ρ",
+   "outputs": [
+    "l",
+    "u",
+    "perm",
+    "pivots",
+    "rowSwaps",
+    "rho"
+   ],
+   "params": {
+    "kind": "hilbert",
+    "n": 6
+   },
+   "sha256": "c53576e4eeccb98252136c1a93b36fd417e23b0c5dd3268362e239bf35f7194c",
+   "tolerance": "lu_partial_pivot"
+  },
+  {
+   "algo": "lu",
+   "golden": "tests/parity/golden/lu_wilkinson_growth.json",
+   "name": "lu_wilkinson_growth",
+   "note": "1.2 章：Wilkinson(12) 的部分主元 LU——ρ = 2^11 的经典最坏情形，专门盯住选主元规则",
+   "outputs": [
+    "l",
+    "u",
+    "perm",
+    "pivots",
+    "rowSwaps",
+    "rho"
+   ],
+   "params": {
+    "kind": "wilkinson",
+    "n": 12
+   },
+   "sha256": "9fd2952aa78417c6a296f983885d2922763ffe55241a6c861fa4e04ed2944892",
+   "tolerance": "lu_partial_pivot"
+  },
+  {
+   "algo": "lu",
+   "golden": "tests/parity/golden/lu_tiny_pivot.json",
+   "name": "lu_tiny_pivot",
+   "note": "1.2 章：首元 1e-14 的矩阵——不换行就会把小主元当主元，ρ 会爆炸；这条 case 守住'到底换没换行'",
+   "outputs": [
+    "l",
+    "u",
+    "perm",
+    "pivots",
+    "rowSwaps",
+    "rho"
+   ],
+   "params": {
+    "kind": "mixed",
+    "n": 5
+   },
+   "sha256": "33401e9b2b47c89f061c75c9a47effd503d02ecdc46cf5a1a14fa1447d81d140",
+   "tolerance": "lu_partial_pivot"
   }
  ],
  "golden_dir": "tests/parity/golden",

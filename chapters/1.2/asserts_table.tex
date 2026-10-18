@@ -1,0 +1,58 @@
+% 本文件由 tools/build_book.py 从 dist/reports/assertions.json 生成，请勿手改。
+\begin{longtable}{@{}p{0.06\textwidth}p{0.32\textwidth}p{0.22\textwidth}p{0.16\textwidth}@{}}
+\caption{章节 1.2 数值断言（生成时间 2026-10-18T13:50:19-0400）}\\
+\toprule
+类别 & 断言 & 理论值 & 实测值 \\
+\midrule
+\endfirsthead
+\toprule
+类别 & 断言 & 理论值 & 实测值 \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+
+A & max|PAQ $-$ LU| / (16$\cdot$u$\cdot$$\rho$$\cdot$max|A|) & 1 & 0.0857143 \checkmark \\
+B & max 前导块残差 / (8$\cdot$m$\cdot$u$\cdot$$\rho$$\cdot$max|A|) & 1 & 0.0699735 \checkmark \\
+B & max residual\_\allowbreak{}history / (16$\cdot$n$\cdot$u$\cdot$$\rho$\_\allowbreak{}max) & 1 & 0.0416667 \checkmark \\
+B & 奇异帧的 meta 契约(null + status + overflow) & 1 & 2 \checkmark \\
+A & overflow 跟随被画对象(像 vs 解向量) & 1 & 1 \checkmark \\
+B & $\rho$(Wilkinson(n)) 部分 / 完全主元 & 2048 & 2048 \checkmark \\
+A & 重建残差 / (n$\cdot$u$\cdot$$\|$A$\|$$\infty$) & $\le$ 1(\allowbreak{}Wilkinson 界) & 0.399(\allowbreak{}最大绝对残差 5.329e-15) \checkmark \\
+A & $\rho$(部分主元) / 2\textasciicircum{}(n$-$1) & 2048 & 2048(\allowbreak{}完全主元 2) \checkmark \\
+A & $\kappa$$_1$ / $\rho$(无主元) / 前向误差(无主元$\to$部分) & $\kappa$$_1$=\allowbreak{}4(\allowbreak{}小)、\allowbreak{}$\rho$=\allowbreak{}1/\allowbreak{}u、\allowbreak{}前向误差 1 $\to$ 0 & $\kappa$$_1$=\allowbreak{}4,\allowbreak{} $\rho$=\allowbreak{}1e+18,\allowbreak{} 误差 1 $\to$ 0 \checkmark \\
+A & 前向误差/($\kappa$$\cdot$u) 与后向误差 & fwd/\allowbreak{}(\allowbreak{}$\kappa$u) $\in$ (\allowbreak{}0,\allowbreak{} 1]，后向误差 $\le$ 10u 且与 $\kappa$ 无关 & fwd/\allowbreak{}(\allowbreak{}$\kappa$u) $\in$ [0,\allowbreak{} 0.0199](\allowbreak{}大 $\kappa$ 段最小 0.006265)；后向误差最大 6.05e-18；前向误差单调=\allowbreak{}True \checkmark \\
+A & chol\_\allowbreak{}flops / lu\_\allowbreak{}flops(n=256) & 0.5 & 0.498537(\allowbreak{}n=\allowbreak{}32..256: 0.4884,\allowbreak{} 0.4942,\allowbreak{} 0.4971,\allowbreak{} 0.4985) \checkmark \\
+A & LU 运算量增长阶 & 3 & 3.01591 \checkmark \\
+A & ops / n$^3$ & 2/\allowbreak{}3 & 0.664711(\allowbreak{}斜率拟合 3.0159) \checkmark \\
+A & max $\rho$(严格对角占优，60 例)/ max $\rho$(占优比 0.05，5 例) & 占优时 $\le$ 2；失去占优无上界(\allowbreak{}实测值只说明这一组种子) & 1.0324 /\allowbreak{} 60.23 \checkmark \\
+A & max |$\kappa$$_1$(自研) $-$ $\kappa$$_1$(SciPy)| / $\kappa$$_1$ & $\le$ 1e-8 & 6.145e-11 \checkmark \\
+A & 采样 $\sigma$max 误差/$\Delta$$\theta$$^2$ 的最大值；$\sigma$min 的高估量 & $\le$ 1(\allowbreak{}O(\allowbreak{}$\Delta$$\theta$$^2$) 界)；$\sigma$min 采样值 $\ge$ 闭式值 & C\_max=\allowbreak{}0.3555(\allowbreak{}n=\allowbreak{}91..5761)；$\sigma$min 实测 3.618034 vs 闭式 1.381966(\allowbreak{}+2.24e+00) \checkmark \\
+B & 检查过的分解数 & 全部满足 & 39 次 \checkmark \\
+B & max (|$\Delta$det|/|det|) / (n$\cdot$u$\cdot$$\kappa$$_1$) & $\le$ 1(\allowbreak{}det 是 n 个因子的乘积，相对误差被 $\kappa$$_1$ 放大) & 比值 0.0032(\allowbreak{}最大相对误差 2.37e-05)；hilbert6: 6.2e-11/\allowbreak{}1.9e-08,\allowbreak{} wilkinson9: 0.0e+00/\allowbreak{}9.0e-15,\allowbreak{} spd10: 0.0e+00/\allowbreak{}2.6e-15,\allowbreak{} banded12: 0.0e+00/\allowbreak{}4.0e-15,\allowbreak{} hilbert10: 2.4e-05/\allowbreak{}3.9e-02 \checkmark \\
+B & 判定不一致个数(200 例，其中正定 0) & 0 & 0 \checkmark \\
+B & max (前导块残差/$\|$A$\|$$\infty$) / (n$\cdot$u$\cdot$$\rho$) & $\le$ 1(\allowbreak{}与 LU 后向误差同一条界) & 比值 0.2014(\allowbreak{}最大绝对残差 3.033e-16) \checkmark \\
+B & 零主子式检测 / 非零主子式 & swap: 有 0；对角占优与 Hilbert: 全非零 & swap [0.0,\allowbreak{} 0.0]；对角占优全非零=\allowbreak{}True \checkmark \\
+B & 尺度变换后的后向误差(基准 8.18e-18) & 全部 $\le$ 100u =\allowbreak{} 1.11e-14(\allowbreak{}尺度不变，只留在舍入底) & 最大 1.716e-17，与基准的最大差 8.979e-18 \checkmark \\
+B & 残差 / (n$\cdot$u$\cdot$$\|$A$\|$$\cdot$$\|$x$\|$) & $\le$ 1 & 0.3155 \checkmark \\
+B & 动物园自检 & 7 条性质全部成立 & \{'swap\_singular': True,\allowbreak{} 'tiny\_rho': 9.999999999999999e+17,\allowbreak{} 'wilkinson\_sharp': True,\allowbreak{} 'spd\_ok': True,\allowbreak{} 'dd\_ok': True,\allowbreak{} 'hilbert\_kappa': True,\allowbreak{} 'banded\_nnz': True\} \checkmark \\
+B & 随机矩阵 $\rho$ < 2\textasciicircum{}(n$-$1) & $\le$ 5.49756e+11 & 3.52312 \checkmark \\
+B & 随机矩阵最大 $\rho$(n $\le$ 40) & $\le$ 2\textasciicircum{}39 =\allowbreak{} 5.498e+11 & 3.523(\allowbreak{}对数尺度上离界差 37.2 个二进制数量级) \checkmark \\
+A & 符号 nnz(L+U) 与精确消元不一致的例数 & 0(\allowbreak{}5 例) & 0；tridiag-16: 符号 62 /\allowbreak{} 精确 62，banded-8: 符号 30 /\allowbreak{} 精确 30，laplacian-5x5: 符号 258 /\allowbreak{} 精确 258，laplacian-6x6: 符号 442 /\allowbreak{} 精确 442，spd-9: 符号 90 /\allowbreak{} 精确 90 \checkmark \\
+A & 符号 nnz(L+U) $-$ 精确 nnz(L+U)(全 1 矩阵 4$\times$4) & $\ge$ 0(\allowbreak{}本例应当严格大于 0：消元后尾部块精确变成 0) & 符号 20，精确 8(\allowbreak{}L 4 /\allowbreak{} U 4)，差 12 \checkmark \\
+A & 带宽 (lower, upper)：自然序 / CM / RCM & RCM $\le$ (\allowbreak{}1,\allowbreak{}1)(\allowbreak{}三对角原带宽)；自然序 $\approx$ (\allowbreak{}n/\allowbreak{}2,\allowbreak{} n/\allowbreak{}2) & 自然 (\allowbreak{}52,\allowbreak{}52) /\allowbreak{} CM (\allowbreak{}1,\allowbreak{}1) /\allowbreak{} RCM (\allowbreak{}1,\allowbreak{}1) \checkmark \\
+A & nnz(L+U)(k=9：自然 / RCM / AMD) & AMD < RCM < 自然序 & 1474 /\allowbreak{} 1194 /\allowbreak{} 986；各 k：k=\allowbreak{}5:204/\allowbreak{}258,\allowbreak{} k=\allowbreak{}7:504/\allowbreak{}698,\allowbreak{} k=\allowbreak{}9:986/\allowbreak{}1474 \checkmark \\
+A & (树宽上界 $-$ 真实树宽 k) 的最大值 & $\ge$ 0(\allowbreak{}贪心只是上界)；k=\allowbreak{}4..10 & 最大 3，逐例 k=\allowbreak{}4:4(\allowbreak{}团5),\allowbreak{} k=\allowbreak{}6:6(\allowbreak{}团7),\allowbreak{} k=\allowbreak{}8:10(\allowbreak{}团11),\allowbreak{} k=\allowbreak{}10:13(\allowbreak{}团14) \checkmark \\
+A & |nnz(L+U) 自研 $-$ 参考| 的最大值 & 0(\allowbreak{}同一矩阵、\allowbreak{}同一排序，符号填充是确定量) & 0；natural: 自研 442 /\allowbreak{} 参考 442，rcm: 自研 382 /\allowbreak{} 参考 382，amd: 自研 334 /\allowbreak{} 参考 334 \checkmark \\
+B & CSR 等价性检查的矩阵个数 & 全部等价(\allowbreak{}4 个操作) & 3 个(\allowbreak{}n=\allowbreak{}5/\allowbreak{}12/\allowbreak{}40) \checkmark \\
+B & 对称置换后的最大特征值偏差 / 结构是否保持 & 0(\allowbreak{}置换相似变换) & 偏差 5.329e-15，nnz 相同=\allowbreak{}True，对称=\allowbreak{}True \checkmark \\
+B & 四种排序是否为合法置换 & 全部是 & \{'natural': True,\allowbreak{} 'rcm': True,\allowbreak{} 'cm': True,\allowbreak{} 'amd': True\} \checkmark \\
+B & nnz(L+U) 的闭式与分解式 & 2n + 2$\Sigma$|later| =\allowbreak{} 258(\allowbreak{}5$\times$5 网格)；三对角 n=\allowbreak{}8 时 =\allowbreak{} 30 & 符号 258(\allowbreak{}分解式True，L 129 /\allowbreak{} U 129)，$\Sigma$|later|=\allowbreak{}104，fill\_edges 接口 64 =\allowbreak{} 结构里的 64；三对角符号 30 \checkmark \\
+B & spy 点数与 nnz 的最大偏差 & 0(\allowbreak{}且坐标集合完全相同) & 0 \checkmark \\
+B & 带宽 / 带存储形状 / 可复原 & 带宽 1；形状 (\allowbreak{}2b+1,\allowbreak{} n) =\allowbreak{} (\allowbreak{}3,\allowbreak{} 50) & 带宽 1，形状 (\allowbreak{}3,\allowbreak{} 50)，可复原=\allowbreak{}True \checkmark \\
+B & P$^{\mathsf T}$P=I / PA=A[perm] / LU 的 perm 自洽 & 三者全成立 & 正交=\allowbreak{}True，行重排=\allowbreak{}True，LU 的 perm=\allowbreak{}True \checkmark \\
+B & RCM 剖面 $\le$ 自然序剖面 & $\le$ 404 & 39 \checkmark \\
+B & 对角阵的带宽/剖面；置换三对角阵的剖面(自然 $\to$ RCM) & 对角阵：带宽 (\allowbreak{}0,\allowbreak{}0)、\allowbreak{}剖面 0；RCM 剖面 $\le$ 自然序 & 对角 True；404 $\to$ 39 \checkmark \\
+B & 填充单调性 / 总填充 / 三种排序的最大后向残差 & 单调不减；末步 fill\_so\_far =\allowbreak{} fill\_total；后向残差 $\approx$ u & 单调=\allowbreak{}True，nnz(\allowbreak{}L+U)=\allowbreak{}382，末步 fill=\allowbreak{}95/\allowbreak{}95，残差最大 8.88e-16 \checkmark \\
+B & 帧契约检查 & 每个 viz 的 requiredAux 齐备、\allowbreak{}关键曲线不是全 NaN & lu\_heatmap: 6 数组，6 个全有限；unit\_ball: 16 数组，16 个全有限；spy\_ordering: 10 数组，10 个全有限；pivot\_strategy: 5 数组，5 个全有限 \checkmark \\
+\end{longtable}

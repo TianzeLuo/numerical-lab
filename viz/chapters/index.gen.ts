@@ -3,6 +3,7 @@
 import type { ChapterManifestJson } from "../shared/src/manifest.js";
 import type { SceneModel } from "../shared/src/model.js";
 import { manifest as manifest_c_0_0, models as models_c_0_0 } from "./0.0/index.js";
+import { manifest as manifest_c_1_2, models as models_c_1_2 } from "./1.2/index.js";
 
 /** 一章的前端装配：manifest（契约）+ models（viz id → Frame→Scene） */
 export interface ChapterModels {
@@ -13,6 +14,7 @@ export interface ChapterModels {
 /** 已经实现可视化的章节（未实现的不在表里，调用方要处理 undefined） */
 export const chapterModels: Record<string, ChapterModels> = {
   "0.0": { manifest: manifest_c_0_0, models: models_c_0_0 },
+  "1.2": { manifest: manifest_c_1_2, models: models_c_1_2 },
 };
 
 export default chapterModels;

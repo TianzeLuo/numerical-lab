@@ -1,0 +1,176 @@
+# 1.2 章断言清单（真源：`tests/1.2/` 下的三个文件）
+#
+# 这一章把三件事分开测：**后向稳定性**（ρ，A 类）、**条件数**（κ，A 类）、
+# **结构/填充**（符号消元，A 类）；B 类守的是分解与容器的形状不变量。
+# 本章不声明 C 类断言：这里没有需要二分的阈值（阈值型结论在 3.2/3.3 章）。
+chapter: "1.2"
+title: 线性方程组直接法
+required_kinds: [A, B]
+
+min_counts:
+  A: 17
+  B: 24
+
+tests:
+  - name: test_lu_reconstruction_is_exact_to_roundoff
+    kind: A
+    what: 50 个随机矩阵上 ‖PA−LU‖∞/(n·u·‖A‖∞) 的最大值
+    theory: Wilkinson 后向稳定界 ‖δA‖ ≤ c·n·u·‖A‖
+  - name: test_partial_pivot_growth_bound_is_sharp
+    kind: A
+    what: Wilkinson 矩阵上 ρ 与 2^(n−1) 逐位相等（n=2..12），完全主元压到 2
+    theory: 部分主元 ρ ≤ 2^(n−1)，且该上界可达
+  - name: test_growth_factor_and_condition_number_are_independent
+    kind: A
+    what: tiny_pivot：κ₁=4 而 ρ(无主元)=1e18、前向误差 1 → 0
+    theory: 不稳定（ρ 大）与病态（κ 大）是两件独立的事
+  - name: test_forward_error_follows_kappa_u_while_backward_stays_at_u
+    kind: A
+    what: κ 从 1e2 到 1e14：前向误差 ≤ κu 且单调，后向误差 ≤ 10u
+    theory: 前向误差 ≲ κu；后向误差与 κ 无关
+  - name: test_cholesky_uses_half_the_operations_of_lu
+    kind: A
+    what: chol_flops/lu_flops → 0.5（n=32..256）
+    theory: 对称性省下一半运算量（n³/3 vs 2n³/3）
+  - name: test_elimination_flop_count_grows_cubically
+    kind: A
+    what: 运行时累加的运算量与闭式 n(n−1)(4n+1)/6 完全一致；斜率 3、常数 2/3
+    theory: LU 运算量 ~ (2/3)n³
+  - name: test_diagonal_dominance_guarantees_bounded_growth
+    kind: A
+    what: 60 组严格对角占优矩阵 max ρ ≤ 2；失去占优后出现 > 2 的实例
+    theory: 严格对角占优 ⟹ 乘子 ≤ 1、ρ ≤ 2
+  - name: test_condition_estimate_matches_reference
+    kind: A
+    what: 5 个矩阵的 κ₁ 与 SciPy cond(A,1) 相对差
+    theory: κ₁ = ‖A‖₁‖A⁻¹‖₁
+  - name: test_sampled_singular_values_converge_quadratically
+    kind: A
+    what: 采样 σmax 误差/Δθ² 的最大值；σmin 采样值只会偏大
+    theory: 采样误差 O(Δθ²)：σmin 被系统性高估
+  - name: test_lu_factor_shape_invariants
+    kind: B
+    what: 随机矩阵 × 3 种主元策略的 L/U/perm 结构性质
+    theory: L 单位下三角、U 上三角、perm 是置换
+  - name: test_determinant_from_lu_matches_reference
+    kind: B
+    what: 5 个矩阵 |Δdet|/|det| 与界 n·u·κ₁ 之比
+    theory: det = (−1)^s·∏u_ii
+  - name: test_cholesky_success_iff_positive_definite
+    kind: B
+    what: 200 个随机对称矩阵上「能分解 ⟺ 特征值全正」的不一致个数
+    theory: Cholesky 存在 ⟺ 对称正定
+  - name: test_leading_block_residual_stays_at_roundoff
+    kind: B
+    what: 4 组矩阵逐步的前导块残差与界 n·u·ρ 之比
+    theory: 消元每一步都精确：残差 ≲ n·u·ρ
+  - name: test_leading_principal_minors_detect_zero_pivots
+    kind: B
+    what: swap 矩阵有零主子式、其余全非零，并与实际能否无主元分解对拍
+    theory: 无主元 LU 可行 ⟺ 顺序主子式全非零
+  - name: test_backward_error_is_scale_invariant
+    kind: B
+    what: A、b 同乘 1e-6..1e6 后后向误差仍 ≤ 100u
+    theory: 后向误差无量纲（尺度不变）
+  - name: test_cholesky_solve_residual_bound
+    kind: B
+    what: 4 个 SPD 矩阵的残差/(n·u·‖A‖·‖x‖)
+    theory: Cholesky 求解的残差界
+  - name: test_example_matrices_keep_their_character
+    kind: B
+    what: 反例矩阵动物园的 7 条性质自检
+    theory: 每个示例矩阵必须保持它的反例性质
+  - name: test_typical_growth_is_far_below_the_bound
+    kind: B
+    what: n ≤ 40 的随机矩阵最大 ρ 与 2^39 的距离
+    theory: 最坏界 2^(n−1) 极少被接近
+  - name: test_symbolic_fill_matches_exact_elimination
+    kind: A
+    what: 5 个结构化矩阵：符号 nnz(L+U) 与有理数精确消元完全相等
+    theory: nnz(L+U) = 2n + 2Σ|later(k)|
+  - name: test_symbolic_prediction_is_an_upper_bound_under_cancellation
+    kind: A
+    what: 全 1 矩阵：符号 20 vs 精确 8
+    theory: 精确消元中的抵消使真实 nnz ≤ 符号预测
+  - name: test_rcm_recovers_bandwidth_of_permuted_banded_matrix
+    kind: A
+    what: 置换三对角阵：带宽 (52,52) → RCM (1,1)
+    theory: RCM 在带上恢复原带宽
+  - name: test_minimum_degree_reduces_fill_on_laplacians
+    kind: A
+    what: k=5,7,9 网格上 AMD < RCM < 自然序的 nnz(L+U)
+    theory: 最小度贪心以填充为目标
+  - name: test_treewidth_upper_bound_is_above_the_true_treewidth
+    kind: A
+    what: k=4..10 网格：消元最大团给出的树宽上界 ≥ 真实树宽 k
+    theory: k×k 网格树宽 = k；贪心只给上界
+  - name: test_ordering_report_matches_reference_column_counts
+    kind: A
+    what: 6×6 网格三种排序：自研符号填充与 SuperLU(NATURAL) 逐例相等
+    theory: 同一矩阵同一顺序的填充是确定量
+  - name: test_csr_container_matches_dense_operations
+    kind: B
+    what: matvec/to_dense/transpose/permute_symmetric 与稠密实现逐元素一致
+    theory: CSR 容器与稠密表示等价
+  - name: test_symmetric_permutation_preserves_structure_and_spectrum
+    kind: B
+    what: 5×5 网格 RCM 置换后特征值最大偏差与结构保持
+    theory: 对称置换是相似变换
+  - name: test_orderings_return_valid_permutations
+    kind: B
+    what: 自然序/RCM/CM/最小度的输出都是 0..n−1 的排列
+    theory: 排序接口必须返回合法置换
+  - name: test_fill_edges_and_nnz_identity
+    kind: B
+    what: 5×5 网格闭式 2n+2Σ|later| = 258、三对角 n=8 = 30，且 fill_edges 接口一致
+    theory: nnz 分解式与闭式
+  - name: test_spy_points_match_nonzeros
+    kind: B
+    what: 两张矩阵的 spy 坐标集合与 np.nonzero 完全相同
+    theory: spy 坐标 = 非零元坐标
+  - name: test_band_storage_keeps_all_nonzeros
+    kind: B
+    what: 三对角 n=50：带宽 1、存储 (3,50) 且带内元素逐点复原
+    theory: LAPACK 带状存储 ab[b+i−j, j] = a_ij
+  - name: test_permutation_matrix_acts_as_row_permutation
+    kind: B
+    what: PᵀP=I、PA=A[perm]、LU 的 perm 自洽
+    theory: 置换矩阵的行重排语义
+  - name: test_profile_and_bandwidth_are_consistent
+    kind: B
+    what: 对角阵带宽 (0,0)/剖面 0；置换三对角阵剖面 986 → 59
+    theory: 剖面的定义与 RCM 的剖面改善
+  - name: test_spy_ordering_frames_obey_invariants
+    kind: B
+    what: 章节帧：填充随步数单调、末步等于总填充、三种排序残差 ≤ 100u
+    theory: 可视化画出的量必须满足同一批不变量
+  - name: test_all_chapter_frames_are_well_formed
+    kind: B
+    what: 4 个 viz 的 requiredAux 与关键曲线有限性
+    theory: 帧契约：必备对照量真的存在
+
+  # ---- 帧级回归（tests/1.2/test_frames.py）：把前端真踩到的坑钉住 ----
+  - name: test_permuted_factorization_identity_holds_for_all_pivots
+    kind: A
+    what: P·A·Q = L·U 在三种主元策略、7 类矩阵上 ≤ 16u·ρ·‖A‖（含 Q 的转置约定）
+    theory: 完全主元下 L·U = P·A·Q；奇异情形按定义跳过
+  - name: test_leading_block_residuals_are_roundoff_sized
+    kind: B
+    what: 逐步前导块残差 ≤ 8·m·u·ρ·‖A‖（用 ref_history 的"当步"参照块，25 个组合）
+    theory: 每步消元的后向误差都是舍入级，不随步数累积
+  - name: test_heatmap_residual_history_is_roundoff_sized_for_all_pivots
+    kind: B
+    what: 帧数组 residual_history 的峰值 ≤ 16·n·u·ρ_max（三种策略 × 3 组参数）
+    theory: 用户看到的那条曲线必须与算法层面的量一致（残差是 O(u)，不是 O(1)）
+  - name: test_unit_ball_reports_singular_state_instead_of_crashing
+    kind: B
+    what: κ = 1e17 时 unit_ball 仍可编码：meta.* 为 null、status 说明奇异、overflow 为真
+    theory: κ > 1/u 时问题在 float64 下不可解，这是要显示的状态而不是崩溃
+  - name: test_overflow_flag_tracks_the_drawn_objects
+    kind: A
+    what: 单位圆的像峰值 ≤ 2.24（κ=1 时 overflow 假），|x̂|∞ > 3（κ=1e16 时 overflow 真）
+    theory: 规则 1/4——溢出标志必须跟随"画出来的对象"，而不是只看其中一条曲线
+  - name: test_wilkinson_growth_is_two_to_the_n_minus_one
+    kind: B
+    what: ρ(Wilkinson(n)) 部分主元 = 2^(n−1)（n=6/12/16），完全主元 ≤ 2
+    theory: 部分主元的最坏情形可达 2^(n−1)；完全主元把它压到 2

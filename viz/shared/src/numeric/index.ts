@@ -13,5 +13,6 @@
  */
 
 export * from "./heat.js";
+export * from "./lu.js";
 export * from "./oscillator.js";
 export * from "./orderfit.js";

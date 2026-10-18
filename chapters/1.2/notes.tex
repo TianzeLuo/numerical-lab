@@ -1,0 +1,412 @@
+% 1.2 章 · 线性方程组直接法
+% 这一章的笔记要把"解 Ax=b"拆成三件互不相同的数学事实：
+%   1) 消元本身稳不稳（增长因子 ρ，后向误差）；
+%   2) 问题本身难不难（条件数 κ，前向误差）；
+%   3) 稀疏结构怎么变（填充、带宽、剖面）。
+% 断言附表由 tools/build_book.py 从实际运行结果生成，\input 进来，不手抄。
+
+\numlabchapter{线性方程组直接法：消元、条件数与稀疏结构}{1.2}
+
+\section{这一章要解决什么}
+
+给定 $A\in\mathbb{R}^{n\times n}$ 与 $b\in\mathbb{R}^n$，求 $x$。教科书写到"高斯消元"就停了，
+可工程上真正要回答的是三个**互相独立**的问题：
+
+\begin{enumerate}
+  \item \textbf{消元本身稳定吗？} 即：算出来的因子满足 $\hat L\hat U \approx PA$ 到什么程度？
+        这由增长因子 $\rho$ 与单位舍入 $u$ 决定，与 $A$ 的条件数无关。
+  \item \textbf{问题本身病态吗？} 即：$b$ 的微小扰动会被放大多少倍？这由 $\kappa(A)$ 决定，
+        再好的算法也救不回来。
+  \item \textbf{稀疏结构会怎么变？} 消元会给图添边（填充），添多少只取决于结构与顺序，
+        与数值毫无关系。
+\end{enumerate}
+
+把这三件事混在一起，就会得出"$\rho$ 大所以解不准""$\det$ 小所以病态"这类错误结论。
+本章四个可视化分别把这三点摆到台面上，全部结论都有实测数字支撑。
+
+记号：$u=\tfrac12\varepsilon_{\text{mach}}=2^{-53}\approx1.11\times10^{-16}$ 是单位舍入；
+$\|\cdot\|$ 缺省指 $\infty$ 范数；$\hat{\cdot}$ 表示浮点算出来的量。
+
+\section{高斯消元与 LU 分解}
+
+\subsection{无主元分解的存在唯一性}
+
+\begin{definition}[顺序主子矩阵]
+$A$ 的第 $k$ 阶顺序主子矩阵记为 $A_{1:k,1:k}$，其行列式记为 $\Delta_k$。
+\end{definition}
+
+\begin{theorem}[无主元 LU 分解]
+\label{thm:lu-exists}
+若 $\Delta_k\ne0\ (k=1,\dots,n-1)$，则存在唯一的单位下三角 $L$（对角元全为 $1$）
+与上三角 $U$ 使 $A=LU$。
+\end{theorem}
+
+\begin{proof}
+\emph{存在性}：对 $n$ 作归纳。$n=1$ 时取 $L=1,U=a_{11}$。设 $n>1$ 且 $\Delta_1=a_{11}\ne0$，写分块形式
+\[
+  A=\begin{pmatrix} a_{11} & a_{12}^{\mathsf T}\\ a_{21} & A_{22}\end{pmatrix},
+  \qquad
+  L_1=\begin{pmatrix}1&0\\ a_{21}/a_{11} & I\end{pmatrix},\quad
+  U_1=\begin{pmatrix}a_{11}&a_{12}^{\mathsf T}\\ 0 & S\end{pmatrix},
+\]
+其中 $S=A_{22}-a_{21}a_{12}^{\mathsf T}/a_{11}$ 是 \textbf{Schur 补}。直接相乘得 $L_1U_1=A$。
+$S$ 的第 $k$ 阶顺序主子矩阵的行列式满足 $\Delta_{k+1}=a_{11}\det S_k$（分块三角阵的行列式），
+故 $S$ 满足归纳假设，递归分解 $S=L_SU_S$，令 $L=L_1\,\mathrm{diag}(1,L_S)$、$U=\mathrm{diag}(1,U_S)$
+方向的对应分块即可。
+
+\emph{唯一性}：设 $A=LU=L'U'$，则 $L^{-1}L'=UU'^{-1}$。左边是单位下三角、右边是上三角，
+两者相等只能是单位矩阵，于是 $L=L'$、$U=U'$。
+
+\emph{必要性}：若某个 $\Delta_k=0$，则 $A_{1:k,1:k}=L_kU_k$ 会给出 $\Delta_k=\prod_{i\le k}u_{ii}=0$，
+消元第 $k$ 步必然出现零主元——所以"顺序主子式非零"正好是消元可执行的条件。
+\end{proof}
+
+\begin{corollary}[对角占优是充分条件]
+若 $A$ 严格对角占优，则 $\Delta_k\ne0$ 对一切 $k$ 成立，无主元消元总能跑完。
+\end{corollary}
+
+\begin{proof}
+严格对角占优矩阵必非奇异：若 $Ax=0$ 且 $\|x\|_\infty=|x_i|>0$，则
+$|a_{ii}||x_i|=|\sum_{j\ne i}a_{ij}x_j|\le\sum_{j\ne i}|a_{ij}||x_i|<|a_{ii}||x_i|$，矛盾。
+Schur 补保持严格对角占优（见 \S\ref{sec:pivot} 的引理），逐阶应用即得 $\Delta_k\ne0$。
+\end{proof}
+
+\subsection{运算量}
+
+\begin{theorem}[LU 的运算量]
+\label{thm:flops}
+无主元（或部分主元，主元搜索不计）消元的标量运算次数为
+\begin{equation}
+  N(n)=\sum_{k=0}^{n-2}(n-k-1)\bigl(2(n-k-1)+1\bigr)
+      =\frac{n(n-1)(4n+1)}{6}=\frac{2}{3}n^3+O(n^2).
+  \label{eq:flops}
+\end{equation}
+\end{theorem}
+
+\begin{proof}
+第 $k$ 步（$k=0,\dots,n-2$）要消去 $m=n-k-1$ 行的第 $k$ 列元素：每行 $1$ 次除法得到乘子，
+然后对余下的 $m$ 个元素做一次"乘加"，即 $2$ 次标量运算。于是
+$N(n)=\sum_{m=1}^{n-1}m(2m+1)=\frac{(n-1)n(2n-1)}{3}+\frac{n(n-1)}{2}
+=\frac{n(n-1)(4n+1)}{6}$。
+\end{proof}
+
+\begin{remark}[Cholesky 省一半]
+对称正定时 Cholesky 分解只需 $\frac13n^3$ 次运算（定理 \ref{thm:chol-flops}），
+正好是 LU 的一半——这半个 $n^3$ 就是"利用对称性"的全部收益。
+\end{remark}
+
+\subsection{后向稳定性：消元到底准不准}
+
+\begin{theorem}[Wilkinson 后向误差界]
+\label{thm:wilkinson-backward}
+设 $\hat L,\hat U$ 是用部分主元消元在浮点下算出的因子，则存在 $\delta A$ 使
+\begin{equation}
+  \hat L\hat U=P(A+\delta A),\qquad \|\delta A\|_\infty\le c\,n\,\rho\,u\,\|A\|_\infty,
+  \label{eq:backward}
+\end{equation}
+其中 $\rho$ 是增长因子（定义 \ref{def:growth}），$c$ 是与 $n$ 无关的小常数。
+特别地，$\hat L\hat U$ 是"某个邻近矩阵"的精确分解——这就是\textbf{后向稳定}的含义。
+\end{theorem}
+
+\begin{proof}[证明要点]
+每一步消元的舍入可以折进被消去的元素里，逐列累积得到一个扰动矩阵 $\delta A$；
+第 $k$ 步引入的误差幅值为 $O(u\cdot\max|\hat U^{(k)}|)=O(u\,\rho\,\|A\|_\infty)$，
+共有 $O(n)$ 步、每步涉及 $O(n)$ 个元素，故总量为 $c\,n\,\rho\,u\,\|A\|_\infty$。
+详细推导见 Higham《Accuracy and Stability of Numerical Algorithms》第 9 章。
+\end{proof}
+
+\begin{corollary}[后向误差与 $\kappa$ 无关]
+范数型后向误差
+$\eta=\dfrac{\|A\hat x-b\|_\infty}{\|A\|_\infty\|\hat x\|_\infty+\|b\|_\infty}$
+满足 $\eta\lesssim c\,n\,\rho\,u$，与 $A$ 是否病态\textbf{无关}。
+\end{corollary}
+
+本章断言 \texttt{test\_\allowbreak{}forward\_\allowbreak{}error\_\allowbreak{}follows\_\allowbreak{}kappa\_\allowbreak{}u\_\allowbreak{}while\_\allowbreak{}backward\_\allowbreak{}stays\_\allowbreak{}at\_\allowbreak{}u}
+实测：$\kappa$ 从 $10^2$ 扫到 $10^{14}$，后向误差始终 $\le10u$，
+而前向误差按 $\kappa u$ 线性增长。
+
+\section{主元策略与增长因子}
+\label{sec:pivot}
+
+\begin{definition}[增长因子]
+\label{def:growth}
+设消元过程中的中间矩阵（消元前的"工作矩阵"）的最大元为 $g_k$，则
+\begin{equation}
+  \rho=\frac{\max_{i,j,k}|a^{(k)}_{ij}|}{\max_{i,j}|a_{ij}|},
+\end{equation}
+$g_k$ 取遍全部中间状态。本章实现里用 $\rho=\max|U|/\max|A|$（等价，因为中间矩阵的
+最大元一定出现在 $U$ 的某个元素上）。
+\end{definition}
+
+\begin{theorem}[部分主元的上界及其可达性]
+\label{thm:growth-bound}
+部分主元消元满足 $|l_{ik}|\le1$ 且
+\begin{equation}
+  \rho\le 2^{n-1}.
+  \label{eq:growthbound}
+\end{equation}
+该上界\textbf{可达}：Wilkinson 矩阵 $W_n$（对角 $1$、下三角 $-1$、最后一列 $1$）
+在部分主元下取到 $\rho=2^{n-1}$。
+\end{theorem}
+
+\begin{proof}
+\emph{乘子}：第 $k$ 步选的是列最大元，故 $|l_{ik}|=|a_{ik}^{(k)}|/|a_{kk}^{(k)}|\le1$。
+
+\emph{上界}：设 $M=\max|a_{ij}|$。对步数归纳证明中间元满足 $|a^{(k)}_{ij}|\le2^kM$。
+一步更新为 $a^{(k+1)}_{ij}=a^{(k)}_{ij}-l_{ik}a^{(k)}_{kj}$，
+于是 $|a^{(k+1)}_{ij}|\le2^kM+1\cdot2^kM=2^{k+1}M$。取 $k\le n-1$ 得 $\rho\le2^{n-1}$。
+
+\emph{可达性}：$W_n$ 第 $0$ 列的元素是 $1$（对角）与 $-1$（下方），并列最大；
+按"取最小行号"的定则选出对角元，乘子全为 $-1$。更新后最后一列的元素翻倍，
+且子矩阵与 $W_{n-1}$ 结构相同，于是每步翻一倍，共 $n-1$ 步，$\rho=2^{n-1}$。
+\end{proof}
+
+\begin{theorem}[严格对角占优：无主元也稳定]
+\label{thm:dd}
+设 $A$ 严格对角占优，即 $|a_{ii}|>\sum_{j\ne i}|a_{ij}|$ 对一切 $i$ 成立。则无主元消元
+（即 $L$ 由 $A$ 自身给出）满足
+\begin{equation}
+  |l_{ik}|\le1,\qquad \rho\le2 .
+\end{equation}
+\end{theorem}
+
+\begin{proof}[证明要点]
+\emph{引理}：严格对角占优矩阵的 Schur 补仍严格对角占优
+（对 $S=A_{22}-a_{21}a_{12}^{\mathsf T}/a_{11}$，把 $S$ 的第 $i$ 行写成
+$a_{i\cdot}-l_{i1}a_{1\cdot}$ 并用 $|l_{i1}|\le1$ 与第 $1$ 行的占优性即可验证）。
+引理保证每一步的主元都满足 $|a^{(k)}_{kk}|>\sum_{i>k}|a^{(k)}_{ik}|$，
+于是 $|l_{ik}|<1$。
+
+界 $\rho\le2$ 是 Wilkinson 的经典结论（对角占优矩阵消元时增长因子不超过 $2$）：
+由于 $|l|\le1$ 且每一步的子矩阵仍是（按列）占优的，中间元的绝对值被
+$\max_{i,j}|a_{ij}|+\max_{i,j}|a_{ij}|$ 控制，不再继续放大。
+\end{proof}
+
+\begin{remark}[充分，不必要]
+\label{rem:dd-suffic}
+定理 \ref{thm:dd} 是\textbf{充分条件}：占优比 $>1$ 时你有保证；占优比 $\le1$ 时你既没有
+保证也没有反例——必须具体算 $\rho$ 或 $\kappa$。
+本章 \texttt{lu\_\allowbreak{}heatmap} 的滑块 \texttt{dominance} 把这条临界值画在 $1.0$ 上（规则 6），
+断言 \texttt{test\_\allowbreak{}diagonal\_\allowbreak{}dominance\_\allowbreak{}guarantees\_\allowbreak{}bounded\_\allowbreak{}growth} 用 60 组矩阵
+实测了 $\rho\le2$，同时记录了"占优比 $0.05$ 时 $\rho$ 可以到几十"这一事实。
+\end{remark}
+
+\begin{remark}[完全主元与代价]
+完全主元把 $\rho$ 压到 $O(n)$ 甚至 $2$（实测 Wilkinson 矩阵上 $\rho=2$），
+代价是 $O(n^2)$ 次额外比较与数据交换，且访存不再局部化——所以工业实现几乎只用部分主元。
+\end{remark}
+
+\section{条件数、前向误差与单位球的几何}
+
+\begin{definition}[条件数]
+$\kappa_p(A)=\|A\|_p\|A^{-1}\|_p$；$p=2$ 时 $\kappa_2=\sigma_{\max}/\sigma_{\min}$。
+\end{definition}
+
+\begin{theorem}[前向误差界]
+\label{thm:forward}
+设 $\hat x$ 是 $Ax=b$ 的计算解，$\eta$ 是它的后向误差，则
+\begin{equation}
+  \frac{\|\hat x-x\|}{\|x\|}\lesssim\kappa(A)\,\eta\lesssim c\,n\,\rho\,\kappa(A)\,u .
+  \label{eq:forward}
+\end{equation}
+\end{theorem}
+
+\begin{proof}
+$\hat x$ 精确满足 $(A+\delta A)\hat x=b$ 且 $\|\delta A\|\le\eta\|A\|$（后向误差的定义）。
+两式相减：$(A+\delta A)(\hat x-x)=-\delta A\,x$，故
+$\hat x-x=-(I+A^{-1}\delta A)^{-1}A^{-1}\delta A\,x$。当 $\kappa(A)\eta<1$ 时
+$\|(I+A^{-1}\delta A)^{-1}\|\le1/(1-\kappa\eta)$，取范数即得
+$\|\hat x-x\|/\|x\|\le\kappa\eta/(1-\kappa\eta)$。
+\end{proof}
+
+\begin{theorem}[单位球像的面积]
+\label{thm:ball}
+单位球 $\{x:\|x\|_2=1\}$ 在 $A$ 下的像是一个椭圆，其面积为 $|\det A|\cdot\pi$，
+且半轴长恰为奇异值 $\sigma_1,\sigma_2$。
+\end{theorem}
+
+\begin{proof}
+$A=U\Sigma V^{\mathsf T}$（奇异值分解），$V$ 是正交阵把单位球映成自身，
+$\Sigma$ 把单位圆映成半轴为 $\sigma_1,\sigma_2$ 的轴对齐椭圆（面积 $\sigma_1\sigma_2\pi$），
+$U$ 是旋转不影响面积。而 $\sigma_1\sigma_2=|\det A|$。
+\end{proof}
+
+\begin{remark}[$\det$ 不是病态度量]
+\label{rem:det}
+$\det A$ 只给出"体积缩放"，$\kappa$ 给出"形状扭曲"。取剪切矩阵
+$S_s=\begin{pmatrix}1&s\\0&1\end{pmatrix}$：$\det S_s=1$ 对一切 $s$ 成立，
+但 $\kappa_2(S_s)$ 随 $s$ 无界增长（$s=10^6$ 时 $\kappa\approx4\times10^{12}$）。
+反过来，$\kappa=1$ 的矩阵可以有任意小的行列式（$A=\epsilon I$）。
+\texttt{unit\_\allowbreak{}ball} 那一页把两者同时画出来：面积比对拍 $|\det|$，
+而椭圆的扁度对拍 $\kappa$。
+\end{remark}
+
+\begin{remark}[$\kappa>1/u$ 时问题在 double 下不可解]
+若 $\sigma_{\min}<u\,\sigma_{\max}$，则 $A$ 的元素与某个奇异矩阵的元素
+逐位相同（差别小于一个 ulp）。此时"$\hat x$ 有多少位有效数字"这个问题本身没有意义，
+$\kappa u\gtrsim1$ 就是浮点算术的硬边界。本章 $b$-$\kappa$ 曲线一直画到
+$\log_{10}\kappa=17$ 就是为了让你看到这条边界。
+\end{remark}
+
+\section{Cholesky 分解}
+
+\begin{theorem}[存在唯一性]
+\label{thm:chol}
+$A$ 对称正定当且仅当存在唯一的对角元为正的下三角 $L$ 使 $A=LL^{\mathsf T}$。
+\end{theorem}
+
+\begin{proof}
+\emph{必要性}：对 $n$ 归纳。对称正定蕴含 $a_{11}>0$（取 $x=e_1$）。写
+$A=\begin{pmatrix}a_{11}&a_{21}^{\mathsf T}\\a_{21}&A_{22}\end{pmatrix}$，
+令 $l_{11}=\sqrt{a_{11}}$、$l_{21}=a_{21}/l_{11}$，则
+$S=A_{22}-l_{21}l_{21}^{\mathsf T}=A_{22}-a_{21}a_{21}^{\mathsf T}/a_{11}$ 是 \emph{Schur 补}，
+且 $S$ 仍对称正定：对任意 $y\ne0$，
+\begin{equation}
+  y^{\mathsf T}Sy=\min_{t\in\mathbb{R}}\;(t,\,y)^{\mathsf T}A\,(t,\,y)^{\mathsf T}
+  =\min_{t}\bigl(a_{11}t^{2}+2t\,a_{21}^{\mathsf T}y+y^{\mathsf T}A_{22}y\bigr)>0,
+\end{equation}
+因为极小值在 $t^\ast=-a_{21}^{\mathsf T}y/a_{11}$ 处取到（此时 $(t^\ast,y)\ne0$，二次型为正），
+而代入即得左边。于是递归分解 $S=L_SL_S^{\mathsf T}$，令
+$L=\begin{pmatrix}l_{11}&0\\ l_{21}&L_S\end{pmatrix}$ 便有 $LL^{\mathsf T}=A$，
+且 $l_{11}>0$、$L_S$ 的对角元由归纳假设为正。
+
+\emph{充分性}：$x^{\mathsf T}Ax=\|L^{\mathsf T}x\|_2^2>0$（$x\ne0$ 时 $L^{\mathsf T}x\ne0$ 因 $L$ 可逆）。
+
+\emph{唯一性}：由 $a_{11}=l_{11}^2$ 定出 $l_{11}>0$，逐列比较即逐项定出 $L$。
+\end{proof}
+
+\begin{theorem}[运算量与稳定性]
+\label{thm:chol-flops}
+Cholesky 需要 $\frac13n^3+O(n^2)$ 次运算，且分解过程中
+\begin{equation}
+  \rho=\max|U|/\max|A|=1\quad(\text{精确到 }u),\qquad |l_{ij}|\le1 .
+\end{equation}
+即：对称正定时\textbf{不需要选主元}。
+\end{theorem}
+
+\begin{proof}
+运算量：第 $j$ 列要算 $n-j-1$ 个 $l_{ij}$，每个需要（$j$ 次乘加的累加 $+1$ 次除法），
+求和得 $\sum_j(n-j-1)(2j+1)=\frac13n^3+O(n^2)$，恰为 LU 的一半。
+
+稳定性：$l_{jj}^2=a_{jj}-\sum_{k<j}l_{jk}^2\le a_{jj}\le\max_i a_{ii}$，
+故所有 $l_{ij}^2\le a_{jj}$ 有界；又 $u_{ij}=\sum_k l_{ik}l_{jk}$ 的量级不超过 $\max|a_{ij}|$，
+于是增长因子为 $1$。本章断言实测：200 个随机对称矩阵上
+"Cholesky 能否分解"与"特征值是否全正"逐例一致。
+\end{proof}
+
+\section{稀疏直接法：消元即弦化}
+\label{sec:sparse}
+
+\begin{definition}[图与消元]
+对称矩阵 $A$ 的\emph{结构图} $G(A)$ 以 $1..n$ 为顶点，$a_{ij}\ne0\ (i\ne j)$ 时连边 $(i,j)$；
+对角元视为自环，与结构无关。记 $\mathrm{later}(k)=\{j>k:\ j\text{ 与 }k\text{ 在消元到第 }k\text{ 步时相邻}\}$。
+\end{definition}
+
+\begin{theorem}[填充公式]
+\label{thm:fill}
+不许数值抵消、且消元顺序为自然序时，
+\begin{equation}
+  \mathrm{nnz}(L+U)=2n+2\sum_{k=0}^{n-1}|\mathrm{later}(k)| .
+  \label{eq:fill}
+\end{equation}
+一般顺序只需把 $A$ 换成 $PAP^{\mathsf T}$。消元的图论含义是：\textbf{消去顶点 $k$ 时，
+把它的活跃邻居两两连边}（弦化），新增的边就是填充。
+\end{theorem}
+
+\begin{proof}
+$U$ 的第 $k$ 行在列 $j$ 上非零当且仅当 $j\in\mathrm{later}(k)\cup\{k\}$：
+消去 $k$ 会把第 $k$ 行的非零元传播到它的活跃邻居，反之每一条填充边都对应一次这样的传播。
+于是 $\mathrm{nnz}(U)=n+\sum_k|\mathrm{later}(k)|$。
+$L$ 的第 $k$ 列（不含对角）非零元个数恰为 $|\mathrm{later}(k)|$（乘子只出现在被消去的行上），
+故 $\mathrm{nnz}(L)=n+\sum_k|\mathrm{later}(k)|$，相加即 \eqref{eq:fill}。
+\end{proof}
+
+\begin{remark}[符号预测是上界]
+公式 \eqref{eq:fill} 是\textbf{结构}预言：实际数值消元中若发生精确抵消，真实非零元会更少。
+实测：全 $1$ 的 $4\times4$ 矩阵符号预测 $\mathrm{nnz}(L+U)=20$，精确（有理数）消元只有 $8$。
+工程实现因此都要留余量或动态判断（这正是断言
+\texttt{test\_\allowbreak{}symbolic\_\allowbreak{}prediction\_\allowbreak{}is\_\allowbreak{}an\_\allowbreak{}upper\_\allowbreak{}bound\_\allowbreak{}under\_\allowbreak{}cancellation} 钉住的）。
+\end{remark}
+
+\begin{definition}[带宽、剖面、树宽上界]
+$\mathrm{bw}(A)=\max\{|i-j|:a_{ij}\ne0\}$；
+$\mathrm{prof}(A)=\sum_i(\text{第 }i\text{ 行最后一个非零列}-\text{第一个非零列})$；
+消元过程中出现的最大团大小减一给出\textbf{树宽的上界}（弦化后的图是弦图，
+其最大团减一即为该图的树宽）。
+\end{definition}
+
+\begin{theorem}[RCM 与最小度的分工]
+\label{thm:ordering}
+对 $k\times k$ 网格 Laplacian（$n=k^2$）：
+\begin{itemize}
+  \item 自然序：$\mathrm{nnz}(L+U)=O(n^{3/2})$，带宽 $k$；
+  \item 逆 Cuthill--McKee（RCM）：把带宽压到接近 $O(k)$，填充顺带改善；
+  \item 最小度：逐点消去当前度最小的顶点，填充显著变少，但带宽不再有保证；
+  \item $k\times k$ 网格的真实树宽恰为 $k$，而贪心消元只能给出\textbf{上界}。
+\end{itemize}
+\end{theorem}
+
+\begin{proof}[说明]
+前两条是 Cuthill--McKee 与 George 的经典结果（RCM 在"路/带"型图上接近最优）。
+树宽等于 $k$ 可用"$k$ 个对角线的分割"给出上界、用 $k\times k$ 网格含
+$k\times k$ 的 bramble 给出下界（Seymour--Thomas）。贪心给出的上界一般严格更大，
+本章断言实测 $k=4..10$ 时上界 $\ge k$ 即为此意。
+\end{proof}
+
+\begin{remark}[三个目标互相打架]
+实测 $k=8$（$n=64$）的二维 Laplacian：自然序 $\mathrm{nnz}(L+U)=856$、带宽 $8$、剖面 $364$；
+RCM 带宽最好；最小度填充最少（约为自然序的 $59\%$）但带宽最差。
+优化内存带宽、优化浮点运算量、优化并行度是三件不同的事，
+所以 \texttt{spy\_\allowbreak{}ordering} 的角标要把五个数字一起摆出来。
+\end{remark}
+
+\section{四个可视化该怎么看}
+
+\begin{enumerate}
+  \item \textbf{lu\_heatmap}：颜色是 $\log_{10}|$元素$|$（看着"一片蓝"不代表接近零）。
+        把 \texttt{pivot} 从"部分主元"切到"无主元"、把 \texttt{dominance} 拖到 $1$ 以下，
+        看副轴的 $\rho(k)$ 什么时候跳起来——注意它是\textbf{突变}的，不会给你预警。
+  \item \textbf{unit\_ball}：主坐标轴固定 $\pm3$，任何时候都不许自适应（否则病态被抹平）。
+        面积比给出 $|\det A|$，扁度给出 $\kappa$；拖着 $\log_{10}\kappa$ 走到 $17$，
+        会看到 $\kappa u\sim1$ 之后解的有效位被吃光。
+  \item \textbf{spy\_ordering}：灰=原结构、红=已产生的填充、浅灰=后续填充。
+        副轴的"三种排序后向残差"全都贴在同一水平线上——排序不改数值稳定性，只改运算量。
+  \item \textbf{pivot\_strategy}：主轴是 $\log_{10}\rho$ 柱状，副轴是前向/后向误差。
+        选 \texttt{tiny\_\allowbreak{}pivot} 看"$\rho$ 爆炸但 $\kappa$ 很小"，选 \texttt{hilbert} 看
+        "$\rho$ 全是 $1$ 但解只有 8 位有效数字"——这两个方向都要看。
+\end{enumerate}
+
+\input{chapters/1.2/asserts_table}
+
+\section{它会怎样骗你（本章版）}
+
+\begin{enumerate}
+  \item \textbf{把 $\rho$ 大读成解不准}：$\rho$ 只管后向误差，落到解上还要乘 $\kappa$。
+        tiny\_pivot 上两者同向（$\kappa$ 小、$\rho$ 大、解全错），Hilbert 上反向
+        （$\rho=1$、$\kappa=3.4\times10^{10}$、前向误差 $10^{-8}$）。
+  \item \textbf{自适应坐标把病态画成"很圆"}：这就是 \texttt{axes[].autoscaled} 必须显式声明的原因。
+  \item \textbf{用采样量出来的 $\kappa$}：椭圆最扁方向上的 $r(\theta)$ 变化率是 $O(\kappa)$，
+        采样法会\textbf{系统性高估} $\sigma_{\min}$（实测 4001 点在 $\kappa\ge10^8$ 后饱和到 5258）。
+  \item \textbf{忽略"$\kappa>1/u$ 之后没有可表示的小奇异值"}：这时画出来的细椭圆本身就是幻觉。
+  \item \textbf{右端项选得不巧会让反例失效}：tiny\_pivot 配 $b=(1,1)^{\mathsf T}$ 时精确解是
+        $(0,1)^{\mathsf T}$，无主元消元居然算对——所以本章取"一般位置"的 $b$。
+  \item \textbf{残差恰好是 $0$}：前导块重建时舍入互相抵消，而 $0$ 画不到对数轴上；
+        本章给它一个明确的地板 $u/2$，并如实报告"有几步是精确 $0$"。
+  \item \textbf{把填充少当成更准}：三种排序的后向残差都是 $1\times10^{-16}$。
+  \item \textbf{把结构预测当成精确非零数}：抵消会让真实 $\mathrm{nnz}$ 变少。
+  \item \textbf{把树宽上界当成树宽}：贪心不给最优性保证。
+  \item \textbf{把时间轴当时间}：它是消元步数，拖到头就夹住；要看 \texttt{meta.step}。
+  \item \textbf{把"逐步残差"定义成最终置换下的残差}：前导块残差问的是"第 $m$ 步那一刻的
+        $m$ 阶块有多准"，参照块必须用\textbf{当步}的置换。用 $PA$ 取块（丢掉完全主元的列置换）
+        在完全主元下给出 $O(1)$ 的假残差（实测 1.21/1.16/2.00/0.25/0.92，见
+        \texttt{pitfalls.md} 第 13 条），而用最终的 $PAQ$ 则是"另一个定义"。
+        正确做法见 \texttt{numcore.linalg.lu.leading\_block\_residuals}：消元过程中维护一份
+        \textbf{只交换、不消元}的参照副本。
+  \item \textbf{把奇异当成崩溃、把 NaN 当数值}：精确奇异的矩阵上回代会除零；
+        $\kappa>1/u$ 时前向误差这类量会变成 \texttt{NaN}。前者应当显示为"状态"
+        （\texttt{meta.singular}、解向量写 \texttt{null}、\texttt{strings} 里说明原因），
+        后者会被 \texttt{Frame.validate()} 直接拒绝——\texttt{.nlf} 的头部是 JSON，
+        \texttt{allow\_nan=False}，NaN 连文件都写不出去。另外 \texttt{np.max} 遇 NaN 返回 NaN，
+        用 \texttt{np.max(abs(x)) > 3} 这种写法判"跑飞"会在 NaN 面前静默失效，
+        要写成 \texttt{np.any(np.abs(x) > 3)}。
+\end{enumerate}

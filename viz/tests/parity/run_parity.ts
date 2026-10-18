@@ -43,6 +43,7 @@ import { fileURLToPath } from "node:url";
 // 而不是走 `numeric/index.js` 桶文件——为的是让"case.algo → 实现模块"的映射在源码里可 grep。
 // （`index.ts` 仍是对外汇总出口，供其它消费者使用。）
 import { ftcsAmplification, ftcsRun, ftcsStep } from "../../shared/src/numeric/heat.js";
+import { luPartialPivot } from "../../shared/src/numeric/lu.js";
 import { dampedOscillator, oscillatorEnergy } from "../../shared/src/numeric/oscillator.js";
 import { fitOrderParity } from "../../shared/src/numeric/orderfit.js";
 import type { FitOptions } from "../../shared/src/loglogfit.js";
@@ -205,8 +206,23 @@ function computeOrderFit(inputs: Record<string, unknown>): Outputs {
   return out;
 }
 
+function computeLu(inputs: Record<string, unknown>): Outputs {
+  const n = asNumber(inputs.n, "inputs.n");
+  const a = asNumberArray(inputs.a, "inputs.a");
+  const res = luPartialPivot(a, n);
+  return {
+    l: res.l,
+    u: res.u,
+    perm: res.perm,
+    pivots: res.pivots,
+    rowSwaps: res.rowSwaps,
+    rho: res.rho,
+  };
+}
+
 const ALGOS: Record<string, (inputs: Record<string, unknown>) => Outputs> = {
   heat: computeHeat,
+  lu: computeLu,
   amplification: computeAmplification,
   oscillator: computeOscillator,
   orderfit: computeOrderFit,
