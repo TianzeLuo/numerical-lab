@@ -1,0 +1,147 @@
+# 5.1 章断言清单（真源：`tests/5.1/` 下的三个文件）
+#
+# 本章的分工：
+#   * **A 类（主）**——解析对拍。二次收敛常数、割线方程残差、CG 的有限步终止与共轭性、
+#     二次型谱、鞍点逃逸阈值、最优步长、以及"与参考实现（SciPy BFGS）的终点一致"。
+#   * **C 类（辅）**——收敛率与阈值。GD / 动量的实测压缩因子、二分出来的临界步长
+#     与条件数预算阈值、L-BFGS 记忆 m 的效果。
+#
+# 这里**故意**登记了几条"负面结论"，它们和正面结论一样重要：
+#   * Rosenbrock 上的二次常数**没被测出来**（尾部比值不稳定，窗口长度 < 2）；
+#   * 与负曲率方向正交的扰动**永远**逃不掉（阈值是"没测到"而不是 0）；
+#   * 动量把迭代数降到 sqrt(kappa) 分之一这句话**不成立**（实测只有 0.74-0.81 倍）；
+#   * kappa=1e5 时 CG 的有限步终止与共轭性同时失效（实测 8 步、偏差 0.995）。
+chapter: "5.1"
+title: 无约束优化与拟牛顿
+required_kinds: [A, C]
+
+min_counts:
+  A: 52
+  C: 13
+
+tests:
+  # ---- 收敛形态：牛顿法的二次收敛与它的失效方式（tests/5.1/test_optimize_convergence.py）----
+  - name: test_newton_quadratic_constant_is_measured_and_fails_far_away
+    kind: A
+    what: 四次型上二次比值 q_k=e_{k+1}/e_k^2 的稳定后缀（>=2 点、散布 <= 2.5）给出常数 C≈9.9e-5；第一步的 q 比 C 大 1087 倍
+    theory: e_{k+1} <= C e_k^2 只在解附近、整步被接受时成立；远处 C 还在漂移
+  - name: test_newton_loses_quadratic_convergence_when_steps_are_capped
+    kind: A
+    what: alpha_cap = 0.75/0.5/0.25 时实测线性因子 0.25/0.5/0.75（与 1-alpha_cap 差 <= 0.05）
+    theory: 整步 alpha=1 是二次收敛的必要条件；卡住步长后退化为线性，因子 1-alpha_cap
+  - name: test_newton_one_step_on_quadratic_and_on_saddle
+    kind: A
+    what: 正定二次型一步后残距 <= kappa*u 且 hessian_pd=1；鞍点一步后 dist=0 但 lambda_min=-0.5、hessian_pd=0
+    theory: 牛顿法一步到达驻点，但它不检查曲率符号：鞍点上到达的是鞍点
+  - name: test_bfgs_secant_residual_step_by_step
+    kind: A
+    what: 更新**后**逐步残差 <= 100u（4 维 kappa=1000 二次型与四次型），更新**前**最大残差 >= 0.5
+    theory: BFGS 更新后 B_{k+1}s_k = y_k；更新前一般不满足（只报后者等于没测）
+  - name: test_lbfgs_secant_residual_grows_with_pair_age
+    kind: A
+    what: L-BFGS(m=2) 对最新一对的逆割线残差 = 0（构造上精确），对上一对 0.13
+    theory: L-BFGS 只精确满足最近 m 个割线方程，越老越差
+  - name: test_cg_exact_line_search_terminates_in_n_steps
+    kind: A
+    what: (n,kappa)=(4,1e3)/(6,1e2)/(8,10) 全部恰好 n 步、归一化 A-共轭偏差 <= 1e-6；改成 Wolfe 不精确线搜索后 72 步且失去共轭性
+    theory: 精确线搜索下 CG 至多 n 步到达二次型最优解，方向两两 A-共轭
+  - name: test_quadratic_spectrum_and_optimum_match_analytic
+    kind: A
+    what: Jacobi 实测特征值与给定谱的相对误差 <= 1000u；最优解残差 ||A x* - b||/||b|| = 0
+    theory: 造题必须自证：实测谱 = 给定谱，否则 kappa 的结论测的是另一个问题
+  - name: test_rosenbrock_quadratic_tail_is_too_short_for_a_stable_constant
+    kind: A
+    what: 同一个窗口函数在四次型上给出 2 点稳定后缀与 C=9.9e-5，在 Rosenbrock 上返回 None（尾部比值 1.98 与 18.17 之间跳）
+    theory: 常数不可测时必须写 null；拿单点冒充常数是本章最常见的假证据
+  - name: test_escape_threshold_matches_analytic_formula
+    kind: A
+    what: 二分实测的逃逸阈值与 R(1+|lambda_-|alpha)^(-N) 相对差 <= 1e-6（lambda_- = -0.5/-0.05）；45 度方向的阈值 = 1/重合度 倍
+    theory: 逃逸阈值由负曲率方向的放大率决定，随机方向的有效性由 |<u_min,d>| 决定
+  - name: test_orthogonal_perturbation_never_escapes
+    kind: A
+    what: 与 u_min 正交的扰动：escaped=False、threshold=inf、重合度 <= 1e-12（放大到 1e6 也没用）；同题沿 u_min 阈值有限
+    theory: 负曲率分量为 0 时 GD 只会沿正曲率方向收缩，永远停在鞍点（或收敛到它）
+  - name: test_optimizers_match_reference_minimizer_on_rosenbrock
+    kind: A
+    what: 自研 newton/bfgs/trust_region 的终点与 numcore.reference 的 SciPy BFGS 终点距离 <= 1e-8
+    theory: 与参考实现一致是比"离解析极小点近"更强的检查
+  - name: test_measured_contraction_factor_equals_spectral_radius
+    kind: A
+    what: 16 个步长上实测梯度压缩因子与 max|1-alpha lambda_i| 相对差 <= 1e-4；实测 argmin = alpha* = 2/(L+mu)；alpha* 处因子 = (kappa-1)/(kappa+1)
+    theory: 定步长 GD 的渐近压缩因子就是谱半径，最优步长由它取极小值给出
+  - name: test_gd_iteration_count_is_linear_in_kappa
+    kind: A
+    what: kappa 从 10 到 10000 实测迭代数与 ceil(ln eps / ln rho) 相对差 <= 1e-3；幂律拟合指数 = 1；常数 C = N/kappa 与 0.5 ln(1/eps) 之比 <= 0.02
+    theory: N(kappa) ~ (kappa/2) ln(1/eps)：迭代数与条件数成正比
+  - name: test_contour_grid_matches_pointwise_evaluation
+    kind: A
+    what: 17x17 网格上 Z 与逐点求值相对差 = 0 且坐标范围/形状正确
+    theory: 等高线是图的背景，错了没人看得出来，必须逐点对拍
+  - name: test_secant_residual_definition_and_degenerate_case
+    kind: A
+    what: 精确满足时残差 0、不满足时 0.316（=||(1,2)||/||(2,6)||）；y=0 时返回 inf
+    theory: 割线残差的分母是 ||y||；无定义时返回 inf 而不是 0
+
+  # ---- 帧级：图上画出来的东西必须与算法层一致（tests/5.1/test_frames.py）----
+  - name: test_all_frames_finite_and_packable_at_corners
+    kind: A
+    what: 4 个 viz x 参数端点 x 时间端点共 69 帧：数组全有限、meta 无 NaN、打包后的字节流里不含 NaN/Infinity
+    theory: 帧契约（PROTOCOLS 1.3）：JSON 头里不许出现非有限值
+  - name: test_error_curves_are_floored_with_documented_placeholder
+    kind: A
+    what: 8 条对数轴曲线最小值 > 0；q_newton_valid / ratio_valid 掩码形状与 dtype 正确；strings 里有地板说明
+    theory: 三件套：占位值 + 掩码 + 文字说明，缺一不可
+  - name: test_descent_race_frame_marks_divergence
+    kind: A
+    what: kappa=1e4、step_scale=1.6 时 diverged_gd=True、stop_gd='diverged'、overflow=True，且 error_gd 长度 401 全有限（尾部补位）
+    theory: 发散是一种要显示的状态，不是要被静默截断的意外
+  - name: test_descent_race_frame_matches_core_iteration_counts
+    kind: A
+    what: 帧的 meta.n_iter_gd 与核心 gd(...) 的迭代数相等；meta.kappa_measured 与给定 kappa 相对差 <= 1e-12
+    theory: 装配层只许搬运，不许改数
+  - name: test_convergence_frame_constant_is_measured_or_null
+    kind: A
+    what: beta=0.05 时帧里的常数与核心 quadratic_window 的 C 逐位一致；beta=0 时写 None 且 strings 解释
+    theory: 可测就报实测值、不可测就写 null，两者都不许含糊
+  - name: test_convergence_frame_reports_degraded_rate_under_capped_steps
+    kind: A
+    what: alpha_cap=1 时尾部阶 >= 1.8、窗口 >= 2、C 有限、q 冲到 >= 1e50（舍入地板）；alpha_cap=0.5 时阶 <= 1.2、窗口 0、C 为 None
+    theory: 卡住步长使二次区消失；地板之后 q 的爆炸不是超二次收敛
+  - name: test_saddle_frame_direction_decides_escape
+    kind: A
+    what: delta=0.1、200 步：沿负曲率方向末距 >= 1，沿正交方向末距小 1e3 倍以上；meta.lambda_min = -0.05 且实测阈值与解析值相对差 <= 1e-3
+    theory: 逃逸与否由扰动在负曲率方向上的投影决定
+  - name: test_saddle_frame_contour_matches_pointwise_value
+    kind: A
+    what: 鞍点帧的 contour_z 与逐点求值相对差 <= 1e-14
+    theory: 背景等高线同样要自证
+  - name: test_trust_region_frame_exposes_rejections_and_negative_curvature
+    kind: A
+    what: 不定起点：n_negative_curv >= 1、n_rejected >= 1、min rho < 0、半径区间严格夹住 Delta0
+    theory: 自适应必须看得见：被拒绝的步、负曲率分支、半径的收缩与扩张
+  - name: test_trust_region_frame_matches_core_trace
+    kind: A
+    what: traj_x / radius_history / gradient_residual 与核心 trust_region 逐位相同；接受+拒绝计数 = 实际步数
+    theory: 帧是搬运而不是重算
+
+  # ---- 收敛率与阈值（tests/5.1/test_optimize_rates.py）----
+  - name: test_gd_linear_convergence_factor_matches_theory
+    kind: C
+    what: kappa = 100/1000/10000 上实测压缩因子与 (kappa-1)/(kappa+1) 相对差 <= 1e-5
+    theory: 最优步长下 GD 的线性收敛因子就是 (kappa-1)/(kappa+1)
+  - name: test_momentum_rate_matches_theory_but_iteration_ratio_does_not
+    kind: C
+    what: 动量的实测速率与 (sqrt(kappa)-1)/(sqrt(kappa)+1) 相对差 <= 0.02，但 N_gd/N_momentum 只有 0.74-0.81 倍 sqrt(kappa)
+    theory: 速率是渐近的，迭代数还含初始瞬态：把 sqrt(kappa) 当成迭代数结论会高估 20-26%
+  - name: test_gd_step_threshold_is_bisected_not_copied
+    kind: C
+    what: 30 次二分找出"2000 步内降 10 倍"的最大步长，与 (1+0.1^(1/N))/L 相对差 <= 5e-3，即 alpha_thr/alpha* -> 2/L
+    theory: 定步长 GD 的收敛域边界是 alpha = 2/L，判据里的有限步修正要写清楚
+  - name: test_iteration_budget_condition_number_threshold
+    kind: C
+    what: N=2000、eps=1e-8 时二分得到 kappa_max = 217.04，与 2N/ln(1/eps) = 217.15 相对差 <= 5e-3
+    theory: 迭代预算的可用形式：kappa_max ~ 2N/ln(1/eps)
+  - name: test_lbfgs_memory_reduces_iteration_count
+    kind: C
+    what: m = 1/2/3/5/8/12/20 的迭代数不增（216 -> 22），N(m=1)/N(m=20) >= 5 且 N(m=20)/N(BFGS) <= 6
+    theory: 记忆 m 越大保留的曲率信息越多；m >= n 时接近完整 BFGS

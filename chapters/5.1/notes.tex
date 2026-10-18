@@ -1,0 +1,644 @@
+% 5.1 章 · 无约束优化与拟牛顿
+% 这一章的笔记要把"让 f 变小"拆成四件互不相同的事：
+%   1) 步长策略（定步长 / 线搜索 / 信赖域）决定"能走多远"；
+%   2) 曲率信息（有没有、准不准）决定"走多快"；
+%   3) 收敛的**形态**（线性 / 超线性 / 二次）与收敛的**速度**（迭代数）是两码事；
+%   4) 停机判据是结论的一部分：换一个判据就换一个结论。
+% 所有结论都配一条带实测数字的断言，附表由 tools/build_book.py 生成后 \input 进来。
+
+\numlabchapter{无约束优化与拟牛顿}{5.1}
+
+\section{这一章要解决什么}
+
+给定 $f:\mathbb{R}^n\to\mathbb{R}$，求 $\min_x f(x)$。教科书在这里通常会给出一串方法：
+梯度下降、牛顿法、拟牛顿、共轭梯度、信赖域，然后说"牛顿法二次收敛、拟牛顿超线性收敛"。
+本章要做的不是把这张表抄一遍，而是把**这些话成立的条件与代价**算清楚：
+
+\begin{enumerate}
+  \item \textbf{梯度下降慢在哪里，慢多少？} 慢在条件数 $\kappa=L/\mu$：
+        迭代数是 $\Theta(\kappa\ln(1/\varepsilon))$，这条结论可以逐位验证（实测
+        $\kappa=1000,\varepsilon=10^{-8}$ 时 $9211$ 步，理论值 $9211$ 步）。
+  \item \textbf{"二次收敛"到底是什么条件下的事？} 它要求"解附近 $+$ Hessian 正定 $+$
+        \textbf{整步被接受} $+$ 已经在二次区"。缺一条就退化：卡住步长后退化为线性，
+        线性因子实测就是 $1-\alpha_{\text{cap}}$。
+  \item \textbf{没有二阶导数时，割线信息能替代多少？} BFGS 的割线方程是**更新公式的
+        目标**而不是恒等式：更新后残差 $3\times10^{-15}$，更新前 $0.999$，差 12 个数量级。
+        L-BFGS 只精确满足最近 $m$ 对，$m=2$ 时最新一对 $0.0$、上一对 $0.13$。
+  \item \textbf{鞍点上会发生什么？} 梯度下降在稳定流形上\textbf{收敛到鞍点并停住}；
+        扰动只有落在负曲率方向 $u_{\min}$ 上才有用，逃逸阈值是
+        $\delta^\star=R(1+|\lambda_{\min}|\alpha)^{-N}$，实测
+        $2.866\times10^{-3}$ 对解析值 $(1.05)^{-120}=2.866\times10^{-3}$。
+\end{enumerate}
+
+记号：$u=\tfrac12\varepsilon_{\text{mach}}=2^{-53}\approx1.11\times10^{-16}$ 是单位舍入；
+$\kappa=L/\mu$ 是 Hessian 的条件数（二次型上 $L=\lambda_{\max}$、$\mu=\lambda_{\min}$）；
+$e_k=x_k-x^\star$；$\|\cdot\|$ 缺省为二范数。
+
+\section{二次型上的梯度下降}
+
+本章所有"速率"结论都先在严格凸二次型上说清楚，因为只有在那里每一步都能算到底。
+
+\begin{theorem}[定步长梯度下降的误差递推与收敛充要条件]
+\label{thm:gd-recurrence}
+设 $f(x)=\tfrac12x^{\mathsf T}Ax-b^{\mathsf T}x$，$A=A^{\mathsf T}$，
+$0<\mu I\preceq A\preceq LI$，$x^\star=A^{-1}b$。
+迭代 $x_{k+1}=x_k-\alpha\nabla f(x_k)$ 的误差满足
+\[
+  e_{k+1}=(I-\alpha A)e_k ,
+\]
+并且对任意初值收敛的充要条件是
+\[
+  0<\alpha<\frac{2}{L}.
+\]
+此时 $\|e_k\|_2\le\rho(\alpha)^k\|e_0\|_2$，
+$\rho(\alpha)=\max_i|1-\alpha\lambda_i|=\max\{|1-\alpha\mu|,\,|1-\alpha L|\}$。
+\end{theorem}
+
+\begin{proof}
+$\nabla f(x)=Ax-b=A(x-x^\star)=Ae$，代入迭代式得
+$e_{k+1}=e_k-\alpha Ae_k=(I-\alpha A)e_k$。
+$A$ 对称，取正交特征基 $A=Q\Lambda Q^{\mathsf T}$，令 $c_k=Q^{\mathsf T}e_k$，
+则 $c_{k+1}=(I-\alpha\Lambda)c_k$，逐分量 $c_{k+1}^{(i)}=(1-\alpha\lambda_i)c_k^{(i)}$，
+于是 $c_k^{(i)}=(1-\alpha\lambda_i)^k c_0^{(i)}$，取二范数即得
+$\|e_k\|_2\le\max_i|1-\alpha\lambda_i|^k\|e_0\|_2$。
+
+\emph{充要性}：若 $0<\alpha<2/L$，则对每个 $i$ 有
+$-1<1-\alpha L\le1-\alpha\lambda_i\le1-\alpha\mu<1$，故 $\rho<1$，迭代收敛。
+反之若 $\alpha\ge2/L$，则 $|1-\alpha L|\ge1$；取 $e_0$ 为 $L$ 对应的特征向量，
+$\|e_k\|=\rho^k\|e_0\|$ 不趋于零；$\alpha\le0$ 时 $|1-\alpha\lambda_i|\ge1$ 同样不收敛。
+\end{proof}
+
+\begin{corollary}[最优步长与依赖条件数的迭代数]
+\label{cor:gd-rate}
+$\rho(\alpha)$ 在
+\[
+  \alpha^\star=\frac{2}{L+\mu}
+\]
+处取到最小值 $\rho^\star=\dfrac{L-\mu}{L+\mu}=\dfrac{\kappa-1}{\kappa+1}$。
+若要求 $\|e_N\|/\|e_0\|\le\varepsilon$，则
+\[
+  N(\kappa,\varepsilon)=\left\lceil\frac{\ln\varepsilon}{\ln\rho^\star}\right\rceil
+  =\Theta\!\left(\kappa\ln\frac1\varepsilon\right),
+  \qquad
+  N\approx\frac{\kappa+1}{2}\ln\frac1\varepsilon .
+\]
+\end{corollary}
+
+\begin{proof}
+对 $\alpha\le\alpha^\star$ 有 $\alpha(L+\mu)\le2$，即 $1-\alpha\mu\ge\alpha L-1$，
+故 $\rho(\alpha)=1-\alpha\mu$ 随 $\alpha$ 递减；对 $\alpha\ge\alpha^\star$ 同理得
+$\rho(\alpha)=\alpha L-1$ 递增。所以最小值在 $\alpha^\star$ 处，值为
+$1-\alpha^\star\mu=1-\frac{2\mu}{L+\mu}=\frac{L-\mu}{L+\mu}$。
+
+迭代数：$\|e_N\|\le(\rho^\star)^N\|e_0\|$ 取等号当 $e_0$ 是 $\mu$ 的特征向量，
+故所需步数是 $\lceil\ln\varepsilon/\ln\rho^\star\rceil$（该特征分量决定最后一段）。
+最后用 $\ln\rho^\star=\ln\frac{\kappa-1}{\kappa+1}
+=\ln\bigl(1-\frac{2}{\kappa+1}\bigr)\approx-\frac{2}{\kappa+1}$
+得到 $N\approx\frac{\kappa+1}{2}\ln\frac1\varepsilon$。
+实测（\texttt{test\_gd\_iteration\_count\_is\_linear\_in\_kappa}）：$\kappa=10,30,100,300,1000,3000,10000$
+上的实测迭代数是 $92,277,922,2764,9211,27632,92104$，与
+$\lceil\ln\varepsilon/\ln\rho^\star\rceil$ 的相对差小于 $10^{-3}$，
+幂律拟合的指数为 $1.000$，常数 $N/\kappa$ 与 $\tfrac12\ln(1/\varepsilon)$ 之比在 $0.02$ 之内。
+\end{proof}
+
+\begin{remark}[锯齿的几何]
+$e_{k+1}$ 的每一个特征分量独立地乘上 $1-\alpha\lambda_i$。$\lambda_i=L$ 的分量每步翻号
+（因为 $1-\alpha^\star L=-\frac{\kappa-1}{\kappa+1}$），$\lambda_i=\mu$ 的分量却几乎不变号，
+两者交替占优就形成等高线上的锯齿。$\kappa$ 越大，$\rho^\star$ 越接近 $1$
+（$\kappa=100$ 时 $0.980198$，$\kappa=10^4$ 时 $0.999800$，实测与理论逐位相同），
+所以"病态问题上的最速下降等于没走"这句话的量化形式就是 $\rho^\star=1-2/\kappa+O(\kappa^{-2})$。
+\end{remark}
+
+\subsection{临界步长：$2/L$ 与 $2/(L+\mu)$ 不是同一件事}
+
+$\alpha^\star=2/(L+\mu)$ 是最优步长，而收敛域的边界是 $2/L$。两者的比是
+$\frac{2/L}{2/(L+\mu)}=1+\frac1\kappa$：$\kappa=100$ 时只差 $1\%$。
+这解释了一个常见困惑——"我明明取了最优步长，为什么稍微调大一点就发散了"：
+从 $\alpha^\star$ 出发只有 $1/\kappa$ 的相对余量。
+实测（\texttt{test\_gd\_step\_threshold\_is\_bisected\_not\_copied}）：以"$2000$ 步内误差降 $10$ 倍"
+为判据二分，得到临界步长 $\alpha_{\text{thr}}/\alpha^\star$ 与
+$(1+0.1^{1/N})(L+\mu)/(2L)$ 的相对差小于 $5\times10^{-3}$，
+即 $\alpha_{\text{thr}}\to2/L$。
+
+\section{重球动量}
+
+\begin{theorem}[重球动量的谱半径]
+\label{thm:momentum}
+迭代 $x_{k+1}=x_k-\alpha\nabla f(x_k)+\beta(x_k-x_{k-1})$ 在二次型上的误差满足
+$e_{k+1}=(I-\alpha A)e_k+\beta(e_k-e_{k-1})$。取
+\[
+  \alpha=\frac{4}{(\sqrt L+\sqrt\mu)^2},\qquad
+  \beta=\left(\frac{\sqrt\kappa-1}{\sqrt\kappa+1}\right)^2
+  =\left(\frac{\sqrt L-\sqrt\mu}{\sqrt L+\sqrt\mu}\right)^2 ,
+\]
+则每个特征方向上的特征多项式
+$z^2-(1+\beta-\alpha\lambda_i)z+\beta=0$ 的两根模长都等于 $\sqrt\beta$。
+\end{theorem}
+
+\begin{proof}
+令 $c_i=1+\beta-\alpha\lambda_i$。记 $s=\sqrt L$、$m=\sqrt\mu$，则
+$\beta=\bigl(\frac{s-m}{s+m}\bigr)^2$、$\alpha=4/(s+m)^2$、
+$2\sqrt\beta=\frac{2(s-m)}{s+m}$。直接计算两个端点：
+\[
+  1+\beta-\alpha L=\frac{2(s^2+m^2)-4s^2}{(s+m)^2}
+  =\frac{-2(s-m)(s+m)}{(s+m)^2}=-2\sqrt\beta,
+\]
+\[
+  1+\beta-\alpha\mu=\frac{2(s^2+m^2)-4m^2}{(s+m)^2}
+  =\frac{2(s-m)(s+m)}{(s+m)^2}=+2\sqrt\beta .
+\]
+$c_i$ 是 $\lambda_i$ 的仿射函数，故 $\lambda_i\in[\mu,L]$ 时
+$|c_i|\le2\sqrt\beta$。
+二次方程两根之积为 $\beta>0$：若判别式 $c_i^2-4\beta<0$，两根是共轭复根，
+模长都是 $\sqrt\beta$；若 $c_i^2=4\beta$（只可能在端点取到），两根都是实数
+$\pm\sqrt\beta$，模长仍为 $\sqrt\beta$。
+\end{proof}
+
+\begin{corollary}[速率是渐近的，迭代数不是]
+\label{cor:momentum-transient}
+由定理 \ref{thm:momentum}，每个特征分量的二阶递推矩阵的特征值模长都是
+$\sqrt\beta=\frac{\sqrt\kappa-1}{\sqrt\kappa+1}$，故
+$\|e_k\|\le C(1+k)\beta^{k/2}\|e_0\|$；即\textbf{渐近速率}是
+$\frac{\sqrt\kappa-1}{\sqrt\kappa+1}$，但带一个 $O(k)$ 的瞬态因子。
+因此"动量把迭代数降到 $1/\sqrt\kappa$"只是渐近速率的推论。
+实测（\texttt{test\_momentum\_rate\_matches\_theory\_but\_iteration\_ratio\_does\_not}）：
+$\kappa=100,1000,10^4$ 上实测速率与理论值的相对差只有 $0.009,0.002,0.0007$（速率对得上），
+而迭代数之比 $N_{\text{gd}}/N_{\text{mom}}$ 是 $8.06,24.39,74.13$，
+只有 $\sqrt\kappa(=10,31.6,100)$ 的 $0.81,0.77,0.74$ 倍。
+把 $\sqrt\kappa$ 当成迭代数结论会高估 $20\%$ 到 $26\%$。
+\end{corollary}
+
+\begin{proof}
+重根只出现在 $|c_i|=2\sqrt\beta$ 的两个端点上（$\lambda_i=\mu$ 或 $L$）。
+此时二阶递推的转移矩阵是 Jordan 块，贡献一个 $k$ 的线性因子；
+其余方向的转移矩阵可对角化，因子有界。合并得
+$\|e_k\|\le C(1+k)(\sqrt\beta)^k\|e_0\|$。
+$C$ 与 $k$ 无关，故渐近对数速率仍是 $\ln\sqrt\beta$；
+但要在有限步数内达到给定精度，就必须多付这个 $(1+k)$ 因子，
+这正是实测迭代数比 $1/\sqrt\kappa$ 差两成的原因。
+\end{proof}
+
+\section{牛顿法：它到底承诺了什么}
+
+\begin{theorem}[二次型上一步到驻点]
+\label{thm:newton-one-step}
+若 $f$ 是定理 \ref{thm:gd-recurrence} 中的二次型且 $A$ 非奇异，
+则从任意 $x_0$ 出发，整步牛顿法 $x_1=x_0-\nabla^2f(x_0)^{-1}\nabla f(x_0)$
+满足 $x_1=x^\star$。
+\end{theorem}
+
+\begin{proof}
+$\nabla^2f(x_0)=A$ 与 $x_0$ 无关，$\nabla f(x_0)=Ax_0-b$，
+故 $x_1=x_0-A^{-1}(Ax_0-b)=A^{-1}b=x^\star$。
+\end{proof}
+
+\begin{theorem}[局部二次收敛及其常数]
+\label{thm:newton-quadratic}
+设 $f\in C^3$，$H=\nabla^2f(x^\star)\succ0$，$\mu=\lambda_{\min}(H)$，
+且存在 $M>0$ 使 $\|\nabla^2f(x)-H\|\le M\|x-x^\star\|$（在 $x^\star$ 的邻域内）。
+若第 $k$ 步的误差满足 $\|e_k\|\le r$ 且 $M\|e_k\|\le\mu/2$，则整步牛顿法给出
+\[
+  \|e_{k+1}\|\le\frac{3M}{\mu}\,\|e_k\|^2 .
+\]
+\end{theorem}
+
+\begin{proof}
+记 $H_k=\nabla^2f(x_k)$、$E_k=H_k-H$，由假设 $\|E_k\|\le M\|e_k\|$。
+由中值形式的 Taylor 展开（$\nabla f(x^\star)=0$）：
+\[
+  \nabla f(x_k)=He_k+R_k,\qquad \|R_k\|\le\frac M2\|e_k\|^2 .
+\]
+代入 $x_{k+1}=x_k-H_k^{-1}\nabla f(x_k)$：
+\[
+  e_{k+1}=e_k-H_k^{-1}(He_k+R_k)
+  =\bigl(I-H_k^{-1}H\bigr)e_k-H_k^{-1}R_k
+  =H_k^{-1}E_ke_k-H_k^{-1}R_k .
+\]
+由 $\|E_k\|\le M\|e_k\|\le\mu/2$ 与 Weyl 不等式，
+$\lambda_{\min}(H_k)\ge\mu-\|E_k\|\ge\mu/2$，故 $\|H_k^{-1}\|\le2/\mu$。
+于是
+\[
+  \|e_{k+1}\|\le\frac2\mu\Bigl(M\|e_k\|\cdot\|e_k\|+\frac M2\|e_k\|^2\Bigr)
+  =\frac{3M}{\mu}\|e_k\|^2 . \qedhere
+\]
+\end{proof}
+
+\begin{corollary}[三个前提缺一不可，缺哪一条就退化成什么]
+\label{cor:newton-degrade}
+\begin{enumerate}
+  \item \textbf{离开解附近}：定理 \ref{thm:newton-quadratic} 的常数项 $\frac{3M}\mu\|e_k\|$
+        本身是 $O(\|e_k\|)$，远一步就不成立。实测四次型上
+        $e_0=1.414$、$q_0=e_1/e_0^2=0.1076$，而渐近常数是
+        $C\approx9.905\times10^{-5}$，$q_0/C=1087$：
+        第一步比渐近常数大三个数量级。
+  \item \textbf{不整步}：若每步只允许走 $\alpha_{\text{cap}}<1$ 倍牛顿步，
+        解附近 $H_k\to H$，于是 $e_{k+1}=(1-\alpha_{\text{cap}})e_k+O(\|e_k\|^2)$，
+        退化为线性收敛，因子 $1-\alpha_{\text{cap}}$。
+        实测 $\alpha_{\text{cap}}=0.75/0.5/0.25$ 对应线性因子
+        $0.25/0.5/0.7506$（与 $1-\alpha_{\text{cap}}$ 的偏差小于 $0.05$）。
+  \item \textbf{Hessian 不正定}：见下面的定理 \ref{thm:newton-saddle}：
+        牛顿法照样一步到达驻点，只是那个驻点是鞍点。
+\end{enumerate}
+\end{corollary}
+
+\begin{proof}
+(1) 定理 \ref{thm:newton-quadratic} 给出的收缩因子是
+$\frac{3M}{\mu}\|e_k\|$。只有当
+$\|e_k\|<\frac{\mu}{3M}$ 时它才小于 $1$，此后每步误差才被平方级压小；
+在此之前 $\|e_{k+1}\|$ 甚至可能暂时变大（$e_0=1.414$ 时该因子是 $1087C/\|e_0\|$
+量级，实测 $q_0/C=1087$）。
+
+(2) 设 $x_{k+1}=x_k-\alpha_{\text{cap}}H_k^{-1}\nabla f(x_k)$，$H_k=\nabla^2f(x_k)$。
+沿用 (1) 的记号 $\nabla f(x_k)=He_k+R_k$（$\|R_k\|\le\frac M2\|e_k\|^2$）、
+$H_k=H+E_k$（$\|E_k\|\le M\|e_k\|$），则
+\[
+  e_{k+1}=(1-\alpha_{\text{cap}})e_k
+  +\alpha_{\text{cap}}\bigl(H_k^{-1}E_k e_k-H_k^{-1}R_k\bigr),
+\]
+其中最后一项是 $O(\|e_k\|^2)$。于是解附近
+$\|e_{k+1}\|=(1-\alpha_{\text{cap}})\|e_k\|+O(\|e_k\|^2)$，
+即线性收敛，因子 $1-\alpha_{\text{cap}}$（实测 $0.25/0.5/0.7506$，
+与 $1-\alpha_{\text{cap}}$ 的偏差小于 $0.05$）。
+
+(3) 由定理 \ref{thm:newton-saddle}，$\lambda_{\min}<0$ 时 $x^\star$ 是鞍点，
+牛顿法照样一步到达；"收敛"与"收敛到极小点"是两件事。
+\end{proof}
+
+\begin{theorem}[牛顿法不检查曲率符号：鞍点]
+\label{thm:newton-saddle}
+设 $f(x)=\tfrac12x^{\mathsf T}Hx$，$H$ 非奇异且 $\lambda_{\min}(H)<0$，
+对应单位特征向量 $u$。则：
+\begin{enumerate}
+  \item 整步牛顿法从任意 $x_0$ 出发一步到达 $x^\star=0$；
+  \item 定步长梯度下降在特征方向上逐个递推，
+        $u^{\mathsf T}e_{k+1}=(1-\alpha\lambda_{\min})\,u^{\mathsf T}e_k$，
+        故负曲率分量以 $|1-\alpha\lambda_{\min}|=1+|\lambda_{\min}|\alpha>1$ 增长；
+  \item 要在 $N$ 步内离开半径 $R$ 的邻域，扰动沿 $\pm u$ 的分量必须满足
+        \[
+          \delta^\star=R\,(1+|\lambda_{\min}|\alpha)^{-N};
+        \]
+  \item 若扰动与 $u$ 正交，则 $u^{\mathsf T}e_k\equiv0$，永远不逃逸。
+\end{enumerate}
+\end{theorem}
+
+\begin{proof}
+(1) 与定理 \ref{thm:newton-one-step} 同，取 $A=H$、$b=0$。
+
+(2) 由定理 \ref{thm:gd-recurrence}，$e_{k+1}=(I-\alpha H)e_k$，
+沿 $u$ 投影得 $u^{\mathsf T}e_{k+1}=(1-\alpha\lambda_{\min})u^{\mathsf T}e_k$；
+$\alpha>0$、$\lambda_{\min}<0$ 时 $1-\alpha\lambda_{\min}>1$。
+
+(3) $u^{\mathsf T}e_k=(1-\alpha\lambda_{\min})^k\,u^{\mathsf T}e_0$，
+要求存在 $k\le N$ 使 $\|e_k\|\ge R$；在纯 $u$ 方向扰动下
+$\|e_k\|=|u^{\mathsf T}e_k|$，故最小初始分量是 $R(1+|\lambda_{\min}|\alpha)^{-N}$。
+
+(4) 若 $u^{\mathsf T}e_0=0$，由 (2) 的递推立得 $u^{\mathsf T}e_k=0$ 对所有 $k$ 成立；
+其余方向按 $|1-\alpha\lambda_i|<1$ 收缩，迭代点收敛到鞍点。
+\end{proof}
+
+实测（\texttt{test\_escape\_threshold\_matches\_analytic\_formula}）：$\lambda_{\min}=-0.05$、
+$\alpha=1$、$R=1$、$N=120$ 时二分出来的阈值是 $2.86605\times10^{-3}$，
+解析值 $(1.05)^{-120}=2.86605\times10^{-3}$，相对差 $5.3\times10^{-10}$；
+沿 $45^\circ$ 方向（与 $u_{\min}$ 的投影为 $\tfrac1{\sqrt2}$）阈值放大
+$\sqrt2$ 倍（相对差小于 $10^{-5}$）。
+与 $u_{\min}$ 正交的方向上，把试探幅度放大到 $10^{6}$ 倍仍然测不到逃逸
+（\texttt{test\_orthogonal\_perturbation\_never\_escapes}）——
+这时阈值必须写成"没有测到"，不是 $0$。
+
+\section{线搜索：步长是怎么被定下来的}
+
+牛顿方向只给出"往哪走"，走多远由线搜索决定。下面这条定理是 Armijo 回溯的全部理论基础，
+它也解释了为什么回溯**一定**会在有限步内停下。
+
+\begin{theorem}[Armijo 回溯的终止性与步长下界]
+\label{thm:armijo}
+设 $f\in C^1$，$\nabla f$ 在 $x$ 到 $x+\alpha_0p$ 的线段上 Lipschitz 连续、常数 $L$，
+$g=\nabla f(x)$，$p$ 是下降方向（$g^{\mathsf T}p<0$）。
+取 $c_1\in(0,1)$、$\rho\in(0,1)$，令 $\alpha=\alpha_0\rho^m$（$m=0,1,2,\dots$）为第一个满足
+\[
+  f(x+\alpha p)\le f(x)+c_1\alpha\,g^{\mathsf T}p
+\]
+的步长。则这样的 $m$ 一定存在，且
+\[
+  \alpha\ \ge\ \min\left\{\alpha_0,\ \frac{2\rho(1-c_1)\,|g^{\mathsf T}p|}{L\|p\|^2}\right\}.
+\]
+\end{theorem}
+
+\begin{proof}
+记 $\phi(t)=f(x+tp)$，则 $\phi'(t)=\nabla f(x+tp)^{\mathsf T}p$。由 Lipschitz 连续性，
+\[
+  \phi(\alpha)-\phi(0)-\alpha\phi'(0)=\int_0^\alpha\bigl(\phi'(t)-\phi'(0)\bigr)\,dt
+  \le\int_0^\alpha Lt\|p\|^2\,dt=\frac L2\alpha^2\|p\|^2 ,
+\]
+即（下降引理）$f(x+\alpha p)\le f(x)+\alpha g^{\mathsf T}p+\frac L2\alpha^2\|p\|^2$。
+于是只要
+\[
+  \frac L2\alpha^2\|p\|^2\le -(1-c_1)\alpha\,g^{\mathsf T}p
+  \iff \alpha\le\bar\alpha:=\frac{2(1-c_1)|g^{\mathsf T}p|}{L\|p\|^2},
+\]
+Armijo 条件就成立。$\bar\alpha>0$，而 $\alpha_0\rho^m\to0$，故回溯必然在有限步内
+（至多 $\lceil\log_\rho(\bar\alpha/\alpha_0)\rceil+1$ 步）达到 $\alpha\le\bar\alpha$ 并接受。
+若 $\alpha_0\le\bar\alpha$ 则第一步就接受，$\alpha=\alpha_0$；
+否则被接受的那一步的前一步 $\alpha/\rho$ 必然 $>\bar\alpha$（否则会更早接受），
+于是 $\alpha>\rho\bar\alpha$。两种情形合起来即为所证下界。
+\end{proof}
+
+\begin{remark}[强 Wolfe 曲率条件的数值边界]
+强 Wolfe 的第二个条件 $|\phi'(\alpha)|\le c_2|\phi'(0)|$ 要求把方向导数分辨到
+$c_2|g^{\mathsf T}p|$ 的水平。而浮点算出的 $\phi'(\alpha)=g(x+\alpha p)^{\mathsf T}p$
+带有量级 $u\,L\|x\|\,\|p\|$ 的绝对误差：当 $c_2|g^{\mathsf T}p|$ 落到这个水平以下时，
+曲率条件可能对**任何** $\alpha$ 都不成立（这不是算法错，是判据在该精度下没有意义）。
+所以本章的 \texttt{wolfe\_line\_search} 把两件事分开返回：
+\texttt{ok}（Armijo 成立、这一步可用）与 \texttt{wolfe}（曲率条件是否也满足），
+并把后者如实记进 \texttt{wolfe\_ok} 数组，绝不把"曲率条件达不到"当成"线搜索失败"而中止迭代。
+实测：本章的算例上曲率条件在被接受的每一步都成立
+（Rosenbrock 36 步、4 维 $\kappa=1000$ 二次型 9 步、四次型 20 步，\texttt{wolfe\_ok} 全为 $1$）。
+\end{remark}
+
+\begin{remark}[BFGS 前几步的步长]
+实测 4 维 $\kappa=1000$ 二次型上 BFGS 的前三步步长是
+$9.77\times10^{-4},\ 1.56\times10^{-2},\ 0.125$，之后立刻变成 $1.0$：
+一开始曲率信息不足，线搜索只能给出很小的步长；三次更新之后就接近牛顿步。
+这也是"拟牛顿在前几步很慢、之后很快"的定量版本。
+\end{remark}
+
+\section{拟牛顿：割线方程与正定性}
+
+\begin{theorem}[BFGS 更新精确满足最新一条割线方程]
+\label{thm:bfgs-secant}
+设 $B_k$ 对称、$s_k=x_{k+1}-x_k$、$y_k=\nabla f(x_{k+1})-\nabla f(x_k)$、
+$y_k^{\mathsf T}s_k\ne0$，且
+\[
+  B_{k+1}=B_k-\frac{B_ks_ks_k^{\mathsf T}B_k}{s_k^{\mathsf T}B_ks_k}
+  +\frac{y_ky_k^{\mathsf T}}{y_k^{\mathsf T}s_k}.
+\]
+则 $B_{k+1}s_k=y_k$。
+\end{theorem}
+
+\begin{proof}
+逐项右乘 $s_k$：
+\[
+  B_{k+1}s_k=B_ks_k-\frac{B_ks_k\,(s_k^{\mathsf T}B_ks_k)}{s_k^{\mathsf T}B_ks_k}
+  +\frac{y_k\,(y_k^{\mathsf T}s_k)}{y_k^{\mathsf T}s_k}
+  =B_ks_k-B_ks_k+y_k=y_k . \qedhere
+\]
+\end{proof}
+
+\begin{theorem}[$s^{\mathsf T}y>0$ 时 BFGS 保持正定]
+\label{thm:bfgs-pd}
+若 $B_k\succ0$ 且 $s_k^{\mathsf T}y_k>0$，则定理 \ref{thm:bfgs-secant} 的 $B_{k+1}\succ0$。
+\end{theorem}
+
+\begin{proof}
+对任意 $v\ne0$，记 $a=s_k^{\mathsf T}B_ks_k>0$（因 $B_k\succ0$、$s_k\ne0$）：
+\[
+  v^{\mathsf T}B_{k+1}v
+  =\underbrace{\frac{(v^{\mathsf T}B_kv)\,a-(v^{\mathsf T}B_ks_k)^2}{a}}_{\text{(I)}}
+  +\underbrace{\frac{(v^{\mathsf T}y_k)^2}{s_k^{\mathsf T}y_k}}_{\text{(II)}} .
+\]
+(I) $\ge0$ 由 $B_k$ 内积下的 Cauchy-Schwarz 不等式；(II) $\ge0$ 由 $s_k^{\mathsf T}y_k>0$。
+若 $v^{\mathsf T}B_{k+1}v=0$，则 (II) $=0$ 给出 $v^{\mathsf T}y_k=0$；(I) $=0$ 要求
+Cauchy-Schwarz 取等，即 $v$ 与 $s_k$ 共线，$v=ts_k$（$t\ne0$），
+于是 $v^{\mathsf T}y_k=ts_k^{\mathsf T}y_k\ne0$，矛盾。故 $v^{\mathsf T}B_{k+1}v>0$。
+\end{proof}
+
+\begin{theorem}[L-BFGS 的两循环递推与"只有最新一对精确"]
+\label{thm:lbfgs}
+记 $\rho_i=1/(y_i^{\mathsf T}s_i)$、$V_i=I-\rho_iy_is_i^{\mathsf T}$，
+$H_k$ 由 $H_0=\gamma I$ 与 $H_{i+1}=V_i^{\mathsf T}H_iV_i+\rho_is_is_i^{\mathsf T}$
+递推得到（只保留最近 $m$ 对）。则：
+\begin{enumerate}
+  \item 两循环算法 $r\gets H_kg$ 逐步计算的就是这个 $H_kg$；
+  \item $H_ky_k=s_k$（最新一对精确满足）；
+  \item 更老的配对一般不满足：$H_ky_i\ne s_i$（$i<k$）。
+\end{enumerate}
+\end{theorem}
+
+\begin{proof}
+(1) 把 $H_k$ 的递推展开成
+$H_k=\sum_{i}\rho_i\bigl(\prod_{j>i}V_j^{\mathsf T}\bigr)s_is_i^{\mathsf T}
+\bigl(\prod_{j>i}V_j\bigr)+\bigl(\prod_jV_j^{\mathsf T}\bigr)H_0
+\bigl(\prod_jV_j\bigr)$，
+从最内层往外乘即得两循环：第一圈从最新往最老算
+$\alpha_i=\rho_is_i^{\mathsf T}r$、$r\gets r-\alpha_iy_i$，
+中间乘 $H_0=\gamma I$，第二圈从最老往最新把 $\rho_is_i\alpha_i$ 加回去。
+
+(2) 取 $r=y_k$。第一圈的第一个（最新）$\alpha_k=\rho_ks_k^{\mathsf T}y_k=1$，
+随后 $r\gets y_k-y_k=0$，故其余 $\alpha_i=\rho_is_i^{\mathsf T}0=0$；
+中间 $r\gets\gamma r=0$；第二圈只有 $i=k$ 的项 $\rho_ks_k\alpha_k=s_k$ 非零，
+其余项为 $0$。所以 $H_ky_k=s_k$。
+
+(3) $H_k$ 只由 $(s_j,y_j)_{j\le k}$ 决定，且由 (2) 在更早时刻
+$H_{k-1}y_{k-1}=s_{k-1}$；但 $H_k$ 相对 $H_{k-1}$ 又做了一次更新，
+对 $y_{k-1}$ 的作用不再等于 $s_{k-1}$。实测量级见下。
+\end{proof}
+
+实测（\texttt{test\_lbfgs\_secant\_residual\_grows\_with\_pair\_age}）：$m=2$、$n=4$、
+$\kappa=1000$ 时按年龄（新到老）的逆割线残差是 $0,\ 0.234$；
+$m=5$ 时是 $0,\ 1.688,\ 0.384,\ 0.079,\ 0.132$；
+$m=20\ge n$ 时最新一对是 $2.8\times10^{-16}$、最老一对也降到 $0.090$。
+注意定理 \ref{thm:bfgs-secant} 说的是"更新后满足、更新前不满足"，
+而这里说的是"最新一对满足、更老的只近似"——两个"只有"是不同的两件事，
+混在一起说就会得出"L-BFGS 不满足割线方程"这种错误结论。
+
+\section{信赖域}
+
+\begin{theorem}[精确模型下 $\rho\equiv1$]
+\label{thm:tr-rho-one}
+若模型 $m_k$ 与被优化的 $f$ 在信赖域内处处相等（例如目标是二次函数、
+模型取二阶 Taylor 且二阶项就是精确 Hessian），则对任意试探步 $p$ 有
+$\rho_k=1$。于是：
+\begin{enumerate}
+  \item 没有任何一步会被拒绝（拒绝需要 $\rho_k<\eta=0.15$）;
+  \item 半径永不收缩（收缩需要 $\rho_k<t_1=0.25$），$\Delta_k$ 单调不减。
+\end{enumerate}
+\end{theorem}
+
+\begin{proof}
+$\rho_k=\dfrac{f(x_k)-f(x_k+p)}{m_k(0)-m_k(p)}=\dfrac{m_k(0)-m_k(p)}{m_k(0)-m_k(p)}=1$
+（分母非零时）。$1>\eta$ 且 $1>t_1$，故既不拒绝也不收缩；
+扩张只在 $\|p\|=\Delta_k$ 且 $\rho_k>t_2$ 时发生，因此 $\Delta_k$ 不会变小。
+\end{proof}
+
+实测：$\kappa=100$ 的二次型上 $\rho$ 序列是 $(1.000000,1.000000)$，
+半径 $1\to2\to2$，拒绝 $0$ 次、负曲率 $0$ 次。
+所以\textbf{在二次型上看不到任何"自适应"}——$\rho\equiv1$ 意味着模型完全准，
+没有东西需要适应。要演示自适应必须换非二次目标：Rosenbrock 从 $(-1.2,1)$ 出发，
+$22$ 步里 $3$ 次拒绝、$\rho$ 出现 $-4.25$、半径在 $0.125$ 与 $1.0$ 之间来回；
+从 $(0.5,3)$ 出发还会触发 $3$ 次负曲率分支（该点 Hessian 行列式为负）。
+
+\begin{theorem}[Cauchy 点的模型下降下界]
+\label{thm:cauchy}
+设 $B\succ0$、$g=\nabla f(x_k)\ne0$，Cauchy 点指沿 $-g$ 方向使模型
+$m(p)=g^{\mathsf T}p+\tfrac12p^{\mathsf T}Bp$ 最小的点（限制在 $\|p\|\le\Delta$ 内）。
+则其模型下降量满足
+\[
+  m(0)-m(p_C)\ \ge\ \tfrac12\|g\|\min\!\left(\Delta,\ \frac{\|g\|}{\|B\|}\right).
+\]
+\end{theorem}
+
+\begin{proof}
+沿 $-g$ 单位方向写 $p=-t\,g/\|g\|$（$0\le t\le\Delta$），则
+\[
+  m(p)=-t\|g\|+\frac{t^2}{2}\,\frac{g^{\mathsf T}Bg}{\|g\|^2}.
+\]
+取 $t^\ast=\min\bigl(\Delta,\ \|g\|/\|B\|\bigr)$。
+\emph{情形一} $\Delta\le\|g\|/\|B\|$：取 $t=\Delta$，
+$m(0)-m(p_C)\ge\|g\|\Delta-\frac12\Delta^2\|B\|
+=\|g\|\Delta\bigl(1-\frac{\Delta\|B\|}{2\|g\|}\bigr)
+\ge\frac12\|g\|\Delta$，
+最后一步用了 $\Delta\|B\|\le\|g\|$。
+\emph{情形二} $\Delta>\|g\|/\|B\|$：取 $t=\|g\|/\|B\|\le\Delta$，
+$m(0)-m(p_C)\ge\frac{\|g\|^2}{\|B\|}-\frac12\frac{\|g\|^2}{\|B\|}
+=\frac12\frac{\|g\|^2}{\|B\|}$。
+两种情形合起来就是
+$m(0)-m(p_C)\ge\frac12\|g\|\min(\Delta,\|g\|/\|B\|)$。
+\end{proof}
+
+\begin{remark}[这个下界是干什么用的]
+它保证"只要梯度不为零，模型至少能下降 $\frac12\|g\|\min(\Delta,\|g\|/\|B\|)>0$"，
+这是信赖域方法全局收敛性证明里唯一需要的定量输入。
+本章的可视化用的是 Steihaug-CG 解（未必是 Cauchy 点），
+但每步的 $\rho_k$ 与"被拒绝的步"都记录在帧里，
+\texttt{meta.n\_rejected}、\texttt{meta.ratio\_min} 就是这条下界在实际算法里的影子。
+\end{remark}
+
+\section{非线性共轭梯度}
+
+\begin{theorem}[精确线搜索下 CG 的有限步终止与共轭性]
+\label{thm:cg}
+设 $A\succ0$、$f$ 为二次型，CG 取 $p_0=-g_0$、
+$p_{k+1}=-g_{k+1}+\beta_kp_k$、$\beta_k=\dfrac{g_{k+1}^{\mathsf T}g_{k+1}}{g_k^{\mathsf T}g_k}$
+（Fletcher-Reeves），步长由精确线搜索 $\alpha_k=\arg\min_t f(x_k+tp_k)$ 给出。则
+\[
+  g_i^{\mathsf T}g_j=0\ (i\ne j),\qquad p_i^{\mathsf T}Ap_j=0\ (i\ne j),
+\]
+且 $x_{k+1}$ 是 $f$ 在仿射子空间 $x_0+\mathrm{span}\{g_0,\dots,g_k\}$ 上的极小点；
+特别地 $x_n=x^\star$。
+\end{theorem}
+
+\begin{proof}
+对 $k$ 归纳，同时维护三条：
+(i) $g_i^{\mathsf T}g_j=0$（$0\le i<j\le k$）；
+(ii) $p_i^{\mathsf T}Ap_j=0$（$0\le i<j\le k$）；
+(iii) $\mathrm{span}\{p_0,\dots,p_k\}=\mathrm{span}\{g_0,\dots,g_k\}
+=\mathcal K_{k+1}(A,g_0)$。
+$k=0$ 时三条都平凡。归纳步用两个恒等式：精确线搜索给出 $p_k^{\mathsf T}g_{k+1}=0$，
+配合 $g_{k+1}=g_k+\alpha_kAp_k$ 与 $p_k^{\mathsf T}g_k=-\|g_k\|^2$ 得到
+\[
+  \alpha_k=\frac{\|g_k\|^2}{p_k^{\mathsf T}Ap_k};
+\]
+以及由 (iii) $g_k=-p_k+\beta_{k-1}p_{k-1}$。
+
+\emph{正交性}：对 $i\le k$ 写 $g_{k+1}=g_i+\sum_{j=i}^{k}\alpha_jAp_j$，则
+$g_{k+1}^{\mathsf T}g_i=\|g_i\|^2+\sum_{j=i}^{k}\alpha_j\,p_j^{\mathsf T}Ag_i$。
+由 (iii)，$g_i\in\mathrm{span}\{p_0,\dots,p_i\}$，故
+$Ag_i\in\mathrm{span}\{Ap_0,\dots,Ap_i\}$，而 (ii) 说 $p_j$ 与 $Ap_m$
+在 $j>m$ 时正交，于是和式里 $j>i$ 的项全为零，只剩
+$\|g_i\|^2+\alpha_ip_i^{\mathsf T}Ag_i$；
+再用 $g_i=-p_i+\beta_{i-1}p_{i-1}$ 与 (ii) 得 $p_i^{\mathsf T}Ag_i=-p_i^{\mathsf T}Ap_i$，
+代入 $\alpha_i$ 的表达式即得 $g_{k+1}^{\mathsf T}g_i=0$。
+
+\emph{共轭性}：对 $j\le k$，
+$p_{k+1}^{\mathsf T}Ap_j=-g_{k+1}^{\mathsf T}Ap_j+\beta_kp_k^{\mathsf T}Ap_j$。
+$j<k$ 时第二项由 (ii) 为零，第一项用 $Ap_j=(g_{j+1}-g_j)/\alpha_j$
+与刚证的正交性为零。$j=k$ 时两项分别是
+$g_{k+1}^{\mathsf T}Ap_k=\|g_{k+1}\|^2/\alpha_k$ 与
+$\beta_kp_k^{\mathsf T}Ap_k=\beta_k\|g_k\|^2/\alpha_k$，
+而 $\beta_k=\|g_{k+1}\|^2/\|g_k\|^2$，故和为零。
+
+(iii) 由 $p_{k+1}=-g_{k+1}+\beta_kp_k$ 与 $g_{k+1}=g_k+\alpha_kAp_k$ 直接得到。
+最后：在 $A$-共轭方向组上依次做精确一维极小，得到的点就是整个
+$\mathrm{span}\{p_0,\dots,p_k\}$ 上的极小点（这是二次函数的标准性质：
+$A$-共轭方向组是该子空间的一组正交基，各方向的极小互不干扰）。
+于是 $x_n$ 是 $f$ 在整个 $\mathbb R^n$ 上的极小点，
+即 $\nabla f(x_n)=g_n=0$，而 (i) 说 $\{g_i\}$ 两两正交、
+最多只有 $n$ 个非零元，所以 $g_n=0$ 必在 $n$ 步之内发生。
+\end{proof}
+
+实测（\texttt{test\_cg\_exact\_line\_search\_terminates\_in\_n\_steps}）：
+$(n,\kappa)=(4,10^3),(6,10^2),(8,10)$ 上都恰好 $n$ 步，
+归一化共轭偏差 $\max_{i\ne j}|p_i^{\mathsf T}Ap_j|/(\|p_i\|_A\|p_j\|_A)\le1.7\times10^{-10}$。
+但定理 \ref{thm:cg} 的两个前提都是"精确"的：
+换成 Wolfe 不精确线搜索后 $n=4$ 要 $72$ 步；
+$\kappa=10^5$、$n=6$ 时\textbf{即使精确线搜索}也要 $8$ 步，
+且共轭偏差高达 $0.995$——共轭性已经被浮点误差摧毁。
+
+\section{四个可视化怎么读}
+
+\begin{enumerate}
+  \item \texttt{descent\_race}：同一张等高线上四条路径。
+        \texttt{step\_scale} 是 $\alpha/\alpha^\star$，
+        它的临界值 $1.0$ 是"最优"，而发散线在 $1+1/\kappa$（$\kappa=100$ 时是 $1.01$）——
+        两个临界值挨得这么近，正是这一页要让人看见的事。
+        副轴的误差曲线在 $10^{-17}$ 处截平（\texttt{meta.n\_exact\_end} 给出真正到 $0$ 的点数），
+        发散的路径用尾部重复末点补位并在 \texttt{strings} 里说明。
+  \item \texttt{convergence\_rates}：横轴是迭代数，纵轴是对数误差。
+        要看的是 $q_k=e_{k+1}/e_k^2$ 这条曲线**平不平**：
+        默认参数下有 2 步平（$C\approx9.9\times10^{-5}$），
+        然后突然冲到 $10^{10}$ 以上——那是舍入地板（\texttt{meta.newton\_floor\_start}），
+        不是"收敛越来越快"。把 \texttt{alpha\_cap} 拖到 $1$ 以下，平地当场消失。
+  \item \texttt{saddle\_escape}：鞍点上的等高线是双曲线族。
+        \texttt{direction} 选 \texttt{orthogonal} 时轨迹会滑回鞍点；
+        选 \texttt{neg\_curv} 时按 $(1+|\lambda_-|\alpha)^k$ 长出去。
+        \texttt{meta.threshold\_neg\_curv} 与 \texttt{meta.threshold\_random} 的比值
+        就是 $1/|\langle u_{\min},d\rangle|$。
+  \item \texttt{trust\_region\_radius}：半径 $\Delta_k$、比值 $\rho_k$、
+        接受掩码、负曲率掩码四条曲线一起看。
+        起点选 \texttt{indefinite} 才会看到 Steihaug-CG 走负曲率分支。
+        $\rho_k$ 可以为负（这一步会让 $f$ 上升，被 $\eta$ 挡住），
+        \texttt{ratio\_history} 里的 $0$ 是占位符，必须配合 \texttt{ratio\_valid} 读。
+\end{enumerate}
+
+\input{chapters/5.1/asserts_table}
+
+\section{它会怎样骗你（本章版）}
+
+\begin{enumerate}
+  \item \textbf{"曲线很陡"不是二次收敛。} 四次型上 $q_k$ 的实测序列是
+        $0.1076,\ 0.0214,\ 9.905\times10^{-5},\ 6.835\times10^{-5}$：
+        只有最后两步常数（散布 $1.45$），第一步比渐近常数大 $1087$ 倍。
+        判据是"$q_k$ 趋于常数"，不是"误差掉得快"。
+  \item \textbf{舍入地板之后的 $q$ 爆炸会被读成"超二次收敛"。} 同一算例里 $q$ 从
+        $6.8\times10^{-5}$ 一路冲到 $3.35\times10^{122}$；真相是误差已到机器精度、
+        转而按每步 $\times u$ 线性下降，$q_k=e_{k+1}/e_k^2$ 必然发散。
+  \item \textbf{卡住步长的牛顿法仍被叫作"二次收敛"。} $\alpha_{\text{cap}}=0.5$ 时实测线性因子
+        $0.5000$、$\alpha_{\text{cap}}=0.25$ 时 $0.7506$；尾部阶从 $\approx3$ 掉到 $1.000$。
+        二次收敛是"步长策略 $+$ 初值位置 $+$ 曲率符号"三件事的属性，不是方法的属性。
+  \item \textbf{在 Rosenbrock 上硬报一个二次常数。} 尾部 $q$ 是
+        $4.09,\ 1.81,\ 13.9,\ 1.98,\ 18.2$，相邻比值 $9.2$，
+        稳定后缀只剩 $1$ 个点：常数必须写 \texttt{null}。
+  \item \textbf{把"纯牛顿在 Rosenbrock 上一定发散"写成事实。} 实测（$\varepsilon=10^{-14}$）
+        $(-1.2,1)/(5,25)/(-3,10)$ 分别 $7/3/7$ 步收敛，这个经典反例在本章算例上\textbf{没有复现}，
+        于是不写；真要演示牛顿法的麻烦，就用"卡步长退化为线性"或者鞍点那两条。
+  \item \textbf{"BFGS 满足割线方程"只报更新之后。} 更新后 $3.05\times10^{-15}$、
+        更新前 $0.999$（第一次迭代前 $0.9989$），差 $12$ 个数量级。
+        割线方程是更新公式的\textbf{目标}，不是恒等式。
+  \item \textbf{"L-BFGS 满足割线方程"不说是哪一对。} $m=2$ 时最新一对 $0$、上一对 $0.234$；
+        $m=5$ 时最老一对 $1.688$。只精确满足最近 $m$ 对。
+  \item \textbf{"动量把迭代数降到 $\sqrt\kappa$ 分之一"。} 速率对得上（相对差 $\le0.009$），
+        迭代数只降到 $0.81/0.77/0.74$ 倍的 $\sqrt\kappa$；
+        差的那两成是瞬态因子 $(1+k)$。
+  \item \textbf{"CG 总是 $n$ 步收敛"。} 精确线搜索下 $(n,\kappa)=(4,10^3)$ 是 $4$ 步，
+        换成 Wolfe 线搜索 $72$ 步；$\kappa=10^5$ 时即使精确线搜索也要 $8$ 步、
+        共轭偏差 $0.995$。
+  \item \textbf{"随机扰动逃出鞍点"当成方法有效。} 沿 $u_{\min}$ 阈值 $2.866\times10^{-3}$、
+        沿 $45^\circ$ 是 $4.053\times10^{-3}$（比 $1.414=1/\text{重合度}$）；
+        与 $u_{\min}$ 正交时放大 $10^{6}$ 倍也逃不掉，阈值是"没测到"不是 $0$。
+  \item \textbf{三种停机判据给出三个结论。} 同一个 $\kappa=1000$ 的二次型，
+        梯度判据要 $9211$ 步（与理论完全相等），而
+        $\kappa_{\max}\approx2N/\ln(1/\varepsilon)$ 在 $N=2000$ 时给出实测阈值 $217.04$
+        （理论 $217.15$）——先说是哪个判据，再谈"收敛了没有"。
+  \item \textbf{发散被写成 \texttt{max\_iter}}。$\kappa=10^4$、\texttt{step\_scale}$=1.6$ 时
+        跑满 $400$ 步才长到 $10^{137}$，够不到旧的绝对守卫 $10^{150}$。
+        发散判据必须是相对的：比初值放大 $1/u\approx4.5\times10^{15}$ 倍就算发散。
+  \item \textbf{用二次型演示"信赖域半径在自适应"。} 精确模型下 $\rho\equiv1.000000$、
+        零次拒绝、半径只增不减（$1\to2\to2$）；
+        换 Rosenbrock 才有 $3$ 次拒绝、$\rho=-4.25$、半径在 $0.125$ 与 $1.0$ 之间来回。
+  \item \textbf{阈值参数 $t_2$ 取到区间外。} $t_2\ge1$ 时由于 $\rho\le1$，
+        半径永不扩张（实测 $t_2=1.5$ 时区间 $[0.25,1.0]$、$\Delta_0=1.0$）；
+        $t_2\le t_1$ 时收缩与扩张的判据互相打架。
+  \item \textbf{把占位值当真值画。} 对数轴上的 $0$、模型下降量 $\le0$ 时无定义的 $\rho_k$、
+        轨迹被拒绝的步，都必须有掩码、地板和文字说明三件套；
+        否则图上"少一段"会被读成"一直是那个值"。
+\end{enumerate}

@@ -1,0 +1,80 @@
+% 本文件由 tools/build_book.py 从 dist/reports/assertions.json 生成，请勿手改。
+\begin{longtable}{@{}p{0.06\textwidth}p{0.32\textwidth}p{0.22\textwidth}p{0.16\textwidth}@{}}
+\caption{章节 5.1 数值断言（生成时间 2026-10-18T17:12:53-0400）}\\
+\toprule
+类别 & 断言 & 理论值 & 实测值 \\
+\midrule
+\endfirsthead
+\toprule
+类别 & 断言 & 理论值 & 实测值 \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+
+A & 端点组合帧数与 JSON 里的 NaN/Infinity 计数 & NaN/\allowbreak{}Infinity 计数 =\allowbreak{} 0 & 69 帧，计数 0(\allowbreak{}descent\_race: 16 个数组、\allowbreak{}19 个 meta 字段) \checkmark \\
+A & 对数轴曲线最小值 > 0、掩码形状与 dtype、strings 里的地板说明 & 全部满足 & descent\_race.error\_gd min=\allowbreak{}4.3e-01；descent\_race.error\_newton min=\allowbreak{}1.3e-14；convergence\_rates.error\_gd min=\allowbreak{}1.0e+00；convergence\_rates.error\_newton min=\allowbreak{}1.0e-17；saddle\_escape.residual min=\allowbreak{}5.0e-07；saddle\_escape.error\_to\_saddle min=\allowbreak{}1.0e-05；q\_newton\_valid dtype=\allowbreak{}bool \checkmark \\
+A & 发散帧的三个诚实字段 & diverged\_gd=\allowbreak{}True(\allowbreak{}放大 1/\allowbreak{}u 倍即判发散)、\allowbreak{}overflow=\allowbreak{}True、\allowbreak{}stop\_gd=\allowbreak{}'diverged' & diverged\_gd=\allowbreak{}True，overflow=\allowbreak{}True，stop\_gd=\allowbreak{}'diverged'，$\alpha$/\allowbreak{}$\alpha$\_stable=\allowbreak{}1.5998 \checkmark \\
+A & 发散帧里 error\_\allowbreak{}gd 的长度与有限性 & 长度 =\allowbreak{} max\_iter+1 =\allowbreak{} 401，全有限(\allowbreak{}尾部补位) & 长度 401，max=\allowbreak{}3.027e+15，尾部 3 个 [3.027e+15 3.027e+15 3.027e+15] \checkmark \\
+A & meta.n\_\allowbreak{}iter\_\allowbreak{}gd 与核心 gd(...) 的迭代数 & 相等 & 帧 60 vs 核心 60(\allowbreak{}$\alpha$=\allowbreak{}1.980198e-02) \checkmark \\
+A & meta.kappa\_\allowbreak{}measured 与实测谱 & =\allowbreak{} $\kappa$(\allowbreak{}Jacobi 实测，相对 1e-12) & 100.0000000000(\allowbreak{}给定 100.0) \checkmark \\
+A & 帧 meta.newton\_\allowbreak{}quadratic\_\allowbreak{}constant 与核心实测 C & 相等(\allowbreak{}同一窗口定义 + 同一初值/\allowbreak{}容差) & 帧 9.9047694185682e-05 vs 核心 9.9047694185682e-05(\allowbreak{}enter\_iter=\allowbreak{}2) \checkmark \\
+A & $\beta$=0(退化成二次型)时的常数与说明 & 常数 =\allowbreak{} None，且 strings 里有解释 & 常数 None，enter\_iter None，string 提到 null=\allowbreak{}True \checkmark \\
+A & alpha\_\allowbreak{}cap=1 时的尾部阶 / 窗口 / 地板起点 / q 最大值 & 阶 $\ge$ 1.8、\allowbreak{}窗口 $\ge$ 2、\allowbreak{}常数有限、\allowbreak{}地板起点有限、\allowbreak{}q 冲到 $\ge$ 1e50 & 阶 2.999，窗口 2，C=\allowbreak{}9.9047694185682e-05，地板起点 k=\allowbreak{}4，q\_max=\allowbreak{}3.35e+122 \checkmark \\
+A & alpha\_\allowbreak{}cap=0.5 时的尾部阶 / 窗口 / 常数 & 阶 $\approx$ 1(\allowbreak{}线性)、\allowbreak{}窗口 0、\allowbreak{}常数 None & 阶 1.000，窗口 0，C=\allowbreak{}None，步数 30 \checkmark \\
+A & 两个方向上的扰动末距($\delta$=0.1, 200 步) & neg\_curv 远大于 1 远大于 orthogonal(\allowbreak{}差 $\ge$ 1e3 倍) & neg\_curv 1.729e+03 vs orthogonal 0.000e+00(\allowbreak{}比 1.73e+303) \checkmark \\
+A & 实测 $\lambda$\_\allowbreak{}min 与解析阈值的对照 & $\lambda$\_min =\allowbreak{} -0.05，阈值 $\approx$ 2.87e-3(\allowbreak{}N=\allowbreak{}96 时的解析值) & $\lambda$\_min=\allowbreak{}-0.050000，u\_min=\allowbreak{}(\allowbreak{}1.000,\allowbreak{}0.000)，阈值 9.2432e-03，解析 9.2433e-03 \checkmark \\
+A & contour\_\allowbreak{}z 与逐点求值的最大相对差 & $\le$ 1e-14 & 0.000e+00(\allowbreak{}网格 (\allowbreak{}61,\allowbreak{} 61)) \checkmark \\
+A & 不定起点上的负曲率分支 / 拒绝次数 / 负 $\rho$ & n\_negative\_curv $\ge$ 1、\allowbreak{}n\_rejected $\ge$ 1、\allowbreak{}min $\rho$ < 0 & 负曲率 3 次，拒绝 3 次，min $\rho$=\allowbreak{}-1.801，接受掩码里 0 的个数 9 \checkmark \\
+A & 半径的收缩与扩张范围 & radius\_min < $\Delta$0=\allowbreak{}1.0 < radius\_max & [0.2500,\allowbreak{} 2.0000]，终值 1.0000 \checkmark \\
+A & 轨迹 / 半径历史 / 梯度范数与核心的最大偏差 & 0(\allowbreak{}同一份数组) & 轨迹 0.0e+00，半径 0.0e+00，梯度 0.0e+00(\allowbreak{}21 步，帧长 25) \checkmark \\
+A & meta.n\_\allowbreak{}accepted + meta.n\_\allowbreak{}rejected 与总步数 & 和 =\allowbreak{} trace 的步数(\allowbreak{}被拒绝的步不画进轨迹，但计数里在) & 21 + 3 =\allowbreak{} 24(\allowbreak{}max\_iter=\allowbreak{}24，实际 21 步) \checkmark \\
+A & 进入二次区的步号 / 窗口内 q 的散布 & 窗口 $\ge$ 2 点、\allowbreak{}散布 $\le$ 2.5(\allowbreak{}相邻比值定义)，步号有限 & enter\_iter=\allowbreak{}2，窗口 [9.905e-05 6.835e-05]，散布 1.449，C$\approx$9.905e-05 \checkmark \\
+A & 第一步 e1/e0\textasciicircum{}2 $\div$ 渐近常数 C & $\ge$ 100(\allowbreak{}远处不是二次收敛) & 1.087e+03(\allowbreak{}第一步 1.076e-01) \checkmark \\
+A & 渐近二次常数 C 与牛顿步数 & C 有限且 > 0；步数 $\le$ 8 & C=\allowbreak{}9.904769e-05，4 步到 6.454e-25 \checkmark \\
+A & 线性因子 - (1-$\alpha$\_\allowbreak{}cap) 的最大偏差 & $\le$ 0.05 & 0.0000(\allowbreak{}$\alpha$\_cap=\allowbreak{}0.75: 实测 0.2500 /\allowbreak{} 理论 0.2500(\allowbreak{}25 步)；$\alpha$\_cap=\allowbreak{}0.5: 实测 0.5000 /\allowbreak{} 理论 0.5000(\allowbreak{}50 步)；$\alpha$\_cap=\allowbreak{}0.25: 实测 0.7500 /\allowbreak{} 理论 0.7500(\allowbreak{}121 步)) \checkmark \\
+A & $\alpha$\_\allowbreak{}cap=1 与 $\alpha$\_\allowbreak{}cap=0.5 的步数比 & $\ge$ 5(\allowbreak{}二次 vs 线性) & 4 : 50(\allowbreak{}比 12.5) \checkmark \\
+A & 正定二次型上牛顿一步之后的 $\|$x1 - x*$\|$ & $\le$ $\kappa$$\cdot$u(\allowbreak{}一次求解的舍入量级) & 1.275e-14(\allowbreak{}$\kappa$=\allowbreak{}100.0，一步，正定标志 [1.]) \checkmark \\
+A & 鞍点上牛顿一步之后的 dist 与 Hessian 正定标志 & dist $\approx$ 0(\allowbreak{}到驻点)，但 $\lambda$\_min<0、\allowbreak{}正定标志 0 & dist=\allowbreak{}0.000e+00，$\lambda$\_min=\allowbreak{}-0.500，正定标志 [0.] \checkmark \\
+A & BFGS 更新后割线残差 max $\|$B s - y$\|$/$\|$y$\|$ & $\le$ 100u $\approx$ 1.1e-14 & 1.055e-14(\allowbreak{}4 维 $\kappa$=\allowbreak{}1000 二次型: 更新后 7.49e-15 /\allowbreak{} 更新前 0.999(\allowbreak{}9 步)；四次型: 更新后 1.05e-14 /\allowbreak{} 更新前 0.990(\allowbreak{}7 步)) \checkmark \\
+A & BFGS 更新前割线残差 max(同一批步) & $\ge$ 0.5(\allowbreak{}更新不是多余的) & 0.999 \checkmark \\
+A & L-BFGS(m=2) 最新一对的逆割线残差 & =\allowbreak{} O(\allowbreak{}u)(\allowbreak{}构造上精确) & 0.000e+00 \checkmark \\
+A & L-BFGS(m=2) 更老一对的逆割线残差 & 远大于 最新一对(\allowbreak{}记忆没覆盖到) & 0.234(\allowbreak{}比值 2.339e+299) \checkmark \\
+A & CG(精确线搜索) 迭代数 - n($\kappa$ $\le$ 1e3) & 0(\allowbreak{}有限步终止：至多 n 步精确到达) & n=\allowbreak{}4,\allowbreak{}$\kappa$=\allowbreak{}1000: 4 步，共轭偏差 1.71e-10；n=\allowbreak{}6,\allowbreak{}$\kappa$=\allowbreak{}100: 6 步，共轭偏差 3.56e-10；n=\allowbreak{}8,\allowbreak{}$\kappa$=\allowbreak{}10: 8 步，共轭偏差 5.15e-12 \checkmark \\
+A & 归一化 A-共轭偏差 max |p\_\allowbreak{}i\textasciicircum{}TAp\_\allowbreak{}j|/($\|$p\_\allowbreak{}i$\|$\_\allowbreak{}A$\|$p\_\allowbreak{}j$\|$\_\allowbreak{}A) & $\le$ 1e-6(\allowbreak{}$\kappa$ $\le$ 1e3 时舍入放大的上界) & 3.556e-10 \checkmark \\
+A & $\kappa$=1e5、n=6 时精确线搜索 CG 的步数与共轭偏差 & 步数 > n 且共轭偏差 \textasciitilde{}1(\allowbreak{}浮点算术破坏共轭性) & 8 步(\allowbreak{}n=\allowbreak{}6)，偏差 0.793，终距 1.25e-10 \checkmark \\
+A & CG(Wolfe 不精确线搜索) 迭代数 / n & 远大于 1(\allowbreak{}失去共轭性的代价) & 72 /\allowbreak{} 4 =\allowbreak{} 18.0(\allowbreak{}终距 1.55e-05) \checkmark \\
+A & 实测特征值相对误差 max |$\lambda$-$\lambda$|/$\lambda$ & $\le$ 1000u $\approx$ 1.1e-13(\allowbreak{}$\kappa$=\allowbreak{}1e3 时 $\approx$ $\kappa$$\cdot$u) & 1.255e-14(\allowbreak{}$\kappa$=\allowbreak{}10: 实测 10.0000000000；$\kappa$=\allowbreak{}100: 实测 100.0000000000；$\kappa$=\allowbreak{}1000: 实测 1000.0000000000) \checkmark \\
+A & 最优解残差 $\|$A x* - b$\|$/$\|$b$\|$ & $\le$ 100u $\approx$ 1.1e-14 & 0.000e+00 \checkmark \\
+A & Rosenbrock 的二次窗口 & enter\_iter=\allowbreak{}None、\allowbreak{}C=\allowbreak{}None(\allowbreak{}稳定后缀 < 2 点) & 窗口 [](\allowbreak{}0 点)，C=\allowbreak{}None，牛顿 22 步 \checkmark \\
+A & 四次型的二次窗口 & $\ge$2 点稳定后缀且 C 有限 & enter\_iter=\allowbreak{}2，C=\allowbreak{}9.905e-05，窗口 [9.905e-05 6.835e-05] \checkmark \\
+A & 逃逸阈值相对误差 max |$\delta$*\_\allowbreak{}meas - $\delta$*\_\allowbreak{}theory|/$\delta$*\_\allowbreak{}theory & $\le$ 1e-6 & 5.301e-10(\allowbreak{}$\lambda$-=\allowbreak{}-0.5: 实测 7.396886e-22 /\allowbreak{} 理论 7.396886e-22(\allowbreak{}相对差 5.30e-10)；$\lambda$-=\allowbreak{}-0.05: 实测 2.866052e-03 /\allowbreak{} 理论 2.866052e-03(\allowbreak{}相对差 3.25e-11)) \checkmark \\
+A & 45$^\circ$ 方向阈值 / u\_\allowbreak{}min 方向阈值(对 1/|<u\_\allowbreak{}min,d>|) & =\allowbreak{} 1.414214 & 1.414214(\allowbreak{}重合度 0.707107) \checkmark \\
+A & 正交方向的逃逸结果 & escaped=\allowbreak{}False、\allowbreak{}threshold=\allowbreak{}inf、\allowbreak{}重合度=\allowbreak{}0 & escaped=\allowbreak{}False，threshold=\allowbreak{}inf，重合度=\allowbreak{}0.000e+00，最大试探 $\delta$=\allowbreak{}1.100e+06 \checkmark \\
+A & 同一问题上沿 u\_\allowbreak{}min 的阈值 & 有限(\allowbreak{}$\approx$1.4e-3) & 2.866e-03(\allowbreak{}escaped=\allowbreak{}True) \checkmark \\
+A & 与参考实现终点的最大距离 max $\|$x\_\allowbreak{}ours - x\_\allowbreak{}ref$\|$ & $\le$ 1e-8 & 8.937e-15(\allowbreak{}newton: $\|$$\Delta$x$\|$=\allowbreak{}0.00e+00(\allowbreak{}22 步，f=\allowbreak{}0.00e+00)；bfgs: $\|$$\Delta$x$\|$=\allowbreak{}8.94e-15(\allowbreak{}36 步，f=\allowbreak{}1.60e-29)；trust\_region: $\|$$\Delta$x$\|$=\allowbreak{}0.00e+00(\allowbreak{}22 步，f=\allowbreak{}0.00e+00)) \checkmark \\
+A & 参考实现终点与解析极小点 (1,1) 的距离 & $\le$ 1e-12(\allowbreak{}参考值本身可信) & 0.000e+00(\allowbreak{}f=\allowbreak{}0.000e+00) \checkmark \\
+A & 实测压缩因子与 max|1-$\alpha$$\lambda$| 的最大相对差 & $\le$ 1e-4 & 1.132e-16(\allowbreak{}16 个步长，$\alpha$/\allowbreak{}$\alpha$* $\in$ [0.7,\allowbreak{}1.0]) \checkmark \\
+A & 实测最优步长 $\alpha$\_\allowbreak{}argmin/$\alpha$* & =\allowbreak{} 1(\allowbreak{}网格分辨率 0.02) & 1.0000(\allowbreak{}$\alpha$*=\allowbreak{}1.980198e-02，最小实测因子 0.980198) \checkmark \\
+A & $\alpha$* 处的实测因子 vs ($\kappa$-1)/($\kappa$+1) & 0.980198 & 0.980198 \checkmark \\
+A & 实测迭代数与理论 ceil(ln$\varepsilon$/ln$\rho$) 的最大相对差 & $\le$ 1e-3 & 0.000e+00(\allowbreak{}$\kappa$=\allowbreak{}10000:92104；$\kappa$=\allowbreak{}3000:27632；$\kappa$=\allowbreak{}1000:9211；$\kappa$=\allowbreak{}300:2764；$\kappa$=\allowbreak{}100:922；$\kappa$=\allowbreak{}30:277；$\kappa$=\allowbreak{}10:92) \checkmark \\
+A & N($\kappa$) 的幂律指数 & 1 & 0.99992 \checkmark \\
+A & 拟合常数 C = N/$\kappa$ 与 1/2ln(1/$\varepsilon$) 的比 & $\approx$ 1(\allowbreak{}1/\allowbreak{}2ln(\allowbreak{}1/\allowbreak{}$\varepsilon$)=\allowbreak{}9.2103) & C=\allowbreak{}9.21410，比 1.00041 \checkmark \\
+A & 网格值相对误差 max & =\allowbreak{} 0(\allowbreak{}同一公式，逐点求值) & 0.000e+00(\allowbreak{}17$\times$17 网格，抽样 25 点) \checkmark \\
+A & 网格坐标范围 & X $\in$ [-2,\allowbreak{}2]、\allowbreak{}Y $\in$ [-1,\allowbreak{}3]，shape=\allowbreak{}(\allowbreak{}17,\allowbreak{}17) & X$\in$[-2.0,\allowbreak{}2.0]，Y$\in$[-1.0,\allowbreak{}3.0]，shape=\allowbreak{}(\allowbreak{}17,\allowbreak{} 17) \checkmark \\
+A & B 精确满足 / B 不满足的残差 & 0 与 0.316(\allowbreak{}=\allowbreak{}$\|$(\allowbreak{}1,\allowbreak{}2)$\|$/\allowbreak{}$\|$(\allowbreak{}2,\allowbreak{}6)$\|$) & 0.000e+00 与 0.353553 \checkmark \\
+A & y=0 时的返回值 & inf(\allowbreak{}无定义，不许返回 0) & inf \checkmark \\
+C & GD 收敛因子($\kappa$=100) & 0.980198 & 0.980198 \checkmark \\
+C & GD 收敛因子($\kappa$=1000) & 0.998002 & 0.998002 \checkmark \\
+C & GD 收敛因子($\kappa$=10000) & 0.9998 & 0.9998 \checkmark \\
+C & 实测收敛因子与 ($\kappa$-1)/($\kappa$+1) 的最大相对差 & $\le$ 1e-5 & 3.331e-16(\allowbreak{}$\kappa$=\allowbreak{}100: 实测 0.980198 /\allowbreak{} 理论 0.980198；$\kappa$=\allowbreak{}1000: 实测 0.998002 /\allowbreak{} 理论 0.998002；$\kappa$=\allowbreak{}10000: 实测 0.999800 /\allowbreak{} 理论 0.999800) \checkmark \\
+C & 动量实测速率与 ($\surd$$\kappa$-1)/($\surd$$\kappa$+1) 的最大相对差 & $\le$ 0.02 & 0.0086(\allowbreak{}$\kappa$=\allowbreak{}100: $\rho$ 实测 0.825219/\allowbreak{}理论 0.818182，N 比 8.06；$\kappa$=\allowbreak{}1000: $\rho$ 实测 0.940795/\allowbreak{}理论 0.938693，N 比 24.39；$\kappa$=\allowbreak{}10000: $\rho$ 实测 0.980840/\allowbreak{}理论 0.980198，N 比 74.13) \checkmark \\
+C & N\_\allowbreak{}gd/N\_\allowbreak{}momentum $\div$ $\surd$$\kappa$ & 实测 0.70--0.85(\allowbreak{}**不是** 1：速率是渐近的) & [0.8056 0.7713 0.7413] \checkmark \\
+C & 最大可收敛步长 / $\alpha$* & 1.00942 & 1.00986 \checkmark \\
+C & 临界步长与 2/L 的比值 & 1(\allowbreak{}$\alpha$\_thr $\to$ 2/\allowbreak{}L，见 theory 里的 0.1\textasciicircum{}(\allowbreak{}1/\allowbreak{}N) 修正) & $\alpha$\_thr/\allowbreak{}$\alpha$*=\allowbreak{}1.009860674，$\alpha$*/\allowbreak{}(\allowbreak{}2/\allowbreak{}L)=\allowbreak{}0.990099010 \checkmark \\
+C & 二分区间宽度 / 谓词调用次数 & 区间宽度 $\le$ 1e-9(\allowbreak{}相对 1) & 9.313e-10(\allowbreak{}30 次二分，32 次谓词调用) \checkmark \\
+C & $\kappa$\_\allowbreak{}max(N 步预算) & 217.147 & 217.04 \checkmark \\
+C & $\kappa$\_\allowbreak{}max 实测 / 2N$\cdot$ln(1/$\varepsilon$)\textasciicircum{}(-1) & 1(\allowbreak{}相对 5e-3) & 217.0402 /\allowbreak{} 217.1472 =\allowbreak{} 0.999507 \checkmark \\
+C & L-BFGS 迭代数随 m 的序列 & 不增(\allowbreak{}m 越大保留的曲率信息越多) & m=\allowbreak{}[1,\allowbreak{} 2,\allowbreak{} 3,\allowbreak{} 5,\allowbreak{} 8,\allowbreak{} 12,\allowbreak{} 20] $\to$ [169,\allowbreak{} 95,\allowbreak{} 34,\allowbreak{} 29,\allowbreak{} 25,\allowbreak{} 22,\allowbreak{} 22](\allowbreak{}完整 BFGS 6 步) \checkmark \\
+C & N(m=1)/N(m=20) 与 N(m=20)/N(BFGS) & $\ge$ 5 与 $\le$ 6(\allowbreak{}记忆够用时接近完整 BFGS) & 7.68 与 3.67 \checkmark \\
+\end{longtable}
