@@ -94,24 +94,26 @@ def index_json(manifests: list[ChapterManifest], registry: Registry) -> dict[str
 
 
 def models_registry_ts(root: pathlib.Path, manifests: list[ChapterManifest]) -> str:
-    """生成 ``viz/chapters/index.gen.ts``：章节 id → { manifest, models } 的静态登记表。
+    """生成 ``viz/chapters/index.gen.ts``：章节 id → { manifest, models } 的**惰性**登记表。
 
-    为什么必须是**生成的静态 import**：浏览器里没有 require/动态文件枚举，
-    而 `dump_scenes.ts` 与站点都按 id 找 model。只登记"已经有 ``index.ts``"的章节——
-    否则一个还没写可视化的章节会让整包编译失败。
+    为什么是**动态 import** 而不是静态 import（这里踩过真坑）：静态 import 会让
+    "某一章的 model 文件还没写完"变成**整包加载失败**——`import` 断链时
+    `npm run scene -- --chapter 1.1` 也起不来（`ERR_MODULE_NOT_FOUND` 发生在
+    `index.gen.ts` 求值那一刻，`--chapter` 已经来不及救了）。并发开发下每个前端
+    agent 都会撞上这堵墙。改成动态 import + try/catch 之后：
+
+    * 访问哪一章才加载哪一章，坏掉的兄弟章节只会让**它自己**加载失败并打印一行警告；
+    * `chapterIds` 仍然是静态常量（从磁盘上"有 ``index.ts``"的章节生成），
+      站点侧边栏不需要加载任何 model 就能知道哪些章可点。
+
+    ``loadChapter`` 会缓存结果（同一章只 import 一次）；失败不缓存（下次可以重试）。
     """
     ready = [m for m in manifests if (root / "viz" / "chapters" / m.chapter / "index.ts").exists()]
+    ids = ", ".join(f'"{m.chapter}"' for m in ready)
     lines = [
         GEN_HEADER,
         'import type { ChapterManifestJson } from "../shared/src/manifest.js";',
         'import type { SceneModel } from "../shared/src/model.js";',
-    ]
-    for m in ready:
-        alias = "c_" + m.chapter.replace(".", "_")
-        lines.append(
-            f'import {{ manifest as manifest_{alias}, models as models_{alias} }} from "./{m.chapter}/index.js";'
-        )
-    lines += [
         "",
         "/** 一章的前端装配：manifest（契约）+ models（viz id → Frame→Scene） */",
         "export interface ChapterModels {",
@@ -119,13 +121,48 @@ def models_registry_ts(root: pathlib.Path, manifests: list[ChapterManifest]) -> 
         "  models: Record<string, SceneModel>;",
         "}",
         "",
-        "/** 已经实现可视化的章节（未实现的不在表里，调用方要处理 undefined） */",
-        "export const chapterModels: Record<string, ChapterModels> = {",
+        "/** 已经实现可视化的章节 id（未实现的不在表里；判断「能不能点」看它，不需要加载 model） */",
+        f"export const chapterIds: string[] = [{ids}];",
+        "",
+        "/** 章节 id → 加载器（动态 import：坏掉的兄弟章节不会拖垮整包） */",
+        "const loaders: Record<string, () => Promise<ChapterModels>> = {",
     ]
     for m in ready:
-        alias = "c_" + m.chapter.replace(".", "_")
-        lines.append(f'  "{m.chapter}": {{ manifest: manifest_{alias}, models: models_{alias} }},')
-    lines += ["};", "", "export default chapterModels;", ""]
+        lines.append(f'  "{m.chapter}": () => import("./{m.chapter}/index.js"),')
+    lines += [
+        "};",
+        "",
+        "const cache = new Map<string, ChapterModels>();",
+        "",
+        "/** 加载一章的前端装配；没有实现或加载失败时返回 undefined（并打印一行警告）。 */",
+        "export async function loadChapter(id: string): Promise<ChapterModels | undefined> {",
+        "  const hit = cache.get(id);",
+        "  if (hit) return hit;",
+        "  const load = loaders[id];",
+        "  if (!load) return undefined;",
+        "  try {",
+        "    const bundle = await load();",
+        "    cache.set(id, bundle);",
+        "    return bundle;",
+        "  } catch (err) {",
+        "    console.warn(`[chapters] 章节 ${id} 的前端装配加载失败：${(err as Error).message}`);",
+        "    return undefined;",
+        "  }",
+        "}",
+        "",
+        "/** 按 id 升序加载所有已实现章节（失败的跳过，返回值只含成功的）。 */",
+        "export async function loadAllChapters(): Promise<Map<string, ChapterModels>> {",
+        "  const out = new Map<string, ChapterModels>();",
+        "  for (const id of chapterIds) {",
+        "    const bundle = await loadChapter(id);",
+        "    if (bundle) out.set(id, bundle);",
+        "  }",
+        "  return out;",
+        "}",
+        "",
+        "export default loadChapter;",
+        "",
+    ]
     return "\n".join(lines)
 
 

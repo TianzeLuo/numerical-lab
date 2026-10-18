@@ -159,13 +159,19 @@ def fit_order(
 
 
 def consecutive_orders(h: Any, err: Any) -> np.ndarray:
-    """相邻点局部阶 ``p_i = log(e_i/e_{i+1}) / log(h_i/h_{i+1})``（长度 n−1）。"""
+    """相邻点局部阶 ``p_i = log(e_i/e_{i+1}) / log(h_i/h_{i+1})``（长度 n−1）。
+
+    两处除法都在 ``errstate`` 里：误差序列里**恰好为 0** 的点是常见的（插值误差在
+    细步长上、奇数阶方法在对称点上都会命中），那时 ``ee[:-1]/ee[1:]`` 会发
+    ``RuntimeWarning``；而全仓把警告当错误（`filterwarnings = error`），
+    一个"本该只影响一个点的 0"就会让整条断言失败。3.1 章的作者踩到过。
+    """
     hh, ee = _sanitize(h, err)
     if hh.size < 2:
         raise ValueError("至少需要 2 个点才能计算局部阶")
-    num = safe_log(ee[:-1] / ee[1:])
-    den = safe_log(hh[:-1] / hh[1:])
     with np.errstate(divide="ignore", invalid="ignore"):
+        num = safe_log(ee[:-1] / ee[1:])
+        den = safe_log(hh[:-1] / hh[1:])
         out = num / den
     return out
 

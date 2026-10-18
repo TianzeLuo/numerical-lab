@@ -9,7 +9,7 @@
  */
 
 import { chapterIndex } from "../shared/src/chapters.gen.js";
-import { chapterModels } from "../chapters/index.gen.js";
+import { chapterIds, loadChapter } from "../chapters/index.gen.js";
 import type { ChapterIndexEntry } from "../shared/src/chapters.js";
 import { groupByPart } from "../shared/src/chapters.js";
 import { buildHash, decodeHash, type ShareState } from "../shared/src/share.js";
@@ -36,9 +36,9 @@ export interface SiteHandle {
 }
 
 /** 找到第一个"有 model"的可视化（目录里可能有尚未实现的章节）。 */
-function firstImplemented(): ShareState | null {
+async function firstImplemented(): Promise<ShareState | null> {
   for (const entry of chapterIndex) {
-    const bundle = chapterModels[entry.chapter];
+    const bundle = await loadChapter(entry.chapter);
     if (!bundle) continue;
     for (const viz of bundle.manifest.vizzes) {
       if (bundle.models[viz.id]) {
@@ -67,7 +67,8 @@ export async function startSite(root: HTMLElement, opts: { baseUrl?: string } = 
       box.append(el("h2", {}, group.title));
       const ul = el("ul");
       for (const entry of group.items) {
-        const implemented = Boolean(chapterModels[entry.chapter]);
+        // 只查 id 表（静态常量）：侧边栏不该为了知道"能不能点"而加载 12 个 model
+        const implemented = chapterIds.includes(entry.chapter);
         const li = el("li");
         const a = el("a", {
           href: `#${entry.chapter}`,
@@ -77,7 +78,8 @@ export async function startSite(root: HTMLElement, opts: { baseUrl?: string } = 
         if (!implemented) a.classList.add("pending");
         a.addEventListener("click", (ev) => {
           ev.preventDefault();
-          const bundle = chapterModels[entry.chapter];
+          void (async () => {
+          const bundle = await loadChapter(entry.chapter);
           const viz = bundle ? bundle.manifest.vizzes.find((v) => bundle.models[v.id]) : undefined;
           if (!viz) {
             main.innerHTML = "";
@@ -90,6 +92,7 @@ export async function startSite(root: HTMLElement, opts: { baseUrl?: string } = 
             return;
           }
           void goto({ chapter: entry.chapter, viz: viz.id, params: {}, t: 0, playing: false });
+          })();
         });
         li.append(a);
         ul.append(li);
@@ -100,7 +103,7 @@ export async function startSite(root: HTMLElement, opts: { baseUrl?: string } = 
   };
 
   const goto = async (state: ShareState): Promise<void> => {
-    const bundle = chapterModels[state.chapter];
+    const bundle = await loadChapter(state.chapter);
     if (!bundle) {
       main.innerHTML = "";
       main.append(el("div", { className: "nl-todo" }, el("h2", {}, "这一章还没有可视化"), el("p", {}, state.chapter)));
@@ -151,7 +154,7 @@ export async function startSite(root: HTMLElement, opts: { baseUrl?: string } = 
     if (s) void goto(s);
   });
 
-  const initial = fromHash() ?? firstImplemented();
+  const initial = fromHash() ?? (await firstImplemented());
   if (initial) {
     await goto(initial);
   } else {

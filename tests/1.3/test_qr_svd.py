@@ -199,14 +199,14 @@ def test_givens_qr_reconstruction_and_rotation_count() -> None:
 
 @assertion(
     "A",
-    theory="Aᵀr = 0：‖Aᵀr‖ ≤ c·n·u·‖A‖_F·(‖b‖ + ‖A‖_F‖x̂‖)（任意 κ）",
+    theory="Aᵀr = 0：‖Aᵀr‖ ≤ c·n·u·‖A‖_F·(‖b‖ + ‖A‖_F‖x_hat‖)（任意 κ）",
     chapter="1.3",
 )
 def test_qr_least_squares_residual_is_orthogonal() -> None:
     """QR 最小二乘的残差与列空间正交，且这个"正交"与 κ 无关。
 
-    刻度取的是**后向误差**的刻度 ``n u ‖A‖(‖b‖ + ‖A‖‖x̂‖)``，而不是简单的
-    ``n u ‖A‖‖b‖``：病态时 ``‖x̂‖`` 本身会被放大到 ``κ‖b‖/‖A‖`` 量级，
+    刻度取的是**后向误差**的刻度 ``n u ‖A‖(‖b‖ + ‖A‖‖x_hat‖)``，而不是简单的
+    ``n u ‖A‖‖b‖``：病态时 ``‖x_hat‖`` 本身会被放大到 ``κ‖b‖/‖A‖`` 量级，
     用后者的比值会跟着 κ 一起涨（实测 κ=1e10 时到 5.4e8），那不是"正交性变差"，
     是**尺子选错了**——1.2 章也踩过同一条（刻度必须跟着问题的尺度走）。
     """
@@ -225,7 +225,7 @@ def test_qr_least_squares_residual_is_orthogonal() -> None:
         worst_fwd = max(worst_fwd, _norm2(x - x_ref) / _norm2(x_ref))
         rows.append(f"κ={kappa:.0e}:{defect / scale:.3f}")
     rec_h = record(
-        label="‖Aᵀr‖ /(n·u·‖A‖_F·(‖b‖+‖A‖_F‖x̂‖))",
+        label="‖Aᵀr‖ /(n·u·‖A‖_F·(‖b‖+‖A‖_F‖x_hat‖))",
         theory="≤ c（与 κ 无关）",
         measured=f"{worst:.3f}（{', '.join(rows)}）；与 LAPACK 解的最大相对差 {worst_fwd:.2e}",
         tol="≤ 20",

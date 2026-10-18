@@ -203,6 +203,30 @@ def soft_breaks(s: str) -> str:
     return s
 
 
+#: 附表文本里"xelatex + ctex 一定没有字形"的字符类别。
+#:
+#: 由 2.4 章的作者实测补上这一课：`record(theory=...)` 是自由文本，而上标/下标 Unicode
+#: （`ᵖ ⁽ ⁾ ₀ ①`）与 `⇔ ≳ ⊥` 这类符号**会被 xelatex 静默吞掉**——单章编译（G9）才报
+#: "missing glyphs"，而那时数字已经印进 PDF 的正文里了。所以在**生成附表之前**就查一遍。
+#: 判定用白名单：ASCII + CJK + 希腊字母 + 已在本仓库 30+ 页构建里验证过的数学符号。
+_SAFE_EXTRA = set("αβγδεζηθικλμνξπρστυφχψωΓΔΘΛΞΠΣΦΨΩ"
+                  "∑∏∫√≈≠≤≥±×÷∞→←↔∂∇∈∉⊂⊆∪∩⋅·°′″⌈⌉⌊⌋")
+_SAFE_RANGES = ((0x20, 0x7E), (0x3000, 0x303F), (0x4E00, 0x9FFF), (0xFF00, 0xFFEF), (0x2010, 0x2027), (0x2018, 0x201D))
+
+
+def latex_risky_chars(text: str) -> list[str]:
+    """返回文本里"附表/笔记里 xelatex 没有字形"的字符（去重、按出现顺序）。"""
+    bad: list[str] = []
+    for ch in text:
+        if ch in _SAFE_EXTRA or any(lo <= ord(ch) <= hi for lo, hi in _SAFE_RANGES):
+            continue
+        if ch in ("\n", "\t", "\r"):
+            continue
+        if ch not in bad:
+            bad.append(ch)
+    return bad
+
+
 def write_asserts_table(
     root: pathlib.Path,
     cid: str,
@@ -243,6 +267,8 @@ def write_asserts_table(
     lines.append(r"\end{longtable}")
     lines.append("")
     text = "\n".join(lines)
+    # 生成前先查字形：附表是 notes.tex 的正文，印出来才报"缺字形"就晚了
+    # （这条不是拒绝写文件——写还是要写，问题由 check_structure 报给 G9）。
     old = out.read_text(encoding="utf-8") if out.exists() else None
     changed = old != text
     if changed and not dry_run:
@@ -253,6 +279,18 @@ def write_asserts_table(
 def check_structure(root: pathlib.Path, cid: str) -> tuple[list[str], pathlib.Path | None]:
     """返回 (问题列表, notes 路径)。"""
     problems: list[str] = []
+    # 附表文本里的"无字形字符"要在这里报出来（否则只能在 xelatex 日志里看到
+    # "Missing character"，而且它**不会**让编译失败——数字就那么少了一撇）。
+    table = root / "chapters" / cid / "asserts_table.tex"
+    if table.exists():
+        bad = latex_risky_chars(table.read_text(encoding="utf-8"))
+        if bad:
+            shown = "、".join(repr(c) for c in bad[:6])
+            problems.append(
+                f"{cid}: asserts_table.tex 含 xelatex 无字形的字符：{shown}"
+                f"（共 {len(bad)} 种）——请把断言文本里的上标/下标 Unicode 改成 ASCII 写法"
+                "（`bᵀ` → `b^T`、`Q⁻¹` → `Q^{-1}`）"
+            )
     notes = root / "chapters" / cid / "notes.tex"
     if not notes.exists():
         return [f"{cid}: 缺少 chapters/{cid}/notes.tex"], None
@@ -337,6 +375,10 @@ def compile_tex(tex: str, out_dir: pathlib.Path, *, runs: int = 2, root: pathlib
         "missing_samples": sorted(set(missing))[:5],
         "pages": int(pages.group(1)) if pages else None,
         "undefined": len(undefined),
+        # 具体名字：只报"单章编译失败"时作者还得去翻 one_<id>.log（3.1 章踩过：
+        # 跨章 \eqref 到 3.2 章的 label，单章编译下那个 label 根本不存在）。
+        "undefined_refs": sorted({m.group(0).split("`")[-1].split("'")[0] for m in REF_RE.finditer(log_text)})[:8],
+        "errors": [ln.strip() for ln in log_text.splitlines() if ln.startswith("!")][:3],
         "overfull": len(re.findall(r"Overfull \\hbox", log_text)),
         "seconds": round(time.perf_counter() - started, 2),
         "tail": "\n".join(log_text.strip().splitlines()[-15:]) if rc != 0 else "",
@@ -414,6 +456,15 @@ def build(root: pathlib.Path, *, only: str | None = None, do_compile: bool = Tru
                     if miss
                     else ""
                 )
+                # 未定义引用与其它错误要给**具体名字**：只报"单章编译失败"时，
+                # 作者得自己去翻 one_<id>.log 才知道是哪个 label（3.1 章踩过——跨章
+                # \eqref 到 3.2 章，单章编译下那个 label 不存在）。
+                undef = list(info["single"].get("undefined_refs") or [])
+                if undef:
+                    extra += f"；未定义引用 {len(undef)} 处：{', '.join(undef[:6])}"
+                err_lines = list(info["single"].get("errors") or [])
+                if err_lines:
+                    extra += f"；错误行：{err_lines[0][:160]}"
                 ch_problems.append(f"{cid}: 单章编译失败（见 dist/book/one_{cid}.log{extra}）")
         problems.extend(ch_problems)
         info["problems"] = ch_problems

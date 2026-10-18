@@ -2,13 +2,6 @@
 
 import type { ChapterManifestJson } from "../shared/src/manifest.js";
 import type { SceneModel } from "../shared/src/model.js";
-import { manifest as manifest_c_0_0, models as models_c_0_0 } from "./0.0/index.js";
-import { manifest as manifest_c_1_1, models as models_c_1_1 } from "./1.1/index.js";
-import { manifest as manifest_c_1_2, models as models_c_1_2 } from "./1.2/index.js";
-import { manifest as manifest_c_1_5, models as models_c_1_5 } from "./1.5/index.js";
-import { manifest as manifest_c_2_1, models as models_c_2_1 } from "./2.1/index.js";
-import { manifest as manifest_c_2_2, models as models_c_2_2 } from "./2.2/index.js";
-import { manifest as manifest_c_2_3, models as models_c_2_3 } from "./2.3/index.js";
 
 /** 一章的前端装配：manifest（契约）+ models（viz id → Frame→Scene） */
 export interface ChapterModels {
@@ -16,15 +9,48 @@ export interface ChapterModels {
   models: Record<string, SceneModel>;
 }
 
-/** 已经实现可视化的章节（未实现的不在表里，调用方要处理 undefined） */
-export const chapterModels: Record<string, ChapterModels> = {
-  "0.0": { manifest: manifest_c_0_0, models: models_c_0_0 },
-  "1.1": { manifest: manifest_c_1_1, models: models_c_1_1 },
-  "1.2": { manifest: manifest_c_1_2, models: models_c_1_2 },
-  "1.5": { manifest: manifest_c_1_5, models: models_c_1_5 },
-  "2.1": { manifest: manifest_c_2_1, models: models_c_2_1 },
-  "2.2": { manifest: manifest_c_2_2, models: models_c_2_2 },
-  "2.3": { manifest: manifest_c_2_3, models: models_c_2_3 },
+/** 已经实现可视化的章节 id（未实现的不在表里；判断「能不能点」看它，不需要加载 model） */
+export const chapterIds: string[] = ["0.0", "1.1", "1.2", "1.3", "1.5", "2.1", "2.2", "2.3", "3.2"];
+
+/** 章节 id → 加载器（动态 import：坏掉的兄弟章节不会拖垮整包） */
+const loaders: Record<string, () => Promise<ChapterModels>> = {
+  "0.0": () => import("./0.0/index.js"),
+  "1.1": () => import("./1.1/index.js"),
+  "1.2": () => import("./1.2/index.js"),
+  "1.3": () => import("./1.3/index.js"),
+  "1.5": () => import("./1.5/index.js"),
+  "2.1": () => import("./2.1/index.js"),
+  "2.2": () => import("./2.2/index.js"),
+  "2.3": () => import("./2.3/index.js"),
+  "3.2": () => import("./3.2/index.js"),
 };
 
-export default chapterModels;
+const cache = new Map<string, ChapterModels>();
+
+/** 加载一章的前端装配；没有实现或加载失败时返回 undefined（并打印一行警告）。 */
+export async function loadChapter(id: string): Promise<ChapterModels | undefined> {
+  const hit = cache.get(id);
+  if (hit) return hit;
+  const load = loaders[id];
+  if (!load) return undefined;
+  try {
+    const bundle = await load();
+    cache.set(id, bundle);
+    return bundle;
+  } catch (err) {
+    console.warn(`[chapters] 章节 ${id} 的前端装配加载失败：${(err as Error).message}`);
+    return undefined;
+  }
+}
+
+/** 按 id 升序加载所有已实现章节（失败的跳过，返回值只含成功的）。 */
+export async function loadAllChapters(): Promise<Map<string, ChapterModels>> {
+  const out = new Map<string, ChapterModels>();
+  for (const id of chapterIds) {
+    const bundle = await loadChapter(id);
+    if (bundle) out.set(id, bundle);
+  }
+  return out;
+}
+
+export default loadChapter;

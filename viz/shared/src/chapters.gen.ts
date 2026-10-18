@@ -83,12 +83,36 @@ export const chapterIndex: ChapterIndexEntry[] = [
     "vizzes": ["area_convergence", "gauss_vs_equispaced", "romberg_table", "singular_endpoint"],
   },
   {
+    "chapter": "2.5",
+    "nViz": 5,
+    "part": "II",
+    "summary": "DFT 的定义与快速算法、泄漏与窗、分辨率与不确定性、循环卷积的卷绕。",
+    "title": "傅里叶分析与 FFT",
+    "vizzes": ["signal_spectrum", "leak_window", "butterfly_stages", "conv_theorem", "resolution"],
+  },
+  {
+    "chapter": "3.1",
+    "nViz": 4,
+    "part": "III",
+    "summary": "阶条件把「一个方法几阶」变成一组可以逐条验算的和：每棵有根树一条，Φ(τ)=1/γ(τ)。满足到第 p 棵，误差就按 h^p 走——这一章把两条证据链摆在一起：树上算出来的阶，和真跑积分量出来的斜率。自适应步长则把这套阶变成工程：估计器估的是哪个解，决定了「tol 是不是精度」。",
+    "title": "单步法、阶条件与自适应步长",
+    "vizzes": ["order_convergence", "adaptive_step", "order_conditions", "work_precision"],
+  },
+  {
     "chapter": "3.2",
     "nViz": 5,
     "part": "III",
     "summary": "线性测试方程 y'=λy 把「一个方法稳不稳」压缩成复平面上的一个区域；把 λh 拖出这个区域，数值解真的会炸。刚性问题的全部戏剧性就在「解很平缓、步长却由 λ_max 决定」这一句话里。",
     "title": "稳定性与刚性方程",
     "vizzes": ["stability_region", "stiff_dilemma", "stability_surface", "explicit_vs_implicit", "bdf_angle"],
+  },
+  {
+    "chapter": "4.1",
+    "nViz": 4,
+    "part": "IV",
+    "summary": "热方程 θ 族格式的全部结论都挂在一个数上：放大因子 G(φ)。显式的 r ≤ 1/2、隐式的无条件稳定、CN 的二阶、数值耗散掉得最快的是短波——都是 G(φ) 的不同侧面。这一章把三条证据链并排放：解析的 G(φ)、从真的解里分解出来的逐模态存活率、以及二分实测的稳定阈值。三个最容易被骗的地方也都标出来了：r ≤ 1/2 不是普适常数、稳定不等于精确、解看起来光滑不等于收敛。",
+    "title": "抛物型方程与时间推进",
+    "vizzes": ["stability_threshold", "convergence_order", "numerical_dissipation", "boundary_conservation"],
   },
 ];
 

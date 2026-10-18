@@ -22,7 +22,7 @@
 import { mkdirSync, readdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
-import { chapterModels } from "../../chapters/index.gen.js";
+import { chapterIds, loadChapter } from "../../chapters/index.gen.js";
 import { decodeNlf } from "../../shared/src/nlf.js";
 import type { Frame } from "../../shared/src/frame.js";
 import { sceneToJson } from "../../shared/src/scene.js";
@@ -82,7 +82,7 @@ interface Dumped {
   problems: string[];
 }
 
-function main(): number {
+async function main(): Promise<number> {
   const args = parseArgs(process.argv.slice(2));
   const framesDir = resolve(args.frames);
   const outDir = resolve(args.out);
@@ -94,8 +94,15 @@ function main(): number {
   // 而"我只想看我这一章的图"不该被别人的中间态拖成一次失败（与 tools/visual_regression.py、
   // tools/precompute.py 的 `--chapter` 同一条规矩）。
   const only = args.chapter ? new Set(args.chapter.split(",").map((c) => c.trim()).filter(Boolean)) : null;
-  for (const [chapter, bundle] of Object.entries(chapterModels)) {
+  for (const chapter of chapterIds) {
     if (only && !only.has(chapter)) continue;
+    // 惰性加载：某一章的 model 半成品（import 断链）只让那一章失败，不再拖垮整轮
+    // （静态 import 时 `--chapter 1.1` 也救不了，前端 agent 真撞上过）。
+    const bundle = await loadChapter(chapter);
+    if (!bundle) {
+      skipped.push({ chapter, viz: "*", reason: "章节的前端装配加载失败（见上方警告）" });
+      continue;
+    }
     for (const viz of bundle.manifest.vizzes) {
       const model = bundle.models[viz.id];
       if (!model) {
@@ -189,4 +196,6 @@ function main(): number {
   return problems.length === 0 ? 0 : 1;
 }
 
-process.exitCode = main();
+// main 现在是 async（惰性 import）——顶层 await 在 ESM 里合法，用它把退出码接上，
+// 别写成 `process.exitCode = main()`（那会拿到一个 Promise，退出码恒为 0）。
+process.exitCode = await main();

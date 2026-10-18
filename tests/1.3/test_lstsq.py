@@ -316,7 +316,7 @@ def test_noise_fan_amplification_and_resolution_limit() -> None:
 # --------------------------------------------------------------------------- #
 # B 类：不变量与帧自检
 # --------------------------------------------------------------------------- #
-@assertion("B", theory="三条路线的解都满足 Aᵀr̂ ≈ 0（刻度 n·u·‖A‖(‖b‖+‖A‖‖x̂‖)）", chapter="1.3")
+@assertion("B", theory="三条路线的解都满足 Aᵀr_hat ≈ 0（刻度 n·u·‖A‖(‖b‖+‖A‖‖x_hat‖)）", chapter="1.3")
 def test_all_solvers_satisfy_normal_equations() -> None:
     """正交性是三条路线的**共同**性质（与 κ 无关），差异全在前向误差上。"""
     worst = 0.0
@@ -326,7 +326,7 @@ def test_all_solvers_satisfy_normal_equations() -> None:
             scale = 10 * U * float(np.sqrt(np.sum(A * A))) * (_norm2(b) + float(np.sqrt(np.sum(A * A))) * _norm2(sol.x))
             worst = max(worst, sol.normal_defect / scale)
     rec_h = record(
-        label="‖Aᵀr̂‖ /(n·u·‖A‖_F(‖b‖+‖A‖_F‖x̂‖))",
+        label="‖Aᵀr_hat‖ /(n·u·‖A‖_F(‖b‖+‖A‖_F‖x_hat‖))",
         theory="≤ c（三条路线、κ 从 1e2 到 1e10 都与 κ 无关）",
         measured=f"{worst:.3f}",
         tol="≤ 10",
