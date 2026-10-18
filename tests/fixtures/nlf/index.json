@@ -1,0 +1,40 @@
+{
+ "fixtures": [
+  {
+   "name": "basic_f8_1d",
+   "file": "basic_f8_1d.nlf",
+   "bytes": "890",
+   "arrays": "u,x"
+  },
+  {
+   "name": "multi_2d",
+   "file": "multi_2d.nlf",
+   "bytes": "714",
+   "arrays": "A,b"
+  },
+  {
+   "name": "zlib_2d",
+   "file": "zlib_2d.nlf",
+   "bytes": "10049",
+   "arrays": "field"
+  },
+  {
+   "name": "f_order",
+   "file": "f_order.nlf",
+   "bytes": "777",
+   "arrays": "AF,AC"
+  },
+  {
+   "name": "dtypes",
+   "file": "dtypes.nlf",
+   "bytes": "653",
+   "arrays": "i,u,flag"
+  },
+  {
+   "name": "dataset_1d",
+   "file": "dataset_1d.nlf",
+   "bytes": "727",
+   "arrays": "h,err"
+  }
+ ]
+}

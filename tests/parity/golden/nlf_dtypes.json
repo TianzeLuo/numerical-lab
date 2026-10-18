@@ -1,0 +1,52 @@
+{
+ "arrays": {
+  "flag": {
+   "dtype": "bool",
+   "shape": [
+    4
+   ],
+   "values": [
+    1,
+    0,
+    1,
+    1
+   ]
+  },
+  "i": {
+   "dtype": "int32",
+   "shape": [
+    5
+   ],
+   "values": [
+    -3,
+    -1,
+    0,
+    2,
+    7
+   ]
+  },
+  "u": {
+   "dtype": "uint8",
+   "shape": [
+    4
+   ],
+   "values": [
+    0,
+    1,
+    127,
+    255
+   ]
+  }
+ },
+ "chapter": "0.0",
+ "codec": "none",
+ "critical": {},
+ "kind": "frame",
+ "meta": {
+  "n": 5,
+  "t": 0.0
+ },
+ "pitfalls": "整数与布尔数组若被前端当成 float64 解读，会静默给出完全错误的数值。",
+ "strings": {},
+ "viz": "fake_dtypes"
+}

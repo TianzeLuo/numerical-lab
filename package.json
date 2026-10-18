@@ -7,7 +7,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "build": "tsc -p tsconfig.json",
-    "test": "node --test --test-reporter=spec dist/viz/tests/",
+    "test": "node --test --test-reporter=spec \"dist/viz/tests/**/*.test.js\"",
     "parity": "node dist/viz/tests/parity/run_parity.js",
     "scene": "node dist/viz/tests/scene/dump_scenes.js",
     "bench": "node dist/viz/tests/bench/bench_models.js"
