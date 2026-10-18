@@ -487,6 +487,24 @@ export function validateScene(scene: unknown): string[] {
     }
     // 规则 8（布局·其二）：文本层不得落进任何坐标轴的装饰带——那里由渲染层自己画刻度与轴名。
     const txtBoxes = (s.texts ?? []).map((t) => ({ t, ...textBoxOf(t) }));
+    // 文本压文本同样是违规（两块说明叠在一起 = 两块都没说清）。两个方向都超过 2px 才算，
+    // 贴边不算。Python 侧同一规则在 tools/raster.py::_text_deco_issues（两侧必须同时报，
+    // 否则"浏览器正常、PNG 基线糊了"这类问题会在门禁里溜过去）。
+    for (let i = 0; i < txtBoxes.length; i += 1) {
+      for (let j = i + 1; j < txtBoxes.length; j += 1) {
+        const a = txtBoxes[i]!;
+        const b = txtBoxes[j]!;
+        if (!a.ok || !b.ok) continue;
+        const ox = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
+        const oy = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
+        if (ox > 2 && oy > 2) {
+          issues.push(
+            `文本互相压住（规则 8）：${String(a.t.text ?? "").slice(0, 16)}… 与 ` +
+              `${String(b.t.text ?? "").slice(0, 16)}… 重叠 ${ox.toFixed(0)}×${oy.toFixed(0)}px`,
+          );
+        }
+      }
+    }
     for (const axis of s.axes ?? []) {
       if (!Array.isArray(axis.rect) || axis.rect.length !== 4) continue;
       for (const band of axisDecoBands(axis as { rect: [number, number, number, number] })) {

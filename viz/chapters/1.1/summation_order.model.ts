@@ -78,10 +78,8 @@ import {
   scatterLayer,
   series,
   sourceBadge,
-  text,
 } from "../../shared/src/scene.js";
 import {
-  SAFE_GAP,
   axisTitleOf,
   axisYlabelOf,
   constantArray,
@@ -450,19 +448,8 @@ export const summationOrderModel: SceneModel = (frame, opts) => {
   const auxBudget = unitBudget(auxRect[2]);
   scene.texts.push(...textBlock(auxRect[0] + 6, textTop(auxRect), textBottom(auxRect), auxLines, pal.muted, auxBudget, "top"));
 
-  // 游标标签（贴着副轴底部；x 由线性轴直接映射，夹在面板内）。
-  const xSpan = auxAxis.xlim[1] - auxAxis.xlim[0];
-  const mx = auxRect[0] + ((kNow - auxAxis.xlim[0]) / xSpan) * auxRect[2];
-  if (Number.isFinite(mx)) {
-    scene.texts.push(
-      text(clamp(mx + 4, auxRect[0] + 6, auxRect[0] + auxRect[2] - 96), auxRect[1] + auxRect[3] - SAFE_GAP - 15, `k=${formatNumber(kNow, 5)}`, {
-        role: "note",
-        size: 11,
-        color: pal.marker,
-        align: "left",
-      }),
-    );
-  }
+  // 游标标签**不画**：副轴那一行被说明块占满（规则 8 的"文本压文本"抓到 21×14px 重叠），
+  // 而 k 的值在说明块与角标里都写了——竖虚线仍在，不为了多一个数字挤掉一句话。
 
   // —— 角标（固定槽位）——
   scene.badges.push(placeBadge(badge("source", sourceBadge(scene.dataSource).text, 8, 8), SLOT.source, width));

@@ -389,6 +389,28 @@ test("validateScene 拒绝同行的两枚长角标（规则 8）", () => {
   assert.deepEqual(after, [], `挪开一行后不应再报布局问题：${after.join(" | ")}`);
 });
 
+test("validateScene 拒绝互相压住的文本层（规则 8）", () => {
+  const s = baseScene();
+  // 两块说明叠在一起 = 两块都没说清。Python 侧同一规则在 tools/raster.py::_text_deco_issues，
+  // 两侧必须同时报——否则"浏览器正常、PNG 基线糊了"会在门禁里溜过去（1.1 章真报过 21×14px）。
+  s.texts = [
+    { x: 40, y: 60, text: "第一块说明", size: 11 },
+    { x: 46, y: 66, text: "第二块说明", size: 11 },
+  ];
+  const issues = validateScene(s);
+  assert.ok(
+    issues.some((i) => i.includes("文本互相压住")),
+    `应当报出文本重叠，实际：${issues.join(" | ")}`,
+  );
+  // 恰好贴边（共边）不算重叠：盒子 [40,60,宽,15] 与 [40,75,...] 只共一条边
+  s.texts = [
+    { x: 40, y: 60, text: "第一块说明", size: 11 },
+    { x: 40, y: 75, text: "第二块说明", size: 11 },
+  ];
+  const clean = validateScene(s).filter((i) => i.includes("文本互相压住"));
+  assert.equal(clean.length, 0, `贴边不该算重叠：${clean.join(" | ")}`);
+});
+
 test("validateScene 拒绝冲出画布的角标（规则 8）", () => {
   const s = baseScene();
   s.canvas = { w: 320, h: 240, background: "#ffffff" };

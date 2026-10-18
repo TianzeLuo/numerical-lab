@@ -633,3 +633,15 @@ data/frames/<chapter>/<viz>/<hash>_t<t>.nlf # 生成物，可 `make precompute` 
 **基线命名规则**：基线文件名 = 场景转储文件名（只换扩展名），所以
 "改 `dump_scenes.ts` 的采样时刻/参数 → 文件名全变 → 全部缺基线"是**有意**的：
 想让新场景进基线，必须显式跑 `make visual-update` 并在提交信息里写明原因。
+
+### 规则 8 增补：文本不许互相压住（两侧都检查）
+
+`tools/raster.py::_text_deco_issues` 与 `viz/shared/src/scene.ts::validateScene` 现在都检查
+**文本层两两重叠**（两个方向都超过 2px 才算，贴边不算）。原因是"两块说明叠在一起等于两块都没说清"，
+而它在肉眼验收里最容易被放过：浏览器 canvas 与 PNG 基线用的是同一份 `Scene`，所以两侧必须
+同时报同一条违规（只做一侧，就会出现"浏览器正常、基线糊了"）。
+
+模型侧的排版纪律随之明确：**盒子高度按 `size + 4` 算**（`textBoxOf`/`text_box_of` 同一把尺子），
+折行也按**共享的显示宽度单位**（CJK=2、ASCII=1，`BADGE_UNIT_PX`）而不是渲染器里的真实字形宽度：
+两把尺子差 ~7%（13px 档 CJK 实际 16px、代理算 14px），会让"预算 4 行"变成"画出 5 行"，
+整块文本比预留位置高，压住下面那块。1.1 章的 `cancellation`、2.3 章的中面板都踩过。

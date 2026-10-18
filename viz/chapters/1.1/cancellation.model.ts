@@ -75,10 +75,8 @@ import {
   scatterLayer,
   series,
   sourceBadge,
-  text,
 } from "../../shared/src/scene.js";
 import {
-  SAFE_GAP,
   axisTitleOf,
   axisYlabelOf,
   constantArray,
@@ -349,19 +347,9 @@ export const cancellationModel: SceneModel = (frame, opts) => {
   const auxBudget = unitBudget(auxRect[2] * 0.72);
   scene.texts.push(...textBlock(auxRect[0] + 6, textTop(auxRect), textBottom(auxRect), auxLines, pal.muted, auxBudget, "top"));
 
-  // 游标标签（贴着主轴底部；主轴是固定轴，位置直接由数据坐标算）。
-  const span = mainAxis.xlim[1] - mainAxis.xlim[0];
-  const mx = mainRect[0] + ((tNow - mainAxis.xlim[0]) / span) * mainRect[2];
-  if (Number.isFinite(mx)) {
-    scene.texts.push(
-      text(clamp(mx + 4, mainRect[0] + 6, mainRect[0] + mainRect[2] - 90), mainRect[1] + mainRect[3] - SAFE_GAP - 15, `t=${formatNumber(tNow, 4)}`, {
-        role: "note",
-        size: 11,
-        color: pal.marker,
-        align: "left",
-      }),
-    );
-  }
+  // 游标标签**不画**：底部那一行是底部锚定的说明块（规则 8 的"文本压文本"两次抓到
+  // 21×14px 的重叠），顶部又已有"输入位数"一行；数值本身在说明块与角标里都写了，
+  // 只留竖虚线做视觉指认（不为了多一个数字去挤掉一句话）。
 
   // —— 角标（固定槽位）——
   scene.badges.push(placeBadge(badge("source", sourceBadge(scene.dataSource).text, 8, 8), SLOT.source, width));

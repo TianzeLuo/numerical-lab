@@ -529,6 +529,11 @@ make book                                 # 3) 编译；附表与最新报告不
 - **枚举/字符串参数走 `set_strings`**（`pivot="partial"`、`bc="natural"`、`method="bdf2"`）；
   帧里出现哨兵值（`None`、`-1`）必须在 `strings` 里说明它为什么不是数字
   （`docs/PROTOCOLS.md` §1.3，那里列了 1.1/1.2/2.2 三处正例与 1.5 的待补处）。
+- **PNG 基线里的中文要有字形**：`tools/raster.py` 的位图字体是**烘焙**进去的，子集按
+  "场景里真正出现的字符"收集（`tools/bake_font.py`）。新写的中文如果不在里面，PNG 里就是方框
+  （浏览器 canvas 正常），`pytest tests/test_raster_font.py` 与 `python3 tools/bake_font.py --check`
+  会报出缺字清单；修法是 `--write` 重烘焙 + 重画基线。**别改回旧的 `glyph_offsets(...) is None` 探针**
+  ——它永远为假（缺字时返回的是缺字框轮廓），这正是缺字溜进基线的原因。
 - **`@assertion(theory=...)` / `record(label=...)` / `asserts.yaml` 的 `what:` 会原样进 LaTeX 附表**：
   它们不是普通注释，而是印在 PDF 正文里的字。两条纪律：
   ① **不许写组合变音符号**（`x̂` = `x` + U+0302、`H̄` = `H` + U+0304）：xelatex 会**静默吞掉**
