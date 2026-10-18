@@ -4,9 +4,15 @@
  * 数学定义
  * --------
  * * 线性刻度步长取 ``1·10^k``、``2·10^k``、``5·10^k``（1-2-5 规则）；
- * * 对数刻度主刻度取 ``10^k``（必要时补 ``5·10^k``）；
+ * * 对数刻度主刻度取 ``10^k``；当区间跨度不足 ``target/2`` 个十倍程时，依次补
+ *   ``5·10^k``（必要时再补 ``2·10^k``）作为次刻度，使刻度始终是"好看的数"；
  * * 数据到像素是仿射映射 ``p = p0 + (v − lo)/(hi − lo)·(p1 − p0)``，
  *   对数刻度下把 ``v`` 换成 ``log10 v``。
+ *
+ * 覆盖口径（可机器验证）：**任何原始区间**下，1-2-5 格点 + "刻度数 ≤ 2·target"这两条
+ * 硬约束决定了首末刻度未必能压住端点（例如 8 个十倍程的区间只有十几个格点可用）；本模块
+ * 的选择策略是"在可行集里取覆盖最大者"（见 {@link niceTicks} 的选择口径）。要 100% 压住
+ * 两端，就先过一遍 {@link niceLimits}——它会把轴范围取整到与刻度同一格点，测试里对此有断言。
  *
  * 契约与退化行为（全部写进各函数 docstring，不靠"猜"）
  * ------------------------------------------------
@@ -19,10 +25,6 @@
  * | log 刻度遇到数据 `v ≤ 0` | `mapToPixel` 返回 `NaN`（渲染层据此跳过该点，不抛错） |
  * | `p0 === p1` | `mapToPixel`/`mapToData` 抛 `RangeError`（零长轴没有映射可言） |
  * | 非有限输入 | 抛 `RangeError`（`mapToPixel` 的数据 `v` 除外：`NaN` 进 `NaN` 出） |
- *
- * 为什么把"能否覆盖"写进契约：刻度只允许落在 `[lo, hi]` 内（防误导规则 1：不许靠裁剪
- * 掩盖越界），因此任意原始区间的首尾未必被刻度压住；调用方先用 `niceLimits` 把区间取整到
- * "好看的数"，`niceTicks` 便能严格压住两端（覆盖 100%）。
  */
 
 /** 刻度类型：线性 / 对数（以 10 为底）。 */
@@ -235,23 +237,45 @@ function logTicks(lo: number, hi: number, target: number): number[] {
   const count = eHi - eLo + 1;
   if (count >= minCount) {
     const stride = decadeStride(count, target);
+    // 步进可以整体平移：挑"两端缺口最大值最小"的那个相位，避免刻度全挤在一侧
+    let bestOffset = 0;
+    let bestGap = Infinity;
+    for (let off = 0; off < stride; off++) {
+      const first = eLo + off;
+      if (first > eHi) break;
+      const last = eHi - ((eHi - first) % stride);
+      const gap = Math.max(
+        Math.log10(pow10(first) / lo),
+        Math.log10(hi / pow10(last)),
+      );
+      if (gap < bestGap - 1e-12) {
+        bestGap = gap;
+        bestOffset = off;
+      }
+    }
     const out: number[] = [];
-    for (let e = eLo; e <= eHi; e += stride) out.push(pow10(e));
+    for (let e = eLo + bestOffset; e <= eHi; e += stride) out.push(pow10(e));
     return out;
   }
-  // 整十次幂太少（区间跨度不足若干十倍程）：补 5×10^e 次刻度，把最大间隙压到 5 倍
-  const out: number[] = [];
-  for (let e = eLo - 1; e <= eHi + 1; e++) {
-    for (const m of [1, 5]) {
-      const v = m * pow10(e);
-      if (v >= lo && v <= hi) {
+  // 整十次幂太少（区间跨度不足若干十倍程）：补 5×10^e 次刻度，把最大间隙压到 5 倍；
+  // 若连 2 个刻度都凑不出（区间窄于一个 5 倍格点），再补 2×10^e；仍不足则退化为端点。
+  const build = (mantissas: readonly number[]): number[] => {
+    const out: number[] = [];
+    for (let e = eLo - 1; e <= eHi + 1; e++) {
+      for (const m of mantissas) {
+        const v = m * pow10(e);
+        if (v < lo || v > hi) continue;
         const last = out.length > 0 ? out[out.length - 1] : Number.NEGATIVE_INFINITY;
         if (v > last) out.push(v);
       }
     }
-  }
-  if (out.length === 0) return [lo, hi]; // 极窄区间（不足一个 5 倍格点）：退化为端点
-  return out;
+    return out;
+  };
+  const coarse = build([1, 5]);
+  if (coarse.length >= 2) return coarse;
+  const fine = build([1, 2, 5]);
+  if (fine.length >= 2) return fine;
+  return [lo, hi]; // 极窄区间：退化为端点刻度（仍然严格落在区间内）
 }
 
 /* ------------------------------------------------------------------ *
@@ -263,8 +287,9 @@ function logTicks(lo: number, hi: number, target: number): number[] {
  *
  * * 线性：1-2-5 步长，刻度是 `step` 的整数倍；
  * * 对数（`opts.log = true`）：主刻度为整十次幂；当区间跨度不足 `target/2` 个十倍程时
- *   补 `5·10^k` 次刻度（此时相邻比值是 2 或 5，而非 10 的幂——这是"必要时"的唯一代价，
- *   见模块头注释）；
+ *   补 `5×10^k` 次刻度（连 2 个刻度都凑不出时再补 `2×10^k`；仍然不足则退化为端点），
+ *   因此对数刻度恒为 1×/2×/5×10^k，**十倍程足够时相邻比值才是 10 的幂**——这是"必要时"
+ *   的唯一代价，见模块头注释；
  * * 数量目标：落在 `[⌈target/2⌉, 2·target]`；对数刻度在"十倍程数不足"或"极窄区间"时
  *   无法达标，此时以"刻度合法且尽量贴近端点"为先；
  * * `lo > hi` → `RangeError`；`lo === hi` → `[lo]`（退化）；`log` 且 `lo ≤ 0` → `RangeError`。

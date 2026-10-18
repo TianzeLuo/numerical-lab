@@ -168,6 +168,7 @@ def test_rejects_dtype_order_and_shape_inconsistency() -> None:
     header = json.loads(blob[8 : 8 + hlen].decode("utf-8"))
     for field, value, msg in (
         ("dtype", "f16", "dtype"),
+        ("dtype", "f2", "dtype"),  # PROTOCOLS §1.1：线格式**没有**半精度，两侧都必须拒绝
         ("order", "X", "order"),
         ("nbytes", 1, "nbytes"),
     ):

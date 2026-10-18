@@ -77,7 +77,11 @@ export type Layer =
       axes: string;
       nx: number;
       ny: number;
-      /** 行主序、长度 nx*ny；第 j 行第 i 列对应 x = extent[0] + (i+0.5)dx。 */
+      /**
+       * 行主序、长度 nx*ny 的**节点采样**：第 j 行第 i 列对应
+       * x = extent[0] + (extent[1]−extent[0])·i/(nx−1)，y 同理（**含两端**）。
+       * 与 `contour`/`vectorfield` 用同一约定——两种约定混用是画错图的经典原因。
+       */
       values: ArrayLike<number>;
       extent: [number, number, number, number];
       cmap: CmapName;
@@ -241,6 +245,11 @@ export function validateScene(scene: unknown): string[] {
     if (!Array.isArray(a.xticks) || !Array.isArray(a.yticks)) issues.push(`轴 ${a.id} 必须给出 xticks/yticks`);
   }
   if (!Array.isArray(s.layers) || s.layers.length === 0) issues.push("至少需要一个图层");
+  const gridLayerIssue = (tag: string, layer: { nx: number; ny: number; extent: [number, number, number, number] }): void => {
+    if (!(layer.nx >= 2) || !(layer.ny >= 2)) issues.push(`${tag} 网格至少 2×2（节点采样含两端），得到 ${layer.nx}×${layer.ny}`);
+    const e = layer.extent;
+    if (!(e[1] > e[0]) || !(e[3] > e[2])) issues.push(`${tag} extent 必须严格递增：${JSON.stringify(e)}`);
+  };
   for (const [i, layer] of (s.layers ?? []).entries()) {
     const tag = `图层[${i}](${(layer as { kind?: string }).kind ?? "?"})`;
     if (!KNOWN_KINDS.has((layer as { kind: string }).kind)) {
@@ -276,11 +285,13 @@ export function validateScene(scene: unknown): string[] {
         if (!KNOWN_CMAPS.has(layer.cmap)) issues.push(`${tag} 未知色标 ${String(layer.cmap)}`);
         if (!(layer.vmax > layer.vmin)) issues.push(`${tag} 需要 vmax > vmin`);
         if (layer.logScale && layer.vmin <= 0) issues.push(`${tag} 对数色标要求 vmin > 0`);
+        gridLayerIssue(tag, layer);
         break;
       }
       case "contour": {
         if (len(layer.values) !== layer.nx * layer.ny) issues.push(`${tag} values 长度与 nx*ny 不符`);
         if (!Array.isArray(layer.levels) || layer.levels.length === 0) issues.push(`${tag} 至少一个等值线层级`);
+        gridLayerIssue(tag, layer);
         break;
       }
       case "bars": {
@@ -293,6 +304,7 @@ export function validateScene(scene: unknown): string[] {
           issues.push(`${tag} u/v 长度必须等于 nx*ny`);
         }
         if (!(layer.stride >= 1)) issues.push(`${tag} stride 必须 ≥ 1`);
+        gridLayerIssue(tag, layer);
         break;
       }
       case "loglogfit": {
@@ -621,14 +633,43 @@ export function overflowBadge(note: string, x = 8, y = 44): Badge {
   return { kind: "overflow", text: `溢出：${note}`, x, y, color: "#c53030" };
 }
 
-/** 规则 6 的临界值徽标（参数越过理论临界值时必须现身）。 */
-export function criticalBadge(name: string, value: number, critical: number | number[], unit = ""): Badge {
-  const list = Array.isArray(critical) ? critical : [critical];
-  const nearest = list.reduce((a, b) => (Math.abs(b - value) < Math.abs(a - value) ? b : a), list[0] as number);
-  const crossed = list.some((c) => (value - c) * (nearest - c) >= 0) && value !== nearest;
+/**
+ * 规则 6 的临界值徽标（参数越过理论临界值时必须现身）。
+ *
+ * `beyond` 必须由调用方明确给出方向——"越界"的方向无法从数值本身推断：
+ *  - `"above"`（缺省）：常见于 CFL、Re/Re_c、ρ(J)、Δt/Δt_max 等"不得超过"的量；
+ *  - `"below"`：下界型约束（如阻尼比不得小于某值、每波长至少 2 个采样点）；
+ *  - `"magnitude"`：比较绝对值（如谱半径）。
+ *
+ * 给出的 `critical` 可以是一族阈值（如 [0.25, 0.5, 1]）；徽标会标出**当前起支配作用**的那一个。
+ */
+export function criticalBadge(
+  name: string,
+  value: number,
+  critical: number | number[],
+  opts: { unit?: string; beyond?: "above" | "below" | "magnitude" } = {},
+): Badge {
+  const list = (Array.isArray(critical) ? critical : [critical]).slice().sort((a, b) => a - b);
+  if (list.length === 0 || !Number.isFinite(value)) {
+    return { kind: "critical", text: `${name} = ${String(value)}（无可比临界值）`, x: 8, y: 62, color: "#718096" };
+  }
+  const beyond = opts.beyond ?? "above";
+  let governing: number;
+  let crossed: boolean;
+  if (beyond === "above") {
+    governing = list.find((c) => value > c) ?? (list[0] as number); // 已被突破的最小阈值（最紧的那条）
+    crossed = value > governing;
+  } else if (beyond === "below") {
+    governing = [...list].reverse().find((c) => value < c) ?? (list[list.length - 1] as number);
+    crossed = value < governing;
+  } else {
+    governing = list.reduce((a, b) => (Math.abs(b) < Math.abs(a) ? b : a), list[0] as number);
+    crossed = Math.abs(value) > Math.abs(governing);
+  }
+  const shown = list.map((c) => (c === governing ? `${c.toPrecision(4)}*` : c.toPrecision(4))).join(" / ");
   return {
     kind: "critical",
-    text: `${name} = ${value.toPrecision(4)}${unit}　理论临界 ${list.map((c) => c.toPrecision(4)).join(" / ")}${crossed ? "　⚠ 已越界" : ""}`,
+    text: `${name} = ${value.toPrecision(4)}${opts.unit ?? ""}　理论临界 ${shown}${crossed ? "　⚠ 已越界" : ""}`,
     x: 8,
     y: 62,
     color: crossed ? "#c53030" : "#2f855a",
