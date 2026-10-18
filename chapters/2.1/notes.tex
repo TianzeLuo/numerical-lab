@@ -1,0 +1,381 @@
+% 2.1 章 · 插值与多项式逼近
+% 这一章的笔记要把"给点画曲线"拆成三件互不相同的数学事实：
+%   1) 插值误差有多大（取决于 f 的光滑性与节点分布，与算法无关）；
+%   2) 舍入误差被放大多少（Lebesgue 常数 Lambda_n，等距按 2^n 爆炸）；
+%   3) 走哪条算法通道（Lagrange / Newton / 重心 / 直接解 Vandermonde）。
+% 断言附表由 tools/build_book.py 从实际运行结果生成，\input 进来，不手抄。
+
+\numlabchapter{插值与多项式逼近}{2.1}
+
+\section{这一章要解决什么}
+
+给定 $n+1$ 个互不相同的节点 $x_0,\dots,x_n$ 与函数值 $y_i$，求次数 $\le n$ 的多项式 $p_n$
+使 $p_n(x_i)=y_i$。这件事在代数上毫无悬念（存在且唯一），工程上却有四个**互相独立**的问题：
+
+\begin{enumerate}
+  \item \textbf{误差有多大？} 由 $f^{(n+1)}$ 与节点乘积 $\omega(x)=\prod_i(x-x_i)$ 决定，
+        与用哪条公式算毫无关系。节点分布是这一章唯一能选的东西。
+  \item \textbf{舍入被放大多少？} 由 Lebesgue 常数 $\Lambda_n=\max_x\sum_i|\ell_i(x)|$ 决定。
+        等距节点按 $2^n$ 爆炸，Chebyshev 节点只按 $\ln n$ 爬。
+  \item \textbf{走哪条通道？} Lagrange、Newton 差商、重心、直接解 Vandermonde 给出**同一个**
+        多项式，但舍入路径完全不同：前三条的误差 $\approx u\Lambda_n$，最后一条还有一个
+        "系数通道"，误差 $\approx\kappa(V)u$。
+  \item \textbf{"最优"是什么意思？} 一致逼近的最佳多项式由交错定理刻画，
+        而"等幅振荡"必须能\textbf{验证}，不能靠 Remez 算法自己宣称收敛。
+\end{enumerate}
+
+记号：$u=\tfrac12\varepsilon_{\text{mach}}=2^{-53}\approx1.11\times10^{-16}$ 是单位舍入；
+$\Pi_n$ 是次数 $\le n$ 的实多项式空间；$\|\cdot\|$ 指 $[a,b]$ 上的上确界范数；
+$\omega(x)=\prod_{i=0}^{n}(x-x_i)$；$\hat{\cdot}$ 表示浮点算出来的量。
+本章一律用\textbf{偶数个节点参数约定}：\texttt{node\_family(kind, n)} 返回 $n+1$ 个节点，
+所以"$n$"始终是多项式的次数。
+
+\section{插值的存在唯一性与误差公式}
+
+\begin{definition}[插值问题]
+给定互异节点 $x_0<\dots<x_n$ 与 $y_i=f(x_i)$，求 $p\in\Pi_n$ 使 $p(x_i)=y_i$。
+\end{definition}
+
+\begin{theorem}[存在唯一性与 Vandermonde 行列式]
+\label{thm:unique}
+对任意 $y$，插值问题存在唯一解，且
+\[
+  \det V=\prod_{0\le i<j\le n}(x_j-x_i)\ne0,\qquad
+  V_{ij}=x_i^{\,j}\ (0\le i,j\le n).
+\]
+\end{theorem}
+
+\begin{proof}
+\emph{唯一性}：若 $p,q\in\Pi_n$ 都插值同一组数据，则 $r=p-q\in\Pi_n$ 在 $n+1$ 个互异点取零。
+次数 $\le n$ 的非零多项式至多有 $n$ 个根，故 $r\equiv0$。
+
+\emph{与线性方程组的关系}：把 $p(x)=\sum_{j=0}^nc_jx^j$ 代入 $n+1$ 个条件，得到 $Vc=y$。
+"对每个 $y$ 都有唯一解"等价于 $V$ 可逆，等价于 $\det V\ne0$。
+
+\emph{行列式公式}：把 $\det V$ 看成 $x_0,\dots,x_n$ 的多项式。若 $x_i=x_j$（$i\ne j$），
+$V$ 有两行相同，行列式为 $0$；因此 $\det V$ 被 $(x_j-x_i)$ 整除，从而被
+$D(x)=\prod_{i<j}(x_j-x_i)$ 整除（这些因子两两互素）。
+两边关于 $x$ 的总次数都是 $0+1+\dots+n=\tfrac{n(n+1)}2$，故只差一个常数。
+展开 $V$ 的对角项可知单项式 $x_1^{1}x_2^{2}\cdots x_n^{n}$ 的系数为 $1$，
+而 $D$ 中该单项式的系数也是 $1$（每个因子 $x_j-x_i$ 只能从"取 $x_j$"这一支贡献），
+所以常数因子为 $1$，即 $\det V=D(x)$。
+\end{proof}
+
+\begin{theorem}[插值误差公式]
+\label{thm:error}
+设 $f\in C^{n+1}[a,b]$，节点互异且都在 $[a,b]$ 内，$p_n$ 为插值多项式。则对每个 $x\in[a,b]$
+存在 $\xi=\xi(x)$ 严格位于 $\min(x,x_0,\dots,x_n)$ 与 $\max(x,x_0,\dots,x_n)$ 之间，使
+\[
+  f(x)-p_n(x)=\frac{f^{(n+1)}(\xi)}{(n+1)!}\,\omega(x).
+\]
+\end{theorem}
+
+\begin{proof}
+若 $x$ 是节点，两边都是 $0$（左边由插值条件，右边由 $\omega(x)=0$），结论成立。
+否则固定 $x$，令
+\[
+  g(t)=f(t)-p_n(t)-\bigl[f(x)-p_n(x)\bigr]\frac{\omega(t)}{\omega(x)},\qquad t\in[a,b].
+\]
+由 $f\in C^{n+1}$、$p_n,\omega$ 是多项式得 $g\in C^{n+1}$。并且
+$g$ 在 $t=x$ 处为 $0$（第一、三项相消），在每个节点 $t=x_i$ 处也为 $0$
+（$f(x_i)=p_n(x_i)$ 且 $\omega(x_i)=0$）。这些点互异，共 $n+2$ 个，
+按大小排列后每一段都是 $g$ 的零点对。对 $g$ 连续使用 Rolle 定理 $n+1$ 次：
+存在 $\xi$ 落在这些点的最小与最大之间，使 $g^{(n+1)}(\xi)=0$。
+而 $p_n^{(n+1)}\equiv0$（次数 $\le n$）、$\omega^{(n+1)}\equiv(n+1)!$（首一、次数 $n+1$），于是
+\[
+  0=g^{(n+1)}(\xi)=f^{(n+1)}(\xi)-\bigl[f(x)-p_n(x)\bigr]\frac{(n+1)!}{\omega(x)},
+\]
+移项即得结论。
+\end{proof}
+
+\begin{lemma}[Newton 形式确实插值]
+\label{lem:newton}
+记差商 $f[x_i]=f(x_i)$，$f[x_i,\dots,x_{i+k}]=\dfrac{f[x_{i+1},\dots,x_{i+k}]-f[x_i,\dots,x_{i+k-1}]}{x_{i+k}-x_i}$，
+并令 $N_k(x)=\sum_{j=0}^{k}f[x_0,\dots,x_j]\prod_{i<j}(x-x_i)$。则 $N_k$ 是前 $k+1$ 个点的插值多项式。
+\end{lemma}
+
+\begin{proof}
+对 $k$ 归纳。$k=0$ 时 $N_0=f(x_0)$ 显然。设 $N_{k-1}$ 插值前 $k$ 个点，则
+$N_k=N_{k-1}+f[x_0,\dots,x_k]\prod_{i<k}(x-x_i)$。对 $i<k$，附加项在 $x_i$ 处为 $0$，
+故 $N_k(x_i)=N_{k-1}(x_i)=f(x_i)$。在 $x_k$ 处，
+\[
+  N_k(x_k)=N_{k-1}(x_k)+f[x_0,\dots,x_k]\prod_{i<k}(x_k-x_i)=N_{k-1}(x_k)+\bigl[f(x_k)-N_{k-1}(x_k)\bigr]=f(x_k),
+\]
+其中倒数第二个等号用的正是差商递推（把 $f[x_0,\dots,x_k]$ 解出来）。
+\end{proof}
+
+\begin{corollary}[差商的中值定理]
+\label{cor:dd}
+设 $f\in C^{n}[a,b]$，则存在 $\xi$ 使 $f[x_0,\dots,x_n]=\dfrac{f^{(n)}(\xi)}{n!}$。
+\end{corollary}
+
+\begin{proof}
+对前 $n$ 个节点 $x_0,\dots,x_{n-1}$ 用定理 \ref{thm:error}（次数 $n-1$ 的插值多项式 $p_{n-1}$）：
+对每个 $x$ 有 $f(x)-p_{n-1}(x)=\frac{f^{(n)}(\xi_x)}{n!}\prod_{i<n}(x-x_i)$。
+取 $x=x_n$，再由引理 \ref{lem:newton}，$f(x_n)-p_{n-1}(x_n)=f[x_0,\dots,x_n]\prod_{i<n}(x_n-x_i)$；
+两式相除（注意 $\prod_{i<n}(x_n-x_i)\ne0$）即得。
+\end{proof}
+
+\section{重心形式：为什么它是默认算法}
+
+\begin{theorem}[重心公式与单位分解]
+\label{thm:bary}
+取 $w_i=1/\prod_{j\ne i}(x_i-x_j)$，$\ell_i$ 为 Lagrange 基。对 $x\notin\{x_i\}$，
+\[
+  \ell_i(x)=\frac{\omega(x)\,w_i}{x-x_i},\qquad
+  p_n(x)=\frac{\sum_i \dfrac{w_i}{x-x_i}y_i}{\sum_i \dfrac{w_i}{x-x_i}},\qquad
+  \sum_i\ell_i(x)\equiv1 .
+\]
+\end{theorem}
+
+\begin{proof}
+第一式：$\ell_i(x)=\prod_{j\ne i}\frac{x-x_j}{x_i-x_j}
+=w_i\prod_{j\ne i}(x-x_j)=w_i\,\frac{\omega(x)}{x-x_i}$。
+
+第二式：插值多项式 $p_n=\sum_i\ell_i y_i$，分子分母同除 $\omega(x)\ne0$（$x$ 不是节点）
+即得。特别地，教材上常见的写法 $\sum_i\frac{w_i}{x-x_i}=1$ 是\textbf{错的}：
+正确的关系是 $\bigl(\sum_i\frac{w_i}{x-x_i}\bigr)\omega(x)=1$，
+于是 $\sum_i\frac{w_i}{x-x_i}=1/\omega(x)$，它随 $x$ 变化、随 $n$ 指数增长
+（$n=6$ 实测最小值 $22.8$，$n=12$ 是 $4373$）。
+
+第三式：常数函数 $1$ 是数据 $y_i\equiv1$ 的插值多项式；而 $\sum_i\ell_i$ 也是 $\Pi_n$ 中
+插值该数据的多项式（在节点 $x_j$ 处 $\sum_i\ell_i(x_j)=1$），由定理 \ref{thm:unique} 的唯一性，
+两者相等。
+
+最后一式还可以给出一个常用的推论：把 $\sum_i\ell_i\equiv1$ 写成
+$\omega(x)\sum_i\frac{w_i}{x-x_i}\equiv1$ 并令 $x\to\infty$，
+左边的主项是 $\bigl(\sum_iw_i\bigr)x^{n-1}+O(x^{n-2})$，
+右边是常数 $1$；比较 $x^{n-1}$ 的系数得
+\[
+  \sum_{i=0}^{n}w_i=0\qquad(n\ge1),
+\]
+这正是本章断言里被检查的那条不变量（实测相对残差 $\le10^{-14}$）。
+\end{proof}
+
+\begin{remark}[为什么工程上默认用重心形式]
+分子分母同阶齐次，故 $w_i$ 可以整体缩放（Chebyshev--Lobatto 节点用
+$w_j\propto(-1)^j\delta_j$，$\delta_0=\delta_n=\frac12$，实测与乘积形式只差一个常数，
+相对散布 $\le10^{-12}$）；每个 $x$ 只花 $O(n)$ 次运算；而且它把"插值误差"与"舍入放大"
+分得很干净——后者恰好是 $u\Lambda_n$（$n=16\sim30$ 实测 $1.13\sim4.40$ 倍）。
+\end{remark}
+
+\section{Chebyshev 节点与极小极大}
+
+\begin{definition}
+$T_n(x)=\cos(n\arccos x)$（$|x|\le1$）是首项系数为 $2^{n-1}$ 的 $n$ 次多项式
+（由 $T_{n+1}=2xT_n-T_{n-1}$ 归纳）。
+\end{definition}
+
+\begin{theorem}[极小极大性质]
+\label{thm:minimax}
+在 $|x|\le1$ 上 $|T_n(x)|\le1$，且 $T_n(\cos\frac{k\pi}{n})=(-1)^k$（$k=0,\dots,n$）。
+在全体首一 $n$ 次多项式中，$2^{1-n}T_n$ 的范数最小，最小值恰为 $2^{1-n}$。
+\end{theorem}
+
+\begin{proof}
+前两句：$|T_n(x)|=|\cos(n\arccos x)|\le1$，而 $\cos(k\pi)=(-1)^k$。
+
+第三句：$2^{1-n}T_n$ 首一（$T_n$ 首项系数 $2^{n-1}$），且模不超过 $2^{1-n}$。
+设首一 $q\in\Pi_n$ 满足 $\|q\|<2^{1-n}$，令 $r=q-2^{1-n}T_n$。
+最高次项相消，故 $r\in\Pi_{n-1}$。在点 $x_k=\cos\frac{k\pi}{n}$ 上，
+$|q(x_k)|<2^{1-n}=|2^{1-n}T_n(x_k)|$，于是 $r(x_k)$ 的符号就是 $-2^{1-n}T_n(x_k)$ 的符号，
+即 $(-1)^{k+1}$：$r$ 在 $x_0>x_1>\dots>x_n$ 这 $n+1$ 个点上交错变号。
+相邻两点间由连续函数的介值定理各有一个零点，共 $n$ 个互异零点；
+但 $r\in\Pi_{n-1}$，非零则至多 $n-1$ 个根，故 $r\equiv0$。
+这与 $r(x_0)=-2^{1-n}T_n(x_0)=\mp2^{1-n}\ne0$ 矛盾。
+所以 $\|q\|\ge2^{1-n}$，而 $q=2^{1-n}T_n$ 取到等号。
+\end{proof}
+
+\begin{corollary}[Chebyshev--Lobatto 节点的乘积]
+\label{cor:lobatto}
+取节点 $x_k=\cos\frac{k\pi}{n}$，则 $\omega=2^{1-n}T_n$，$\max_{[-1,1]}|\omega|=2^{1-n}$；
+实测 $n=12$ 时 $\max|\omega|=4.84\times10^{-4}$，理论值 $4.88\times10^{-4}$（网格求最大值差 $0.8\%$）。
+等距节点在同一 $n$ 下是 $4.01\times10^{-3}$，\textbf{大 $8.3$ 倍}——
+这正是 Runge 现象里"两端先坏"的原因。
+\end{corollary}
+
+\begin{theorem}[Lebesgue 常数与算子范数]
+\label{thm:lebesgue}
+插值算子 $P_n:C[a,b]\to\Pi_n$ 的算子范数是 $\|P_n\|=\Lambda_n:=\max_{x}\sum_i|\ell_i(x)|$，
+并且 $\Lambda_n\ge1$、$\Lambda_n(x_i)=1$。对任意 $f$ 与最佳一致逼近 $p^*\in\Pi_n$，
+\[
+  \|f-P_nf\|\le(1+\Lambda_n)\,\|f-p^*\| .
+\]
+\end{theorem}
+
+\begin{proof}
+上界：$|P_nf(x)|=|\sum_i\ell_i(x)f(x_i)|\le\bigl(\sum_i|\ell_i(x)|\bigr)\|f\|\le\Lambda_n\|f\|$。
+
+可达：设 $\Lambda_n$ 在 $x^*$ 处取到。取节点数据 $\pm1$（符号取 $\operatorname{sign}\ell_i(x^*)$）
+并作分片线性连续函数 $f$，则 $\|f\|=1$（在节点上取 $\pm1$，线性插值不会超过 $1$），
+而 $P_nf(x^*)=\sum_i\ell_i(x^*)\operatorname{sign}\ell_i(x^*)=\sum_i|\ell_i(x^*)|=\Lambda_n$。
+
+$\Lambda_n\ge1$：取 $f\equiv1$，则 $P_nf\equiv1$ 而 $\|f\|=1$，故 $\|P_n\|\ge1$。
+节点处：$\ell_i(x_j)=\delta_{ij}$，故 $\Lambda_n(x_j)=\sum_i|\delta_{ij}|=1$。
+
+第二式：$P_n$ 在 $\Pi_n$ 上是恒等算子，故 $P_np^*=p^*$，于是
+$f-P_nf=(f-p^*)-P_n(f-p^*)$，取范数并用上界即得。
+\end{proof}
+
+\begin{remark}[量级：为什么等距节点不能拖大]
+本章实测（$[{-1},1]$，求最大值用 2001 点网格 + 局部细化）：
+
+\begin{center}
+\begin{tabular}{r|r|r}
+  $n$ & 等距 $\Lambda_n$ & Chebyshev $\Lambda_n$ \\ \hline
+  1 & 1.0 & 1.0 \\
+  2 & 1.25 & 1.25 \\
+  3 & 1.6311303094 & $5/3=1.6666666667$ \\
+  4 & 2.2078243973 & 1.7987618033 \\
+  10 & 29.9 & 2.420969 \\
+  20 & $1.099\times10^{4}$ & 2.867810 \\
+  30 & $6.601\times10^{6}$ & 3.126968 \\
+  50 & $3.641\times10^{12}$ & 3.452697 \\
+  60 & $2.259\times10^{15}$ & 3.568857 \\
+\end{tabular}
+\end{center}
+
+两条渐近公式与实测的对照：Chebyshev 的 $\Lambda_n\approx\frac2\pi\ln n+0.9625$ 好得多
+（$n=10$ 时相对偏差 $0.30\%$，$n=40$ 降到 $1.3\times10^{-4}$，$n=50$ 是 $7.9\times10^{-5}$）；等距的 $\Lambda_n\approx\frac{2^{n+1}}{en\ln n}$ 只是量级——
+实测比值在 $n=10$ 是 $0.914$、$n\ge15$ 稳定在 $0.853\sim0.860$（差 $14\%$）。
+这也就是"防误导规则 2"要求把\textbf{实测 log--log 斜率}与理论斜率同时画出来的原因：
+$n=20$ 处实测 $12.4991$ 对理论 $12.5174$，而 Chebyshev 是 $0.2218$ 对 $0.2219$。
+
+最后注意 $u\Lambda_n$ 的绝对大小：$\Lambda_{50}u=4.0\times10^{-4}$、$\Lambda_{60}u=0.251$。
+$n$ 大到这个程度，"插值误差"已经被舍入项吃掉了。
+\end{remark}
+
+\begin{theorem}[Chebyshev 系数的几何衰减]
+\label{thm:ellipse}
+设 $f$ 在 Bernstein 椭圆 $E_\rho=\{z:\ |z+\sqrt{z^2-1}|=\rho\}$（$\rho>1$）内及其上解析，
+且 $|f|\le M$。则 Chebyshev 系数 $a_k=\frac2\pi\int_0^\pi f(\cos\theta)\cos k\theta\,d\theta$
+满足 $|a_k|\le2M\rho^{-k}$，且截断级数的误差
+\[
+  \Bigl\|f-\sum_{k=0}^{n}a_kT_k\Bigr\|\le\frac{2M}{\rho-1}\rho^{-n}.
+\]
+\end{theorem}
+
+\begin{proof}
+令 $z=e^{i\theta}$。由 $\cos(k\theta)=\frac{z^k+z^{-k}}2$ 与对称性，
+\[
+  a_k=\frac1{\pi i}\oint_{|z|=1}f\Bigl(\frac{z+z^{-1}}2\Bigr)z^{-k-1}\,dz .
+\]
+$E_\rho$ 正是映射 $z\mapsto\frac{z+z^{-1}}2$ 下圆周 $|z|=\rho$ 的像，
+所以 $|z|\le\rho$ 时 $\frac{z+z^{-1}}2$ 落在 $E_\rho$ 内，被积函数在环域
+$\rho^{-1}\le|z|\le\rho$ 上解析。把围道从 $|z|=1$ 形变到 $|z|=\rho$（被积函数解析，积分不变）：
+\[
+  |a_k|\le\frac1\pi\cdot2\pi\rho\cdot M\cdot\rho^{-k-1}=2M\rho^{-k}.
+\]
+再由 $|T_k|\le1$ 得
+$\bigl\|f-\sum_{k\le n}a_kT_k\bigr\|\le\sum_{k>n}2M\rho^{-k}
+=\frac{2M\rho^{-n-1}}{1-\rho^{-1}}=\frac{2M}{\rho-1}\rho^{-n}$。
+（Lobatto 节点上的插值多项式与截断级数之差是 $O(\rho^{-n})$ 的同阶项，
+所以这里的结论对本章的 $p_n$ 同样成立到常数因子。）
+\end{proof}
+
+\begin{example}[Runge 函数的 $\rho$ 与实测收敛比]
+$f(x)=\frac1{1+ax^2}$ 的极点在 $\pm i/\sqrt a$。$E_\rho$ 与虚轴交于 $i\frac{\rho-\rho^{-1}}2$，
+故椭圆刚好碰到极点的条件是 $\frac{\rho-\rho^{-1}}2=\frac1{\sqrt a}$，即
+\[
+  \rho^\star=\frac1{\sqrt a}+\sqrt{1+\frac1a}.
+\]
+$a=25$ 时 $\rho^\star=0.2+\sqrt{1.04}=1.2198$，预测每步误差乘 $1/\rho^\star=0.8197$。
+实测 Chebyshev 插值：$n=10$ 时 $0.1322$、$n=30$ 时 $2.426\times10^{-3}$，
+20 步的总比 $1.8\times10^{-2}$，几何平均每步 $0.82$——与 $0.8197$ 一致。
+同一函数换等距节点（$n=7$ 触底 $0.2474$ 之后按奇偶两条子列各自发散，
+$n=16$ 是 $14.39$、$n=30$ 是 $2.39\times10^{3}$）则完全不收敛：
+$\rho^\star$ 的推导用到了 Chebyshev 节点的极小极大性质，等距节点没有这个性质。
+\end{example}
+
+\section{最优一致逼近与 Remez}
+
+\begin{theorem}[交错定理与 de la Vall\'ee Poussin 下界]
+\label{thm:alt}
+设 $q\in\Pi_m$，$f$ 连续，若存在 $x_0<\dots<x_{m+1}$ 与 $e>0$ 使
+$(-1)^i\bigl[f(x_i)-q(x_i)\bigr]\ge e$（$i=0,\dots,m+1$），则对每个 $p\in\Pi_m$
+都有 $\|f-p\|\ge e$。特别地，若 $|f(x_i)-q(x_i)|=E$ 且符号交错，则 $q$ 就是最佳一致逼近，
+其误差恰为 $E$。
+\end{theorem}
+
+\begin{proof}
+反设存在 $p\in\Pi_m$ 使 $\|f-p\|<e$。令 $r=p-q\in\Pi_m$。在 $x_i$ 处
+\[
+  r(x_i)=p(x_i)-q(x_i)=\bigl[f(x_i)-q(x_i)\bigr]-\bigl[f(x_i)-p(x_i)\bigr],
+\]
+第一项的绝对值 $\ge e$ 而第二项 $<e$，故 $r(x_i)$ 的符号与 $f(x_i)-q(x_i)$ 相同，
+即 $(-1)^i$ 交错。于是 $r$ 在 $m+1$ 个相邻区间上各变号一次，至少有 $m+1$ 个互异零点；
+$r\in\Pi_m$ 故 $r\equiv0$，即 $p=q$。但此时 $|f(x_0)-p(x_0)|=|f(x_0)-q(x_0)|\ge e$，
+与 $\|f-p\|<e$ 矛盾。
+
+后半句：取 $q=p$ 得 $\|f-p\|\ge E$，而 $E$ 本身被取到，所以最小值就是 $E$。
+\end{proof}
+
+\begin{remark}["等幅振荡"必须可验证]
+定理 \ref{thm:alt} 的下界 $\min_i|f(x_i)-q(x_i)|$ 是\textbf{严格}的，可以直接算；
+上界则取任何竞争多项式（本章取 Chebyshev 插值）的误差。两条夹住才是"最优"。
+反例：离散化的线性规划\textbf{不是}可信的下界——实测 HiGHS 在 $\arctan$、$m=5$
+上返回次优解；而偶函数配对称参考点会让交错方程组结构奇异，$1/(1+25x^2)$、$m=6$
+会给出 $E=-6\times10^{-17}$ 的假收敛（真误差 $0.45$）。本章的做法是
+偶函数降次（$p(x)=q(x^2)$，在 $u=x^2$ 上做 Remez）并用非对称初始参考点破对称。
+
+本章实测（$[{-1},1]$，网格 4001 点）：$e^x$、$m=4$ 时 $E=5.4666760\times10^{-4}$，
+等幅振荡点 $m+2=6$ 个、振幅比 $1.000000$，同一 $m$ 下 Chebyshev 插值的误差是
+$1.066\times10^{-3}$（$E$ 比它小 $1.95$ 倍，符合"最优不差于任何竞争者"）。
+$|x|$ 的两条有闭式可查：$m=3$ 时 $E=0.125=1/8$（等幅振荡点 $5$ 个），
+$m=5$ 时 $E=6.7620899\times10^{-2}$（$7$ 个点）；两者振幅比都是 $1.000000$，
+且被 de la Vall\'ee Poussin 下界与 Chebyshev 插值上界夹住。
+\end{remark}
+
+\section{四个可视化该怎么看}
+
+\begin{enumerate}
+  \item \textbf{runge\_nodes}：主图看两条插值曲线在两端的行为，副轴（对数）看\textbf{整条}
+        误差曲线与严格包络。把 $n$ 从 $7$ 拖到 $8$ 再拖到 $9$，误差会先涨后跌——
+        这就是"奇偶两条子列"的锯齿。节点上的误差恰好是 $0$，所以对数轴上必须有地板
+        （$u/2$）并把"有多少个精确 $0$"写进 \texttt{meta}。
+  \item \textbf{lebesgue\_growth}：主轴是对数刻度，同时画实测 $\Lambda_n$、两条渐近公式、
+        以及\textbf{实测 log--log 斜率}与理论斜率。$n=30$ 时等距 $6.60\times10^{6}$
+        对 Chebyshev $3.127$；拖过 $n=50$ 会看到 $u\Lambda_n$ 徽标开始报警
+        （$n=60$ 时 $u\Lambda_n=0.251$，舍入项吃掉第一位有效数字）。
+  \item \textbf{error\_curve}：时间轴是节点分布的连续变形 $t\in[0,1]$（$0$ 等距、$1$ Chebyshev）。
+        主图三条线：误差、严格包络、首一乘积 $|\omega|$；副轴是 $\Lambda(t)$。
+        $\Lambda$ 从 $89.32$ 降到 $2.539$（$n=12$），但\textbf{不是严格单调}
+        （实测最大局部回升 $0.137$）；首一乘积的最大值从 $4.008\times10^{-3}$（$t=0$）
+        降到 $4.841\times10^{-4}$（$t=1$），后者与理论值 $2^{1-n}=4.88\times10^{-4}$ 只差 $0.8\%$。
+  \item \textbf{barycentric\_vs\_vandermonde}：主轴（对数）是三条误差通道，
+        副轴是 $\kappa(V)$ 与 $\kappa(V)u$ 参考线。$n=36$ 时函数值误差两条通道
+        $1.05\times10^{-7}$ 与 $3.52\times10^{-8}$（同量级），而系数误差是 $1.19$；
+        后向残差全程 $1\times10^{-17}$——三条线要一起看，只看一条必然得出错误结论。
+\end{enumerate}
+
+\input{chapters/2.1/asserts_table}
+
+\section{它会怎样骗你（本章版）}
+
+\begin{enumerate}
+  \item \textbf{穿过节点被当成拟合好}：节点上误差按定义是 $0$。同一个 $n=10$，
+        $e^x$ 的最大误差是 $1.9\times10^{-8}$，而 Runge 函数是 $1.92$——比函数自身量级还大。
+  \item \textbf{把误差随 $n$ 当单调}：等距 Runge 误差按奇偶分成两条子列，各自递增、
+        合起来锯齿（$n=7$ 是 $0.2474$、$n=8$ 是 $1.045$、$n=9$ 是 $0.300$）。
+  \item \textbf{对数轴上的 $0$}：节点上误差\textbf{恰好}是 $0$，$\log0$ 没有定义。
+        本章给它地板 $u/2$，并如实登记"有几个点在 $0$、几个点被压到地板"。
+  \item \textbf{把 $\Lambda(t)$ 读成严格单调}：它整体下降，但沿途有 $0.137$（$n=12$）量级的回升。
+  \item \textbf{抄错重心恒等式}：$\sum_iw_i/(x-x_i)=1$ 是错的（实测最小 $22.8$），
+        正确的是乘上 $\omega(x)$；和为 $1$ 的是归一化后的 $\sum_i\ell_i$。
+  \item \textbf{绝对值的位置}：$\Lambda_n=\sum_i|\ell_i|$ 与 $\sum_i\ell_i=1$ 只差绝对值的位置，
+        数值上差到 $1\times10^{4}$——本章实现里真的写错过一次。
+  \item \textbf{把系数误差当成"公式不稳定"}：同一个解的函数值误差是 $u\Lambda_n$、
+        残差是 $u$，只有\textbf{系数基}里出现 $\kappa(V)u$；三条通道必须分开说。
+  \item \textbf{把"高精度"当"可信"}：同一个 Vandermonde 系统，\texttt{mpmath} 的
+        \texttt{lu\_solve}（$dps=60$ 或 $100$）与有理数精确解差 $1.66\times10^{-13}$，
+        而两条独立的精确有理算法逐位相同（相对差 $0.0$）。
+  \item \textbf{围道积分半径越界}：$r=0.15$ 时与闭式差 $10^{-16}$，$r=0.25$
+        （越过 $\pm0.2i$ 的极点）时差 $100\%$，而函数\textbf{不会报错}。
+  \item \textbf{把"数出 $m+2$ 个等幅振荡点"当最优性证明}：离散 LP 可能是次优解，
+        偶函数配对称参考点会假收敛；要用 de la Vall\'ee Poussin 下界与竞争多项式的上界夹逼。
+  \item \textbf{包络落到舍入底以下还在用}：$e^x$、$n=16$ 时实测误差 $1.17\times10^{-13}$
+        大于包络 $7.2\times10^{-18}$——必须先剔除包络 $\le100u$ 的点。
+  \item \textbf{节点数与次数差一}：\texttt{node\_family(kind, n)} 给 $n+1$ 个节点；
+        少一个下标就会比较两个不同次数的多项式（本章测试里踩过：外推点上出现
+        $1.3\times10^{-6}$ 的假"不变性破裂"）。
+\end{enumerate}

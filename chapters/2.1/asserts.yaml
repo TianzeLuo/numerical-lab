@@ -1,0 +1,127 @@
+# 2.1 章断言清单（真源：`tests/2.1/test_poly.py` 与 `tests/2.1/test_barycentric.py`）
+#
+# 这一章把"插值准不准"拆成三个互不相同的量，断言也按这三条线组织：
+#   * **插值误差**（A 类）：严格包络、首一乘积的极小极大性质、Runge 的奇偶发散；
+#   * **Lebesgue 常数**（A 类）：小 n 的有理精确值、两条渐近公式、log-log 斜率；
+#   * **算法通道**（A/B 类）：Lagrange/Newton/重心的等价性、κ(V)u 与后向残差的分裂。
+# 本章不声明 C 类断言：这里没有需要二分的阈值（阈值型结论在 3.2/3.3 章）。
+chapter: "2.1"
+title: 插值与多项式逼近
+required_kinds: [A, B]
+
+min_counts:
+  A: 16
+  B: 11
+
+tests:
+  # ---------------- A 类：解析对拍 ----------------
+  - name: test_three_interpolation_forms_agree
+    kind: A
+    what: "Lagrange/Newton/重心三种实现在 n=8/16/24、两种分布下的最大偏差（归一化 u·Λ_n）≤ 50"
+    theory: "同一个插值多项式；实测 1.0–10.7 倍 u·Λ_n"
+  - name: test_interpolation_error_is_bounded_by_rigorous_envelope
+    kind: A
+    what: "e^x 在 n=4..12 上逐点误差/严格包络的最大值 ≤ 1，紧度中位数 0.36–0.37"
+    theory: "|f−p| ≤ sup|f^(n+1)|/(n+1)!·max|∏(x−x_i)|"
+  - name: test_chebyshev_monic_minimizes_sup_norm
+    kind: A
+    what: "max|∏|（Chebyshev）/2^(1−n) ∈ [0.90, 1]；等距/Chebyshev 的比值 ≥ 3（n=12 为 8.3）"
+    theory: "首一 Chebyshev 多项式的无穷范数最小 = 2^(1−n)"
+  - name: test_lebesgue_constant_values_and_asymptotics
+    kind: A
+    what: "8 个精确值（Λ_1=1、Λ_2=1.25、Λ_3(ch)=5/3…）相对误差 ≤ 1e-6；Chebyshev 渐近偏差 ≤ 5e-3；等距比值 0.853–0.914"
+    theory: "Λ_n ≈ (2/π)ln n + 0.9625；等距 Λ_n ≈ 2^(n+1)/(e n ln n)"
+  - name: test_lebesgue_constant_growth_rate
+    kind: A
+    what: "Λ_30/Λ_29=1.9146；等距斜率偏差（n≥20）≤ 0.03、Chebyshev ≤ 0.005；Λ_30 两分布相差 ≥ 1e5"
+    theory: "等距 Λ ~ 2^n（log-log 斜率 n·ln2/ln10）；Chebyshev Λ ~ (2/π)ln n"
+  - name: test_runge_divergence_versus_chebyshev_convergence
+    kind: A
+    what: "等距最小误差在 n=7（0.2474），奇偶两条子列各自严格递增，n=12 时 3.663 > 1；Chebyshev 两条子列各自下降到 2.43e-3"
+    theory: "奇点在 ±i/√a（距离 0.2），等距发散、Chebyshev 一致收敛（ρ=1.2198）"
+  - name: test_remez_equioscillation_and_optimality_sandwich
+    kind: A
+    what: "5 个函数上等幅振荡点数 ≥ m+2、振幅比 ≤ 1+1e-3、de la Vallée Poussin 下界 ≥ 0.999E；E_remez < Chebyshev 插值误差"
+    theory: "交错定理（等幅振荡 m+2 点）+ 上下界夹逼给出的最优性"
+  - name: test_barycentric_roundoff_scales_with_lebesgue_constant
+    kind: A
+    what: "n=16..30 时 err/(u·Λ_n) ∈ [0.5, 10]（实测 1.13–4.40）；n=10 时同一比值 ≥ 1e3"
+    theory: "重心公式的舍入误差 ≈ u·Λ_n；插值误差未落到舍入底时该比值不反映舍入"
+  - name: test_vandermonde_coefficient_error_follows_kappa_u
+    kind: A
+    what: "系数误差 ≤ κ(V)u（n=20/30，两种分布）；后向残差 ≤ 100u"
+    theory: "前向误差不超过 κ(V)u 的常数倍；部分主元 LU 后向稳定（残差与 κ 无关）"
+  - name: test_runge_derivative_closed_form_matches_cauchy_integral
+    kind: A
+    what: "闭式 f^(k)/k! 与围道积分（r=0.15）在 k=1,2,4,8 上偏差 ≤ 1e-12；r=0.25（越过奇点）时偏差 ~1.0"
+    theory: "Cauchy 积分公式；围道内必须解析，否则结果被残差项主导且**不报错**"
+  - name: test_weight_identity_and_the_naive_form_is_false
+    kind: A
+    what: "(Σ w/(x−xi))·∏(x−xj)−1 的残差/(u·Λ_n) ≤ 10；朴素 Σ w/(x−xi) 最小 22.8（n=12 时 4373）"
+    theory: "正确恒等式含 ∏ 因子；Σ w/(x−xi) = 1/∏(x−x_j) 而不是 1"
+  - name: test_partition_of_unity_is_tight_while_lebesgue_is_not
+    kind: A
+    what: "max|Σℓ−1| ≤ 1e-12（Chebyshev n=20 为 6.7e-16）；同批节点 Λ 最大 1.07e4"
+    theory: "Σℓ ≡ 1；Λ_n = Σ|ℓ|（绝对值放在归一化里面）可以任意大"
+  - name: test_chebyshev_lobatto_weights_match_product_form
+    kind: A
+    what: "乘积形式/闭式权重的比值为常数（n=6 5.3333、n=20 26214.4），相对散布 ≤ 1e-12"
+    theory: "w_j ∝ (−1)^j δ_j 与 ∏ 形式只差整体常数（重心公式对缩放不敏感）"
+  - name: test_exact_reference_is_confirmed_by_bareiss_elimination
+    kind: A
+    what: "exact_solve 与 Bareiss 整数消元在 6 组上的相对偏差 = 0.0（同一点 κ 到 3.8e5）"
+    theory: "两种独立的精确有理算法给出同一组系数——Viz 4 的\"真值\"不自证"
+  - name: test_vandermonde_condition_growth_rates
+    kind: A
+    what: "Chebyshev 的 log2κ/n 与 log2(1+√2) 偏差 ≤ 2%；等距 ∈ [1.4, 1.7]；n=30 时 κ_eq/κ_ch ≥ 100"
+    theory: "Chebyshev 节点 κ(V) ~ (1+√2)^n；等距节点更快"
+  - name: test_three_error_channels_of_the_vandermonde_solve
+    kind: A
+    what: "n=36 时函数值误差两条通道同量级（比值 ∈ [0.1,10]）、系数误差 ≤ κu、残差 ≤ 100u"
+    theory: "函数值误差 ≈ u·Λ_n 与算法无关；系数误差 ≈ κ(V)u；残差 ≈ u"
+
+  # ---------------- B 类：不变量与帧契约 ----------------
+  - name: test_interpolation_reproduces_node_values
+    kind: B
+    what: "三种实现在节点上的 |p(x_i)−y_i|/max|y| ≤ 1e-14"
+    theory: "插值的定义性质 p(x_i) = y_i"
+  - name: test_chebyshev_recurrence_matches_trig_definition
+    kind: B
+    what: "|T_n(递推)−cos(n·arccos x)| ≤ 1e-12（n ≤ 20）；T_4 = [8,0,−8,0,1] 逐位相等"
+    theory: "递推与三角定义是同一个多项式，首项系数 2^(n−1)"
+  - name: test_chebyshev_monic_sup_norm_value
+    kind: B
+    what: "实测 sup|T_n/2^(n−1)| 与 2^(1−n) 相对差 ≤ 0.5%（n=1..12）"
+    theory: "首一 Chebyshev 多项式的无穷范数恰为 2^(1−n)"
+  - name: test_divided_difference_consistency_and_permutation_invariance
+    kind: B
+    what: "差商表对角线偏差 0.0；10 个节点全置换后多项式偏差 ≤ 1e-12"
+    theory: "对角线即差商；插值多项式与节点编号无关"
+  - name: test_lebesgue_function_is_at_least_one
+    kind: B
+    what: "min_x Λ_n ≥ 1−1e-12；节点处 |Λ_n(x_i)−1| ≤ 1e-12"
+    theory: "Λ_n 是插值算子范数（≥ 1），节点处 ℓ_i(x_j)=δ_ij"
+  - name: test_clamp_for_log_contract
+    kind: B
+    what: "0 → 地板、inf/nan → 上界且计数正确（地板 3、非有限 2）、负数报 ValueError"
+    theory: "对数轴契约：0 与 inf 必须如实计数，负数无定义必须报错"
+  - name: test_poly_module_imports_respect_layering
+    kind: B
+    what: "AST 扫描 poly.py，禁用的 import 列表为空"
+    theory: "P5（不许 scipy/sympy/mpmath）与 P10（不许 import numcore.reference）"
+  - name: test_barycentric_basis_and_weights_invariants
+    kind: B
+    what: "|ℓ_i(x_j)−δ_ij| ≤ 1e-13；|Σw|/Σ|w| ≤ 1e-14（两种分布）；|p(x_i)−y_i| ≤ 1e-13"
+    theory: "乘积形式权重之和恒为 0；归一化后的 ℓ_i 才和为 1"
+  - name: test_weight_scaling_and_node_permutation_invariance
+    kind: B
+    what: "权重乘 1e7、节点置换后插值差 ≤ 50uΛ"
+    theory: "重心公式分子分母同阶齐次；多项式与节点编号无关"
+  - name: test_vandermonde_frames_obey_invariants
+    kind: B
+    what: "帧内 κ 随 n 不减、残差 ≤ 100u、三条误差通道齐备"
+    theory: "可视化与断言必须说同一件事（帧即被测对象）"
+  - name: test_all_chapter_frames_are_well_formed
+    kind: B
+    what: "4 支 viz 的 requiredAux、数组与 meta 有限性、pitfalls ≥ 60 字、对数轴登记地板"
+    theory: "NLF 帧契约与防误导规则 1/4"
