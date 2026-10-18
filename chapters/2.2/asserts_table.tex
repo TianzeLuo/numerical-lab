@@ -1,0 +1,135 @@
+% 本文件由 tools/build_book.py 从 dist/reports/assertions.json 生成，请勿手改。
+\begin{longtable}{@{}p{0.06\textwidth}p{0.32\textwidth}p{0.22\textwidth}p{0.16\textwidth}@{}}
+\caption{章节 2.2 数值断言（生成时间 2026-10-18T14:09:13-0400）}\\
+\toprule
+类别 & 断言 & 理论值 & 实测值 \\
+\midrule
+\endfirsthead
+\toprule
+类别 & 断言 & 理论值 & 实测值 \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+
+B & 单位分解的最大偏差(界 64u) & $\le$ 7.10543e-15 & $4.441\times 10^{-16}$ \checkmark \\
+B & 基函数的最小值(不得为负) & $\le$ 0 & 0 \checkmark \\
+A & 单位分解 / 非负性 & $\Sigma$\_i B\_\{i,\allowbreak{}k\}(\allowbreak{}x) $\equiv$ 1(\allowbreak{}Cox-de Boor 递推的直接推论)；B\_\{i,\allowbreak{}k\} $\ge$ 0 & 36 组节点向量上的最大 |$\Sigma$ B - 1| =\allowbreak{} 4.44e-16；最小基函数值 0.00e+00 \checkmark \\
+B & de Boor vs $\Sigma$c\_\allowbreak{}iB\_\allowbreak{}i 的最大偏差(界 512u) & $\le$ 5.68434e-14 & $4.441\times 10^{-16}$ \checkmark \\
+B & de Boor vs SciPy 的最大偏差(rtol 1e-12) & $\le$ 1.00000e-12 & $6.661\times 10^{-16}$ \checkmark \\
+B & 配置方程在节点处的插值误差(界 4096u) & $\le$ 4.54747e-13 & $3.331\times 10^{-16}$ \checkmark \\
+A & de Boor / 基函数矩阵 / SciPy & 三者是同一条三次 B 样条曲线；配置解的唯一性保证控点可比 & 矩阵组合 4.44e-16；SciPy 6.66e-16；节点插值 3.33e-16 \checkmark \\
+B & 插入前后曲线的最大偏差(界 4096u) & $\le$ 4.54747e-13 & $4.441\times 10^{-16}$ \checkmark \\
+A & 节点插入不变性 & Boehm 公式 c'\_i=\allowbreak{}(\allowbreak{}1-$\alpha$)c\_\{i-1\}+$\alpha$c\_i 保持 $\Sigma$c\_iB\_i 不变 & 最大 |$\Delta$C| =\allowbreak{} 4.44e-16(\allowbreak{}控制点确实变了 48 次) \checkmark \\
+B & 导数 vs 中心差商(相对，rtol 1e-6) & $\le$ 1.00000e-06 & $4.412\times 10^{-11}$ \checkmark \\
+B & 导数 vs SciPy 的差商(相对，rtol 1e-6) & $\le$ 1.00000e-06 & $3.926\times 10^{-11}$ \checkmark \\
+B & 多重度 k+1 时导数 vs 差商(相对，rtol 1e-6) & $\le$ 1.00000e-06 & $4.576\times 10^{-11}$ \checkmark \\
+A & B 样条导数 & 导数仍是降次 B 样条；中心差商 O(\allowbreak{}h$^2$)+O(\allowbreak{}u/\allowbreak{}h) & vs 自差商 4.41e-11，vs SciPy 差商 3.93e-11，重节点 4.58e-11 \checkmark \\
+B & 斜率 vs SciPy PCHIP 的数值导数(相对，rtol 1e-8) & $\le$ 1.00000e-08 & $1.417\times 10^{-10}$ \checkmark \\
+A & PCHIP 斜率对拍 & Fritsch--Carlson 加权调和平均 =\allowbreak{} scipy PchipInterpolator 的节点导数 & 最大相对差 1.42e-10 \checkmark \\
+B & 局部支撑与求值局部性 & supp B\_\{i,\allowbreak{}k\} =\allowbreak{} [t\_i,\allowbreak{} t\_\{i+k+1\}]；任意参数处恰 k+1 个基函数非零 & 支撑外最大值 0.0e+00；非零基函数个数偏差 0 \checkmark \\
+B & 阶 1 的权重和为 1 & $\le$ 7.10543e-15 & $1.110\times 10^{-16}$ \checkmark \\
+B & 阶 2 的权重和为 1 & $\le$ 7.10543e-15 & $2.220\times 10^{-16}$ \checkmark \\
+B & 阶 3 的权重和为 1 & $\le$ 7.10543e-15 & $2.220\times 10^{-16}$ \checkmark \\
+B & 阶 4 的权重和为 1 & $\le$ 7.10543e-15 & $4.441\times 10^{-16}$ \checkmark \\
+B & 凸包性质 & C(\allowbreak{}x) =\allowbreak{} $\Sigma$ B\_i(\allowbreak{}x) c\_i，$\Sigma$B=\allowbreak{}1 且 B$\ge$0 $\Rightarrow$ C(\allowbreak{}x) 是控制点的凸组合 & 凸包间隙 0.0e+00；越出 [min c,\allowbreak{} max c] 的最大量 0.0e+00 \checkmark \\
+B & 插入的局部性 & Boehm：只有 k 个控制点变化，其余(\allowbreak{}含位移后)逐位不变 & 最多变化 4 个控点(\allowbreak{}上界 k=\allowbreak{}4)；未触及控点的最大偏差 0.0e+00 \checkmark \\
+B & 夹紧端点与连续性 & 重节点 k+1 $\Rightarrow$ 端点处只有 B\_0(\allowbreak{}或 B\_\{n-1\})非零 $\Rightarrow$ C(\allowbreak{}t\_0)=\allowbreak{}c\_0 & 端点偏差 0.00e+00；整条曲线相邻采样最大跳变 0.00845(\allowbreak{}连续，无断点) \checkmark \\
+B & 简单节点与多重节点两条表示的最大偏差(界 4096u) & $\le$ 4.54747e-13 & $4.441\times 10^{-16}$ \checkmark \\
+B & 多重度与光滑度 & 内节点多重度 m $\Rightarrow$ C\textasciicircum{}\{k-m\}；插入不改变曲线本身 & 两种表示的偏差 4.44e-16；节点两侧值差 2.37e-09(\allowbreak{}C$^0$ 连续) \checkmark \\
+B & Fritsch-Carlson 判据的充分性 & $\alpha$$^2$+$\beta$$^2$ $\le$ 9 $\Rightarrow$ 单调(\allowbreak{}充分)；反向不成立 & 400 组随机数据：假阳性 0，假阴性 19(\allowbreak{}其中最小余量 -6，越负说明判据越保守) \checkmark \\
+B & 报告的最小斜率 vs 密采样实测 & 0 & 0 \checkmark \\
+B & 保形度量的一致性 & monotonicity\_report 的 min\_slope 应与密采样差商一致 & PCHIP: min\_slope=\allowbreak{}0，违反 0 点；自然样条: min\_slope=\allowbreak{}-0.63，违反 1241 点；密采样实测最小斜率 0 \checkmark \\
+B & 插值方程组 (c\_\allowbreak{}\{i-1\}+4c\_\allowbreak{}i+c\_\allowbreak{}\{i+1\})/6 = y\_\allowbreak{}i 的最大残差 & $\le$ 1.00000e-12 & $2.220\times 10^{-16}$ \checkmark \\
+B & 自然边界 M\_\allowbreak{}0 = M\_\allowbreak{}m = 0 的残差(界 512u) & $\le$ 5.68434e-14 & $1.110\times 10^{-16}$ \checkmark \\
+B & 控制点给出的曲线在节点处的插值误差(界 512u) & $\le$ 5.68434e-14 & $2.220\times 10^{-16}$ \checkmark \\
+B & 均匀自然 B 样条控点 & 自然边界 $\Rightarrow$ c\_0=\allowbreak{}y\_0、\allowbreak{}c\_m=\allowbreak{}y\_m 且 M\_0=\allowbreak{}M\_m=\allowbreak{}0；内点行 1/\allowbreak{}6,\allowbreak{}4/\allowbreak{}6,\allowbreak{}1/\allowbreak{}6 给出 S(\allowbreak{}x\_i)=\allowbreak{}y\_i & 内点方程残差 2.22e-16；自然边界残差 1.11e-16；节点插值误差 2.22e-16 \checkmark \\
+B & 插入序列记账 & 每次插入：节点 +1、\allowbreak{}控点 +1、\allowbreak{}曲线不变；重数按次数累加 & 曲线最大偏差 2.22e-16；0.5 处的重数 4(\allowbreak{}1 次原有 + 3 次插入) \checkmark \\
+B & 两条路径算基函数的最大偏差(界 512u) & $\le$ 5.68434e-14 & $4.441\times 10^{-16}$ \checkmark \\
+B & 基函数的两种算法 & Cox-de Boor 递推(\allowbreak{}bspline\_basis)与 de Boor 求值(\allowbreak{}控制点取单位向量)等价 & 最大偏差 4.44e-16 \checkmark \\
+B & 解析例的最大逐点误差(界 4n$\cdot$u) & $\le$ 2.88658e-14 & $2.998\times 10^{-15}$ \checkmark \\
+B & 与 SciPy 稠密解的相对差(界 32n$\cdot$u) & $\le$ 2.30926e-13 & $2.270\times 10^{-16}$ \checkmark \\
+B & 范数型后向残差(界 8n$\cdot$u) & $\le$ 5.77316e-14 & $5.860\times 10^{-17}$ \checkmark \\
+A & 追赶法 vs 解析/SciPy + 运算量 & 解析例逐点 \textasciitilde{}u；与稠密解相对差 \textasciitilde{}n$\cdot$u & 解析误差 3.00e-15，残差 4.43e-17，随机最大相对差 2.27e-16，最大残差 5.86e-17 \checkmark \\
+B & 夹持端点 S'(x0) 应为 0(runge, n=5) & $\le$ 7.10543e-15 & $2.776\times 10^{-17}$ \checkmark \\
+B & 夹持端点斜率条件(runge, n=5) & $\le$ 4.54747e-13 & $4.163\times 10^{-17}$ \checkmark \\
+B & 夹持端点 S'(x0) 应为 0(runge, n=9) & $\le$ 7.10543e-15 & 0 \checkmark \\
+B & 夹持端点斜率条件(runge, n=9) & $\le$ 4.54747e-13 & $1.388\times 10^{-17}$ \checkmark \\
+B & 夹持端点 S'(x0) 应为 0(runge, n=17) & $\le$ 7.10543e-15 & 0 \checkmark \\
+B & 夹持端点斜率条件(runge, n=17) & $\le$ 4.54747e-13 & $1.388\times 10^{-17}$ \checkmark \\
+B & 夹持端点 S'(x0) 应为 0(runge, n=33) & $\le$ 7.10543e-15 & $1.388\times 10^{-17}$ \checkmark \\
+B & 夹持端点斜率条件(runge, n=33) & $\le$ 4.54747e-13 & 0 \checkmark \\
+B & 夹持端点 S'(x0) 应为 0(monotone, n=5) & $\le$ 7.10543e-15 & 0 \checkmark \\
+B & 夹持端点斜率条件(monotone, n=5) & $\le$ 4.54747e-13 & 0 \checkmark \\
+B & 夹持端点 S'(x0) 应为 0(monotone, n=9) & $\le$ 7.10543e-15 & 0 \checkmark \\
+B & 夹持端点斜率条件(monotone, n=9) & $\le$ 4.54747e-13 & 0 \checkmark \\
+B & 夹持端点 S'(x0) 应为 0(monotone, n=17) & $\le$ 7.10543e-15 & 0 \checkmark \\
+B & 夹持端点斜率条件(monotone, n=17) & $\le$ 4.54747e-13 & 0 \checkmark \\
+B & 夹持端点 S'(x0) 应为 0(monotone, n=33) & $\le$ 7.10543e-15 & 0 \checkmark \\
+B & 夹持端点斜率条件(monotone, n=33) & $\le$ 4.54747e-13 & $1.110\times 10^{-16}$ \checkmark \\
+B & 夹持端点 S'(x0) 应为 0(bump, n=5) & $\le$ 7.10543e-15 & $5.551\times 10^{-17}$ \checkmark \\
+B & 夹持端点斜率条件(bump, n=5) & $\le$ 4.54747e-13 & $2.630\times 10^{-16}$ \checkmark \\
+B & 夹持端点 S'(x0) 应为 0(bump, n=9) & $\le$ 7.10543e-15 & $9.758\times 10^{-19}$ \checkmark \\
+B & 夹持端点斜率条件(bump, n=9) & $\le$ 4.54747e-13 & $2.144\times 10^{-17}$ \checkmark \\
+B & 夹持端点 S'(x0) 应为 0(bump, n=17) & $\le$ 7.10543e-15 & 0 \checkmark \\
+B & 夹持端点斜率条件(bump, n=17) & $\le$ 4.54747e-13 & $8.894\times 10^{-21}$ \checkmark \\
+B & 夹持端点 S'(x0) 应为 0(bump, n=33) & $\le$ 7.10543e-15 & 0 \checkmark \\
+B & 夹持端点斜率条件(bump, n=33) & $\le$ 4.54747e-13 & $1.271\times 10^{-21}$ \checkmark \\
+B & natural 与 SciPy 的最大偏差(rtol 1e-10) & $\le$ 4.00000e-10 & $3.331\times 10^{-16}$ \checkmark \\
+B & clamped 与 SciPy 的最大偏差(rtol 1e-10) & $\le$ 4.00000e-10 & $4.441\times 10^{-16}$ \checkmark \\
+B & not\_\allowbreak{}a\_\allowbreak{}knot 与 SciPy 的最大偏差(rtol 1e-10) & $\le$ 4.00000e-10 & $5.274\times 10^{-16}$ \checkmark \\
+B & 三种边界在节点处的插值误差(界 8u) & $\le$ 3.55271e-15 & $1.388\times 10^{-16}$ \checkmark \\
+A & 三种边界 vs SciPy + 节点精确性 & 同一数学对象的两条独立算法应当一致到 1e-10；节点处精确到 u & natural 3.33e-16；clamped 4.44e-16；not\_a\_knot 5.27e-16；节点 1.39e-16 \checkmark \\
+B & PCHIP 的 |$\Delta$S'|(bump, n=7) & $\le$ 5.96361e-15 & $1.776\times 10^{-15}$ \checkmark \\
+B & PCHIP 的 |$\Delta$S'|(bump, n=15) & $\le$ 1.71240e-14 & $1.554\times 10^{-15}$ \checkmark \\
+B & PCHIP 的 |$\Delta$S'|(bump, n=31) & $\le$ 2.29747e-14 & $2.220\times 10^{-15}$ \checkmark \\
+B & PCHIP 的 |$\Delta$S'|(monotone, n=7) & $\le$ 1.13687e-14 & $8.882\times 10^{-16}$ \checkmark \\
+B & PCHIP 的 |$\Delta$S'|(monotone, n=15) & $\le$ 1.15325e-14 & $1.110\times 10^{-15}$ \checkmark \\
+B & PCHIP 的 |$\Delta$S'|(monotone, n=31) & $\le$ 1.15617e-14 & $1.554\times 10^{-15}$ \checkmark \\
+B & PCHIP 的 |$\Delta$S'|(runge, n=7) & $\le$ 6.22340e-15 & $4.441\times 10^{-16}$ \checkmark \\
+B & PCHIP 的 |$\Delta$S'|(runge, n=15) & $\le$ 1.66898e-14 & $1.776\times 10^{-15}$ \checkmark \\
+B & PCHIP 的 |$\Delta$S'|(runge, n=31) & $\le$ 2.12847e-14 & $1.776\times 10^{-15}$ \checkmark \\
+B & 样条的 |$\Delta$S''|/(u$\cdot$scale)(界 1) & $\le$ 1 & 0 \checkmark \\
+A & C$^2$ 跳变 / C$^1$ 跳变 & 样条 |$\Delta$S''| \textasciitilde{} u$\cdot$scale；PCHIP 的 |$\Delta$S''| 是真跳变(\allowbreak{}O(\allowbreak{}h\textasciicircum{}-2)$\cdot$数据尺度) & 样条最大 |$\Delta$S''|/\allowbreak{}(\allowbreak{}u$\cdot$scale) =\allowbreak{} 0.000；PCHIP 最大 |$\Delta$S''| =\allowbreak{} 82.5(\allowbreak{}最小 0.214) \checkmark \\
+B & 自然样条能量 $\le$ PCHIP 能量(比值倒数 $\le$ 1) & $\le$ 1 & 0.803104 \checkmark \\
+A & 能量比 E(对手)/E(自然样条) & 自然样条最小 $\Rightarrow$ 所有比值 > 1；多项式因 Runge 现象可达 1e2\textasciitilde{}1e5 & PCHIP 比值 [1.245,\allowbreak{} 1.53]，多项式比值 [1,\allowbreak{} 3.02e+05]，夹持/\allowbreak{}自然 [1.000,\allowbreak{} 1.027]，折线 0(\allowbreak{}不在 H$^2$ 内，不计入) \checkmark \\
+A & not-a-knot 样条 L$\infty$ 误差阶 & 4 & 3.97257 \checkmark \\
+A & 夹持(精确端点导数)误差阶 & 4 & 4.00635 \checkmark \\
+A & 自然样条实测阶(边界层) & 自然边界强制 S''=\allowbreak{}0 与 f''$\ne$0 冲突 $\Rightarrow$ 全局 O(\allowbreak{}h$^2$) & 实测阶 2.007(\allowbreak{}R$^2$=\allowbreak{}1.0000)，误差 1.183e-05；not-a-knot 3.973，夹持 4.006 \checkmark \\
+B & de Boor 与弯矩样条的最大偏差(界 512u) & $\le$ 5.68434e-14 & $7.105\times 10^{-15}$ \checkmark \\
+B & de Boor 在节点处的插值误差(界 64u) & $\le$ 7.10543e-15 & $7.105\times 10^{-15}$ \checkmark \\
+A & de Boor vs 三对角弯矩样条 & B 样条控制点的三对角系统与弯矩三对角系统表示同一条自然样条 & 最大逐点偏差 7.11e-15，节点处 7.11e-15 \checkmark \\
+B & 三次数据上的能量与解析值 24 的相对差 & $\le$ 1.00000e-09 & $5.841\times 10^{-11}$ \checkmark \\
+B & 系数式与弯矩式能量的相对差 & $\le$ 1.00000e-14 & $6.790\times 10^{-16}$ \checkmark \\
+B & 闭式与复合 Simpson 的相对差 & $\le$ 1.00000e-08 & $5.498\times 10^{-11}$ \checkmark \\
+A & 能量 vs 解析值 / Simpson & 三次数据 $\Rightarrow$ 样条复现该三次多项式 $\Rightarrow$ E =\allowbreak{} $\int$(\allowbreak{}p'')$^2$ =\allowbreak{} 24；闭式与 Simpson 一致到 O(\allowbreak{}h\textasciicircum{}4) & 三次例最大相对差 5.84e-11；两种写法 6.79e-16；Simpson 5.50e-11 \checkmark \\
+B & n=1 时 sum(w)=2 & $\le$ 8.88178e-16 & 0 \checkmark \\
+B & n=2 时 sum(w)=2 & $\le$ 1.77636e-15 & $4.441\times 10^{-16}$ \checkmark \\
+B & n=5 时 sum(w)=2 & $\le$ 4.44089e-15 & 0 \checkmark \\
+B & n=12 时 sum(w)=2 & $\le$ 1.06581e-14 & $7.105\times 10^{-15}$ \checkmark \\
+B & $\int$x\textasciicircum{}deg 的最大误差(deg $\le$ 2n-1) & $\le$ 1.00000e-14 & $7.105\times 10^{-15}$ \checkmark \\
+A & Gauss-Legendre 精确度 & n 点 Gauss 对 2n-1 次以下多项式精确 & 直到 23 次多项式的最大积分误差 7.11e-15 \checkmark \\
+B & 三种边界、两种节点分布下的最大节点误差(界 64u) & $\le$ 7.10543e-15 & $2.106\times 10^{-16}$ \checkmark \\
+B & 节点插值残差 & S(\allowbreak{}x\_i) =\allowbreak{} y\_i 精确(\allowbreak{}构造性) & 最大 |S(\allowbreak{}x\_i)-y\_i| =\allowbreak{} 2.11e-16 \checkmark \\
+B & PCHIP 在台阶数据上单调不减 & nondecreasing & 违反 0 处 \checkmark \\
+B & 台阶数据上的单调性 & Fritsch--Carlson 判据 alpha$^2$+beta$^2$ $\le$ 9 $\Rightarrow$ 单调；自然样条无此保证 & PCHIP 最小斜率 0(\allowbreak{}越界点 0)，自然样条最小斜率 -0.236(\allowbreak{}越界点 1664)，not-a-knot -0.333(\allowbreak{}越界 1846)；FC 余量最小 9 \checkmark \\
+B & 反序系统解与解的逆序的相对差(界 64u) & $\le$ 7.10543e-15 & $2.693\times 10^{-16}$ \checkmark \\
+B & 追赶法的反序置换不变性 & P A P$^{\mathsf T}$ (\allowbreak{}P 反序) 仍是三对角，解同步反序 & 最大相对差 2.69e-16 \checkmark \\
+B & |LU - A|/|A| 的最大值(界 64u) & $\le$ 7.10543e-15 & $3.379\times 10^{-17}$ \checkmark \\
+B & 三对角 LU 重建 + 运算量公式 & A =\allowbreak{} LU(\allowbreak{}L 单位下三角、\allowbreak{}U 上三角)，追赶法 8n-7 次浮点运算 & 最大相对重建误差 3.38e-17；运算量公式偏差 0.0 \checkmark \\
+B & eps=1e-12 时采样跳变与解析跳变的相对差(rtol 1e-9) & $\le$ 1.00000e-09 & $1.770\times 10^{-11}$ \checkmark \\
+B & eps 缩小 1e6 倍带来的偏差缩小倍数(一阶收敛的下界，实测 1000) & $\le$ 1000 & 100 \checkmark \\
+B & 最粗网格上相邻差分/真跳变(必须明显低估) & $\le$ 0.7 & 0.339837 \checkmark \\
+B & 相邻差分估计的网格漂移倍数(必须确实漂移) & $\le$ 7.04858 & 2 \checkmark \\
+B & 一侧极限 vs 等距相邻差分 & 一侧极限 =\allowbreak{} 解析值(\allowbreak{}网格无关)；相邻差分 =\allowbreak{} 网格相关的下界/\allowbreak{}上界混合估计 & 96 种网格：相邻差分/\allowbreak{}真跳变 $\in$ [0.340,\allowbreak{} 2.395](\allowbreak{}漂移 7.05 倍)；一侧极限与解析跳变之差在 eps=\allowbreak{}1e-12 时 $\le$1.8e-11(\allowbreak{}相对)，偏差随 eps 一阶下降(\allowbreak{}1e6 倍 eps $\Rightarrow$ $\ge$1000 倍偏差) \checkmark \\
+B & 样条系统的结构与占优 & A M =\allowbreak{} d 是三对角；对角占优 $\Rightarrow$ 追赶法无需选主元 & 三对角外最大元素 0.0e+00；最小占优越量 1；max|lambda+mu-1| =\allowbreak{} 0.00e+00 \checkmark \\
+B & global 尺度下最短/最长梳齿比 $\le$ 1(长度可比) & $\le$ 1 & 0 \checkmark \\
+B & 曲率梳两种尺度 & global: |spine| =\allowbreak{} length$\cdot$|kappa|/\allowbreak{}max|kappa|；local: |spine| $\equiv$ length & global 长度 $\in$ [0,\allowbreak{} 0.4](\allowbreak{}与 kappa 成正比)，local 在 199/\allowbreak{}201 个非零曲率点上恒为 0.4(\allowbreak{}标准差 7.8e-17)，另外 2 个 kappa=\allowbreak{}0 点上齿长为 0 \checkmark \\
+B & 能量与 (1-tau)$^2$$\cdot$E0 的最大偏差(相对) & $\le$ 1.67440e-07 & $4.263\times 10^{-14}$ \checkmark \\
+B & 张力族在节点处的插值误差(界 64u) & $\le$ 7.10543e-15 & $6.939\times 10^{-18}$ \checkmark \\
+B & 张力族的能量与 C$^1$ 断裂 & M\_tau=\allowbreak{}(\allowbreak{}1-tau)M $\Rightarrow$ E\_tau=\allowbreak{}(\allowbreak{}1-tau)$^2$E0；tau>0 时 S' 在节点跳变 & E0=\allowbreak{}167.4；能量偏差 4.26e-14；节点误差 6.94e-18；|dS'|: tau=\allowbreak{}0 $\to$ 8.33e-17,\allowbreak{} 0.5 $\to$ 2.21,\allowbreak{} 1 $\to$ 4.41 \checkmark \\
+B & Lebesgue 常数与同一节点上的两种误差 & Lambda\_n(\allowbreak{}等距) 指数增长；Lambda\_n(\allowbreak{}Chebyshev) \textasciitilde{} log n；样条误差 O(\allowbreak{}h\textasciicircum{}4) & Lambda 等距 4.55$\to$3.17e+03，Chebyshev 2.08$\to$2.8；多项式误差 0.617$\to$29.2，样条误差 0.129$\to$0.00372 \checkmark \\
+B & 2.2 帧不变量 & 帧里画出的跳变、\allowbreak{}能量、\allowbreak{}单位分解、\allowbreak{}凸包必须与 numcore 的断言同值 & control\_points: 18 数组；smoothness\_c0c1c2: 17 数组；bspline\_local: 19 数组；spline\_vs\_poly: 14 数组；C$^2$ 跳变 1.1e-16，梳齿峰 0.450，PCHIP 跳变 64，插入不变性 2.2e-16，多项式/\allowbreak{}样条误差比 2.9e+03 \checkmark \\
+B & 三种 Gauss 点数下多项式能量的相对散布 & $\le$ 1.00000e-10 & $5.303\times 10^{-14}$ \checkmark \\
+B & 多项式能量对积分点数的稳定性 & (\allowbreak{}p'')$^2$ 次数 $\le$ 2(\allowbreak{}n-3)；限制精度的是重心求值的抵消，故 2n 以上才收敛 & E(\allowbreak{}2n+2)=\allowbreak{}1.87904e+06,\allowbreak{} E(\allowbreak{}4n+2)=\allowbreak{}1.87904e+06,\allowbreak{} E(\allowbreak{}8n+2)=\allowbreak{}1.87904e+06，相对散布 5.30e-14 \checkmark \\
+\end{longtable}

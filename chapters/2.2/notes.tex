@@ -1,0 +1,515 @@
+% 2.2 章 · 样条与分段逼近
+% 这一章的笔记要把"插值"拆成三件互不相同的数学事实：
+%   1) C^2 条件为什么等于一个三对角系统（追赶法 / 存在唯一性）；
+%   2) "更光滑"与"更守形状"是两件事（变分性质 vs 保单调）；
+%   3) "样条比多项式稳"必须用同一组数据量出来（能量比、Lebesgue 常数、误差阶）。
+% 断言附表由 tools/build_book.py 从实际运行结果生成，\input 进来，不手抄。
+
+\numlabchapter{样条与分段逼近}{2.2}
+
+\section{这一章要解决什么}
+
+给定节点 $x_0<x_1<\dots<x_n$ 与数据 $y_i$，要求在每段 $[x_i,x_{i+1}]$ 上用一个低次多项式
+把数据连起来。分段低次多项式的好处是显然的：它不会像高次插值多项式那样在端点附近
+发疯。代价是"接缝处"要额外提条件，而提什么条件决定了整条曲线的性质：
+
+\begin{enumerate}
+  \item \textbf{接缝处的光滑度是什么？} 三次样条要求 $S\in C^2$。把 $C^1$ 与 $C^2$
+        条件写成方程以后，未知量（节点弯矩 $M_i=S''(x_i)$）满足一个\textbf{三对角系统}——
+        这是本章的第一根支柱：一个整体性条件退化成 $O(n)$ 的局部递推，于是存在唯一性、
+        稳定性、运算量全都可以精确说清。
+  \item \textbf{"更光滑"是不是"更好"？} 不是。自然样条在 $H^2$ 里最小化曲率能量
+        $\int(S'')^2$，这是变分意义下的最优；但它\textbf{不保形}：单调数据上它会越界振荡，
+        而只有 $C^1$ 的 PCHIP 却严格保单调。"光滑"与"守形状"是两个独立指标。
+  \item \textbf{"样条比多项式稳"到底稳多少？} 只有在同一组数据、同一个 $n$ 上量才有意义：
+        本章同时画出多项式与样条的误差、能量比与 Lebesgue 常数，把"稳"变成一个数。
+\end{enumerate}
+
+记号：$h_i=x_{i+1}-x_i$，$h=\max_i h_i$，$\delta_i=(y_{i+1}-y_i)/h_i$，
+$M_i=S''(x_i)$，$u=\tfrac12\varepsilon_{\text{mach}}=2^{-53}\approx1.11\times10^{-16}$。
+B 样条部分用 $k$ 表示次数（阶 $=k+1$），节点向量记 $t$，控制点记 $c_i$。
+
+\section{三次样条：$C^2$ 条件就是三对角系统}
+
+\subsection{从 Hermite 形式到弯矩方程}
+
+在区间 $[x_i,x_{i+1}]$ 上，三次 Hermite 插值由两端的值与一阶导唯一确定。用弯矩
+$M_i,M_{i+1}$ 代替一阶导，得到更方便的形式：
+
+\begin{lemma}[弯矩形式的段内表达式]
+\label{lem:moment-form}
+对 $x\in[x_i,x_{i+1}]$，记 $s=x-x_i$、$h_i=x_{i+1}-x_i$，则
+\[
+S(x)=y_i+\Bigl[\delta_i-\frac{h_i}{6}\bigl(2M_i+M_{i+1}\bigr)\Bigr]s
++\frac{M_i}{2}s^2+\frac{M_{i+1}-M_i}{6h_i}s^3 .
+\]
+特别地
+\[
+S'(x_i^+)=\delta_i-\frac{h_i}{6}\bigl(2M_i+M_{i+1}\bigr),\qquad
+S'(x_{i+1}^-)=\delta_i+\frac{h_i}{6}\bigl(M_i+2M_{i+1}\bigr).
+\]
+\end{lemma}
+
+\begin{proof}
+把右端记作 $P(s)$：它是三次多项式，$P''(s)=M_i+\frac{M_{i+1}-M_i}{h_i}s$，
+故 $P''(0)=M_i$、$P''(h_i)=M_{i+1}$，$P(0)=y_i$；
+而
+\[
+P(h_i)=y_i+h_i\delta_i+\frac{h_i^2}{6}\Bigl[-\bigl(2M_i+M_{i+1}\bigr)+3M_i+\bigl(M_{i+1}-M_i\bigr)\Bigr]
+=y_i+h_i\delta_i=y_{i+1},
+\]
+方括号内恰为 $0$。三次多项式由两端的函数值与二阶导唯一确定（四个条件定四个系数），
+所以 $P=S$。两个一阶导公式由 $P'(s)=\bigl[\delta_i-\frac{h_i}{6}(2M_i+M_{i+1})\bigr]
++M_is+\frac{M_{i+1}-M_i}{2h_i}s^2$ 在 $s=0,h_i$ 处取值即得。
+\end{proof}
+
+\begin{theorem}[$C^2$ 样条 $\Leftrightarrow$ 三对角系统]
+\label{thm:tridiag}
+设 $S$ 分段三次、在节点处插值 $y$、在节点处取指定的二阶导 $S''(x_i)=M_i$
+（于是 $S''$ 逐点连续）。则 $S\in C^1$ 当且仅当内点弯矩 $M_1,\dots,M_{n-1}$ 满足
+\[
+h_{i-1}M_{i-1}+2(h_{i-1}+h_i)M_i+h_iM_{i+1}=6(\delta_i-\delta_{i-1}),
+\qquad i=1,\dots,n-1 .
+\tag{$\star$}
+\]
+写成归一化形式即 $\mu_iM_{i-1}+2M_i+\lambda_iM_{i+1}=d_i$，其中
+$\mu_i=\frac{h_{i-1}}{h_{i-1}+h_i}$、$\lambda_i=\frac{h_i}{h_{i-1}+h_i}$（$\mu_i+\lambda_i=1$）、
+$d_i=\frac{6(\delta_i-\delta_{i-1})}{h_{i-1}+h_i}$。$C^2$ 连续自动成立，不需要额外方程。
+\end{theorem}
+
+\begin{proof}
+由引理 \ref{lem:moment-form}，在第 $i$ 段上
+$S'(x_i^+)=\delta_i-\frac{h_i}{6}(2M_i+M_{i+1})$，
+在第 $i-1$ 段上（取该段右端）
+$S'(x_i^-)=\delta_{i-1}+\frac{h_{i-1}}{6}(M_{i-1}+2M_i)$。
+$C^1$ 条件 $S'(x_i^-)=S'(x_i^+)$ 于是是
+\[
+\delta_{i-1}+\frac{h_{i-1}}{6}\bigl(M_{i-1}+2M_i\bigr)
+=\delta_i-\frac{h_i}{6}\bigl(2M_i+M_{i+1}\bigr),
+\]
+两边乘以 $6$ 并移项即得 $(\star)$。反之若 $(\star)$ 成立，则每个内点处
+$S'(x_i^-)=S'(x_i^+)$；再加上端点处单侧导数存在，$S'\in C$ 于整条区间，
+即 $S\in C^1$。二阶导的连续性已经由 $S''(x_i)=M_i$ 的取法保证。
+\end{proof}
+
+\begin{remark}
+$C^2$ 是"接缝处"的要求，而 $(\star)$ 是\textbf{三对角}的：第 $i$ 个方程只含
+$M_{i-1},M_i,M_{i+1}$。整体性条件退化成局部递推，这是样条在工程上可用的根本原因——
+解一次 $(\star)$ 只要 $8n-7$ 次浮点运算（断言 \texttt{test\_thomas\_*} 实测与闭式一致），
+而稠密消元要 $\tfrac23n^3$。
+\end{remark}
+
+\subsection{三种边界条件}
+
+$(\star)$ 有 $n-1$ 个方程、$n+1$ 个未知弯矩，还差两个条件：
+
+\begin{description}
+  \item[自然（natural）] $M_0=M_n=0$，即端点二阶导为 0。物理上是"端点不受弯矩"。
+  \item[夹持（clamped）] 给定 $S'(x_0)=d_0$、$S'(x_n)=d_n$，用它消去 $M_0,M_n$。
+        左端由 $S'(x_0^+)=\delta_0-\frac{h_0}{6}(2M_0+M_1)=d_0$ 得
+        $2M_0+M_1=\frac{6(\delta_0-d_0)}{h_0}$，即 $M_0=\frac{3(\delta_0-d_0)}{h_0}-\frac{M_1}{2}$；
+        代回 $(\star)$ 的第一式（$i=1$）得
+        \[
+        \Bigl(2-\frac{\mu_1}{2}\Bigr)M_1+\lambda_1M_2
+        =d_1-\frac{3(\delta_0-d_0)}{h_0+h_1},
+        \qquad \mu_1=\frac{h_0}{h_0+h_1},\ \lambda_1=\frac{h_1}{h_0+h_1},
+        \]
+        右端对称。对角元 $2-\mu_1/2\in[\tfrac32,2]$，仍是严格对角占优。
+  \item[not-a-knot] 让首末两段的三阶导在 $x_1$、$x_{n-1}$ 处连续（等价于把这两点"去掉"，
+        首末各用一个三次多项式覆盖两个区间）。在弯矩上它写成
+        $(M_1-M_0)/h_0=(M_2-M_1)/h_1$，解出 $M_0$ 代回 $i=1$ 行得
+        $\bigl(2+\frac{h_0}{h_1}\bigr)M_1+\frac{h_1-h_0}{h_1}M_2=d_1$，右端对称。
+        它不预设任何端点导数、也不需要用户提供数据，所以是 SciPy 的默认选择。
+\end{description}
+
+\begin{theorem}[存在唯一性与对角占优]
+\label{thm:dominant}
+三种边界条件下，$(\star)$ 加上边界方程给出的矩阵 $A$ 都是\textbf{严格对角占优}的
+三对角矩阵，因此非奇异、追赶法（无选主元）不会遇到零主元，且
+$\|A^{-1}\|_\infty\le 1/\min_i(|a_{ii}|-\sum_{j\ne i}|a_{ij}|)$。
+\end{theorem}
+
+\begin{proof}
+内点行：对角 $2(h_{i-1}+h_i)$，非对角之和 $h_{i-1}+h_i$，余量恰为 $h_{i-1}+h_i>0$。
+
+自然边界只删去首末两个未知量，剩下的行仍是内点行，占优不变。
+夹持边界把首行改为 $\bigl(2-\frac{\mu_1}{2}\bigr)M_1+\lambda_1M_2=\cdots$：由于
+$\mu_1,\lambda_1>0$ 且 $\mu_1+\lambda_1=1$，余量为 $2-\frac{\mu_1}{2}-\lambda_1=1+\frac{\mu_1}{2}>0$，
+末行同理。
+not-a-knot 首行系数为 $(2+h_0/h_1)$ 与 $(h_1-h_0)/h_1$，余量
+$2+h_0/h_1-|h_1-h_0|/h_1\ge 2+h_0/h_1-1-h_0/h_1=1>0$。
+严格对角占优矩阵非奇异（Gershgorin 圆盘不含原点），且追赶法的乘子满足
+$|l_i|\le \sum_{j\ne i}|a_{ij}|/|a_{ii}|<1$，故无零主元。
+\end{proof}
+
+断言 \texttt{test\_spline\_system\_is\_tridiagonal\_and\_diagonally\_dominant}
+在 $2$ 个函数 $\times$ $n=4,8,16,40$ $\times$ 三种边界上逐项核对了"三对角外元素恰为
+$0$""最小占优越量为正"。
+
+\subsection{误差阶：边界条件决定一切}
+
+\begin{theorem}[误差恒等式与两个阶]
+\label{thm:error}
+设 $f\in C^4$，$S$ 是插值样条，$e=S-f$，$E_i=M_i-f''(x_i)$。则在每个区间上
+\[
+e''(x)=\frac{x_{i+1}-x}{h_i}E_i+\frac{x-x_i}{h_i}E_{i+1}
+\]
+（$e''$ 在区间内是线性的），于是
+\[
+\|S-f\|_\infty\le \frac{h^2}{8}\|E\|_\infty+\frac{h^4}{384}\|f^{(4)}\|_\infty .
+\tag{$\star\star$}
+\]
+进一步：若边界条件与 $f$ 相容（夹持用精确的 $f'(x_0),f'(x_n)$，或 not-a-knot），
+则 $\|E\|_\infty=O(h^2)$，从而 $\|S-f\|_\infty=O(h^4)$；
+若用自然边界而 $f''(x_0)f''(x_n)\ne0$，则 $\|E\|_\infty=O(1)$，误差退化到 $O(h^2)$。
+\end{theorem}
+
+\begin{proof}
+\textbf{(1) $e''$ 的表达式。} $e=S-f$ 在节点处为 $0$，且 $e''(x_i)=E_i$；$S''$ 在区间内线性、
+$f''$ 在区间内不是线性的，但 $e''=S''-f''$ 在区间内\textbf{不是}线性的——
+这里用的是标准估计式而非等式：把 $f$ 在区间两端作三次 Hermite 展开，得到
+\[
+e(x)=\frac{M_i-f''(x_i)}{6h_i}(x_{i+1}-x)^3+\frac{M_{i+1}-f''(x_{i+1})}{6h_i}(x-x_i)^3
+-\frac{f^{(4)}(\xi)}{24}(x-x_i)^2(x_{i+1}-x)^2 ,
+\]
+（对 $f$ 作 Hermite 插值、对 $S$ 用引理 \ref{lem:moment-form}，两者相减即得；
+最后一项来自 $f$ 的 Hermite 插值余项）。右端两项在区间上分别被
+$\frac{h_i^2}{6}|E_i|$ 与 $\frac{h_i^2}{6}|E_{i+1}|$ 控制，最大值出现在
+$(x_{i+1}-x)^3$ 与 $(x-x_i)^3$ 相等处，给出三次项不大于 $\frac{h^3}{48}\|E\|_\infty$；
+余项被 $\frac{h^4}{384}\|f^{(4)}\|_\infty$ 控制（在 $x$ 取区间中点时
+$(x-x_i)^2(x_{i+1}-x)^2$ 最大，等于 $h^4/16$，除以 $24$）。
+把两项都用 $\max$ 相加即得 $(\star\star)$ 的量级形式。
+
+\textbf{(2) $\|E\|_\infty=O(h^2)$（相容边界）。} 把精确的 $f''$ 代入 $(\star)$ 的左端，
+用 Taylor 展开得残差 $\tau_i=O(h^3)\|f^{(4)}\|_\infty$（$h f''(x-h)+4hf''(x)+hf''(x+h)$
+与 $6(f(x+h)-2f(x)+f(x-h))/h$ 的差，逐项展开到四阶即得）。
+弯矩方程因此是一个\textbf{严格对角占优}的 $M$-矩阵系统，其误差满足离散极值原理：
+$\|E\|_\infty\le \frac{1}{\min_i(\text{占优越量})}\max_i|\tau_i/h_i|=O(h^2)$。
+（端点行的处理同定理 \ref{thm:dominant}。）
+
+\textbf{(3) 自然边界为什么只有 $O(h^2)$：把它算出来。} 取 $f(x)=x^2$、均匀节点
+$h=1/n$、自然边界。此时 $f''\equiv2$，$y_i=x_i^2$ 满足 $\delta_i-\delta_{i-1}=2h$，
+于是 $(\star)$ 变成 $M_{i-1}+4M_i+M_{i+1}=12$，边界 $M_0=M_n=0$。
+令 $u_i=M_i-2$，则 $u_{i-1}+4u_i+u_{i+1}=0$，$u_0=u_n=-2$，
+其特征根为 $\lambda=-2+\sqrt3\approx-0.2679$（另一根 $1/\lambda$ 被边界排除），故
+\[
+u_i=-2\frac{\lambda^i+\lambda^{n-i}}{1+\lambda^n},\qquad
+M_1=2-2\lambda+O(\lambda^n)\approx 2.536 .
+\]
+也就是说第一个内点的弯矩误差 $|M_1-f''(x_1)|\approx0.536$ 与 $h$ \textbf{无关}——
+$O(1)$ 的边界层。代入 $(\star\star)$ 第一项得 $\|e\|_\infty\approx\frac{h^2}{8}\cdot0.54$，
+即 $O(h^2)$，而且误差集中在两端。
+\end{proof}
+
+\begin{remark}
+这解释了断言 \texttt{test\_error\_order\_depends\_on\_the\_boundary\_condition} 的实测：
+not-a-knot $3.973$、夹持（精确端点导数）$4.006$、自然 $\mathbf{2.007}$。
+同一批节点、同一个函数，只换边界条件，收敛阶就掉一半——这是本章最值得量的一件事。
+\end{remark}
+
+\subsection{变分性质：自然样条是"最不弯"的}
+
+\begin{theorem}[最小曲率能量]
+\label{thm:variational}
+设 $S$ 是自然三次样条（$M_0=M_n=0$）插值 $y$。则对任何 $g\in H^2(x_0,x_n)$ 且
+$g(x_i)=y_i$，有
+\[
+\int_{x_0}^{x_n}\bigl(g''\bigr)^2\,dx\;\ge\;\int_{x_0}^{x_n}\bigl(S''\bigr)^2\,dx ,
+\]
+等号当且仅当 $g=S$。
+\end{theorem}
+
+\begin{proof}
+写 $g=S+e$，则 $e(x_i)=0$（两边都插值同一批点）。展开：
+\[
+\int (g'')^2=\int (S'')^2+2\int S''e''+\int (e'')^2 ,
+\]
+只需证交叉项为零。在每个区间上分部积分两次（$S''''=0$）：
+\[
+\int_{x_i}^{x_{i+1}}S''e''
+=\Bigl[S''e'-S'''e\Bigr]_{x_i}^{x_{i+1}}+\int_{x_i}^{x_{i+1}}S''''e
+=\Bigl[S''e'-S'''e\Bigr]_{x_i}^{x_{i+1}} .
+\]
+对 $i$ 求和：$e(x_i)=0$ 使所有 $-S'''e$ 项消失；$S'''$ 的跳跃发生在节点上，
+同样被 $e(x_i)=0$ 消掉。剩下的是两个端点项
+$S''(x_0)e'(x_0)-S''(x_n)e'(x_n)$，由自然边界 $S''(x_0)=S''(x_n)=0$ 也为零。
+于是 $\int S''e''=0$，从而 $\int(g'')^2-\int(S'')^2=\int(e'')^2\ge0$，
+等号当且仅当 $e''\equiv0$ 且 $e(x_i)=0$，即 $e\equiv0$。
+\end{proof}
+
+\begin{remark}
+证明里\textbf{每一处}都用到了"自然边界"：如果换成夹持或 not-a-knot，端点项不为零，
+交叉项就是负的，自然样条（或任何别的插值样条）都不再最小。
+更不要提折线：折线的 $S''$ 是一串 delta 函数之和，$\int(S'')^2$ 在分布意义下发散，
+而按"分段常数为零"去算会得到 $0$——"折线能量最小"是本章最典型的假象，见
+\texttt{spline\_vs\_poly} 可视化与 pitfalls。
+\end{remark}
+
+\section{B 样条：局部支撑带来的局部性}
+
+\subsection{递推定义与单位分解}
+
+\begin{definition}[Cox--de Boor 递推]
+给定非降节点向量 $t$，$k=0$ 时 $B_{i,0}(x)=1$ 若 $t_i\le x<t_{i+1}$（否则 $0$）；
+对 $k\ge1$，
+\[
+B_{i,k}(x)=\frac{x-t_i}{t_{i+k}-t_i}B_{i,k-1}(x)+\frac{t_{i+k+1}-x}{t_{i+k+1}-t_{i+1}}B_{i+1,k-1}(x),
+\]
+约定 $0/0=0$。B 样条曲线是 $C(x)=\sum_i c_iB_{i,k}(x)$。
+\end{definition}
+
+\begin{theorem}[支撑、非负与单位分解]
+\label{thm:partition}
+设节点向量在定义域 $[t_k,t_{n})$ 上取正长度（$n$ 为控制点个数）。则
+\begin{enumerate}
+  \item $\operatorname{supp}B_{i,k}\subseteq[t_i,t_{i+k+1}]$，且在 $(t_i,t_{i+k+1})$ 内取正值；
+  \item $\sum_{i}B_{i,k}(x)=1$ 对一切 $x\in[t_k,t_{n})$ 成立。
+\end{enumerate}
+\end{theorem}
+
+\begin{proof}
+两条都对 $k$ 作归纳。
+
+\textbf{(1)} $k=0$ 显然。对 $k\ge1$：递推式右端两项的支撑分别是
+$[t_i,t_{i+k}]\cap[t_{i+1},t_{i+k+1}]\subseteq[t_i,t_{i+k+1}]$，故支撑包含关系成立；
+非负性由归纳假设与两个权重 $\frac{x-t_i}{t_{i+k}-t_i},\frac{t_{i+k+1}-x}{t_{i+k+1}-t_{i+1}}\ge0$
+（在区间内）得到。内部取正：取 $x\in(t_i,t_{i+k+1})$，则至少有一个权重严格为正
+且对应的低阶基函数在该点为正（对 $x$ 所处的那个"单形"用归纳假设）。
+
+\textbf{(2)} 用递推式求和：
+\[
+\sum_i B_{i,k}(x)=\sum_i \frac{x-t_i}{t_{i+k}-t_i}B_{i,k-1}(x)
++\sum_i \frac{t_{i+k+1}-x}{t_{i+k+1}-t_{i+1}}B_{i+1,k-1}(x)
+=\sum_j \Bigl[\frac{x-t_j}{t_{j+k}-t_j}+\frac{t_{j+k}-x}{t_{j+k}-t_j}\Bigr]B_{j,k-1}(x),
+\]
+第二个和里把 $i+1$ 换成 $j$，两式合并后括号内恒为 $1$（当分母非零时），
+于是 $\sum_iB_{i,k}=\sum_jB_{j,k-1}=\dots=\sum_jB_{j,0}=1$
+（定义域内被覆盖一次的 $B_{j,0}$ 恰有一个为 $1$）。分母为零时约定该项为 $0$，
+对应的基函数在该点也为 $0$，不影响求和。
+\end{proof}
+
+\subsection{de Boor 算法}
+
+\begin{theorem}[de Boor 递推即重复凸组合]
+\label{thm:deboor}
+设 $x\in[t_\mu,t_{\mu+1})$，$x\ne t_{\mu+1}$。定义 $c_i^{[0]}=c_i$ 与
+\[
+c_i^{[r]}=(1-\alpha_i^{[r]})c_{i-1}^{[r-1]}+\alpha_i^{[r]}c_i^{[r-1]},\qquad
+\alpha_i^{[r]}=\frac{x-t_i}{t_{i+k-r+1}-t_i},
+\]
+对 $i=\mu-k+r,\dots,\mu$。则 $C(x)=c_\mu^{[k]}$。
+\end{theorem}
+
+\begin{proof}
+先证一步的恒等式：对 $x\in[t_\mu,t_{\mu+1})$，
+\[
+\sum_i c_iB_{i,k}(x)=\sum_i c_i^{[1]}B_{i,k-1}(x),\qquad
+c_i^{[1]}=(1-\alpha_i)c_{i-1}+\alpha_ic_i,\quad \alpha_i=\frac{x-t_i}{t_{i+k}-t_i}.
+\]
+把恒等式右端按 $B_{i,k-1}$ 的系数合并：$B_{i,k-1}$ 的系数是
+\[
+(1-\alpha_i)c_{i-1}+\alpha_ic_i .
+\]
+而把 Cox--de Boor 递推代入左端，$B_{i,k-1}$ 的系数来自两项：
+来自 $B_{i,k}$ 的 $\alpha_i c_i$（因为 $(x-t_i)/(t_{i+k}-t_i)=\alpha_i$）与来自 $B_{i-1,k}$ 的
+$\frac{t_{i+k}-x}{t_{i+k}-t_i}c_{i-1}=(1-\alpha_i)c_{i-1}$。相加即得。于是恒等式成立。
+对 $r$ 归纳：每一步都把次数降一，且第 $r$ 步的 $\alpha_i^{[r]}$ 正是把
+$x$ 代入降次后的节点向量 $t^{(r)}=t$（去掉相应端点后的那一段）得到的权重。
+$k$ 步之后次数为 $0$：$C(x)=\sum_i c_i^{[k]}B_{i,0}(x)$，而 $x\in[t_\mu,t_{\mu+1})$
+时只有 $B_{\mu,0}=1$，故 $C(x)=c_\mu^{[k]}$。
+\end{proof}
+
+\begin{remark}
+de Boor 算法的每一层都是\textbf{凸组合}（$\alpha\in[0,1]$），所以曲线一定落在控制点
+的凸包里——这就是可视化里"控制多边形包住曲线"的根据，也是
+\texttt{test\_curve\_stays\_inside\_the\_convex\_hull} 量到的"间隙 $=0$"。
+\end{remark}
+
+\subsection{节点插入：局部修改的局部性}
+
+\begin{theorem}[Boehm 节点插入]
+\label{thm:boehm}
+在 $u\in[t_\mu,t_{\mu+1})$ 处插入一个新节点得 $t'$。令
+\[
+c'_i=\begin{cases}
+c_i, & i\le\mu-k,\\
+(1-\alpha_i)c_{i-1}+\alpha_ic_i, & \mu-k+1\le i\le\mu,\quad
+\alpha_i=\dfrac{u-t_i}{t_{i+k}-t_i},\\
+c_{i-1}, & i\ge\mu+1 .
+\end{cases}
+\]
+则 $\sum_ic'_iB_{i,k}(\cdot;t')=\sum_ic_iB_{i,k}(\cdot;t)$：曲线逐点不变。
+\end{theorem}
+
+\begin{proof}
+对次数 $k$ 归纳。$k=0$ 时曲线是分段常数，$u$ 只是把一个常值段切成两段，成立。
+
+设 $k\ge1$。两条曲线都是次数 $k$ 的样条，且\textbf{左边那条的导数}是
+$D\bigl(\sum c'_iB_{i,k}(\cdot;t')\bigr)
+=k\sum_i\frac{c'_{i+1}-c'_i}{t'_{i+k+1}-t'_{i+1}}B_{i,k-1}(\cdot;t'[1{:}{-1}])$，
+右边同理。直接代入 $c'$ 的定义可以验证：降次后的控制点
+$d'_i=\frac{c'_{i+1}-c'_i}{t'_{i+k+1}-t'_{i+1}}$ 与 $d_i=\frac{c_{i+1}-c_i}{t_{i+k+1}-t_{i+1}}$
+之间恰好又是同一个 Boehm 公式（对次数 $k-1$、节点向量删去两端一个的插入问题）——
+这是把 $\alpha_i$ 的通分式
+$(u-t_i)(t_{i+k+1}-t_{i+1})-(u-t_{i+1})(t_{i+k+1}-t_i)$ 展开后得到的恒等式，
+本例中只需对 $i=\mu-k+2,\dots,\mu$（其余项的分子分母同为 $0$，按 $0$ 处理）验证。
+于是由归纳假设，两条曲线的\textbf{导数处处相等}。又两者都是连续函数，
+只要再有一个点相等就处处相等：取 $x\to t_k^+$，此时只有 $B_{k,k}$ 非零且
+$B_{k,k}(t_k^+)=1$，而 $c'_k=c_k$ 由第一种情形（$k\le\mu-k$ 当且仅当 $u$ 在最右段，
+此时 $\mu\ge k$；一般位置下用 $B$ 的连续性取 $x=t_k$ 直接算同样得到 $c_k$）。
+所以两条曲线相等。
+\end{proof}
+
+\begin{remark}
+定理里最要紧的是\textbf{只有 $k$ 个控制点变化}：插入是 $O(k)$ 的局部操作，
+与曲线整体规模无关。可视化 \texttt{bspline\_local} 把它画成"移动一个控制点只动
+$k+1$ 个结点区间"；反过来，插入一个节点只改 $k$ 个控制点
+（\texttt{test\_knot\_insertion\_is\_local} 实测"变化个数 $\le k$，未触及的控点逐位不变"）。
+\end{remark}
+
+\begin{remark}[多重度决定光滑度]
+节点插入不改变曲线，也就\textbf{不改变}光滑度。曲线在内节点处的光滑度由多重度 $m$
+决定：$C\in C^{k-m}$。把同一个控制多边形放在"简单内节点"与"多重度 $k+1$"两种节点
+向量上，得到的是同一条曲线——但后者只有 $C^0$，一阶导在该点跳变。
+"加密节点"与"提高光滑度"是两件相反的事。
+\end{remark}
+
+\section{保形插值：$C^1$ 的 PCHIP 为什么比 $C^2$ 的样条更守形状}
+
+\begin{theorem}[Fritsch--Carlson 充分条件]
+\label{thm:fc}
+设区间 $[x_i,x_{i+1}]$ 上的三次 Hermite 插值满足端点斜率 $m_i,m_{i+1}$ 与割线斜率
+$\Delta=\delta_i$ 同号，且
+\[
+\alpha=\frac{m_i}{\Delta},\quad\beta=\frac{m_{i+1}}{\Delta},\qquad
+\alpha\ge0,\ \beta\ge0,\ \alpha^2+\beta^2\le9 .
+\]
+则该区间上插值三次多项式单调（$\Delta>0$ 时单调不减）。
+\end{theorem}
+
+\begin{proof}
+区间上把多项式写成 $p(t)$，$t\in[0,1]$（$t=(x-x_i)/h_i$）。由
+$p(t)=y_iH_1+\Delta h_i(\alpha H_2+\beta H_4)+y_{i+1}H_3$ 求导并整理得
+\[
+\frac{p'(t)}{\Delta}=q(t)=3(\alpha+\beta-2)t^2+(6-4\alpha-2\beta)t+\alpha ,
+\]
+只需证 $q(t)\ge0$ 在 $[0,1]$ 上恒成立。
+
+若 $\alpha+\beta\le2$，$q$ 是凸向下（二次项系数 $\le0$）的，最小值在端点取到：
+$q(0)=\alpha\ge0$，$q(1)=\beta\ge0$。
+
+若 $\alpha+\beta>2$，$q$ 是凸的，顶点在
+$t^\ast=\frac{2\alpha+\beta-3}{3(\alpha+\beta-2)}$。若 $t^\ast\notin[0,1]$，
+最小值仍在端点 $\ge0$。若 $t^\ast\in(0,1)$，则
+\[
+q(t^\ast)=\alpha-\frac{(3-2\alpha-\beta)^2}{3(\alpha+\beta-2)},
+\]
+而
+\[
+q(t^\ast)\ge0
+\iff \alpha^2+\alpha\beta+\beta^2-6\alpha-6\beta+9\le0
+\iff \varphi(\alpha,\beta)\le0 .
+\]
+在区域 $\{\alpha,\beta\ge0,\ \alpha^2+\beta^2\le9\}$ 上，$\partial_\alpha\varphi=2\alpha+\beta-6\le0$、
+$\partial_\beta\varphi=\alpha+2\beta-6\le0$（因为 $\alpha,\beta\le3$），
+所以 $\varphi$ 的最大值在四分之一圆弧上取到。在弧上令
+$\alpha=3\cos\theta,\beta=3\sin\theta$，得
+$\varphi=18+9\sin\theta\cos\theta-18(\cos\theta+\sin\theta)\le0$，
+因为 $2(\cos\theta+\sin\theta)-\sin\theta\cos\theta\ge2$ 在 $[0,\tfrac\pi2]$ 上成立
+（两端取等号 $2$，中间更大）。于是 $q(t^\ast)\ge0$。
+\end{proof}
+
+\begin{remark}
+定理 \ref{thm:fc} 是\textbf{充分}条件：断言
+\texttt{test\_fritsch\_carlson\_criterion\_is\_sufficient\_not\_necessary} 用 $400$ 组随机
+$(\alpha,\beta)$ 实测"判据说行 $\Rightarrow$ 确实单调"零假阳性，同时找到 $19$ 组
+"判据说不知道、实际仍单调"的假阴性。所以判据失效不等于曲线不单调——
+"余量为负"只说明需要兜底（密采样），不能直接下结论。
+\end{remark}
+
+\begin{theorem}[形状保持不是样条的性质]
+\label{thm:shape}
+存在单调不减的数据，使得自然三次样条与 not-a-knot 样条的插值函数不单调。
+\end{theorem}
+
+\begin{proof}
+取 $x=(0,1,2,3,4,5)$，$y=(0,0,0,1,1,1)$。这是单调不减数据。对自然样条解
+$(\star)$（右端为 $6(\delta_i-\delta_{i-1})$，只有 $i=3$ 处非零，等于 $6$）并用
+引理 \ref{lem:moment-form} 求导，在第二个区间上可算得 $S'(x)\approx-0.236<0$
+（断言实测最小斜率 $-0.236$，$4001$ 个采样点中有 $1664$ 个下降点）；
+not-a-knot 的最小斜率为 $-0.333$。故两者都不单调。
+而同一组数据上 PCHIP 的最小斜率为 $0$、越界点为 $0$。
+\end{proof}
+
+\begin{remark}
+这就是本章第二条主线：$C^2$ 的光滑性是用"允许越界"换来的。PCHIP 只有 $C^1$，
+二阶导在节点处跳变（实测 $|\Delta S''|$ 可达 $82.5$），但它\textbf{守形状}。
+把"二阶导跳变"当成缺陷、把"曲线看起来顺"当成优点，就会得出完全错误的选型结论。
+\end{remark}
+
+\section{四个可视化在看什么}
+
+\begin{enumerate}
+  \item \textbf{control\_points}：拖动 $6$ 个数据点的纵坐标，曲线与曲率梳实时更新；
+        \texttt{bc} 切换自然/夹持/not-a-knot，\\texttt{tension} 把弯矩整体乘 $(1-\tau)$。
+        副轴是"节点两侧的一侧极限之差"：$\tau=0$ 时 $|\Delta S''|\sim10^{-16}$（$C^2$），
+        $\tau=0.5$ 时 $|\Delta S'|=2.21$（$C^1$ 已经断了），$\tau=1$ 时曲线退化成折线、
+        能量恒为 $0$、$|\Delta S'|=4.41$。梳齿有 global/local 两种尺度：切到 local 以后
+        每条齿一样长，"哪里更弯"就读不出来了（实测 $199/201$ 个非零曲率点齿长完全相同）。
+  \item \textbf{smoothness\_c0c1c2}：同一批数据画折线（$C^0$）、PCHIP（$C^1$）、样条（$C^2$），
+        每条都给两份二阶导——一份在\textbf{节点两侧}各采一点，一份用默认等距采样。
+        前者的跳变是竖直段，后者被连成斜坡。实测：$\epsilon$ 缩小 $10^6$ 倍，一侧极限与解析
+        跳变之差也缩小 $10^6$ 倍（一阶），而等距采样的相邻差分/真跳变在 $96$ 种网格下
+        从 $0.34$ 漂到 $2.40$（$7.05$ 倍）。
+  \item \textbf{bspline\_local}：控制多边形 + 曲线 + 基函数 + 局部支撑区间。
+        拖动一个控制点，只有 $k+1$ 个结点区间变色；插值节点（\texttt{insert\_at}）
+        改变曲线吗？不变（$\le4.4\times10^{-16}$），但控制点会变、重数会涨。
+        凸包间隙恒为 $0$，单位分解误差 $\le4.4\times10^{-16}$。
+  \item \textbf{spline\_vs\_poly}：同一组数据、同一个 $n$，多项式与样条并排。
+        主轴固定（不自动缩放），一旦多项式冲出画面就用 \texttt{overflow} 标记如实报告，
+        而不是把坐标轴放大到看不出差别。实测 $n=9$ 的 Runge 数据上误差比 $18.6$，
+        $n=15$ 时 $2.9\times10^3$；能量比可达 $3.0\times10^5$。
+        副轴的 $\log_{10}$ 误差图带一条地板线 $u/2$——地板以下的"下降"是假的。
+\end{enumerate}
+
+\input{chapters/2.2/asserts_table}
+
+\section{它会怎样骗你（本章版）}
+
+\begin{enumerate}
+  \item \textbf{把"能量为 0"当成"最光滑"}：折线的 $\int(S'')^2=0$，但它的二阶导在节点处
+        是 delta 函数，根本不在 $H^2$ 里。变分性质只在 $H^2$ 的插值函数类中成立，
+        把折线算进比较就得到"折线最光滑"的荒谬结论。
+  \item \textbf{把张力旋钮当成"平滑"}：$\tau$ 把弯矩乘 $(1-\tau)$，曲线仍然过所有数据点，
+        但 $\tau>0$ 立刻破坏 $C^1$（实测 $|\Delta S'|$ 从 $8.3\times10^{-17}$ 涨到 $2.21$）。
+        它换到的是"更平"，代价是节点处的折角。
+  \item \textbf{用等距采样去看二阶导的跳变}：跳变会被"相邻两点的连线"抹成斜坡。
+        实测相邻差分/真跳变在 $96$ 种网格下漂移 $7.05$ 倍，最粗的网格只拿到 $34\%$，
+        某些网格还会高估 $2.4$ 倍。要量跳变必须在节点两侧分采。
+  \item \textbf{把 $C^2$ 当成"处处都好"}：单调数据上自然样条的最小斜率是 $-0.236$
+        （$4001$ 点里 $1664$ 个下降点），not-a-knot 是 $-0.333$。形状保持是 PCHIP 的性质，
+        不是样条的性质。
+  \item \textbf{把"判据失效"当成"曲线不单调"}：Fritsch--Carlson 是充分条件，
+        $400$ 组随机数据里判据给出 $0$ 个假阳性、$19$ 个假阴性。
+        余量为负只说明"要兜底检查"，不能反推结论。
+  \item \textbf{拿"自然边界"当默认}：它把全局误差阶从 $h^4$ 压到 $h^2$
+        （实测 $4.006$ 掉到 $2.007$），因为 $S''(x_0)=0$ 与 $f''(x_0)\ne0$ 冲突，
+        制造出一层 $O(1)$ 的边界弯矩误差。要四阶就用夹持（给精确导数）或 not-a-knot。
+  \item \textbf{把夹持条件写错}：SciPy 的 \texttt{bc\_type="clamped"} 意思是"两端导数为 $0$"，
+        不是"给定导数"。断言里专门用 $d_0=d_1=0$ 对拍 SciPy、再按定义单独核对非零斜率，
+        混用两者会得到"实现和参照不一致"的假 bug。
+  \item \textbf{把 LU 的乘子当成原次对角元}：$A=LU$ 里 $L$ 的次对角元是
+        $\ell_i=a_i/u_{i-1}$，不是 $a_i$。写错这一条，重建 $A$ 的相对误差是 $0.95$——
+        不是舍入，是公式错。
+  \item \textbf{用跨节点的中心差商去量 $C^1$ 函数的导数}：$S''$ 在节点跳变，
+        $\frac{f(x+h)-f(x-h)}{2h}=f'(x)+\frac h2\Delta S''+O(h^2)$，实测误差停在
+        $10^{-6}$ 量级下不去。要么用单侧差商，要么先把区间分开。
+  \item \textbf{把"插了节点"当成"曲线变了"}：Boehm 插入逐点不变（$\le4.4\times10^{-16}$），
+        它改的是表示、是自由度、是重数，不是几何。
+  \item \textbf{把局部支撑读成"只影响一点点"}：$k=3$、$8$ 个控制点时，移动一个控制点
+        影响 $3$ 个非退化区间、占参数域 $59.6\%$——"局部"是相对 $n$ 而言，不是绝对小。
+  \item \textbf{在自适应坐标下比"谁更准"}：多项式误差涨到 $10^2$ 时自动缩放会把
+        爆炸画成"形状差不多"；本章主轴固定并显式给出溢出标记。
+  \item \textbf{把地板以下的下降当成收敛}：对数轴上的误差曲线撞到 $u/2$ 以后继续"下降"
+        纯粹是舍入噪声，本章画出地板参考线，并如实报告哪些点是精确 $0$。
+\end{enumerate}

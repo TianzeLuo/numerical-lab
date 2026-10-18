@@ -1,0 +1,154 @@
+# 2.2 章断言清单（真源：`tests/2.2/test_spline.py` 与 `tests/2.2/test_bspline.py`）
+#
+# 分工：
+#   * test_spline.py   —— 追赶法 / 三种边界的三次样条 / C² 跳变 / 变分性质 / 误差阶；
+#   * test_bspline.py  —— 单位分解 / de Boor / 节点插入 / 凸包 / 保形判据。
+# A 类（解析对拍）：与解析解、SciPy 参照、闭式积分、解析例（三次数据）对拍；
+# B 类（不变量）：三对角结构、节点插值、局部支撑、凸包、单调性、记账恒等式。
+# 本章不声明 C 类断言：这里的收敛阶（h⁴ 与边界层的 h²）用 `assert_order` 直接给出
+# 拟合阶并作为 A 类登记，不需要二分阈值。
+chapter: "2.2"
+title: 样条与分段逼近
+required_kinds: [A, B]
+
+min_counts:
+  A: 15
+  B: 105
+
+tests:
+  - name: test_thomas_tridiagonal_matches_analytic_and_dense
+    kind: A
+    what: 解析例（离散 Laplacian，n=65，真解 x_j=j/(n-1)）逐点误差 3.0e-15；n=2..129 的随机严格对角占优系统与 SciPy 稠密解相对差 ≤2.3e-16、后向残差 ≤5.9e-17
+    theory: 追赶法 = 三对角 LU，残差 ~n·u；运算量 8n−7
+  - name: test_three_boundary_conditions_match_reference
+    kind: A
+    what: 自然 3.3e-16 / 夹持（端点导数为 0）4.4e-16 / not-a-knot 5.3e-16（对 SciPy CubicSpline 与 make_interp_spline）；节点插值误差 ≤1.4e-16；给定解析端点导数的夹持条件也逐条核对
+    theory: 弯矩三对角系统与带状消元是同一数学对象的两条独立算法
+  - name: test_c2_jump_is_at_roundoff_while_c1_jumps_are_real
+    kind: A
+    what: 6 组（函数 × n=7,15,31）数据上样条 |ΔS''|/(u·scale) = 0；同一批数据 PCHIP 的 |ΔS''| 最大 82.5（另有 PCHIP 的 C¹ 检查 ≤64u）
+    theory: C² 样条的节点二阶导差是舍入；C¹ 的 PCHIP 的跳变是真的 O(h⁻²) 量级
+  - name: test_spline_energy_is_variationally_minimal
+    kind: A
+    what: 9 组数据上 E(自然) < E(PCHIP) < E(多项式)：E(PCHIP)/E(自然) ∈ [1.245, 1.53]，E(多项式)/E(自然) 最大 3.0e5，E(夹持)/E(自然) ∈ [1.000, 1.027]；折线能量为 0 但不计入（不在 H² 内）
+    theory: 自然样条在 H² 插值函数类中最小化 ∫(S'')²
+  - name: test_error_order_depends_on_the_boundary_condition
+    kind: A
+    what: n=9..129 的 L∞ 误差拟合阶：not-a-knot 3.973、夹持（精确端点导数）4.006、自然 2.007
+    theory: 自然边界强制 S''=0 与 f''≠0 冲突 ⇒ 边界层把全局阶压到 h²
+  - name: test_de_boor_matches_tridiagonal_spline
+    kind: A
+    what: 均匀节点自然样条的 B 样条控点经 de Boor 求值与弯矩样条的最大逐点偏差 7.1e-15（节点处同为 7.1e-15）
+    theory: 两个三对角系统表示同一条自然样条
+  - name: test_energy_matches_analytic_and_simpson
+    kind: A
+    what: 三次数据上 E 与解析值 24 的相对差 ≤5.8e-11；系数式与弯矩式 ≤6.8e-16；闭式与 20001 点复合 Simpson ≤5.5e-11
+    theory: 三次多项式属于三次样条空间 ⇒ 能量可解析核对；M 分段线性 ⇒ 闭式积分精确
+  - name: test_gauss_legendre_is_exact_for_polynomials
+    kind: A
+    what: n=1,2,5,12 点 Gauss 对 deg ≤ 2n−1 的多项式积分误差 ≤7.1e-15；Σw=2 到 8u·n
+    theory: n 点 Gauss–Legendre 对 2n−1 次以下多项式精确
+  - name: test_spline_interpolates_nodes_exactly
+    kind: B
+    what: 4 个函数 × n=5,9,21 × Chebyshev 节点 × 三种边界的最大节点误差 2.1e-16（界 64u）
+    theory: S(x_i)=y_i 是构造性恒等式
+  - name: test_monotone_data_pchip_monotone_but_spline_overshoots
+    kind: B
+    what: 台阶数据上 PCHIP 最小斜率 ≥0（违反点 0）；自然样条最小斜率 −0.236（1664 个违反点）、not-a-knot −0.333；FC 余量最小 ≥0
+    theory: Fritsch–Carlson 判据保证 PCHIP 单调；样条为凑 C² 会越界
+  - name: test_thomas_is_invariant_under_order_reversal
+    kind: B
+    what: n=4,9,32,77 反序置换（PAPᵀ 仍是三对角）后解与解的逆序相对差 ≤2.7e-16（界 64u）
+    theory: 反序置换保持三对角结构，解同步反序
+  - name: test_thomas_factorization_reproduces_matrix
+    kind: B
+    what: "|LU−A|/|A| 最大 3.4e-17（界 64u）；L 的次对角元是乘子 a_i/u_{i−1} 而非原 a_i（写错就重建不出 A）；thomas_flops(n)=8n−7 逐位一致"
+    theory: 追赶法就是无填充的三对角 LU
+  - name: test_node_sides_expose_the_jump_that_uniform_sampling_hides
+    kind: B
+    what: 96 种网格（8 种密度 × 3 种偏移 × 4 组数据）：相邻差分/真跳变 ∈ [0.340, 2.395]，漂移 7.05 倍；一侧极限在 eps=1e-12 时与解析跳变相差 ≤1.8e-11（相对），偏差随 eps 一阶下降
+    theory: 分采取到一侧极限 O(h⁻²)，等距采样把跳变连成斜坡只剩 O(h⁻¹)
+  - name: test_spline_system_is_tridiagonal_and_diagonally_dominant
+    kind: B
+    what: 2 函数 × n=4,8,16,40 × 三种边界：三对角外元素恒 0，最小占优越量 1，max|λ+μ−1| = 0
+    theory: C¹ 条件给出三对角且严格对角占优的系统 ⇒ 追赶法无主元可用
+  - name: test_curvature_comb_scales_are_honest
+    kind: B
+    what: global 尺度下 |spine| 与 |κ| 严格成比例（偏差 <1e-12）且峰值 0.4；local 尺度下 199/201 个非零曲率点齿长恒为 0.4（标准差 7.8e-17），2 个 κ=0 点齿长为 0
+    theory: 曲率梳 global：length·|κ|/max|κ|；local：长度信息被完全丢掉
+  - name: test_tension_family_scales_energy_and_breaks_c1
+    kind: B
+    what: E(τ)=(1−τ)²E₀（E₀=167.4，相对偏差 4.3e-14）；节点插值误差 6.9e-18；|ΔS'| 从 8.3e-17（τ=0）增到 2.21（τ=0.5）、4.41（τ=1）
+    theory: 弯矩整体乘 (1−τ) ⇒ 能量乘 (1−τ)²，τ>0 时 C¹ 断裂（换到的是"更平"不是"更光滑"）
+  - name: test_lebesgue_growth_separates_polynomial_from_spline
+    kind: B
+    what: Λ(等距) 4.55→3.17e3（n=7→19，增长 >5 倍即判"爆炸"），Λ(Chebyshev) 2.08→2.80；同一节点上多项式误差 0.617→29.2 而样条 0.129→3.7e-3
+    theory: 等距节点的 Lebesgue 常数指数增长，Chebyshev 只按 log n 增长；样条误差 O(h⁴)
+  - name: test_chapter_frames_obey_invariants
+    kind: B
+    what: 四个帧（18/17/19/14 个数组）的 requiredAux 齐备、error 全有限；C² 跳变 1.1e-16、梳齿峰 0.450、PCHIP 跳变 64、插入不变性 2.2e-16、多项式/样条误差比 2.9e3
+    theory: 可视化里画出的量必须与 numcore 断言同值（纸面与机器同源）
+  - name: test_polynomial_energy_is_resolved_by_the_quadrature
+    kind: B
+    what: n=13 的多项式能量在 28/54/106 点 Gauss 下相对散布 5.3e-14（缺省 2n+2 已收敛）
+    theory: 限制精度的是重心求值的抵消而不是求积公式，故取 2n 以上
+  - name: test_partition_of_unity_holds_for_every_knot_vector
+    kind: A
+    what: 36 组节点向量（4 个阶数 × 3 类 × 含节点两侧 ±1e-9 的采样）：|ΣB−1| ≤4.4e-16，最小基函数值 0（非负）
+    theory: 单位分解与非负性（Cox–de Boor 递推的推论）⇒ 曲线是控制点的凸组合
+  - name: test_de_boor_matches_basis_matrix_and_reference
+    kind: A
+    what: de Boor vs Σc_iB_i 4.4e-16、vs SciPy make_interp_spline 6.7e-16、配置方程在节点处 3.3e-16（n=5,6,9,17）
+    theory: not-a-knot 节点向量 + 配置方程 ⇒ 与 SciPy 同一条曲线
+  - name: test_knot_insertion_preserves_the_curve
+    kind: A
+    what: 阶 1..4、控点 4..11、插入 1..k+1 次（重数可达 k+1）：最大 |ΔC| = 4.4e-16，且控制点确实被改变（48 次判定全部为真）
+    theory: Boehm 公式保持 Σc_iB_i 不变
+  - name: test_bspline_derivative_matches_finite_differences
+    kind: A
+    what: 一阶导（降次表示）vs 中心差商 4.4e-11、vs SciPy 差商 3.9e-11、多重度 k+1 时 4.6e-11（容差 1e-6）
+    theory: 导数仍是降次 B 样条；差分公式分母为 0 时对应基函数恒为 0，系数取 0 无害
+  - name: test_pchip_slopes_match_reference_derivatives
+    kind: A
+    what: Fritsch–Carlson 斜率 vs SciPy PchipInterpolator 的单侧二阶数值导数，最大相对差 1.4e-10（跨节点中心差商会退化到 1e-6 量级——见 pitfalls）
+    theory: 加权调和平均 = PCHIP 的节点导数
+  - name: test_basis_functions_have_local_support
+    kind: B
+    what: 支撑区间 [t_i,t_{i+k+1}] 外基函数最大值 0；任一参数处非零基函数个数与 k+1 的偏差 0（k=1..4）
+    theory: 局部支撑与求值局部性（代价与整体规模 n 无关）
+  - name: test_curve_stays_inside_the_convex_hull
+    kind: B
+    what: convex_hull_gap=0；曲线越出 [min c, max c] 的量 0；每个采样点的 B 列非负且和为 1（≤64u）
+    theory: 凸组合 ⇒ 曲线在控制点凸包内
+  - name: test_knot_insertion_is_local
+    kind: B
+    what: 每次插入只改 ≤k 个控制点（k=1..4 实测最多 4 个），未触及控点逐位不变（偏差恒 0）
+    theory: Boehm 公式只动 i=μ−k+1..μ
+  - name: test_clamped_endpoints_and_continuity_at_knots
+    kind: B
+    what: C(t_0)=c_0、C(t_n)=c_{n−1} 偏差 0；整条曲线 4001 点相邻差最大 8.5e-3（连续，无断点）
+    theory: 端点重数 k+1 ⇒ 只有 B_0 非零
+  - name: test_knot_multiplicity_controls_smoothness
+    kind: B
+    what: 简单节点与多重度 k+1 的两种表示给出同一条曲线（偏差 4.4e-16）；节点两侧值差 2.4e-9（C⁰ 连续）
+    theory: 插入不改变曲线，光滑度由重数决定（m 重 ⇒ C^{k−m}）
+  - name: test_fritsch_carlson_criterion_is_sufficient_not_necessary
+    kind: B
+    what: 400 组随机 (d0,d1,δ)：假阳性 0（判据可信）；假阴性 19（其中最小余量 −6，越负判据越保守）
+    theory: α²+β² ≤ 9 是充分条件而非必要条件
+  - name: test_monotonicity_report_agrees_with_dense_sampling
+    kind: B
+    what: PCHIP（min_slope=0，违反 0 点）vs 自然样条（min_slope=−0.63，违反 1241 点）；报告的最小斜率与 6001 点密采样差商一致到 1e-6
+    theory: 保形度量必须与密采样一致
+  - name: test_uniform_natural_ctrl_solves_its_tridiagonal_system
+    kind: B
+    what: 内点方程 (c_{i−1}+4c_i+c_{i+1})/6=y_i 残差 2.2e-16；自然边界 M_0=M_m=0 残差 1.1e-16；节点插值 2.2e-16
+    theory: 均匀自然 B 样条控点的三对角系统（1/6,4/6,1/6）
+  - name: test_insertion_sequence_is_consistent
+    kind: B
+    what: 每步"节点 +1、控点 +1、曲线不变"（偏差 2.2e-16）；在已有节点 0.5 上插入 3 次后重数 1→4
+    theory: 插入序列的记账恒等式
+  - name: test_basis_matrix_matches_de_boor_of_unit_control_points
+    kind: B
+    what: 控制点取单位向量时 de Boor 与 bspline_basis（Cox–de Boor 递推）逐点一致到 4.4e-16（k=1..4）
+    theory: 基函数就是"控制点为单位向量的曲线"
