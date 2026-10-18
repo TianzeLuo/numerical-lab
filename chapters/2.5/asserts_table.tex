@@ -1,0 +1,668 @@
+% 本文件由 tools/build_book.py 从 dist/reports/assertions.json 生成，请勿手改。
+\begin{longtable}{@{}p{0.06\textwidth}p{0.32\textwidth}p{0.22\textwidth}p{0.16\textwidth}@{}}
+\caption{章节 2.5 数值断言（生成时间 2026-10-18T16:26:32-0400）}\\
+\toprule
+类别 & 断言 & 理论值 & 实测值 \\
+\midrule
+\endfirsthead
+\toprule
+类别 & 断言 & 理论值 & 实测值 \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+
+B & signal\_\allowbreak{}spectrum 有 requiredAux error & $\le$ 1 & 1 \checkmark \\
+B & signal\_\allowbreak{}spectrum 数组 x 全有限 & $\le$ 0 & 0 \checkmark \\
+B & signal\_\allowbreak{}spectrum 数组 t\_\allowbreak{}axis 全有限 & $\le$ 0 & 0 \checkmark \\
+B & signal\_\allowbreak{}spectrum 数组 spectrum\_\allowbreak{}db 全有限 & $\le$ 0 & 0 \checkmark \\
+B & signal\_\allowbreak{}spectrum 数组 freq 全有限 & $\le$ 0 & 0 \checkmark \\
+B & signal\_\allowbreak{}spectrum 数组 error 全有限 & $\le$ 0 & 0 \checkmark \\
+B & leak\_\allowbreak{}window 有 requiredAux error & $\le$ 1 & 1 \checkmark \\
+B & leak\_\allowbreak{}window 数组 window\_\allowbreak{}shapes 全有限 & $\le$ 0 & 0 \checkmark \\
+B & leak\_\allowbreak{}window 数组 window\_\allowbreak{}shape 全有限 & $\le$ 0 & 0 \checkmark \\
+B & leak\_\allowbreak{}window 数组 x\_\allowbreak{}windowed 全有限 & $\le$ 0 & 0 \checkmark \\
+B & leak\_\allowbreak{}window 数组 spectrum\_\allowbreak{}db 全有限 & $\le$ 0 & 0 \checkmark \\
+B & leak\_\allowbreak{}window 数组 freq 全有限 & $\le$ 0 & 0 \checkmark \\
+B & leak\_\allowbreak{}window 数组 envelope 全有限 & $\le$ 0 & 0 \checkmark \\
+B & leak\_\allowbreak{}window 数组 error 全有限 & $\le$ 0 & 0 \checkmark \\
+B & butterfly\_\allowbreak{}stages 有 requiredAux residual & $\le$ 1 & 1 \checkmark \\
+B & butterfly\_\allowbreak{}stages 数组 stage\_\allowbreak{}values\_\allowbreak{}real 全有限 & $\le$ 0 & 0 \checkmark \\
+B & butterfly\_\allowbreak{}stages 数组 stage\_\allowbreak{}values\_\allowbreak{}imag 全有限 & $\le$ 0 & 0 \checkmark \\
+B & butterfly\_\allowbreak{}stages 数组 current\_\allowbreak{}real 全有限 & $\le$ 0 & 0 \checkmark \\
+B & butterfly\_\allowbreak{}stages 数组 current\_\allowbreak{}imag 全有限 & $\le$ 0 & 0 \checkmark \\
+B & butterfly\_\allowbreak{}stages 数组 residual 全有限 & $\le$ 0 & 0 \checkmark \\
+B & butterfly\_\allowbreak{}stages 数组 spectrum\_\allowbreak{}mag 全有限 & $\le$ 0 & 0 \checkmark \\
+B & butterfly\_\allowbreak{}stages 数组 error 全有限 & $\le$ 0 & 0 \checkmark \\
+B & butterfly\_\allowbreak{}stages 有 requiredAux residual & $\le$ 1 & 1 \checkmark \\
+B & butterfly\_\allowbreak{}stages 数组 stage\_\allowbreak{}values\_\allowbreak{}real 全有限 & $\le$ 0 & 0 \checkmark \\
+B & butterfly\_\allowbreak{}stages 数组 stage\_\allowbreak{}values\_\allowbreak{}imag 全有限 & $\le$ 0 & 0 \checkmark \\
+B & butterfly\_\allowbreak{}stages 数组 current\_\allowbreak{}real 全有限 & $\le$ 0 & 0 \checkmark \\
+B & butterfly\_\allowbreak{}stages 数组 current\_\allowbreak{}imag 全有限 & $\le$ 0 & 0 \checkmark \\
+B & butterfly\_\allowbreak{}stages 数组 residual 全有限 & $\le$ 0 & 0 \checkmark \\
+B & butterfly\_\allowbreak{}stages 数组 spectrum\_\allowbreak{}mag 全有限 & $\le$ 0 & 0 \checkmark \\
+B & butterfly\_\allowbreak{}stages 数组 error 全有限 & $\le$ 0 & 0 \checkmark \\
+B & conv\_\allowbreak{}theorem 有 requiredAux error & $\le$ 1 & 1 \checkmark \\
+B & conv\_\allowbreak{}theorem 数组 signal 全有限 & $\le$ 0 & 0 \checkmark \\
+B & conv\_\allowbreak{}theorem 数组 kernel 全有限 & $\le$ 0 & 0 \checkmark \\
+B & conv\_\allowbreak{}theorem 数组 circular 全有限 & $\le$ 0 & 0 \checkmark \\
+B & conv\_\allowbreak{}theorem 数组 linear 全有限 & $\le$ 0 & 0 \checkmark \\
+B & conv\_\allowbreak{}theorem 数组 difference 全有限 & $\le$ 0 & 0 \checkmark \\
+B & conv\_\allowbreak{}theorem 数组 safe\_\allowbreak{}difference 全有限 & $\le$ 0 & 0 \checkmark \\
+B & conv\_\allowbreak{}theorem 数组 error 全有限 & $\le$ 0 & 0 \checkmark \\
+B & resolution 有 requiredAux error & $\le$ 1 & 1 \checkmark \\
+B & resolution 数组 spectrum\_\allowbreak{}db 全有限 & $\le$ 0 & 0 \checkmark \\
+B & resolution 数组 freq 全有限 & $\le$ 0 & 0 \checkmark \\
+B & resolution 数组 span\_\allowbreak{}ratio 全有限 & $\le$ 0 & 0 \checkmark \\
+B & resolution 数组 span\_\allowbreak{}n 全有限 & $\le$ 0 & 0 \checkmark \\
+B & resolution 数组 error 全有限 & $\le$ 0 & 0 \checkmark \\
+B & 五个帧的数组与 aux & 全部有限且 requiredAux 齐备 & 5 \checkmark \\
+B & pad=1 时栅格与真实分辨率一致 & 0.00390625 & 0.00390625 \checkmark \\
+B & df = 1/(N*dt) & 0.00390625 & 0.00390625 \checkmark \\
+B & 基频落在栅格上 & 768 & 768 \checkmark \\
+B & 自写 FFT 与参照实现的最大偏差 & $\le$ 1.00000e-12 & $4.463\times 10^{-14}$ \checkmark \\
+B & 默认参数下没有混叠 & $\le$ 0 & 0 \checkmark \\
+B & pad=4 时栅格加密 4 倍 & 0.000976562 & 0.000976562 \checkmark \\
+B & pad 不改变真实分辨率 df\_\allowbreak{}true & 0.00390625 & 0.00390625 \checkmark \\
+B & pad 不改变主瓣宽度 & 0.00390625 & 0.00390625 \checkmark \\
+B & signal\_\allowbreak{}spectrum 的 df 与 df\_\allowbreak{}true & df =\allowbreak{} 1/\allowbreak{}(\allowbreak{}N*dt) 随 pad 加密，df\_true =\allowbreak{} 1/\allowbreak{}T 不变 & 0.25 \checkmark \\
+B & rect 帧里的 Harris 表值一致 & $\le$ 0.005 & 0 \checkmark \\
+B & rect 帧里实测旁瓣与表值一致 & $\le$ 0.6 & 0.00145913 \checkmark \\
+B & rect 帧里的相干增益 = 内核值 & 1 & 1 \checkmark \\
+B & hann 帧里的 Harris 表值一致 & $\le$ 0.005 & 0 \checkmark \\
+B & hann 帧里实测旁瓣与表值一致 & $\le$ 0.6 & 0.00269145 \checkmark \\
+B & hann 帧里的相干增益 = 内核值 & 0.492188 & 0.492188 \checkmark \\
+B & hamming 帧里的 Harris 表值一致 & $\le$ 0.005 & 0 \checkmark \\
+B & hamming 帧里实测旁瓣与表值一致 & $\le$ 0.6 & 0.00496879 \checkmark \\
+B & hamming 帧里的相干增益 = 内核值 & 0.532813 & 0.532813 \checkmark \\
+B & blackman 帧里的 Harris 表值一致 & $\le$ 0.005 & 0 \checkmark \\
+B & blackman 帧里实测旁瓣与表值一致 & $\le$ 0.6 & 0.00115825 \checkmark \\
+B & blackman 帧里的相干增益 = 内核值 & 0.413438 & 0.413438 \checkmark \\
+B & offset=0.0 时解析窗谱与 |FFT| 的偏差 $\le$ 5\% & $\le$ 0.05 & 0.0132386 \checkmark \\
+B & offset=0.25 时解析窗谱与 |FFT| 的偏差 $\le$ 5\% & $\le$ 0.05 & 0.0132386 \checkmark \\
+B & offset=0.5 时解析窗谱与 |FFT| 的偏差 $\le$ 5\% & $\le$ 0.05 & 0.0132386 \checkmark \\
+B & rect 理论线的锚点 = 最高旁瓣 & $\le$ 0.01 & $3.525\times 10^{-6}$ \checkmark \\
+B & hann 理论线的锚点 = 最高旁瓣 & $\le$ 0.01 & 0.000181148 \checkmark \\
+B & hamming 理论线的锚点 = 最高旁瓣 & $\le$ 0.01 & 0.000231284 \checkmark \\
+B & blackman 理论线的锚点 = 最高旁瓣 & $\le$ 0.01 & 0.000166771 \checkmark \\
+B & 汉明的最高旁瓣在 fN $\approx$ 4.5，不是第一个零点 fN = 2 & $\le$ 4.5 & 4 \checkmark \\
+B & 四个窗的帧内旁瓣与表值的最大差 & 不超过 0.6 dB & 0.00496879 \checkmark \\
+B & n=8 级数 = log2(N) & 3 & 3 \checkmark \\
+B & n=8 蝶形数 = (N/2)*log2(N) & 12 & 12 \checkmark \\
+B & n=8 每级残差贴地板 & $\le$ 1.00000e-10 & 0 \checkmark \\
+B & n=8 末级结果与参照谱一致 & $\le$ 1.00000e-12 & $2.890\times 10^{-16}$ \checkmark \\
+B & n=32 级数 = log2(N) & 5 & 5 \checkmark \\
+B & n=32 蝶形数 = (N/2)*log2(N) & 80 & 80 \checkmark \\
+B & n=32 每级残差贴地板 & $\le$ 1.00000e-10 & $2.064\times 10^{-16}$ \checkmark \\
+B & n=32 末级结果与参照谱一致 & $\le$ 1.00000e-12 & $2.398\times 10^{-15}$ \checkmark \\
+B & n=128 级数 = log2(N) & 7 & 7 \checkmark \\
+B & n=128 蝶形数 = (N/2)*log2(N) & 448 & 448 \checkmark \\
+B & n=128 每级残差贴地板 & $\le$ 1.00000e-10 & $2.879\times 10^{-15}$ \checkmark \\
+B & n=128 末级结果与参照谱一致 & $\le$ 1.00000e-12 & $1.124\times 10^{-14}$ \checkmark \\
+B & 余弦 k=3 的谱峰 = N/2 = 16 & 16 & 16 \checkmark \\
+B & 蝶形动画的 stage 随时间推进 & t 从 0 到 tMax 时 stage 单调不减 & 5 \checkmark \\
+B & need = N+M-1 = 23 & 23 & 23 \checkmark \\
+B & 补零后误差贴舍入地板 & $\le$ 1.00000e-15 & $1.110\times 10^{-16}$ \checkmark \\
+B & 定理本身的残差贴地板 & $\le$ 1.00000e-12 & $1.145\times 10^{-16}$ \checkmark \\
+B & 频域相乘与直接卷积一致 & $\le$ 1.00000e-12 & $1.110\times 10^{-16}$ \checkmark \\
+B & 卷绕误差是 O(1) 量级而不是小量 & $\le$ 1 & 0.250781 \checkmark \\
+B & N 增大后卷绕误差单调不增 & $\le$ 0.250781 & 0.00263061 \checkmark \\
+B & 卷绕误差随 N 的变化 & N=\allowbreak{}16 时 O(\allowbreak{}1)，N=\allowbreak{}64 时已降到 1e-3 以下 & 95.3319 \checkmark \\
+B & Rayleigh 判据 = 1/T & 1 & 1 \checkmark \\
+B & sep\_\allowbreak{}measured = 内核的最小可分辨间隔(rect) & 1 & 1 \checkmark \\
+B & sep\_\allowbreak{}over\_\allowbreak{}mainlobe = 阈值 / 主瓣宽度 & 1.1236 & 1.1236 \checkmark \\
+B & pad=1 时栅格 = 真实分辨率 & 0.00390625 & 0.00390625 \checkmark \\
+B & Hann 的阈值不小于矩形窗 & $\le$ 1 & 1 \checkmark \\
+B & Hann 的主瓣比矩形宽 & $\le$ 1.44 & 0.89 \checkmark \\
+B & pad=8 时栅格加密 8 倍 & 0.000488281 & 0.000488281 \checkmark \\
+B & 补零与换窗对阈值的影响 & pad 只动栅格；阈值的变化远小于换窗带来的变化 & 0 \checkmark \\
+B & dB 谱的峰落在 meta 报的 f0 上 & 3 & 3 \checkmark \\
+B & signal\_\allowbreak{}spectrum 的 error 曲线贴地板 & $\le$ 1.00000e-12 & $4.463\times 10^{-14}$ \checkmark \\
+B & 残差数组的最大值 = meta 的 max\_\allowbreak{}level\_\allowbreak{}residual & $2.064\times 10^{-16}$ & $2.064\times 10^{-16}$ \checkmark \\
+B & 每级残差都不超过 1e-10 & $\le$ 1.00000e-10 & $2.064\times 10^{-16}$ \checkmark \\
+B & difference 数组的最大值 = meta 的 max\_\allowbreak{}wrap & 0.250781 & 0.250781 \checkmark \\
+B & safe\_\allowbreak{}difference 贴舍入地板 & $\le$ 1.00000e-15 & $1.110\times 10^{-16}$ \checkmark \\
+B & 数组与 meta 的互证 & 最大值类读数必须逐位一致 & 0.250781 \checkmark \\
+B & n=1 自研 FFT vs 定义式 DFT & $\le$ 7.10543e-15 & 0 \checkmark \\
+B & n=1 自研 FFT vs pocketfft & $\le$ 7.10543e-15 & 0 \checkmark \\
+B & n=2 自研 FFT vs 定义式 DFT & $\le$ 1.42109e-14 & $4.771\times 10^{-17}$ \checkmark \\
+B & n=2 自研 FFT vs pocketfft & $\le$ 1.42109e-14 & 0 \checkmark \\
+B & n=3 自研 FFT vs 定义式 DFT & $\le$ 2.13163e-14 & $3.419\times 10^{-16}$ \checkmark \\
+B & n=3 自研 FFT vs pocketfft & $\le$ 2.13163e-14 & $3.516\times 10^{-16}$ \checkmark \\
+B & n=4 自研 FFT vs 定义式 DFT & $\le$ 2.84217e-14 & $5.249\times 10^{-17}$ \checkmark \\
+B & n=4 自研 FFT vs pocketfft & $\le$ 2.84217e-14 & $8.398\times 10^{-18}$ \checkmark \\
+B & n=5 自研 FFT vs 定义式 DFT & $\le$ 3.55271e-14 & $3.447\times 10^{-16}$ \checkmark \\
+B & n=5 自研 FFT vs pocketfft & $\le$ 3.55271e-14 & $5.407\times 10^{-16}$ \checkmark \\
+B & n=7 自研 FFT vs 定义式 DFT & $\le$ 4.97380e-14 & $6.793\times 10^{-16}$ \checkmark \\
+B & n=7 自研 FFT vs pocketfft & $\le$ 4.97380e-14 & $8.932\times 10^{-16}$ \checkmark \\
+B & n=8 自研 FFT vs 定义式 DFT & $\le$ 5.68434e-14 & $2.687\times 10^{-16}$ \checkmark \\
+B & n=8 自研 FFT vs pocketfft & $\le$ 5.68434e-14 & $1.202\times 10^{-16}$ \checkmark \\
+B & n=11 自研 FFT vs 定义式 DFT & $\le$ 7.81597e-14 & $1.284\times 10^{-15}$ \checkmark \\
+B & n=11 自研 FFT vs pocketfft & $\le$ 7.81597e-14 & $1.164\times 10^{-15}$ \checkmark \\
+B & n=13 自研 FFT vs 定义式 DFT & $\le$ 9.23706e-14 & $1.433\times 10^{-15}$ \checkmark \\
+B & n=13 自研 FFT vs pocketfft & $\le$ 9.23706e-14 & $1.474\times 10^{-15}$ \checkmark \\
+B & n=16 自研 FFT vs 定义式 DFT & $\le$ 1.13687e-13 & $1.631\times 10^{-16}$ \checkmark \\
+B & n=16 自研 FFT vs pocketfft & $\le$ 1.13687e-13 & $1.079\times 10^{-16}$ \checkmark \\
+B & n=17 自研 FFT vs 定义式 DFT & $\le$ 1.20792e-13 & $1.740\times 10^{-15}$ \checkmark \\
+B & n=17 自研 FFT vs pocketfft & $\le$ 1.20792e-13 & $1.754\times 10^{-15}$ \checkmark \\
+B & n=31 自研 FFT vs 定义式 DFT & $\le$ 2.20268e-13 & $1.329\times 10^{-14}$ \checkmark \\
+B & n=31 自研 FFT vs pocketfft & $\le$ 2.20268e-13 & $1.364\times 10^{-14}$ \checkmark \\
+B & n=32 自研 FFT vs 定义式 DFT & $\le$ 2.27374e-13 & $2.342\times 10^{-16}$ \checkmark \\
+B & n=32 自研 FFT vs pocketfft & $\le$ 2.27374e-13 & $1.171\times 10^{-16}$ \checkmark \\
+B & n=96 自研 FFT vs 定义式 DFT & $\le$ 6.82121e-13 & $3.083\times 10^{-14}$ \checkmark \\
+B & n=96 自研 FFT vs pocketfft & $\le$ 6.82121e-13 & $3.075\times 10^{-14}$ \checkmark \\
+B & n=127 自研 FFT vs 定义式 DFT & $\le$ 9.02389e-13 & $4.728\times 10^{-14}$ \checkmark \\
+B & n=127 自研 FFT vs pocketfft & $\le$ 9.02389e-13 & $4.766\times 10^{-14}$ \checkmark \\
+B & n=128 自研 FFT vs 定义式 DFT & $\le$ 9.09495e-13 & $3.150\times 10^{-16}$ \checkmark \\
+B & n=128 自研 FFT vs pocketfft & $\le$ 9.09495e-13 & $3.247\times 10^{-16}$ \checkmark \\
+B & n=200 自研 FFT vs 定义式 DFT & $\le$ 1.42109e-12 & $6.313\times 10^{-15}$ \checkmark \\
+B & n=200 自研 FFT vs pocketfft & $\le$ 1.42109e-12 & $6.271\times 10^{-15}$ \checkmark \\
+B & n=1000 自研 FFT vs 定义式 DFT & $\le$ 7.10543e-12 & $1.456\times 10^{-13}$ \checkmark \\
+B & n=1000 自研 FFT vs pocketfft & $\le$ 7.10543e-12 & $1.458\times 10^{-13}$ \checkmark \\
+A & 最坏相对误差 & c$\cdot$n$\cdot$u & $1.456\times 10^{-13}$ \checkmark \\
+B & n=1 往返 & $\le$ 7.10543e-15 & 0 \checkmark \\
+B & n=2 往返 & $\le$ 1.42109e-14 & $1.420\times 10^{-16}$ \checkmark \\
+B & n=3 往返 & $\le$ 2.13163e-14 & $4.714\times 10^{-16}$ \checkmark \\
+B & n=4 往返 & $\le$ 2.84217e-14 & $1.267\times 10^{-16}$ \checkmark \\
+B & n=5 往返 & $\le$ 3.55271e-14 & $2.123\times 10^{-16}$ \checkmark \\
+B & n=7 往返 & $\le$ 4.97380e-14 & $7.078\times 10^{-16}$ \checkmark \\
+B & n=8 往返 & $\le$ 5.68434e-14 & $1.764\times 10^{-16}$ \checkmark \\
+B & n=11 往返 & $\le$ 7.81597e-14 & $8.984\times 10^{-16}$ \checkmark \\
+B & n=13 往返 & $\le$ 9.23706e-14 & $1.555\times 10^{-15}$ \checkmark \\
+B & n=16 往返 & $\le$ 1.13687e-13 & $3.039\times 10^{-16}$ \checkmark \\
+B & n=17 往返 & $\le$ 1.20792e-13 & $2.117\times 10^{-15}$ \checkmark \\
+B & n=31 往返 & $\le$ 2.20268e-13 & $4.623\times 10^{-15}$ \checkmark \\
+B & n=32 往返 & $\le$ 2.27374e-13 & $2.448\times 10^{-16}$ \checkmark \\
+B & n=96 往返 & $\le$ 6.82121e-13 & $1.624\times 10^{-14}$ \checkmark \\
+B & n=127 往返 & $\le$ 9.02389e-13 & $1.906\times 10^{-14}$ \checkmark \\
+B & n=128 往返 & $\le$ 9.09495e-13 & $3.683\times 10^{-16}$ \checkmark \\
+B & n=200 往返 & $\le$ 1.42109e-12 & $1.937\times 10^{-14}$ \checkmark \\
+B & n=1000 往返 & $\le$ 7.10543e-12 & $1.619\times 10^{-13}$ \checkmark \\
+A & 忘记 1/N 时的往返放大倍数 & 应当恰好是 n & 1000 \checkmark \\
+B & n=7 dft\_\allowbreak{}matrix 相位精度 & $\le$ 6.21725e-15 & 0 \checkmark \\
+B & n=13 dft\_\allowbreak{}matrix 相位精度 & $\le$ 1.15463e-14 & $8.951\times 10^{-16}$ \checkmark \\
+B & n=17 dft\_\allowbreak{}matrix 相位精度 & $\le$ 1.50990e-14 & $4.003\times 10^{-16}$ \checkmark \\
+B & n=31 dft\_\allowbreak{}matrix 相位精度 & $\le$ 2.75335e-14 & $9.421\times 10^{-16}$ \checkmark \\
+B & n=96 dft\_\allowbreak{}matrix 相位精度 & $\le$ 8.52651e-14 & $9.155\times 10^{-16}$ \checkmark \\
+B & n=127 dft\_\allowbreak{}matrix 相位精度 & $\le$ 1.12799e-13 & $8.951\times 10^{-16}$ \checkmark \\
+B & n=200 dft\_\allowbreak{}matrix 相位精度 & $\le$ 1.77636e-13 & $9.550\times 10^{-16}$ \checkmark \\
+B & n=1000 dft\_\allowbreak{}matrix 相位精度 & $\le$ 8.88178e-13 & $9.550\times 10^{-16}$ \checkmark \\
+A & dft\_\allowbreak{}matrix 最坏逐点误差 & O(\allowbreak{}n$\cdot$u) & $9.550\times 10^{-16}$ \checkmark \\
+B & n=2 递归 vs 迭代 & $\le$ 2.84217e-14 & 0 \checkmark \\
+B & n=2 递归 vs Bluestein & $\le$ 2.84217e-14 & 0 \checkmark \\
+B & n=4 递归 vs 迭代 & $\le$ 5.68434e-14 & 0 \checkmark \\
+B & n=4 递归 vs Bluestein & $\le$ 5.68434e-14 & 0 \checkmark \\
+B & n=8 递归 vs 迭代 & $\le$ 1.13687e-13 & 0 \checkmark \\
+B & n=8 递归 vs Bluestein & $\le$ 1.13687e-13 & 0 \checkmark \\
+B & n=16 递归 vs 迭代 & $\le$ 2.27374e-13 & 0 \checkmark \\
+B & n=16 递归 vs Bluestein & $\le$ 2.27374e-13 & 0 \checkmark \\
+B & n=32 递归 vs 迭代 & $\le$ 4.54747e-13 & 0 \checkmark \\
+B & n=32 递归 vs Bluestein & $\le$ 4.54747e-13 & 0 \checkmark \\
+B & n=64 递归 vs 迭代 & $\le$ 9.09495e-13 & 0 \checkmark \\
+B & n=64 递归 vs Bluestein & $\le$ 9.09495e-13 & 0 \checkmark \\
+B & n=128 递归 vs 迭代 & $\le$ 1.81899e-12 & 0 \checkmark \\
+B & n=128 递归 vs Bluestein & $\le$ 1.81899e-12 & 0 \checkmark \\
+B & n=256 递归 vs 迭代 & $\le$ 3.63798e-12 & 0 \checkmark \\
+B & n=256 递归 vs Bluestein & $\le$ 3.63798e-12 & 0 \checkmark \\
+B & n=3 Bluestein vs 定义式 & $\le$ 4.26326e-14 & $2.698\times 10^{-16}$ \checkmark \\
+B & n=5 Bluestein vs 定义式 & $\le$ 7.10543e-14 & $3.578\times 10^{-16}$ \checkmark \\
+B & n=7 Bluestein vs 定义式 & $\le$ 9.94760e-14 & $5.891\times 10^{-16}$ \checkmark \\
+B & n=11 Bluestein vs 定义式 & $\le$ 1.56319e-13 & $1.237\times 10^{-15}$ \checkmark \\
+B & n=13 Bluestein vs 定义式 & $\le$ 1.84741e-13 & $1.221\times 10^{-15}$ \checkmark \\
+B & n=17 Bluestein vs 定义式 & $\le$ 2.41585e-13 & $1.709\times 10^{-15}$ \checkmark \\
+B & n=31 Bluestein vs 定义式 & $\le$ 4.40536e-13 & $1.356\times 10^{-14}$ \checkmark \\
+B & n=100 Bluestein vs 定义式 & $\le$ 1.42109e-12 & $5.988\times 10^{-15}$ \checkmark \\
+A & 三种实现的最大相对差 & 同一数学对象的不同算法 & $1.356\times 10^{-14}$ \checkmark \\
+B & n=4 位反序重排后 vs DFT & $\le$ 1.13687e-13 & $5.763\times 10^{-17}$ \checkmark \\
+B & n=8 位反序重排后 vs DFT & $\le$ 2.27374e-13 & $1.740\times 10^{-16}$ \checkmark \\
+B & n=16 位反序重排后 vs DFT & $\le$ 4.54747e-13 & $1.294\times 10^{-16}$ \checkmark \\
+B & n=32 位反序重排后 vs DFT & $\le$ 9.09495e-13 & $1.912\times 10^{-16}$ \checkmark \\
+B & n=64 位反序重排后 vs DFT & $\le$ 1.81899e-12 & $1.969\times 10^{-16}$ \checkmark \\
+B & n=128 位反序重排后 vs DFT & $\le$ 3.63798e-12 & $3.632\times 10^{-16}$ \checkmark \\
+B & 重排后最坏相对误差 & $\le$ 3.63798e-12 & $3.632\times 10^{-16}$ \checkmark \\
+A & 不重排时的相对误差 & 位反序排列与自然序的差别是 O(\allowbreak{}1) & 1.07082 \checkmark \\
+B & n=4 指纹是置换 & $\le$ 0 & 0 \checkmark \\
+B & n=4 指纹 = 位反序 & $\le$ 0 & 0 \checkmark \\
+B & n=8 指纹是置换 & $\le$ 0 & 0 \checkmark \\
+B & n=8 指纹 = 位反序 & $\le$ 0 & 0 \checkmark \\
+B & n=16 指纹是置换 & $\le$ 0 & 0 \checkmark \\
+B & n=16 指纹 = 位反序 & $\le$ 0 & 0 \checkmark \\
+B & n=32 指纹是置换 & $\le$ 0 & 0 \checkmark \\
+B & n=32 指纹 = 位反序 & $\le$ 0 & 0 \checkmark \\
+A & n=8 的指纹 & [0 4 2 6 1 5 3 7] & $7.352\times 10^{7}$ \checkmark \\
+B & n=4 级数 = log2(n) & $\le$ 2.5 & 2 \checkmark \\
+B & n=4 逐级残差 & $\le$ 1.42109e-14 & 0 \checkmark \\
+B & n=8 级数 = log2(n) & $\le$ 3.5 & 3 \checkmark \\
+B & n=8 逐级残差 & $\le$ 2.13163e-14 & 0 \checkmark \\
+B & n=16 级数 = log2(n) & $\le$ 4.5 & 4 \checkmark \\
+B & n=16 逐级残差 & $\le$ 2.84217e-14 & 0 \checkmark \\
+B & n=32 级数 = log2(n) & $\le$ 5.5 & 5 \checkmark \\
+B & n=32 逐级残差 & $\le$ 3.55271e-14 & $3.416\times 10^{-16}$ \checkmark \\
+B & n=64 级数 = log2(n) & $\le$ 6.5 & 6 \checkmark \\
+B & n=64 逐级残差 & $\le$ 4.26326e-14 & $1.364\times 10^{-15}$ \checkmark \\
+B & n=128 级数 = log2(n) & $\le$ 7.5 & 7 \checkmark \\
+B & n=128 逐级残差 & $\le$ 4.97380e-14 & $5.150\times 10^{-15}$ \checkmark \\
+B & n=256 级数 = log2(n) & $\le$ 8.5 & 8 \checkmark \\
+B & n=256 逐级残差 & $\le$ 5.68434e-14 & $5.403\times 10^{-15}$ \checkmark \\
+B & n=512 级数 = log2(n) & $\le$ 9.5 & 9 \checkmark \\
+B & n=512 逐级残差 & $\le$ 6.39488e-14 & $9.684\times 10^{-15}$ \checkmark \\
+B & n=1024 级数 = log2(n) & $\le$ 10.5 & 10 \checkmark \\
+B & n=1024 逐级残差 & $\le$ 7.10543e-14 & $2.846\times 10^{-14}$ \checkmark \\
+B & 逐级残差最坏值 & $\le$ 64$\cdot$log2(\allowbreak{}n)$\cdot$u$\cdot$$\|$x$\|$$\infty$ & $2.846\times 10^{-14}$ \checkmark \\
+B & n=4 单位模 & $\le$ 3.55271e-15 & 0 \checkmark \\
+B & n=4 半周期反号 & $\le$ 3.55271e-15 & $1.225\times 10^{-16}$ \checkmark \\
+B & n=4 共轭对称 & $\le$ 3.55271e-15 & $2.449\times 10^{-16}$ \checkmark \\
+B & n=4 逆 = 共轭 & $\le$ 3.55271e-15 & 0 \checkmark \\
+B & n=8 单位模 & $\le$ 7.10543e-15 & $2.220\times 10^{-16}$ \checkmark \\
+B & n=8 半周期反号 & $\le$ 7.10543e-15 & $1.570\times 10^{-16}$ \checkmark \\
+B & n=8 共轭对称 & $\le$ 7.10543e-15 & $3.140\times 10^{-16}$ \checkmark \\
+B & n=8 逆 = 共轭 & $\le$ 7.10543e-15 & 0 \checkmark \\
+B & n=16 单位模 & $\le$ 1.42109e-14 & $2.220\times 10^{-16}$ \checkmark \\
+B & n=16 半周期反号 & $\le$ 1.42109e-14 & $5.467\times 10^{-16}$ \checkmark \\
+B & n=16 共轭对称 & $\le$ 1.42109e-14 & $6.497\times 10^{-16}$ \checkmark \\
+B & n=16 逆 = 共轭 & $\le$ 1.42109e-14 & 0 \checkmark \\
+B & n=32 单位模 & $\le$ 2.84217e-14 & $2.220\times 10^{-16}$ \checkmark \\
+B & n=32 半周期反号 & $\le$ 2.84217e-14 & $5.467\times 10^{-16}$ \checkmark \\
+B & n=32 共轭对称 & $\le$ 2.84217e-14 & $6.497\times 10^{-16}$ \checkmark \\
+B & n=32 逆 = 共轭 & $\le$ 2.84217e-14 & 0 \checkmark \\
+B & n=64 单位模 & $\le$ 5.68434e-14 & $2.220\times 10^{-16}$ \checkmark \\
+B & n=64 半周期反号 & $\le$ 5.68434e-14 & $5.551\times 10^{-16}$ \checkmark \\
+B & n=64 共轭对称 & $\le$ 5.68434e-14 & $7.109\times 10^{-16}$ \checkmark \\
+B & n=64 逆 = 共轭 & $\le$ 5.68434e-14 & 0 \checkmark \\
+B & n=256 单位模 & $\le$ 2.27374e-13 & $2.220\times 10^{-16}$ \checkmark \\
+B & n=256 半周期反号 & $\le$ 2.27374e-13 & $5.979\times 10^{-16}$ \checkmark \\
+B & n=256 共轭对称 & $\le$ 2.27374e-13 & $7.109\times 10^{-16}$ \checkmark \\
+B & n=256 逆 = 共轭 & $\le$ 2.27374e-13 & 0 \checkmark \\
+B & twiddle 恒等式最坏偏差 & $\le$ 8nu & $7.109\times 10^{-16}$ \checkmark \\
+B & n=8 rfft 长度 & $\le$ 5 & 5 \checkmark \\
+B & n=8 rfft vs fft 前缀 & $\le$ 5.68434e-14 & 0 \checkmark \\
+B & n=8 irfft 往返 & $\le$ 2.27374e-13 & $1.112\times 10^{-16}$ \checkmark \\
+B & n=9 rfft 长度 & $\le$ 5 & 5 \checkmark \\
+B & n=9 rfft vs fft 前缀 & $\le$ 6.39488e-14 & 0 \checkmark \\
+B & n=9 irfft 往返 & $\le$ 2.55795e-13 & $2.446\times 10^{-15}$ \checkmark \\
+B & n=16 rfft 长度 & $\le$ 9 & 9 \checkmark \\
+B & n=16 rfft vs fft 前缀 & $\le$ 1.13687e-13 & 0 \checkmark \\
+B & n=16 irfft 往返 & $\le$ 4.54747e-13 & $8.677\times 10^{-17}$ \checkmark \\
+B & n=17 rfft 长度 & $\le$ 9 & 9 \checkmark \\
+B & n=17 rfft vs fft 前缀 & $\le$ 1.20792e-13 & 0 \checkmark \\
+B & n=17 irfft 往返 & $\le$ 4.83169e-13 & $2.060\times 10^{-15}$ \checkmark \\
+B & n=32 rfft 长度 & $\le$ 17 & 17 \checkmark \\
+B & n=32 rfft vs fft 前缀 & $\le$ 2.27374e-13 & 0 \checkmark \\
+B & n=32 irfft 往返 & $\le$ 9.09495e-13 & $2.406\times 10^{-16}$ \checkmark \\
+B & n=100 rfft 长度 & $\le$ 51 & 51 \checkmark \\
+B & n=100 rfft vs fft 前缀 & $\le$ 7.10543e-13 & 0 \checkmark \\
+B & n=100 irfft 往返 & $\le$ 2.84217e-12 & $2.698\times 10^{-14}$ \checkmark \\
+B & n=101 rfft 长度 & $\le$ 51 & 51 \checkmark \\
+B & n=101 rfft vs fft 前缀 & $\le$ 7.17648e-13 & 0 \checkmark \\
+B & n=101 irfft 往返 & $\le$ 2.87059e-12 & $3.259\times 10^{-14}$ \checkmark \\
+B & n=128 rfft 长度 & $\le$ 65 & 65 \checkmark \\
+B & n=128 rfft vs fft 前缀 & $\le$ 9.09495e-13 & 0 \checkmark \\
+B & n=128 irfft 往返 & $\le$ 3.63798e-12 & $4.228\times 10^{-16}$ \checkmark \\
+B & rfft/irfft 最坏相对误差 & $\le$ 256nu & $3.259\times 10^{-14}$ \checkmark \\
+B & n=16 pad=2 前缀不变 & $\le$ 0 & 0 \checkmark \\
+B & n=16 pad=2 尾部全 0 & $\le$ 0 & 0 \checkmark \\
+B & n=16 pad=2 原栅格回原值 & $\le$ 9.09495e-13 & 0 \checkmark \\
+B & n=16 pad=4 前缀不变 & $\le$ 0 & 0 \checkmark \\
+B & n=16 pad=4 尾部全 0 & $\le$ 0 & 0 \checkmark \\
+B & n=16 pad=4 原栅格回原值 & $\le$ 1.81899e-12 & 0 \checkmark \\
+B & n=16 pad=8 前缀不变 & $\le$ 0 & 0 \checkmark \\
+B & n=16 pad=8 尾部全 0 & $\le$ 0 & 0 \checkmark \\
+B & n=16 pad=8 原栅格回原值 & $\le$ 3.63798e-12 & 0 \checkmark \\
+B & n=24 pad=2 前缀不变 & $\le$ 0 & 0 \checkmark \\
+B & n=24 pad=2 尾部全 0 & $\le$ 0 & 0 \checkmark \\
+B & n=24 pad=2 原栅格回原值 & $\le$ 1.36424e-12 & $2.237\times 10^{-15}$ \checkmark \\
+B & n=24 pad=4 前缀不变 & $\le$ 0 & 0 \checkmark \\
+B & n=24 pad=4 尾部全 0 & $\le$ 0 & 0 \checkmark \\
+B & n=24 pad=4 原栅格回原值 & $\le$ 2.72848e-12 & $4.378\times 10^{-15}$ \checkmark \\
+B & n=24 pad=8 前缀不变 & $\le$ 0 & 0 \checkmark \\
+B & n=24 pad=8 尾部全 0 & $\le$ 0 & 0 \checkmark \\
+B & n=24 pad=8 原栅格回原值 & $\le$ 5.45697e-12 & $1.862\times 10^{-14}$ \checkmark \\
+B & n=32 pad=2 前缀不变 & $\le$ 0 & 0 \checkmark \\
+B & n=32 pad=2 尾部全 0 & $\le$ 0 & 0 \checkmark \\
+B & n=32 pad=2 原栅格回原值 & $\le$ 1.81899e-12 & 0 \checkmark \\
+B & n=32 pad=4 前缀不变 & $\le$ 0 & 0 \checkmark \\
+B & n=32 pad=4 尾部全 0 & $\le$ 0 & 0 \checkmark \\
+B & n=32 pad=4 原栅格回原值 & $\le$ 3.63798e-12 & 0 \checkmark \\
+B & n=32 pad=8 前缀不变 & $\le$ 0 & 0 \checkmark \\
+B & n=32 pad=8 尾部全 0 & $\le$ 0 & 0 \checkmark \\
+B & n=32 pad=8 原栅格回原值 & $\le$ 7.27596e-12 & 0 \checkmark \\
+B & n=100 pad=2 前缀不变 & $\le$ 0 & 0 \checkmark \\
+B & n=100 pad=2 尾部全 0 & $\le$ 0 & 0 \checkmark \\
+B & n=100 pad=2 原栅格回原值 & $\le$ 5.68434e-12 & $7.244\times 10^{-15}$ \checkmark \\
+B & n=100 pad=4 前缀不变 & $\le$ 0 & 0 \checkmark \\
+B & n=100 pad=4 尾部全 0 & $\le$ 0 & 0 \checkmark \\
+B & n=100 pad=4 原栅格回原值 & $\le$ 1.13687e-11 & $1.571\times 10^{-14}$ \checkmark \\
+B & n=100 pad=8 前缀不变 & $\le$ 0 & 0 \checkmark \\
+B & n=100 pad=8 尾部全 0 & $\le$ 0 & 0 \checkmark \\
+B & n=100 pad=8 原栅格回原值 & $\le$ 2.27374e-11 & $3.315\times 10^{-14}$ \checkmark \\
+B & 补零后原栅格回原值的最坏相对差 & X\textasciicircum{}(\allowbreak{}m)\_\{k$\cdot$pad\} =\allowbreak{} X\_k & $3.315\times 10^{-14}$ \checkmark \\
+B & 叠加性 & $\le$ 4.54747e-13 & $2.488\times 10^{-16}$ \checkmark \\
+B & 齐次性 & $\le$ 4.54747e-13 & $3.926\times 10^{-16}$ \checkmark \\
+B & 位移不改幅度谱 & $\le$ 4.54747e-13 & $4.248\times 10^{-16}$ \checkmark \\
+B & 位移 = 相位斜坡 & $\le$ 1.81899e-12 & $1.027\times 10^{-14}$ \checkmark \\
+B & 位移定理最坏相对误差 & X\_k e\textasciicircum{}\{-2$\pi$ikp/\allowbreak{}N\} & $1.027\times 10^{-14}$ \checkmark \\
+B & n=8 栅格长度 & $\le$ 8.5 & 8 \checkmark \\
+B & n=8 dt=1 栅格位置 & $\le$ 8.88178e-16 & 0 \checkmark \\
+B & n=8 单边谱长度 & $\le$ 5.5 & 5 \checkmark \\
+B & n=8 栅格长度 & $\le$ 8.5 & 8 \checkmark \\
+B & n=8 dt=0.25 栅格位置 & $\le$ 3.55271e-15 & 0 \checkmark \\
+B & n=8 单边谱长度 & $\le$ 5.5 & 5 \checkmark \\
+B & n=8 栅格长度 & $\le$ 8.5 & 8 \checkmark \\
+B & n=8 dt=0.015625 栅格位置 & $\le$ 5.68434e-14 & 0 \checkmark \\
+B & n=8 单边谱长度 & $\le$ 5.5 & 5 \checkmark \\
+B & n=9 栅格长度 & $\le$ 9.5 & 9 \checkmark \\
+B & n=9 dt=1 栅格位置 & $\le$ 8.88178e-16 & $1.110\times 10^{-16}$ \checkmark \\
+B & n=9 单边谱长度 & $\le$ 5.5 & 5 \checkmark \\
+B & n=9 栅格长度 & $\le$ 9.5 & 9 \checkmark \\
+B & n=9 dt=0.25 栅格位置 & $\le$ 3.55271e-15 & $4.441\times 10^{-16}$ \checkmark \\
+B & n=9 单边谱长度 & $\le$ 5.5 & 5 \checkmark \\
+B & n=9 栅格长度 & $\le$ 9.5 & 9 \checkmark \\
+B & n=9 dt=0.015625 栅格位置 & $\le$ 5.68434e-14 & $7.105\times 10^{-15}$ \checkmark \\
+B & n=9 单边谱长度 & $\le$ 5.5 & 5 \checkmark \\
+B & n=32 栅格长度 & $\le$ 32.5 & 32 \checkmark \\
+B & n=32 dt=1 栅格位置 & $\le$ 8.88178e-16 & 0 \checkmark \\
+B & n=32 单边谱长度 & $\le$ 17.5 & 17 \checkmark \\
+B & n=32 栅格长度 & $\le$ 32.5 & 32 \checkmark \\
+B & n=32 dt=0.25 栅格位置 & $\le$ 3.55271e-15 & 0 \checkmark \\
+B & n=32 单边谱长度 & $\le$ 17.5 & 17 \checkmark \\
+B & n=32 栅格长度 & $\le$ 32.5 & 32 \checkmark \\
+B & n=32 dt=0.015625 栅格位置 & $\le$ 5.68434e-14 & 0 \checkmark \\
+B & n=32 单边谱长度 & $\le$ 17.5 & 17 \checkmark \\
+B & n=101 栅格长度 & $\le$ 101.5 & 101 \checkmark \\
+B & n=101 dt=1 栅格位置 & $\le$ 8.88178e-16 & $1.110\times 10^{-16}$ \checkmark \\
+B & n=101 单边谱长度 & $\le$ 51.5 & 51 \checkmark \\
+B & n=101 栅格长度 & $\le$ 101.5 & 101 \checkmark \\
+B & n=101 dt=0.25 栅格位置 & $\le$ 3.55271e-15 & $4.441\times 10^{-16}$ \checkmark \\
+B & n=101 单边谱长度 & $\le$ 51.5 & 51 \checkmark \\
+B & n=101 栅格长度 & $\le$ 101.5 & 101 \checkmark \\
+B & n=101 dt=0.015625 栅格位置 & $\le$ 5.68434e-14 & $7.105\times 10^{-15}$ \checkmark \\
+B & n=101 单边谱长度 & $\le$ 51.5 & 51 \checkmark \\
+B & n=256 栅格长度 & $\le$ 256.5 & 256 \checkmark \\
+B & n=256 dt=1 栅格位置 & $\le$ 8.88178e-16 & 0 \checkmark \\
+B & n=256 单边谱长度 & $\le$ 129.5 & 129 \checkmark \\
+B & n=256 栅格长度 & $\le$ 256.5 & 256 \checkmark \\
+B & n=256 dt=0.25 栅格位置 & $\le$ 3.55271e-15 & 0 \checkmark \\
+B & n=256 单边谱长度 & $\le$ 129.5 & 129 \checkmark \\
+B & n=256 栅格长度 & $\le$ 256.5 & 256 \checkmark \\
+B & n=256 dt=0.015625 栅格位置 & $\le$ 5.68434e-14 & 0 \checkmark \\
+B & n=256 单边谱长度 & $\le$ 129.5 & 129 \checkmark \\
+B & 栅格位置的相对偏差 & f\_k =\allowbreak{} k/\allowbreak{}(\allowbreak{}N$\cdot$dt)，相对偏差 $\le$ 64u(\allowbreak{}不是逐位相等) & $1.121\times 10^{-14}$ \checkmark \\
+B & n=1 m $\ge$ 2n-1 & $\le$ 1 & 1 \checkmark \\
+B & n=1 m 是 2 的幂 & $\le$ 0 & 0 \checkmark \\
+B & n=2 m $\ge$ 2n-1 & $\le$ 4 & 3 \checkmark \\
+B & n=2 m 是 2 的幂 & $\le$ 0 & 0 \checkmark \\
+B & n=3 m $\ge$ 2n-1 & $\le$ 8 & 5 \checkmark \\
+B & n=3 m 是 2 的幂 & $\le$ 0 & 0 \checkmark \\
+B & n=5 m $\ge$ 2n-1 & $\le$ 16 & 9 \checkmark \\
+B & n=5 m 是 2 的幂 & $\le$ 0 & 0 \checkmark \\
+B & n=17 m $\ge$ 2n-1 & $\le$ 64 & 33 \checkmark \\
+B & n=17 m 是 2 的幂 & $\le$ 0 & 0 \checkmark \\
+B & n=100 m $\ge$ 2n-1 & $\le$ 256 & 199 \checkmark \\
+B & n=100 m 是 2 的幂 & $\le$ 0 & 0 \checkmark \\
+B & n=1000 m $\ge$ 2n-1 & $\le$ 2048 & 1999 \checkmark \\
+B & n=1000 m 是 2 的幂 & $\le$ 0 & 0 \checkmark \\
+B & n=4096 m $\ge$ 2n-1 & $\le$ 8192 & 8191 \checkmark \\
+B & n=4096 m 是 2 的幂 & $\le$ 0 & 0 \checkmark \\
+B & n=1 next\_\allowbreak{}power\_\allowbreak{}of\_\allowbreak{}two $\ge$ n & $\le$ 1 & 1 \checkmark \\
+B & n=1 next\_\allowbreak{}power\_\allowbreak{}of\_\allowbreak{}two 是 2 的幂 & $\le$ 0 & 0 \checkmark \\
+B & n=2 next\_\allowbreak{}power\_\allowbreak{}of\_\allowbreak{}two $\ge$ n & $\le$ 2 & 2 \checkmark \\
+B & n=2 next\_\allowbreak{}power\_\allowbreak{}of\_\allowbreak{}two 是 2 的幂 & $\le$ 0 & 0 \checkmark \\
+B & n=3 next\_\allowbreak{}power\_\allowbreak{}of\_\allowbreak{}two $\ge$ n & $\le$ 4 & 3 \checkmark \\
+B & n=3 next\_\allowbreak{}power\_\allowbreak{}of\_\allowbreak{}two 是 2 的幂 & $\le$ 0 & 0 \checkmark \\
+B & n=4 next\_\allowbreak{}power\_\allowbreak{}of\_\allowbreak{}two $\ge$ n & $\le$ 4 & 4 \checkmark \\
+B & n=4 next\_\allowbreak{}power\_\allowbreak{}of\_\allowbreak{}two 是 2 的幂 & $\le$ 0 & 0 \checkmark \\
+B & n=5 next\_\allowbreak{}power\_\allowbreak{}of\_\allowbreak{}two $\ge$ n & $\le$ 8 & 5 \checkmark \\
+B & n=5 next\_\allowbreak{}power\_\allowbreak{}of\_\allowbreak{}two 是 2 的幂 & $\le$ 0 & 0 \checkmark \\
+B & n=8 next\_\allowbreak{}power\_\allowbreak{}of\_\allowbreak{}two $\ge$ n & $\le$ 8 & 8 \checkmark \\
+B & n=8 next\_\allowbreak{}power\_\allowbreak{}of\_\allowbreak{}two 是 2 的幂 & $\le$ 0 & 0 \checkmark \\
+B & n=9 next\_\allowbreak{}power\_\allowbreak{}of\_\allowbreak{}two $\ge$ n & $\le$ 16 & 9 \checkmark \\
+B & n=9 next\_\allowbreak{}power\_\allowbreak{}of\_\allowbreak{}two 是 2 的幂 & $\le$ 0 & 0 \checkmark \\
+B & n=16 next\_\allowbreak{}power\_\allowbreak{}of\_\allowbreak{}two $\ge$ n & $\le$ 16 & 16 \checkmark \\
+B & n=16 next\_\allowbreak{}power\_\allowbreak{}of\_\allowbreak{}two 是 2 的幂 & $\le$ 0 & 0 \checkmark \\
+B & n=17 next\_\allowbreak{}power\_\allowbreak{}of\_\allowbreak{}two $\ge$ n & $\le$ 32 & 17 \checkmark \\
+B & n=17 next\_\allowbreak{}power\_\allowbreak{}of\_\allowbreak{}two 是 2 的幂 & $\le$ 0 & 0 \checkmark \\
+B & n=33 next\_\allowbreak{}power\_\allowbreak{}of\_\allowbreak{}two $\ge$ n & $\le$ 64 & 33 \checkmark \\
+B & n=33 next\_\allowbreak{}power\_\allowbreak{}of\_\allowbreak{}two 是 2 的幂 & $\le$ 0 & 0 \checkmark \\
+B & n=4096 的 Bluestein/radix-2 相对误差 & $\le$ 64$\cdot$n$\cdot$u & $2.433\times 10^{-12}$ \checkmark \\
+B & n=4 plan.n & $\le$ 4.5 & 4 \checkmark \\
+B & n=4 有计划名 & $\le$ 0 & 0 \checkmark \\
+B & n=8 plan.n & $\le$ 8.5 & 8 \checkmark \\
+B & n=8 有计划名 & $\le$ 0 & 0 \checkmark \\
+B & n=64 plan.n & $\le$ 64.5 & 64 \checkmark \\
+B & n=64 有计划名 & $\le$ 0 & 0 \checkmark \\
+B & n=1024 plan.n & $\le$ 1024.5 & 1024 \checkmark \\
+B & n=1024 有计划名 & $\le$ 0 & 0 \checkmark \\
+B & n=3 有计划名 & $\le$ 0 & 0 \checkmark \\
+B & n=5 有计划名 & $\le$ 0 & 0 \checkmark \\
+B & n=7 有计划名 & $\le$ 0 & 0 \checkmark \\
+B & n=100 有计划名 & $\le$ 0 & 0 \checkmark \\
+B & n=127 有计划名 & $\le$ 0 & 0 \checkmark \\
+B & 计划不影响结果(seed 0) & $\le$ 1.00000e-10 & $6.405\times 10^{-15}$ \checkmark \\
+B & 计划不影响结果(seed 1) & $\le$ 1.00000e-10 & $4.441\times 10^{-15}$ \checkmark \\
+B & dft\_\allowbreak{}vs\_\allowbreak{}fft\_\allowbreak{}error(64) & $\le$ 64$\cdot$64$\cdot$u & $6.405\times 10^{-15}$ \checkmark \\
+B & n=4 朴素 DIF 末行重排后 = DFT & $\le$ 1.13687e-13 & $4.698\times 10^{-17}$ \checkmark \\
+B & n=4 第一级 = 两半的和/差 & $\le$ 3.55271e-15 & 0 \checkmark \\
+B & n=8 朴素 DIF 末行重排后 = DFT & $\le$ 2.27374e-13 & $1.045\times 10^{-16}$ \checkmark \\
+B & n=8 第一级 = 两半的和/差 & $\le$ 7.10543e-15 & 0 \checkmark \\
+B & n=16 朴素 DIF 末行重排后 = DFT & $\le$ 4.54747e-13 & $1.724\times 10^{-16}$ \checkmark \\
+B & n=16 第一级 = 两半的和/差 & $\le$ 1.42109e-14 & 0 \checkmark \\
+B & n=32 朴素 DIF 末行重排后 = DFT & $\le$ 9.09495e-13 & $1.585\times 10^{-16}$ \checkmark \\
+B & n=32 第一级 = 两半的和/差 & $\le$ 2.84217e-14 & 0 \checkmark \\
+B & n=64 朴素 DIF 末行重排后 = DFT & $\le$ 1.81899e-12 & $1.941\times 10^{-16}$ \checkmark \\
+B & n=64 第一级 = 两半的和/差 & $\le$ 5.68434e-14 & 0 \checkmark \\
+B & 朴素 DIF 末行重排后最坏误差 & $\le$ 256nu & $1.941\times 10^{-16}$ \checkmark \\
+B & n=4 定义式往返 & $\le$ 2.84217e-14 & $1.349\times 10^{-16}$ \checkmark \\
+B & n=7 定义式往返 & $\le$ 4.97380e-14 & $1.930\times 10^{-16}$ \checkmark \\
+B & n=16 定义式往返 & $\le$ 1.13687e-13 & $3.829\times 10^{-16}$ \checkmark \\
+B & n=33 定义式往返 & $\le$ 2.34479e-13 & $3.395\times 10^{-16}$ \checkmark \\
+B & n=64 定义式往返 & $\le$ 4.54747e-13 & $3.791\times 10^{-16}$ \checkmark \\
+B & W$\cdot$conj(W)/N = I & $\le$ 1.13687e-13 & $1.193\times 10^{-16}$ \checkmark \\
+B & 定义式往返最坏误差 & $\le$ 64nu & $3.829\times 10^{-16}$ \checkmark \\
+B & 幅度 0.25 在 k=5 & 0.25 & 0.25 \checkmark \\
+B & 峰位 k=5 & 5 & 5 \checkmark \\
+B & 幅度 0.25 在 k=17 & 0.25 & 0.25 \checkmark \\
+B & 峰位 k=17 & 17 & 17 \checkmark \\
+B & 幅度 0.25 在 k=60 & 0.25 & 0.25 \checkmark \\
+B & 峰位 k=60 & 60 & 60 \checkmark \\
+B & 幅度 0.25 在 k=100 & 0.25 & 0.25 \checkmark \\
+B & 峰位 k=100 & 100 & 100 \checkmark \\
+B & 幅度 1.0 在 k=5 & 1 & 1 \checkmark \\
+B & 峰位 k=5 & 5 & 5 \checkmark \\
+B & 幅度 1.0 在 k=17 & 1 & 1 \checkmark \\
+B & 峰位 k=17 & 17 & 17 \checkmark \\
+B & 幅度 1.0 在 k=60 & 1 & 1 \checkmark \\
+B & 峰位 k=60 & 60 & 60 \checkmark \\
+B & 幅度 1.0 在 k=100 & 1 & 1 \checkmark \\
+B & 峰位 k=100 & 100 & 100 \checkmark \\
+B & 幅度 3.5 在 k=5 & 3.5 & 3.5 \checkmark \\
+B & 峰位 k=5 & 5 & 5 \checkmark \\
+B & 幅度 3.5 在 k=17 & 3.5 & 3.5 \checkmark \\
+B & 峰位 k=17 & 17 & 17 \checkmark \\
+B & 幅度 3.5 在 k=60 & 3.5 & 3.5 \checkmark \\
+B & 峰位 k=60 & 60 & 60 \checkmark \\
+B & 幅度 3.5 在 k=100 & 3.5 & 3.5 \checkmark \\
+B & 峰位 k=100 & 100 & 100 \checkmark \\
+B & 直流读数 = 2.5 & 2.5 & 2.5 \checkmark \\
+B & Nyquist 读数 = 1.75 & 1.75 & 1.75 \checkmark \\
+B & Nyquist 信号无直流分量 & 0 & 0 \checkmark \\
+A & 三种标定场景的最大读数偏差 & 不超过 1e-12(\allowbreak{}绝对) & $1.332\times 10^{-15}$ \checkmark \\
+B & n=64 全谱 Parseval & $\le$ 4.54747e-13 & $2.274\times 10^{-16}$ \checkmark \\
+B & n=64 单边 Parseval & $\le$ 4.54747e-13 & $2.274\times 10^{-16}$ \checkmark \\
+B & n=100 全谱 Parseval & $\le$ 7.10543e-13 & $2.453\times 10^{-16}$ \checkmark \\
+B & n=100 单边 Parseval & $\le$ 7.10543e-13 & $2.576\times 10^{-15}$ \checkmark \\
+B & n=101 全谱 Parseval & $\le$ 7.17648e-13 & $1.204\times 10^{-16}$ \checkmark \\
+B & n=101 单边 Parseval & $\le$ 7.17648e-13 & $1.806\times 10^{-15}$ \checkmark \\
+B & n=127 全谱 Parseval & $\le$ 9.02389e-13 & $7.085\times 10^{-16}$ \checkmark \\
+B & n=127 单边 Parseval & $\le$ 9.02389e-13 & $1.948\times 10^{-15}$ \checkmark \\
+B & n=128 全谱 Parseval & $\le$ 9.09495e-13 & 0 \checkmark \\
+B & n=128 单边 Parseval & $\le$ 9.09495e-13 & $1.766\times 10^{-16}$ \checkmark \\
+B & n=255 全谱 Parseval & $\le$ 1.81188e-12 & $5.626\times 10^{-16}$ \checkmark \\
+B & n=255 单边 Parseval & $\le$ 1.81188e-12 & $3.151\times 10^{-15}$ \checkmark \\
+B & n=256 全谱 Parseval & $\le$ 1.81899e-12 & $1.215\times 10^{-16}$ \checkmark \\
+B & n=256 单边 Parseval & $\le$ 1.81899e-12 & $2.430\times 10^{-16}$ \checkmark \\
+B & n=1000 全谱 Parseval & $\le$ 7.10543e-12 & $2.080\times 10^{-16}$ \checkmark \\
+B & n=1000 单边 Parseval & $\le$ 7.10543e-12 & $1.456\times 10^{-15}$ \checkmark \\
+A & 单边 df 用错长度时的能量比 & df 用单边谱长度：比值 =\allowbreak{} N/\allowbreak{}(\allowbreak{}N/\allowbreak{}2+1) =\allowbreak{} 1.9804(\allowbreak{}能量被放大近 2 倍) & 1.98039 \checkmark \\
+B & N=8,M=5 定理残差 & $\le$ 1.13687e-13 & $2.037\times 10^{-16}$ \checkmark \\
+B & N=8,M=5 补零后 = 线性卷积 & $\le$ 9.09495e-13 & $1.538\times 10^{-16}$ \checkmark \\
+B & N=16,M=8 定理残差 & $\le$ 2.27374e-13 & $1.898\times 10^{-16}$ \checkmark \\
+B & N=16,M=8 补零后 = 线性卷积 & $\le$ 1.81899e-12 & $1.940\times 10^{-16}$ \checkmark \\
+B & N=32,M=7 定理残差 & $\le$ 4.54747e-13 & $4.196\times 10^{-16}$ \checkmark \\
+B & N=32,M=7 补零后 = 线性卷积 & $\le$ 3.63798e-12 & $3.108\times 10^{-16}$ \checkmark \\
+B & N=64,M=13 定理残差 & $\le$ 9.09495e-13 & $2.701\times 10^{-16}$ \checkmark \\
+B & N=64,M=13 补零后 = 线性卷积 & $\le$ 7.27596e-12 & $3.346\times 10^{-16}$ \checkmark \\
+B & N=12,M=12 定理残差 & $\le$ 1.70530e-13 & $3.965\times 10^{-15}$ \checkmark \\
+B & N=12,M=12 补零后 = 线性卷积 & $\le$ 1.81899e-12 & $3.077\times 10^{-16}$ \checkmark \\
+A & 循环卷积定理残差 & 不超过 128*N*u & $3.965\times 10^{-15}$ \checkmark \\
+B & N=16 差异只出现在 M-1 个位置 & $\le$ 7.5 & 7 \checkmark \\
+B & N=16 相对卷绕不超过 1 & $\le$ 1 & 0.421242 \checkmark \\
+B & N=24 差异只出现在 M-1 个位置 & $\le$ 7.5 & 7 \checkmark \\
+B & N=24 相对卷绕不超过 1 & $\le$ 1 & 0.0809407 \checkmark \\
+B & N=32 差异只出现在 M-1 个位置 & $\le$ 7.5 & 7 \checkmark \\
+B & N=32 相对卷绕不超过 1 & $\le$ 1 & 0.0242764 \checkmark \\
+B & N=64 差异只出现在 M-1 个位置 & $\le$ 7.5 & 7 \checkmark \\
+B & N=64 相对卷绕不超过 1 & $\le$ 1 & 0.00274393 \checkmark \\
+B & N=128 差异只出现在 M-1 个位置 & $\le$ 7.5 & 7 \checkmark \\
+B & N=128 相对卷绕不超过 1 & $\le$ 1 & 0.000863056 \checkmark \\
+B & 卷绕误差随 N 单调不增 & $\le$ 0.250781 & 0.000853877 \checkmark \\
+B & N=128 时卷绕已经很小但仍非零 & $\le$ 0.01 & 0.000853877 \checkmark \\
+A & 补零到 N+M-1 后的最大偏差 & $\le$ 1e-15(\allowbreak{}舍入地板；卷绕的 O(\allowbreak{}1) 项消失) & $1.222\times 10^{-16}$ \checkmark \\
+B & rect 峰值旁瓣 vs Harris & $\le$ 0.6 & 0.00145913 \checkmark \\
+B & rect -3 dB 主瓣宽 vs Harris & $\le$ 0.05 & 0.00551357 \checkmark \\
+B & hann 峰值旁瓣 vs Harris & $\le$ 0.6 & 0.00269145 \checkmark \\
+B & hann -3 dB 主瓣宽 vs Harris & $\le$ 0.05 & 0.0017958 \checkmark \\
+B & hamming 峰值旁瓣 vs Harris & $\le$ 0.6 & 0.00496879 \checkmark \\
+B & hamming -3 dB 主瓣宽 vs Harris & $\le$ 0.05 & 0.000816853 \checkmark \\
+B & blackman 峰值旁瓣 vs Harris & $\le$ 0.6 & 0.00115825 \checkmark \\
+B & blackman -3 dB 主瓣宽 vs Harris & $\le$ 0.05 & 0.0390711 \checkmark \\
+A & 旁瓣次序的实测增量 & 沿 rect < hann < hamming < blackman 的 |旁瓣| 单调增，增量全为正 & 11.2077 \checkmark \\
+B & 主瓣宽度：rect 最窄、blackman 最宽 & $\le$ 1.68 & 0.89 \checkmark \\
+A & 与 Harris 表的最大偏差 & 不超过 0.6 dB /\allowbreak{} 0.05 格 & 0.00496879 \checkmark \\
+B & 整周期：次峰是机器零 & $\le$ 1.00000e-12 & $1.305\times 10^{-16}$ \checkmark \\
+B & 偏 0.25 格：次峰约 0.33 & 0.3265 & 0.326483 \checkmark \\
+B & 偏 0.5 格：次峰 0.700 & 0.7001 & 0.702359 \checkmark \\
+B & Hann 的远处旁瓣比矩形低两个数量级 & $\le$ 5.64468e-04 & 0.000446 \checkmark \\
+A & 远离主瓣的旁瓣电平(10 格以外) & Hann 应低至少 20 dB & -42.0461 \checkmark \\
+B & rect CG = mean(w) & 1 & 1 \checkmark \\
+B & rect 除 CG 后回到 2.0 & 2 & 2 \checkmark \\
+B & hann CG = mean(w) & 0.498047 & 0.498047 \checkmark \\
+B & hann 除 CG 后回到 2.0 & 2 & 2 \checkmark \\
+B & hamming CG = mean(w) & 0.538203 & 0.538203 \checkmark \\
+B & hamming 除 CG 后回到 2.0 & 2 & 2 \checkmark \\
+B & blackman CG = mean(w) & 0.418359 & 0.418359 \checkmark \\
+B & blackman 除 CG 后回到 2.0 & 2 & 2 \checkmark \\
+B & Hann 的 CG 接近 0.5 & 0.5 & 0.498047 \checkmark \\
+A & 四种窗的相干增益 & rect 1、\allowbreak{}hann 0.5、\allowbreak{}hamming 0.54、\allowbreak{}blackman 0.42 & 0.418359 \checkmark \\
+B & rect |斜率| = p & $\le$ 1 & 1 \checkmark \\
+B & rect p = 1 & 1 & 1 \checkmark \\
+B & hann |斜率| = p & $\le$ 3 & 3 \checkmark \\
+B & hann p = 3 & 3 & 3 \checkmark \\
+B & hamming |斜率| = p & $\le$ 1 & 1 \checkmark \\
+B & hamming p = 1 & 1 & 1 \checkmark \\
+B & blackman |斜率| = p & $\le$ 3 & 3 \checkmark \\
+B & blackman p = 3 & 3 & 3 \checkmark \\
+A & 10 到 1000 的包络比 & 矩形 0.01(\allowbreak{}p=\allowbreak{}1)、\allowbreak{}Hann 1e-6(\allowbreak{}p=\allowbreak{}3) & 0.01 \checkmark \\
+B & rect 整数格阈值 = 1.0/T & 1 & 1 \checkmark \\
+B & hann 整数格阈值 = 1.0/T & 1 & 1 \checkmark \\
+B & hamming 整数格阈值 = 1.0/T & 1 & 1 \checkmark \\
+B & blackman 整数格阈值 = 1.0/T & 1 & 1 \checkmark \\
+B & 矩形窗在 1.5/T 上分得开 & $\le$ 1 & 1 \checkmark \\
+B & Hann 在 1.5/T 上分不开 & $\le$ 0 & 0 \checkmark \\
+A & 同一间隔上矩形 vs Hann 的判定 & 矩形可分辨、\allowbreak{}Hann 不可分辨 & 1 \checkmark \\
+B & rect 比值不超过 1.8 & $\le$ 1.8 & 1.1236 \checkmark \\
+B & rect 比值不小于 0.5 & $\le$ 1.1236 & 0.5 \checkmark \\
+B & hann 比值不超过 1.8 & $\le$ 1.8 & 0.694444 \checkmark \\
+B & hann 比值不小于 0.5 & $\le$ 0.694444 & 0.5 \checkmark \\
+B & hamming 比值不超过 1.8 & $\le$ 1.8 & 0.769231 \checkmark \\
+B & hamming 比值不小于 0.5 & $\le$ 0.769231 & 0.5 \checkmark \\
+B & blackman 比值不超过 1.8 & $\le$ 1.8 & 0.595238 \checkmark \\
+B & blackman 比值不小于 0.5 & $\le$ 0.595238 & 0.5 \checkmark \\
+A & 阈值/主瓣宽度比值 & 阈值都贴 1.0/\allowbreak{}T，于是比值恰是 1/\allowbreak{}主瓣宽度的倒数关系 & 0.595238 \checkmark \\
+B & n=8,k=0 Goertzel vs fft & $\le$ 3.63798e-12 & $3.155\times 10^{-16}$ \checkmark \\
+B & n=8,k=1 Goertzel vs fft & $\le$ 3.63798e-12 & $2.103\times 10^{-16}$ \checkmark \\
+B & n=8,k=4 Goertzel vs fft & $\le$ 3.63798e-12 & $6.117\times 10^{-16}$ \checkmark \\
+B & n=8,k=5 Goertzel vs fft & $\le$ 3.63798e-12 & $8.479\times 10^{-16}$ \checkmark \\
+B & n=8,k=7 Goertzel vs fft & $\le$ 3.63798e-12 & $3.681\times 10^{-16}$ \checkmark \\
+B & n=16,k=0 Goertzel vs fft & $\le$ 7.27596e-12 & 0 \checkmark \\
+B & n=16,k=1 Goertzel vs fft & $\le$ 7.27596e-12 & $5.903\times 10^{-17}$ \checkmark \\
+B & n=16,k=8 Goertzel vs fft & $\le$ 7.27596e-12 & $1.041\times 10^{-15}$ \checkmark \\
+B & n=16,k=9 Goertzel vs fft & $\le$ 7.27596e-12 & $4.723\times 10^{-16}$ \checkmark \\
+B & n=16,k=15 Goertzel vs fft & $\le$ 7.27596e-12 & $2.094\times 10^{-15}$ \checkmark \\
+B & n=64,k=0 Goertzel vs fft & $\le$ 2.91038e-11 & $3.344\times 10^{-15}$ \checkmark \\
+B & n=64,k=1 Goertzel vs fft & $\le$ 2.91038e-11 & $6.765\times 10^{-15}$ \checkmark \\
+B & n=64,k=32 Goertzel vs fft & $\le$ 2.91038e-11 & $1.591\times 10^{-15}$ \checkmark \\
+B & n=64,k=33 Goertzel vs fft & $\le$ 2.91038e-11 & $7.514\times 10^{-15}$ \checkmark \\
+B & n=64,k=63 Goertzel vs fft & $\le$ 2.91038e-11 & $6.211\times 10^{-15}$ \checkmark \\
+B & n=128,k=0 Goertzel vs fft & $\le$ 5.82077e-11 & $8.650\times 10^{-15}$ \checkmark \\
+B & n=128,k=1 Goertzel vs fft & $\le$ 5.82077e-11 & $2.798\times 10^{-15}$ \checkmark \\
+B & n=128,k=64 Goertzel vs fft & $\le$ 5.82077e-11 & $5.127\times 10^{-14}$ \checkmark \\
+B & n=128,k=65 Goertzel vs fft & $\le$ 5.82077e-11 & $5.338\times 10^{-15}$ \checkmark \\
+B & n=128,k=127 Goertzel vs fft & $\le$ 5.82077e-11 & $2.492\times 10^{-15}$ \checkmark \\
+B & n=17,k=0 Goertzel vs fft & $\le$ 7.73070e-12 & $1.402\times 10^{-16}$ \checkmark \\
+B & n=17,k=1 Goertzel vs fft & $\le$ 7.73070e-12 & $1.147\times 10^{-15}$ \checkmark \\
+B & n=17,k=8 Goertzel vs fft & $\le$ 7.73070e-12 & $8.321\times 10^{-16}$ \checkmark \\
+B & n=17,k=9 Goertzel vs fft & $\le$ 7.73070e-12 & $1.478\times 10^{-15}$ \checkmark \\
+B & n=17,k=16 Goertzel vs fft & $\le$ 7.73070e-12 & $2.342\times 10^{-15}$ \checkmark \\
+A & 收尾式写反时的结果 & 正确值 4(\allowbreak{}等于 fft 的第 2 项) & 4 \checkmark \\
+B & n=32,dt=1 时域能量 & 28.0359 & 28.0359 \checkmark \\
+B & n=32,dt=0.01 时域能量 & 0.280359 & 0.280359 \checkmark \\
+B & n=64,dt=1 时域能量 & 83.2563 & 83.2563 \checkmark \\
+B & n=64,dt=0.01 时域能量 & 0.832563 & 0.832563 \checkmark \\
+B & n=101,dt=1 时域能量 & 76.0184 & 76.0184 \checkmark \\
+B & n=101,dt=0.01 时域能量 & 0.760184 & 0.760184 \checkmark \\
+B & n=256,dt=1 时域能量 & 272.541 & 272.541 \checkmark \\
+B & n=256,dt=0.01 时域能量 & 2.72541 & 2.72541 \checkmark \\
+B & 时域能量定义式的最大偏差 & 逐位相等 & 0 \checkmark \\
+B & 直接读格：误差约半格 & $\le$ 0.6 & 0.5 \checkmark \\
+B & 抛物线插值：误差不超过 5\% 栅格 & $\le$ 0.05 & 0.0422127 \checkmark \\
+B & 插值定位与栅格间距之比 & 远小于 1 & 0.0422127 \checkmark \\
+B & 3 Hz 与 17 Hz 在 fs=20 下的样本逐位相同 & $\le$ 1.00000e-12 & $4.763\times 10^{-14}$ \checkmark \\
+B & 3.0 Hz 的谱峰在 3 Hz & 3 & 3 \checkmark \\
+B & 3.0 Hz 的幅度仍是 1.0 & 1 & 1 \checkmark \\
+B & 17.0 Hz 的谱峰在 3 Hz & 3 & 3 \checkmark \\
+B & 17.0 Hz 的幅度仍是 1.0 & 1 & 1 \checkmark \\
+B & alias\_\allowbreak{}frequency(17,20)=3 & 3 & 3 \checkmark \\
+B & alias\_\allowbreak{}frequency(12,20)=8(12 折到 8，不是 3) & 8 & 8 \checkmark \\
+B & alias\_\allowbreak{}frequency(7,10)=3 & 3 & 3 \checkmark \\
+B & alias\_\allowbreak{}index(7,10)=3 & $\le$ 3 & 3 \checkmark \\
+B & 3 Hz 在 20 Hz 以内的候选真频率个数 & 3、\allowbreak{}17(\allowbreak{}差一个 fs=\allowbreak{}20) & 2 \checkmark \\
+B & 20log10 换算 & 0 & $8.672\times 10^{-8}$ \checkmark \\
+B & 0 映射到地板 -120 dB & $\le$ 1.00000e-09 & 0 \checkmark \\
+B & 地板后无 NaN/Inf & $\le$ 0 & 0 \checkmark \\
+B & 全零信号映射到全地板 -60 dB & $\le$ 1.00000e-09 & 0 \checkmark \\
+B & 0 的 dB 值(带地板) & -120 dB & -120 \checkmark \\
+B & 栅格不随位移改变 & $\le$ 0 & 0 \checkmark \\
+B & 位移不改幅度谱 & $\le$ 4.54747e-13 & $2.131\times 10^{-16}$ \checkmark \\
+B & 相位斜坡 = -2*pi*k*p/N & $\le$ 1.00000e-09 & $2.266\times 10^{-15}$ \checkmark \\
+B & 相位斜坡的最大偏差 & 不超过 1e-9 & $2.266\times 10^{-15}$ \checkmark \\
+B & 循环差分 = 定义式(逐位相等) & $\le$ 0 & 0 \checkmark \\
+B & 差分的谱乘子 = e\textasciicircum{}\{i w\} - 1 & $\le$ 3.63798e-12 & $1.136\times 10^{-15}$ \checkmark \\
+B & 差分 vs 解析导数的波形偏差 = 2sin(w/4)$\cdot$2sin(w/2)/w & 0.146598 & 0.146908 \checkmark \\
+B & i*w 对纯正弦给出精确导数 & $\le$ 1.00000e-13 & $8.858\times 10^{-15}$ \checkmark \\
+B & 谱微分与一阶差分是两个不同的乘子 & i*w 给出精确导数；e\textasciicircum{}\{iw\}-1 给出精确一阶差分，两者差 2sin(\allowbreak{}w/\allowbreak{}2)/\allowbreak{}w 的幅度与 w/\allowbreak{}2 的相位 & 0.146908 \checkmark \\
+B & 不等长：fft\_\allowbreak{}convolve 等于短序列补零后的循环卷积 & $\le$ 2.27374e-13 & $1.934\times 10^{-16}$ \checkmark \\
+B & 等长时两条路径一致 & $\le$ 2.27374e-13 & $3.780\times 10^{-16}$ \checkmark \\
+B & circular\_\allowbreak{}convolution 拒绝不等长输入 & 抛 ValueError，而不是悄悄补零 & 1 \checkmark \\
+B & rect 能量 = N & 1024 & 1024 \checkmark \\
+B & hann 能量约为 3N/8 & 384 & 383.625 \checkmark \\
+B & blackman 能量约为 0.3045N & 0.3043 & 0.304303 \checkmark \\
+B & Hann/rect 能量比 & 约 3/\allowbreak{}8 =\allowbreak{} 0.375 & 0.374634 \checkmark \\
+B & Rayleigh = 1/T & 1 & 1 \checkmark \\
+B & 栅格 = 1/(N*dt) & 1.5625 & 1.5625 \checkmark \\
+B & pad=1 原栅格逐位回到原值 & $\le$ 0 & 0 \checkmark \\
+B & pad=1 栅格 = 1/(N*pad*dt) & 1.5625 & 1.5625 \checkmark \\
+B & pad=2 原栅格逐位回到原值 & $\le$ 0 & 0 \checkmark \\
+B & pad=2 栅格 = 1/(N*pad*dt) & 0.78125 & 0.78125 \checkmark \\
+B & pad=4 原栅格逐位回到原值 & $\le$ 0 & 0 \checkmark \\
+B & pad=4 栅格 = 1/(N*pad*dt) & 0.390625 & 0.390625 \checkmark \\
+B & pad=8 原栅格逐位回到原值 & $\le$ 0 & 0 \checkmark \\
+B & pad=8 栅格 = 1/(N*pad*dt) & 0.195312 & 0.195312 \checkmark \\
+B & pad=16 原栅格逐位回到原值 & $\le$ 0 & 0 \checkmark \\
+B & pad=16 栅格 = 1/(N*pad*dt) & 0.0976562 & 0.0976562 \checkmark \\
+B & 峰值不随 pad 改变 & 1 & 1 \checkmark \\
+B & 主瓣半高全宽随 pad 的增量 & 读数单调下降(\allowbreak{}量化误差在消失)，但不收敛到 0 & -0.390625 \checkmark \\
+B & 收敛值不是 0：主瓣宽度有正的下限 & $\le$ 1.5 & 0.976562 \checkmark \\
+B & T=0.5 Rayleigh = 1/T & 2 & 2 \checkmark \\
+B & T=2.0 Rayleigh = 1/T & 0.5 & 0.5 \checkmark \\
+B & T=4.0 Rayleigh = 1/T & 0.25 & 0.25 \checkmark \\
+\end{longtable}

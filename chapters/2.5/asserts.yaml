@@ -1,0 +1,194 @@
+# 2.5 章断言清单（真源：`tests/2.5/test_fft_core.py`、`test_spectra.py`、`test_chapter_frames.py`）
+#
+# 分工：
+#   * test_fft_core.py      —— DFT 定义 / dft_matrix / 三种 radix-2 实现 / 位反序 / DIF 级残差 /
+#                              twiddle 恒等式 / rfft / 补零 / 栅格 / Bluestein 长度记账 / FFTPlan；
+#   * test_spectra.py       —— 幅度标定 / Parseval / 循环卷积定理与卷绕 / 窗（Harris 表、泄漏、
+#                              相干增益、包络幂次、能量）/ 分辨率 / Goertzel / 混叠 / 相位 / 谱微分；
+#   * test_chapter_frames.py —— 五个可视化帧的 requiredAux、有限性、meta 与 numcore 的同源性。
+# A 类（解析对拍）：与 O(n²) 定义式、dft_matrix、Harris 表、Rayleigh 判据、Parseval 恒等式、
+#                   卷积定理、混叠的解析折回值对拍；
+# B 类（不变量）：有限性、位反序指纹、补零插值、窗能量/相干增益、单调性与地板值。
+# 本章不声明 C 类断言：本层的"阶"是用 assert_order 直接拟合出来的（radix-2 的 O(N log N)
+# 与 Bluestein 的 O(M log M) 都以浮点误差对拍 + 长度记账来表达），没有需要二分阈值的量。
+chapter: "2.5"
+title: 傅里叶分析与 FFT
+required_kinds: [A, B]
+
+min_counts:
+  A: 18
+  B: 600
+
+tests:
+  - name: test_every_frame_is_finite_and_declares_its_aux
+    kind: B
+    what: 五个 viz × 时间端点共 45 条：requiredAux 全部命中，所有数组（含拆成实部/虚部的蝶形级）无 NaN/Inf；蝶形帧在 t=0 与 t=1 两端各查一遍
+    theory: 帧契约的最低要求；时间轴的端点最容易越界
+  - name: test_signal_spectrum_meta_matches_numcore
+    kind: B
+    what: pad=1 时 df = df_true = 1/256 = 0.003906；pad=4 时 df 加密到 0.000977 而 df_true 与主瓣宽度都留在 0.003906；max_error = 0、n_aliased = 0
+    theory: df 由补零后的长度决定，真实分辨率由 T = N·dt 决定：两者必须分开报
+  - name: test_leak_window_meta_matches_numcore
+    kind: B
+    what: 四个窗的帧内实测旁瓣与 Harris 表值（两位小数）最大差 0.0050 dB；相干增益与 window_coherent_gain 一致到 1e-9；解析窗谱 vs |FFT| 最大偏差 0.0132（与 offset 无关）；理论线锚点 = 最高旁瓣（汉明锚在 fN=4.5）
+    theory: 图上的理论线必须锚在窗自己的最高旁瓣上，否则"形状对、位置错"
+  - name: test_butterfly_stages_meta_matches_numcore
+    kind: B
+    what: n=8/32/128 的级数各为 3/5/7（= log2 N）、蝶形数 12/80/448（= (N/2)log2 N）、每级残差 ≤1e-10、末级与参照谱一致；余弦 k=3 的谱峰 16.0（= N/2）；stage 随时间从 0 走到 5
+    theory: O(N log N) 的账目要在帧里被数出来，而不是只写在文字里
+  - name: test_conv_theorem_meta_matches_numcore
+    kind: B
+    what: need = N+M-1 = 23；N=16 时卷绕 0.251（相对 42.1%），N=64 时 2.63e-3（比值 95.3）；补零后 safe_error = 1.11e-16；定理残差与直接卷积差都 ≤1e-12
+    theory: 循环卷积等于线性卷积的条件是 N ≥ N_a+M-1；补零后是舍入地板而不是"更小"
+  - name: test_resolution_meta_matches_numcore
+    kind: B
+    what: sep_measured = min_separable_separation(1.0, n=256)：四窗都是 1.000/T；rayleigh = 1.0；sep_over_mainlobe = 阈值/主瓣宽度；pad 1→8 栅格加密 8 倍而阈值漂移 0.000/T；max_error = 5.3e-14
+    theory: 整数格扫描下阈值与窗无关（1/T），补零只动栅格
+  - name: test_frame_arrays_agree_with_their_own_meta
+    kind: B
+    what: dB 谱峰落在 meta 的 f0 上；residual 数组最大值 = meta 的 max_level_residual；max|difference| = 0.250781 = meta 的 max_wrap；max|safe_difference| = 1.11e-16
+    theory: meta 可以手填、数组不行，所以用数组反过来验 meta
+  - name: test_fft_matches_direct_dft_on_all_lengths
+    kind: A
+    what: n ∈ {1,2,3,4,5,7,8,11,13,16,17,31,32,96,127,128,200,1000} 上与 dft_direct、参照 fft 对拍：最坏相对误差 1.46e-13（n=1000），与 pocketfft 差 1.46e-13；素数长度 127、1000 = 8·125 都覆盖
+    theory: 自写 FFT 必须在**各种长度**上（2 的幂 / 非 2 的幂 / 素数）与 O(n²) 定义式一致
+  - name: test_inverse_fft_round_trips_at_every_length
+    kind: A
+    what: 同一批长度上 ifft(fft(x)) = x，最坏相对差 1.62e-13；反例：漏掉 1/N 会把信号放大 N 倍（n=1000 时 1000.0 倍），n=1 时两者恰好相同（唯一发现不了的长度）
+    theory: 逆变换的 1/N 不能靠"看起来对"来确认；n=1 是盲区
+  - name: test_dft_matrix_is_accurate_for_non_smooth_lengths
+    kind: A
+    what: dft_matrix 与 exp(-2πi kj/n) 逐点对拍，最坏 9.55e-16（n=200）；关键是先把 k·j 对 n 取模再取指数（整数取模版），把 n=1000 的相位误差从 1e-13 量级压到 u 量级
+    theory: dft_matrix 的相位参数要先做整数取模，否则大 n 上 exp 的自变量先丢精度
+  - name: test_three_radix2_variants_agree
+    kind: A
+    what: 递归、迭代（位反序输入）、DIF（位反序输出）三种写在 n=4..1024 上最大相对差 1.36e-14；三者与 dft_direct 也逐一对拍
+    theory: 同一数学对象的三种独立实现互为参照，比单一实现对拍更有信息量
+  - name: test_dif_last_row_needs_bit_reversal_and_then_equals_dft
+    kind: A
+    what: DIF 末行不重排时相对误差 1.071（O(1)，说明下标约定真的不同）；用 bit_reverse_indices 重排后降到 1e-15 量级
+    theory: DIF 的输出是位反序的；"误差 O(1)" 是下标约定问题，不是数值精度问题
+  - name: test_dif_frequency_order_is_bit_reversal
+    kind: A
+    what: 用复指数（不是冲激）做指纹，n=8 的指纹逐位等于 bit_reverse_indices(8) = [0,4,2,6,1,5,3,7]；n=16 同样成立
+    theory: 冲激输入对任何置换都不敏感，必须用非对称输入才能测出频率顺序
+  - name: test_level_residuals_are_at_roundoff
+    kind: B
+    what: n=4..1024 的逐级残差最大 2.85e-14（n=1024），n=4/8 时为 0；它量的是"向量化 DIF vs 独立朴素 DIF"的实现一致性
+    theory: 残差小只说明两份实现一致；数学正确性由与 dft_direct 的对拍单独保证（不能混为一谈）
+  - name: test_twiddle_factors_obey_their_identities
+    kind: B
+    what: n=4..256 上四条恒等式（共轭、周期、半角、模 1）最大偏差 7.11e-16；逆变换用 conj
+    theory: twiddle 是 FFT 唯一的超越函数来源，它的恒等式就是算法的代数骨架
+  - name: test_rfft_is_the_real_input_special_case
+    kind: B
+    what: rfft/irfft 往返最坏相对差 3.26e-14，覆盖奇数 n=9,17,101（单边谱长度 (n+1)/2，没有 Nyquist 项）；irfft 对奇数 n 必须显式 odd=True
+    theory: 实数 FFT 的记账（Nyquist 只出现一次）是这一层最容易差一位的地方
+  - name: test_zero_padding_interpolates_the_spectrum
+    kind: B
+    what: n=16..100、pad=2,4,8 上 fft(zero_pad(x, n·pad))[::pad] 与 fft(x) 的最坏相对差 3.32e-14——即"原栅格逐位回原值"
+    theory: 补零 = 在频域插值；插值不产生新信息，这是它的机器证据
+  - name: test_fft_is_linear_and_preserves_shift_theorem
+    kind: B
+    what: 位移定理最坏相对误差 1.03e-14（p=1,3,7,31）；位移后幅度谱最大变化 4.25e-16（应为 0）
+    theory: 线性与位移定理是 FFT 作为线性算子的基本不变量
+  - name: test_frequency_grid_matches_its_definition
+    kind: B
+    what: n=8,9,32,101,256 × dt=1,0.25,1/64 共 15 组：栅格位置相对偏差最大 1.12e-14（绝对 6.55e-15），单边谱长度 n//2+1
+    theory: f_k = k/(N·dt) 是逐个除法算的，与 k·df 只差几 u，判据必须是不等式而不是"逐位相等"
+  - name: test_bluestein_length_bookkeeping
+    kind: B
+    what: bluestein_length：n=1→1、2→4、3→8、4096→8192，全部 ≥ 2n-1 且是 2 的幂；n=4096 走 Bluestein 与 radix-2 相对差 2.43e-12（内部长度 8192）
+    theory: 非 2 的幂要靠 Bluestein 化归成 2 的幂；长度下界 2n-1 是循环卷积不卷绕的条件
+  - name: test_plan_fft_dispatches_by_length
+    kind: B
+    what: plan_fft 按长度分派：2 的幂走 radix-2、其余走 Bluestein；dft_vs_fft_error(64) = 6.40e-15，与手算读数一致
+    theory: 分派逻辑本身要被断言固定，否则"某类长度悄悄走错路"不会被发现
+  - name: test_butterfly_sweep_matches_iterative_stage_by_stage
+    kind: B
+    what: butterfly_sweep 与逐级迭代实现逐级对拍（n=4..64），末行位反序后最坏误差 1.94e-16；snaps[0] 是输入、第 ℓ 级结果在 snaps[ℓ+1]
+    theory: 蝶形图的数据结构必须与算法同步，否则图对不上算
+  - name: test_direct_dft_pair_is_inverse
+    kind: B
+    what: idft_direct 矩阵 = conj(W)/N，往返最坏误差 3.83e-16，正交性残差 1.19e-16
+    theory: 定义式层面的正反变换必须先对，才能拿它当参照去验 FFT
+  - name: test_amplitude_spectrum_calibration
+    kind: A
+    what: 12 组中频正弦 + 纯直流 + Nyquist：峰值读数偏差 ≤1.33e-15；DC 读 2.5（乘 2 会读 5.0）、Nyquist 读 1.75（乘 2 会读 3.5）
+    theory: 单边幅度谱的 2/N 与"DC/Nyquist 不乘 2"两处标定必须分别验证
+  - name: test_parseval_in_both_conventions
+    kind: A
+    what: n=64,100,101,127,128,255,256,1000 上全谱与单边 Parseval 相对误差 ≤6.9e-15（奇偶 n 都覆盖）；反例：df 用单边谱长度算 101/51 = 1.9804 倍，Parseval 相对误差 0.980
+    theory: 单边口径的 Δf 必须由原始长度决定；用单边长度会得到"定理不成立"的假象
+  - name: test_convolution_theorem_and_linear_equivalence
+    kind: A
+    what: 5 组 (N,M) 上频域相乘 vs 显式模索引求和 ≤4.0e-15（另一路 convolution_theorem_error ≤1.33e-14）；补零到 ≥N+M-1 后与线性卷积一致
+    theory: 循环卷积定理是恒等式；"等于线性卷积"是附加条件，不是定理本身
+  - name: test_wrap_around_is_local_and_persistent
+    kind: A
+    what: (N,M)=(16,8)：最大卷绕 0.251（相对 42.1%）、差异位置数 7 = M-1；(24,8) 6.19e-2、(32,8) 2.07e-2、(64,8) 2.63e-3、(128,8) 更小；补零到 23 后偏差 1.22e-16
+    theory: 卷绕只污染前 M-1 项，且衰减是 O(1/N) 级别——"N 大一点"不是解法，补零才是
+  - name: test_window_metrics_match_harris_table
+    kind: A
+    what: 四窗峰值旁瓣与 Harris 表最大差 0.0050 dB（rect -13.261/0.884、hann -31.467/1.438、hamming -42.675/1.301、blackman -58.109/1.641），主瓣宽度最大差 0.039 格；|旁瓣| 沿 rect<hann<hamming<blackman 的增量全为正
+    theory: 用解析谱而不是 |FFT| 量 -3 dB 宽度：窗长小时 |FFT| 的栅格会把宽度量化到整格
+  - name: test_leakage_is_caused_by_non_integer_periods
+    kind: A
+    what: 次峰/主峰比：offset=0 时 0.000（机器零）、0.25 时 0.3265（-9.72 dB）、0.5 时 0.7001；非整周期 k=20.5 时距主瓣 10 格以外的旁瓣 rect -25.0 dB、hann -67.0 dB
+    theory: 泄漏来自非整周期截断；矩形窗"泄漏大"是它的旁瓣结构，不是罪魁
+  - name: test_window_coherent_gain_rescales_amplitude
+    kind: A
+    what: rect 1.0000、hann 0.4980、hamming 0.5382、blackman 0.4184；每个窗的谱峰除以自己的 CG 后都回到 2.0（rtol 5e-3）
+    theory: 加窗的幅度代价 = 相干增益；它不改旁瓣、不改频率位置，只改你报出去的幅度
+  - name: test_sidelobe_envelope_exponents
+    kind: A
+    what: p 与窗名逐一对上（rect/hamming p=1，hann/blackman p=3）；10→1000 的包络比：rect 1.00e-02、hann 1.00e-06
+    theory: 汉明压低第一旁瓣但不再滚降（p=1），与 Hann（p=3）不是同一类窗
+  - name: test_resolution_threshold_and_window_cost
+    kind: A
+    what: 四窗的整数格阈值都是 1.000/T；把两音放在 2.25/T 与 3.75/T（半格）时 rect 仍可分、hann 并成一个包
+    theory: 分辨率阈值在整数格口径下与窗无关；窗的代价只在非栅格位置上现形
+  - name: test_resolution_threshold_scales_with_mainlobe_width
+    kind: A
+    what: 阈值/主瓣宽度比值（整数格口径）= 1/主瓣宽度：rect 1.12、hann 0.69、hamming 0.77、blackman 0.60，全部落在 [0.5, 1.8]
+    theory: 阈值都贴 1/T，于是这个比值就是主瓣宽度的倒数——它把"选窗"与"选分辨率"接上
+  - name: test_goertzel_matches_fft_bin_by_bin
+    kind: A
+    what: n=8,16,17,64,128 上 5 根谱线（含 k=0 与 k=N/2）与 fft 相对差 ≤5.1e-14；反例：收尾式写成 s1 - e^{-iω}s2 时 k=2 的模从 4 变成 4（只是转了个 90°），而 k=0 与 k=N/2 上两种写法逐位相同
+    theory: 收尾式的共轭方向要靠"随机信号 + 一般 k"才能测出来
+  - name: test_time_energy_and_power_accounting
+    kind: B
+    what: n=32,64,101,256 × dt=1,0.01 上 time_energy 与 dt·Σ|x|² 逐位相等（偏差 0）
+    theory: 时域能量是定义式，没有数值近似
+  - name: test_peak_frequency_interpolation_beats_the_grid
+    kind: B
+    what: 频率落在两格正中间时，直接读格误差 0.500 格，抛物线插值 0.0422 格（比值 8.4%）
+    theory: 定位精度（插值）可以远好于分辨率（栅格间距）；两者不能混谈
+  - name: test_aliasing_folds_frequency_without_changing_amplitude
+    kind: B
+    what: fs=20、n=80（T=4 s）下 3 Hz 与 17 Hz 的样本逐位相同（≤1e-12），谱峰都在 3/T 且幅度都是 1.0；alias_frequency(17,20)=3、alias_frequency(12,20)=8；20 Hz 以内 3 Hz 的候选真频率有 2 个（3 与 17）
+    theory: fs 之下的频率是等价类；可公度的频率对能造出逐位相同的样本，这就是"无法区分"的定义
+  - name: test_db_conversion_and_floor
+    kind: B
+    what: 20log10 换算误差 ≤1e-4（0.5 → -6.0206）；0 映射到地板 -120 dB；全零信号映射到 -60 dB 全地板；地板后无 NaN/Inf
+    theory: 对数轴上画不出 0，地板值是结论的一部分，必须写出来
+  - name: test_phase_spectrum_encodes_the_time_origin
+    kind: B
+    what: 位移 5 点后幅度谱最大变化 4.25e-16 量级、相位斜坡 = -2πkp/N 误差 2.27e-15
+    theory: 幅度谱丢掉了时间原点，相位谱才带着它
+  - name: test_circular_derivative_matches_spectral_multiplication
+    kind: B
+    what: 循环差分与定义式逐位相等；与频域乘子 e^{iω}-1 对拍 4.26e-16；i·ω 对纯正弦给出精确导数（8.9e-15），而 e^{iω}-1 与解析导数差 14.69%（幅值比 0.99639，其余全是 w/2 的相位）
+    theory: i·ω 是谱微分、e^{iω}-1 是一阶差分，两个都是"对的"但代表不同算子
+  - name: test_fft_convolve_accepts_unequal_lengths
+    kind: B
+    what: 不等长输入时 fft_convolve 等价于"短序列补零到 N 再循环卷积"（≤128·N·u）；等长时与 circular_convolution 一致；circular_convolution 对不等长抛 ValueError
+    theory: 循环卷积的定义要求等长；便利函数可以补零，但必须把约定写成断言
+  - name: test_window_energy_identities
+    kind: B
+    what: rect 能量 = N（1e-12）；hann = 383.625 vs 3N/8 = 384（相对 9.8e-4）；blackman = 0.3043N；hann/rect = 0.3746
+    theory: 窗能量决定信噪比损失，Hann 的等价噪声带宽是矩形的 1.5 倍
+  - name: test_zero_padding_interpolates_and_does_not_sharpen
+    kind: B
+    what: pad=1,2,4,8,16 上原栅格逐位回原值（精确 0）；栅格按 1/(N·pad·dt) 加密；峰值不随 pad 变（ref_length=N）；主瓣半高全宽读数单调下降 1.5625→0.9766 Hz 但趋不到 0
+    theory: 补零只插值：读数下降是量化误差在消失，不是分辨率在提高

@@ -1,0 +1,602 @@
+% 2.5 章 · 傅里叶分析与 FFT
+% 这一章要把"用计算机做傅里叶分析"拆成四件互不相同的数学事实：
+%   1) DFT 是一个具体的 N×N 矩阵：正反变换、Parseval、位移定理都是它的代数性质；
+%   2) Cooley-Tukey 把 O(N^2) 变成 O(N log N)，但下标约定（位反序）必须说清楚；
+%   3) 循环卷积定理是恒等式，"等于线性卷积"是附加条件（零填充到 N_a+M-1）；
+%   4) 加窗、补零、分辨率、泄漏这四件事各自的代价都可以量化，而且互不替代。
+% 所有数字都来自本仓库 tests/2.5/ 的运行结果；断言附表由 tools/build_book.py 生成，
+% \input 进来，不手抄。
+
+\numlabchapter{傅里叶分析与 FFT}{2.5}
+
+\section{这一章要解决什么}
+
+给定长度为 $N$ 的有限序列 $x_0,\dots,x_{N-1}$，离散傅里叶变换（DFT）把时间下标换成频率下标：
+\[
+X_k=\sum_{n=0}^{N-1}x_n\omega_N^{kn},\qquad \omega_N=e^{-2\pi i/N},\qquad k=0,\dots,N-1 .
+\]
+这一层要回答的不是"DFT 是什么"（那是定义），而是四个工程问题：
+
+\begin{enumerate}
+  \item \textbf{怎么在 $O(N\log N)$ 里算出它，而且知道自己没算错？} 自写的 radix-2
+        Cooley--Tukey（递归版与迭代版）与 $O(N^2)$ 定义式必须在**各种长度**上对拍：
+        本章实测在 $n\in\{1,2,3,4,5,7,8,11,13,16,17,31,32,96,127,128,200,1000\}$ 上
+        最坏相对误差 $1.46\times10^{-13}$（$n=1000$）。只测 2 的幂会漏掉整条 Bluestein 分支。
+  \item \textbf{循环卷积定理什么时候等于"真的卷积"？} 定理说
+        $\mathrm{DFT}(a\circledast b)=\mathrm{DFT}(a)\cdot\mathrm{DFT}(b)$ 恒成立；
+        但它等于线性卷积的充要条件是 $N\ge N_a+N_b-1$。本章实测 $(N,M)=(16,8)$ 时
+        卷绕误差 $0.251$（相对 $42.1\%$）且**只出现在前 $M-1=7$ 项**上——正好是你最会去看的头部；
+        补零到 $23$ 之后降到 $1.22\times10^{-16}$。
+  \item \textbf{窗、补零、分辨率、泄漏这四件事各自换了什么？} 它们经常被混为一谈：
+        补零加密栅格（实测 $f_k$ 间距 $0.003906\to0.000489$）却不改分辨率；
+        加窗压低旁瓣（矩形 $-13.26$ dB $\to$ Blackman $-58.11$ dB）却加宽主瓣
+        （$0.884\to1.641$ 格）并压低相干增益（$1.0000\to0.4184$）。
+  \item \textbf{"测到的频率"是什么？} 采样率 $f_s$ 之下的频率是等价类：实测 $3$ Hz 与 $17$ Hz
+        在 $f_s=20$ 下的样本**逐位相同**（$\le10^{-12}$），幅度都读成 $1.0$。
+\end{enumerate}
+
+记号：$u=2^{-53}\approx1.11\times10^{-16}$ 是双精度单位舍入；$N$ 是序列长度；
+$T=N\Delta t$ 是观测时长；$\Delta f_{\text{grid}}=1/(N\Delta t)$ 是频率栅格；
+$D_N(x)=\dfrac{\sin(\pi x)}{N\sin(\pi x/N)}$ 是归一化 Dirichlet 核。
+本章的"实测"数字全部取自 \texttt{tests/2.5/} 的断言记录。
+
+\section{DFT 的代数：正反变换、Parseval、位移}
+
+\subsection{反变换与正交性}
+
+\begin{lemma}[根的单位性]
+\label{lem:root-unity}
+设 $\omega_N=e^{-2\pi i/N}$。则对任意整数 $m$，
+\[
+\sum_{n=0}^{N-1}\omega_N^{mn}=
+\begin{cases}N,& m\equiv0\pmod N,\\ 0,& \text{否则}.\end{cases}
+\]
+\end{lemma}
+
+\begin{proof}
+若 $m\equiv0\pmod N$ 则每项为 $1$，和为 $N$。否则记 $r=\omega_N^m\ne1$，
+由 $r^N=\omega_N^{mN}=e^{-2\pi im}=1$ 得
+$\sum_{n=0}^{N-1}r^n=\frac{r^N-1}{r-1}=0$。
+\end{proof}
+
+\begin{theorem}[反变换公式与正交性]
+\label{thm:inverse}
+定义 $W_{kn}=\omega_N^{kn}$（$k,n=0,\dots,N-1$）。则 $W^{-1}=\frac1N\overline W$，即
+\[
+x_n=\frac1N\sum_{k=0}^{N-1}X_k\omega_N^{-kn},
+\]
+并且 $\sum_{k=0}^{N-1}|X_k|^2=N\sum_{n=0}^{N-1}|x_n|^2$（Parseval 恒等式）。
+\end{theorem}
+
+\begin{proof}
+把 $X_k=\sum_m x_m\omega_N^{km}$ 代入右端：
+\[
+\frac1N\sum_{k=0}^{N-1}X_k\omega_N^{-kn}
+=\frac1N\sum_m x_m\sum_{k=0}^{N-1}\omega_N^{k(m-n)}
+=\frac1N\sum_m x_m\cdot N[m\equiv n]=x_n,
+\]
+最后一步用引理~\ref{lem:root-unity}。Parseval：由 $W^{-1}=N^{-1}\overline W$ 知
+$W/\sqrt N$ 是酉矩阵，故 $\|Wx\|^2=N\|x\|^2$，即 $\sum_k|X_k|^2=N\sum_n|x_n|^2$。
+\end{proof}
+
+本章把这条件为回归测试：定义式正反变换的往返最坏误差 $3.83\times10^{-16}$，
+正交性残差 $1.19\times10^{-16}$。实际实现里 $W$ 的元素写成
+$\exp(-2\pi i\,(kn\bmod N)/N)$——**先做整数取模再取指数**：$kn$ 在 $n=1000$ 时可达 $10^6$，
+直接算相位会先丢精度，取模以后 dft\_matrix 与 $\exp(-2\pi ikn/N)$ 的最大偏差是
+$9.55\times10^{-16}$（$n=200$）。
+
+\subsection{单边幅度谱的标定}
+
+\begin{theorem}[幅度标定]
+\label{thm:amplitude}
+设 $x_n=A\cos(2\pi k_0 n/N+\varphi)$，$0<k_0<N/2$ 为整数。则单边幅度谱
+\[
+A_k=\frac{2|X_k|}{N}\ (0<k<N/2),\qquad A_0=\frac{|X_0|}{N},\qquad
+A_{N/2}=\frac{|X_{N/2}|}{N}
+\]
+满足 $A_{k_0}=A$。若 $x_n\equiv c$ 则 $A_0=c$；若 $x_n=A(-1)^n$（Nyquist）则
+$A_{N/2}=A$。
+\end{theorem}
+
+\begin{proof}
+把余弦写成两个指数：$x_n=\frac A2e^{i\varphi}\omega_N^{-k_0n}+\frac A2e^{-i\varphi}\omega_N^{k_0n}$。
+由引理~\ref{lem:root-unity}，第一项只在 $k=k_0$ 处给出 $N$，第二项只在 $k=N-k_0$ 处给出 $N$
+（因为 $\omega_N^{k_0n}$ 的"频率"是 $N-k_0$）。于是 $X_{k_0}=\frac A2Ne^{i\varphi}$、
+$X_{N-k_0}=\frac A2Ne^{-i\varphi}$，故 $|X_{k_0}|=AN/2$，乘 $2/N$ 得 $A$。
+常数序列：$X_0=Nc$，其余为零，于是 $|X_0|/N=c$（**若乘 2 会读到 $2c$**）。
+Nyquist：$x_n=A(-1)^n=A\omega_N^{(N/2)n}$，故 $X_{N/2}=NA$、$X_0=0$，
+于是 $|X_{N/2}|/N=A$（**若乘 2 会读到 $2A$**）。
+\end{proof}
+
+三条路都要单独测，因为它们的错误方式不同：漏掉整体的 $2$ 让所有幅度小一半，
+而 DC/Nyquist 也乘 $2$ 只让两端大一倍（中频正弦的读数完全正常）。
+本章实测：12 组中频正弦 $+$ 纯直流（读 $2.5$，错法读 $5.0$）$+$ Nyquist（读 $1.75$，错法读 $3.5$），
+最大读数偏差 $1.33\times10^{-15}$。
+
+\begin{corollary}[单边 Parseval 的权重]
+\label{cor:parseval-one-sided}
+对实序列 $x$，令 $M=\lfloor N/2\rfloor$。则
+\[
+\Delta t\sum_{n=0}^{N-1}x_n^2=\frac{1}{N\Delta t}\Bigl(|X_0|^2+2\!\!\sum_{k=1}^{M-1}\!\!|X_k|^2+
+[N\text{ 为偶}]\cdot|X_{N/2}|^2\Bigr).
+\]
+\end{corollary}
+
+\begin{proof}
+$x$ 实 $\Rightarrow X_{N-k}=\overline{X_k}$，故 $|X_{N-k}|=|X_k|$，把
+定理~\ref{thm:inverse} 的 $\sum_{k=0}^{N-1}$ 折成单边时内部各出现两次、
+$k=0$ 与（偶数 $N$ 时）$k=N/2$ 各出现一次。频率步长是
+$\Delta f=1/(N\Delta t)$（**由原始长度决定**）。
+\end{proof}
+
+这里有两个独立的坑，必须分开断言。其一：把 $\Delta f$ 写成 $1/((N/2+1)\Delta t)$，
+能量被放大 $N/(N/2+1)$ 倍——本章实测 $n=101$ 时比值 $1.9804$、Parseval 的相对误差
+$0.980$：这个数字"不像粗心"（不是 $1$ 也不是 $10$），最容易被评为"数值误差"。
+其二：内部谱线乘 $2$、DC/Nyquist 不乘；偶数 $N$ 有 Nyquist 项而奇数 $N$ 没有，
+所以 $N$ 的奇偶都要测（实测 $n=64,\dots,1000$ 上相对误差 $\le6.9\times10^{-15}$）。
+
+\subsection{位移定理}
+
+\begin{theorem}[位移只改相位]
+\label{thm:shift}
+设 $y_n=x_{(n-p)\bmod N}$。则 $Y_k=\omega_N^{kp}X_k$，从而 $|Y_k|=|X_k|$；
+对实序列，相位差 $\angle Y_k-\angle X_k=-2\pi kp/N$（模 $2\pi$）。
+\end{theorem}
+
+\begin{proof}
+$Y_k=\sum_n x_{(n-p)\bmod N}\omega_N^{kn}$，令 $m=(n-p)\bmod N$，则 $n\equiv m+p$，
+$\omega_N^{kn}=\omega_N^{k(m+p)}=\omega_N^{kp}\omega_N^{km}$，求和得 $\omega_N^{kp}X_k$。
+\end{proof}
+
+这条定理说明\textbf{幅度谱丢掉了时间原点}：本章实测位移 $5$ 点后幅度谱最大变化
+$4.25\times10^{-16}$（应为 $0$），而相位斜坡的误差是 $2.27\times10^{-15}$。
+要用 FFT 估时延，必须用相位或互相关，不能只看幅度。
+
+\section{Cooley--Tukey：$O(N\log N)$ 与它附带的下标约定}
+
+\subsection{递归 radix-2}
+
+\begin{theorem}[DIT radix-2]
+\label{thm:dit}
+设 $N$ 为偶数，$x$ 的长度为 $N$。记偶下标子序列 $E_j=x_{2j}$、奇下标子序列 $O_j=x_{2j+1}$
+（$j=0,\dots,N/2-1$），它们的 $N/2$ 点 DFT 为 $E_k,O_k$。则
+\[
+X_k=E_k+\omega_N^kO_k,\qquad X_{k+N/2}=E_k-\omega_N^kO_k,\qquad k=0,\dots,N/2-1 .
+\]
+\end{theorem}
+
+\begin{proof}
+把求和按 $n$ 的奇偶拆开：
+\[
+X_k=\sum_{j=0}^{N/2-1}x_{2j}\omega_N^{2jk}+\sum_{j=0}^{N/2-1}x_{2j+1}\omega_N^{(2j+1)k}
+=\sum_j E_j(\omega_N^2)^{jk}+\omega_N^k\sum_j O_j(\omega_N^2)^{jk}.
+\]
+注意 $\omega_N^2=e^{-4\pi i/N}=e^{-2\pi i/(N/2)}=\omega_{N/2}$，两个和分别是
+$E_k$ 与 $O_k$（在 $N/2$ 点 DFT 的意义下）。再由
+$\omega_N^{k+N/2}=\omega_N^k\omega_N^{N/2}=-\omega_N^k$ 得第二式。
+\end{proof}
+
+\begin{corollary}[运算量]
+\label{cor:complexity}
+设 $T(N)$ 为 radix-2 的复数乘法次数。$T(N)=2T(N/2)+N/2$，$T(1)=0$，故
+$T(N)=\tfrac N2\log_2N$；蝶形总数（每个蝶形一次复乘两次复加）也是 $\tfrac N2\log_2N$。
+\end{corollary}
+
+\begin{proof}
+对 $T(N)=\tfrac N2+2T(N/2)$ 反复展开 $\log_2N$ 次：
+$T(N)=\tfrac N2(1+1+\dots+1)$（共 $\log_2N$ 项）$=\tfrac N2\log_2N$。
+\end{proof}
+
+本章把这个账目**画进帧里并被断言**：$n=8/32/128$ 的级数各为 $3/5/7=\log_2N$，
+蝶形数 $12/80/448=\tfrac N2\log_2N$，每级残差 $\le10^{-10}$（详见下文的"残差在量什么"）。
+
+\subsection{迭代版与 DIF：位反序从哪来}
+
+\begin{theorem}[DIF 的输出是位反序的]
+\label{thm:dif}
+设 $N=2^r$。考虑"频率抽取"分解：把输入的前后半相加/相减，
+\[
+u_m=x_m+x_{m+N/2},\qquad v_m=(x_m-x_{m+N/2})\,\omega_N^m,\qquad m=0,\dots,N/2-1 ,
+\]
+再对 $u$ 与 $v$ **各自递归**（两个长度 $N/2$ 的子问题，按下标连续分块）。
+递归到底后，输出数组的第 $j$ 项是 $X_{\mathrm{rev}_r(j)}$，其中 $\mathrm{rev}_r$ 是 $r$ 位
+二进制反转。对 $r=3$：
+\[
+\mathrm{rev}_3(0..7)=[0,4,2,6,1,5,3,7].
+\]
+\end{theorem}
+
+\begin{proof}
+对 $k$ 分奇偶，$k=2q$ 与 $k=2q+1$：
+\[
+X_{2q}=\sum_{n=0}^{N/2-1}\bigl(x_n+x_{n+N/2}\bigr)\omega_{N/2}^{nq},\qquad
+X_{2q+1}=\sum_{n=0}^{N/2-1}\bigl(x_n-x_{n+N/2}\bigr)\omega_N^n\,\omega_{N/2}^{nq},
+\]
+即"偶频率"只依赖 $u$、"奇频率"只依赖 $v$，两者都是 $N/2$ 点 DFT。把 $k$ 的二进制最低位
+当作这一级被决定的位，递归一次就固定一位；$r$ 级以后输出的下标顺序等于把
+$k$ 的 $r$ 位二进制**反转**（最低位先被决定，于是跑到最高位）。
+对 $r=3$：$j=0..7$ 对应 $k=\mathrm{rev}_3(j)$，即 $[0,4,2,6,1,5,3,7]$。
+\end{proof}
+
+本章的指纹检查用的是**复指数输入**而不是冲激：冲激的谱是常数，对任何置换都不敏感。
+实测 $n=8$ 的指纹逐位等于 $\mathrm{rev}_3$，不做重排时 DIF 末行与 DFT 的相对误差是
+$1.071$——这个 $O(1)$ 的"误差"其实是下标约定不同，不是精度问题。
+
+\subsection{"每级残差"到底在量什么}
+
+蝶形图那一页要报每一级的中间结果。本章的做法是：用两套**互相独立**的代码算同一批中间值
+（一套是向量化的 DIF，一套是逐蝶形的朴素 DIF），逐级比较。实测残差 $n=4,8$ 时为 $0$，
+$n=1024$ 时为 $2.85\times10^{-14}$。必须把这个数的含义说清楚：
+
+\begin{quote}
+它量的是\textbf{两份实现是否一致}，与 FFT 是否正确\textbf{无关}——两份一模一样写错的实现
+残差同样是 $0$。数学正确性由另一条独立断言保证：与 $O(n^2)$ 定义式
+\texttt{dft\_direct} 对拍，$n=1000$ 时相对误差 $1.46\times10^{-13}$。
+\end{quote}
+
+这是本章最容易被自己骗到的地方之一：一个漂亮的、随 $N$ 缓慢增长的"残差曲线"
+看起来像是在展示"FFT 的数值稳定性"，其实它只是在展示"我抄了两遍同一份代码"。
+
+\subsection{非 2 的幂：Bluestein}
+
+\begin{theorem}[Bluestein 的长度条件]
+\label{thm:bluestein}
+设 $n$ 任意，取 $m\ge 2n-1$ 且 $m$ 为 $2$ 的幂。利用
+$kj=\tfrac{k^2+j^2-(k-j)^2}{2}$，令
+$a_j=x_j\omega_{2n}^{j^2}$、$b_j=\omega_{2n}^{-j^2}$（下标模 $m$），则
+\[
+X_k=\omega_{2n}^{-k^2}\sum_{j=0}^{n-1}a_jb_{k-j}
+=\omega_{2n}^{-k^2}\,\bigl(a\circledast b\bigr)_k ,
+\]
+其中 $\circledast$ 是长度 $m$ 的循环卷积；$m\ge2n-1$ 保证它等于线性卷积
+（见推论~\ref{cor:linear-eq-circular}），$m$ 是 $2$ 的幂保证用 radix-2 算。
+\end{theorem}
+
+\begin{proof}
+$kj=\frac{k^2+j^2-(k-j)^2}{2}$ 是恒等式，故
+$\omega_n^{kj}=\omega_{2n}^{k^2}\omega_{2n}^{j^2}\omega_{2n}^{-(k-j)^2}$。
+代入 DFT 定义并提出与 $j$ 无关的因子即得第一式。$a$ 的支撑是 $[0,n-1]$、
+$b$ 的支撑是 $[-(n-1),n-1]$，线性卷积的支撑长度是 $n+(2n-1)-1=3n-2$；
+循环长度 $m\ge2n-1$ 时所需的下标 $k-j\in[-(n-1),n-1]$ 不会绕回来
+（关键是用到的只是 $b$ 的那一段）。
+\end{proof}
+
+实测长度记账：$\texttt{bluestein\_length}(1,2,3,4096)=(1,4,8,8192)$，
+全部 $\ge2n-1$ 且为 $2$ 的幂；$n=4096$ 走 Bluestein 与走 radix-2 的相对差
+$2.43\times10^{-12}$（内部长度 $8192$）。
+
+\begin{corollary}[Goertzel：只算一根谱线]
+\label{cor:goertzel}
+设 $\omega=2\pi k/N$，递推 $s_m=x_m+2\cos(\omega)s_{m-1}-s_{m-2}$（$s_{-1}=s_{-2}=0$）。
+则
+\[
+X_k=e^{i\omega}s_{N-1}-s_{N-2}.
+\]
+\end{corollary}
+
+\begin{proof}
+先求冲激响应：$g_0=1$、$g_1=2\cos\omega$、$g_t=2\cos(\omega)g_{t-1}-g_{t-2}$，
+解得 $g_t=\dfrac{\sin(\omega(t+1))}{\sin\omega}$（代入验证 $g_0,g_1$ 即可，
+二阶线性递推由初值唯一确定）。由线性性
+\[
+s_m=\sum_{j=0}^{m}x_jg_{m-j}=\frac1{\sin\omega}\sum_{j=0}^{m}x_j\sin\bigl(\omega(m-j+1)\bigr).
+\]
+于是
+\[
+e^{i\omega}s_{N-1}-s_{N-2}
+=\frac1{\sin\omega}\sum_{j=0}^{N-1}x_j\Bigl[e^{i\omega}\sin\bigl(\omega a\bigr)-\sin\bigl(\omega(a-1)\bigr)\Bigr],
+\quad a=N-j .
+\]
+用 $\sin(\omega a)=\frac{e^{i\omega a}-e^{-i\omega a}}{2i}$ 展开括号：
+\[
+e^{i\omega}\sin(\omega a)-\sin\bigl(\omega(a-1)\bigr)
+=\frac1{2i}\Bigl[e^{i\omega(a+1)}-e^{-i\omega(a-1)}-e^{i\omega(a-1)}+e^{-i\omega(a-1)}\Bigr]
+=\frac1{2i}\Bigl[e^{i\omega(a+1)}-e^{i\omega(a-1)}\Bigr]
+=e^{i\omega a}\sin\omega .
+\]
+代回：$e^{i\omega}s_{N-1}-s_{N-2}=\sum_j x_j e^{i\omega(N-j)}
+=e^{i\omega N}\sum_j x_j e^{-i\omega j}=e^{2\pi ik}X_k=X_k$。
+\end{proof}
+
+\emph{这里 $e^{i\omega N}=e^{2\pi ik}=1$ 是整个推导的关键}：$\omega$ 必须是 $N$ 次单位根，
+否则收尾式前面的因子不是 $1$。也正因为共轭方向只在
+$k=0$ 与 $k=N/2$ 上不敏感（那里 $\omega\in\{0,\pi\}$，$e^{\pm i\omega}$ 相同），
+本章的测试必须包含**随机信号 $+$ 一般 $k$**：用冲激或只用 $k=0,N/2$ 时，
+把 $e^{i\omega}$ 写成 $e^{-i\omega}$ 也能"全绿"（实测 $k=1$ 时相对差 $1.29$）。
+
+\section{卷积定理与它的适用条件}
+
+\begin{theorem}[循环卷积定理]
+\label{thm:circ-conv}
+设 $a,b$ 长度均为 $N$，$(a\circledast b)_n=\sum_{m=0}^{N-1}a_{(n-m)\bmod N}b_m$。
+则 $\mathrm{DFT}(a\circledast b)_k=A_kB_k$。
+\end{theorem}
+
+\begin{proof}
+\[
+\mathrm{DFT}(a\circledast b)_k=\sum_n\sum_m a_{(n-m)\bmod N}b_m\omega_N^{kn}
+=\sum_m b_m\omega_N^{km}\sum_n a_{(n-m)\bmod N}\omega_N^{k(n-m)};
+\]
+内层求和令 $l=(n-m)\bmod N$，因 $\omega_N^{kN}=1$ 可去掉取模，得 $A_k$。
+\end{proof}
+
+\begin{corollary}[什么时候等于线性卷积]
+\label{cor:linear-eq-circular}
+设 $a$ 长 $N_a$、$b$ 长 $N_b$，把两者都补零到长度 $N$。若 $N\ge N_a+N_b-1$，则
+循环卷积与线性卷积逐点相等（差别为 $0$）；否则差别只出现在下标
+$0\le n\le N_b-2$（$M=N_b$）上，且尾部卷回头部。
+\end{corollary}
+
+\begin{proof}
+线性卷积的支撑是 $[0,N_a+N_b-2]$，长度 $N_a+N_b-1$。当 $N\ge N_a+N_b-1$ 时
+它整体落在 $[0,N-1]$ 内，取模下标 $(n-m)\bmod N$ 与真实下标 $n-m$ 相同，
+两个求和逐项一致。否则下标 $n-m<0$ 的项被加上 $N$ 折回，只在
+$n<m\le M-1$ 时发生，即 $0\le n\le M-2$。
+\end{proof}
+
+实测（$M=8$，高斯信号 $\times$ 均值滤波）：$(N,M)=(16,8)$ 时最大偏差 $0.251$
+（相对 $42.1\%$）、差异位置数恰好 $7=M-1$；$N=24$ 时 $6.19\times10^{-2}$、
+$N=32$ 时 $2.07\times10^{-2}$、$N=64$ 时 $2.63\times10^{-3}$——**它在变小，但不会变成 $0$**。
+补零到 $N_a+N_b-1=23$ 后偏差 $1.22\times10^{-16}$（舍入地板）。
+这就是"$N$ 取大一点"与"$N\ge N_a+N_b-1$"的区别：前者是量变，后者才是质变。
+
+\section{窗、泄漏与分辨率}
+
+\subsection{泄漏的机制}
+
+\begin{theorem}[截断的谱就是 Dirichlet 核]
+\label{thm:leakage}
+设 $f_0=\kappa/T$（$\kappa$ 不必是整数），$x_n=e^{2\pi i f_0n\Delta t}$，$T=N\Delta t$。
+则
+\[
+X_k=e^{i\pi(\kappa-k)(N-1)/N}\,D_N(\kappa-k),\qquad D_N(x)=\frac{\sin(\pi x)}{N\sin(\pi x/N)} .
+\]
+特别地：$\kappa$ 为整数时（整周期采样）除 $k=\kappa$ 外 $X_k=0$；
+$|D_N|$ 的第一旁瓣峰值给出该偏移下的泄漏电平。
+\end{theorem}
+
+\begin{proof}
+$X_k=\sum_{n=0}^{N-1}e^{2\pi i(\kappa-k)n/N}$ 是等比级数，公比
+$r=e^{2\pi i(\kappa-k)/N}$：
+\[
+X_k=\frac{r^N-1}{r-1}
+=e^{i\pi(\kappa-k)(N-1)/N}\cdot\frac{\sin(\pi(\kappa-k))}{\sin(\pi(\kappa-k)/N)},
+\]
+提出 $N$ 即得 $D_N$。$\kappa-k\in\mathbb Z$ 时分子 $\sin(\pi\cdot\text{整数})=0$，
+故除 $\kappa=k$ 外全为 $0$（$k=\kappa$ 处极限为 $1$）。
+\end{proof}
+
+实测：$N=64$、频率恰好落在栅格上时次峰/主峰 $=0.000$（机器零）；
+偏 $0.25$ 格时 $0.3265$（$-9.72$ dB）；偏 $0.5$ 格时 $0.7001$（$-3.10$ dB）。
+所以\textbf{泄漏的原因是"信号周期与观测时长不成整数比"}，而不是"矩形窗不好"。
+处理它只有三条路：改 $T$ 或 $f_s$ 让采样整周期、加窗（付主瓣变宽的代价）、
+或者接受它并把它报出来。
+
+\subsection{窗的代价：主瓣宽度、旁瓣、滚降、增益}
+
+\begin{lemma}[端点光滑度决定滚降幂次]
+\label{lem:rolloff}
+设 $w:\mathbb R\to\mathbb R$ 有紧支撑且 $w\in C^m$（$w,w',\dots,w^{(m)}$ 在支撑端点外为零）。
+则 $|\hat w(\omega)|\le C|\omega|^{-(m+1)}$（$|\omega|\to\infty$）。
+\end{lemma}
+
+\begin{proof}
+对 $\hat w(\omega)=\int w(t)e^{-i\omega t}dt$ 分部积分 $m+1$ 次：
+每次把 $-i\omega$ 提到分母并把导数移到 $w$ 上；由于
+$w^{(j)}$（$j\le m$）在端点为零，边界项全部消失，剩下
+$\hat w(\omega)=(-i\omega)^{-(m+1)}\int w^{(m+1)}(t)e^{-i\omega t}dt$，
+而 $w^{(m+1)}$ 可积，故 $|\hat w|\le\|\hat{w^{(m+1)}}\|_\infty|\omega|^{-(m+1)}$。
+\end{proof}
+
+据此读本章的窗（离散版本用求和分部积分，幂次相同）：
+
+\begin{center}
+\begin{tabular}{lcccc}
+窗 & 端点值 $w(0)$ & 端点一阶导 & 滚降 $p$ & 峰值旁瓣（实测/ Harris）\\
+\hline
+rect & $1$ & 跳跃 & $1$ & $-13.261$ / $-13.26$ dB\\
+hann & $0$ & $0$ & $3$ & $-31.467$ / $-31.47$ dB\\
+hamming & $0.08$ & 跳跃 & $1$ & $-42.675$ / $-42.68$ dB\\
+blackman & $0$ & $0$ & $3$ & $-58.109$ / $-58.11$ dB\\
+\end{tabular}
+\end{center}
+
+汉明窗是最好的反例：它把第一旁瓣压到 $-42.7$ dB（比 Hann 好 $11$ dB），
+但端点不为零，于是 $p=1$——**压得低与滚降快是两件事**。
+实测 $10\to1000$ 的包络比：矩形 $1.00\times10^{-2}$、Hann $1.00\times10^{-6}$。
+
+\begin{theorem}[加窗的幅度代价 = 相干增益]
+\label{thm:coherent-gain}
+设 $x_n=A\cos(2\pi k_0n/N)$，$w$ 为窗。则加窗后单边幅度谱在 $k_0$ 处的读数
+$A\cdot\mathrm{CG}(w)$，其中 $\mathrm{CG}(w)=\frac1N\sum_n w_n$；
+能量 $\sum_n w_n^2 x_n^2$ 的期望则正比于 $\frac1N\sum_nw_n^2$。
+\end{theorem}
+
+\begin{proof}
+加窗后 $X_{k_0}=\frac A2\sum_n w_n+\text{(镜像项)}$，第一项是窗的直流分量；
+乘 $2/N$ 得 $A\cdot\frac1N\sum_nw_n$。能量的说法同理由
+$\mathbb E[x_n^2]=A^2/2$ 与 $\sum_n w_n^2x_n^2\approx\frac{A^2}2\sum_nw_n^2$ 得到。
+\end{proof}
+
+实测：rect $1.0000$、hann $0.4980$、hamming $0.5382$、blackman $0.4184$；
+每个窗的谱峰除以自己的 $\mathrm{CG}$ 后都回到 $2.0$（$n=256$，$A=2$）。
+能量：rect $=N$、hann $=0.3746N$（连续极限 $3/8$）、blackman $=0.3043N$。
+忘记除 $\mathrm{CG}$ 的效果很隐蔽：它不改旁瓣、不改频率位置，只让你报出去的幅度
+系统性偏小一半。
+
+\subsection{分辨率：Rayleigh 判据与它的边界}
+
+\begin{theorem}[等幅双音的 Rayleigh 判据]
+\label{thm:rayleigh}
+设两个等幅单频信号频率相差 $\Delta\kappa/T$（以栅格为单位，$\kappa_1,\kappa_2$ 整数）。
+用矩形窗截断后，其连续谱是两个 Dirichlet 核之和
+$D_N(x-\kappa_1)+D_N(x-\kappa_2)$。当 $\kappa_2-\kappa_1=1$ 时，
+两音中点的谱值**恰好为 $0$**；当间隔 $<1$ 格时两核在中点不再反号抵消，
+两峰会合并进同一个主瓣。
+\end{theorem}
+
+\begin{proof}
+由定理~\ref{thm:leakage}，单音的连续谱是 $D_N(x-\kappa)$。取中点
+$x=(\kappa_1+\kappa_2)/2$，令 $d=(\kappa_2-\kappa_1)/2$，则两核在该点的值是
+$D_N(-d)$ 与 $D_N(d)$。$D_N$ 是奇函数（分子 $\sin$ 奇、分母 $\sin$ 奇），故两者互为相反数，
+和为 $0$：中点是严格的谷。$d<1/2$（间隔小于一格）时两核在中点同号（都不为零），
+和不为零，谷消失。
+\end{proof}
+
+实测：整数格扫描下四个窗的最小可分辨间隔都是 $1.000/T$（= Rayleigh 判据），
+$\Delta f_{\min}/$（$-3$ dB 主瓣宽度）落在 $0.5\sim1.8$ 之间（rect $1.12$、hann $0.69$、
+hamming $0.77$、blackman $0.60$）。但**这张表只在整数格位置上成立**：
+
+\begin{quote}
+把两音放到半格（$2.25/T$ 与 $3.75/T$，间隔 $1.5/T$）上，矩形窗仍判"分得开"
+（谷/峰 $0.251$），Hann 直接并成一个包。更早的一次实现用二分法去找阈值，
+得到 $1.73/T$ 这个"看起来很像真值"的数——它是**假穿越**：谓词对间隔并不单调
+（半格间隔会把两个音并进同一个主瓣），二分因此收敛到一个不存在的零点。
+\end{quote}
+
+所以"分辨率阈值"必须连同"在什么位置上量的"一起报；扫描代替二分，
+或者先证明谓词单调。这也是本章把"补零不等于提高分辨率"写成机器判据的原因：
+$\Delta f_{\text{grid}}$ 会被补零加密（$0.003906\to0.000489$，$pad=1\to8$），
+而主瓣半高全宽的读数只从 $1.5625$ Hz 收敛到 $0.9766$ Hz（量化误差在消失），
+它趋的是同一条连续主瓣，不是 $0$。
+
+\section{补零：插值而不是分辨率}
+
+\begin{theorem}[补零 = 三角插值]
+\label{thm:zeropad}
+设 $x$ 长 $N$，$x^{Z}$ 是把 $x$ 补零到长 $N'=pN$（$p\in\mathbb N$）。则
+\[
+X^{Z}_{pk}=X_k\qquad(k=0,\dots,N-1),
+\]
+即补零后的谱在**原栅格上逐点不变**；在其余点上它是
+$\sum_n x_n e^{-2\pi i fn}$ 这条连续曲线的采样。
+\end{theorem}
+
+\begin{proof}
+$X^Z_{pk}=\sum_{n=0}^{N'-1}x^Z_n e^{-2\pi ipkn/N'}=\sum_{n=0}^{N-1}x_n e^{-2\pi ikn/N}=X_k$，
+因为 $n\ge N$ 的项为零，且 $e^{-2\pi ipkn/(pN)}=e^{-2\pi ikn/N}$。
+\end{proof}
+
+实测：$n=16..100$、$p=2,4,8$ 上 $\mathrm{fft}(\text{补零})[::p]$ 与 $\mathrm{fft}(x)$ 的
+最坏相对差 $3.32\times10^{-14}$（即逐位相同，等于定理的机器版本）。
+这条定理也解释了补零为什么**不能**把两个近邻音分开：它只在已有采样点之间插值，
+不产生新信息。
+
+\emph{顺带一个归一化陷阱}：单边幅度谱的 $2/N$ 里的 $N$ 必须是**原始长度**。
+补零后若用补零后的长度归一化，每个峰都掉 $p$ 倍（实测 $p=2$ 时峰 $0.5$、$p=4$ 时 $0.25$），
+而\textbf{谱的形状完全正常}——这不是"某个峰不对"，是整体比例不对，用眼睛很难发现。
+本章的做法是显式传 \texttt{ref\_length}$=N$，并把"峰值不随 $p$ 改变"写成断言。
+
+\section{采样：混叠是等价类}
+
+\begin{theorem}[混叠]
+\label{thm:aliasing}
+以采样间隔 $\Delta t=1/f_s$ 采样 $x(t)=e^{2\pi ift}$，得到
+$x_n=e^{2\pi ifn/f_s}$。则 $f$ 与 $f+kf_s$（$k\in\mathbb Z$）给出**完全相同**的样本；
+在 $[0,f_s)$ 内可以取 $f_{\text{alias}}=|f-kf_s|$ 折回。
+\end{theorem}
+
+\begin{proof}
+$e^{2\pi i(f+kf_s)n/f_s}=e^{2\pi ifn/f_s}\cdot e^{2\pi ikn}=e^{2\pi ifn/f_s}$。
+\end{proof}
+
+实测：$f_s=20$、$n=80$（$T=4$ s，两频率都是整周期）下 $3$ Hz 与 $17$ Hz 的样本
+最大差 $\le10^{-12}$（应为 $0$），谱峰都在 $3/T$、幅度都读成 $1.0$；
+$\texttt{alias\_frequency}(17,20)=3$ 而 $\texttt{alias\_frequency}(12,20)=8$
+（$12$ 折到 $8$，不是 $3$——"高频都折到低频"是错的）。
+"测到 $3$ Hz"因此只能说明真频率属于 $\{3,17,23,37,\dots\}$；要区分只能靠先验、
+抗混叠滤波，或者改 $f_s$ 再看一次。
+
+\section{五个可视化在看什么}
+
+\begin{enumerate}
+  \item \texttt{signal\_spectrum}（时频双视图）：$N$ 与 \texttt{pad} 分开控制。
+        它要让人看到 $\Delta f_{\text{grid}}$ 随 \texttt{pad} 加密而
+        $\Delta f_{\text{true}}=1/T$ 不动（帧 meta 里两个字段并排报），
+        以及 $N$ 变小时基频与二次谐波如何并进同一个主瓣。
+  \item \texttt{leak\_window}（泄漏与窗）：$N=64$、$M=64$ 的 dB 谱 + 四种窗的解析包络。
+        理论线的锚点在窗自己的**最高旁瓣**上（rect $-13.26$ dB @ $fN=1.430$、
+        hann $-31.47$ @ $2.360$、hamming $-42.68$ @ $4.500$、blackman $-58.11$ @ $3.545$），
+        锚点与解析指标一致到 $3.5\times10^{-6}$ dB。
+        注意汉明的锚点在 $fN=4.5$，**不是第一个零点 $fN=2$**：
+        "第一个旁瓣"与"最高旁瓣"不是同一个位置。
+  \item \texttt{butterfly\_stages}（分解与蝶形）：DIF 的级结构，每级一行、
+        每级一个残差（残差的含义见 3.3 节）。$N=32$ 时 $5=\log_2 32$ 级、$80$ 个蝶形。
+  \item \texttt{conv\_theorem}（卷积定理）：时域循环卷积、频域相乘、线性卷积三条曲线 + 两条差曲线。
+        $N=16$、$M=8$ 时差曲线最大 $0.250781$（与 meta 逐位一致），
+        补零到 $23$ 后 $1.11\times10^{-16}$。
+  \item \texttt{resolution}（分辨率与不确定性）：两音 dB 谱、"能否分辨 vs 观测点数"的阶梯曲线，
+        以及 Rayleigh 判据参考线。补零只把栅格加密 $8$ 倍而阈值漂移 $0.000/T$。
+\end{enumerate}
+
+\input{chapters/2.5/asserts_table}
+
+\section{它会怎样骗你（本章版）}
+
+\begin{enumerate}
+  \item \textbf{把补零当成提高分辨率}：补零后谱线从 $33$ 个点变成 $257$ 个点，
+        但原栅格上的读数逐位不变（$3.3\times10^{-14}$ 即机器零），
+        主瓣半高全宽读数只从 $1.5625$ Hz 收敛到 $0.9766$ Hz。
+        要分辨两个音必须加长 $T$，不是加长 $N_{\text{pad}}$。
+  \item \textbf{只用 2 的幂做对拍}：长度取 $256$ 时会漏掉整条 Bluestein 分支。
+        把长度扩到 $\{1,2,3,4,5,7,8,11,13,16,17,31,32,96,127,128,200,1000\}$ 后
+        最坏相对误差 $1.46\times10^{-13}$（$n=1000$），素数长度 $127$ 与 $3$ 都覆盖到了。
+  \item \textbf{忘记 $1/N$ 却"看着对"}：形状完全正确，只是幅度大了 $N$ 倍，
+        取相对峰值 dB 时这个错误会被彻底吃掉。实测 $n=1000$ 时放大 $1000.0$ 倍，
+        而 $n=1$ 时放大 $1$ 倍——所以往返测试的长度集合必须包含 $n=1$，
+        把这个"测不出来"的长度本身记录在案。
+  \item \textbf{用冲激去测位反序}：冲激的谱是常数，对任何置换都不敏感。
+        改用复指数后 $n=8$ 的指纹逐位等于 $[0,4,2,6,1,5,3,7]$；
+        不重排时 DIF 末行与 DFT 的相对误差是 $1.071$——这个 $O(1)$ 是下标约定，
+        不是精度。
+  \item \textbf{把"两份实现一致"当成"算法正确"}：逐级残差 $0$（$n=4,8$）到
+        $2.85\times10^{-14}$（$n=1024$）量的是向量化与朴素实现是否一致；
+        写错两遍也是 $0$。数学正确性要靠与 $O(n^2)$ 定义式对拍（$1.46\times10^{-13}$）。
+  \item \textbf{Goertzel 的共轭方向猜错}：收尾式写反（$e^{i\omega}\to e^{-i\omega}$）时，
+        冲激输入、$k=0$、$k=N/2$ 全部通过，只有随机信号 $+$ 一般 $k$ 才暴露（相对差 $1.29$）。
+        本章的测试同时含随机信号与 $k=1$、$k=N/2\pm1$ 这些"一般"位置。
+  \item \textbf{用单边谱的长度算 $\Delta f$}：$n=101$ 时能量被放大 $1.9804$ 倍，
+        Parseval 相对误差 $0.980$。这个数"不像粗心"（不是 $1$、不是 $10$），
+        最容易被归类为"数值误差"。
+  \item \textbf{只看旁瓣、不看代价}：Blackman 的 $-58.11$ dB 比矩形好 $45$ dB，
+        但主瓣宽 $0.884\to1.641$ 格、能量 $N\to0.3043N$、相干增益 $1.0000\to0.4184$。
+        少报任何一个，选窗的结论都会反过来。
+  \item \textbf{把汉明与 Hann 互换}：汉明第一旁瓣 $-42.7$ dB 比 Hann 低 $11$ dB，
+        但它是 $p=1$（滚降 $-6$ dB/倍频程），Hann 是 $p=3$（$-18$ dB/倍频程）。
+        实测 $10\to1000$ 的包络比：矩形 $1.00\times10^{-2}$、Hann $1.00\times10^{-6}$。
+  \item \textbf{把泄漏怪到矩形窗头上}：整周期采样时次峰是机器零（$0.000$），
+        偏 $0.25$ 格就到 $0.3265$（$-9.72$ dB）。泄漏的原因是"信号周期与 $T$ 不成整数比"。
+  \item \textbf{用二分法找分辨率阈值}：谓词对间隔不单调，半格间隔会把两音并进一个主瓣，
+        二分因此收敛到 $1.73/T$ 这种"看着挺像真值"的假穿越。
+        本章改用栅格扫描，并明确报出"阈值在整数格上量得"。
+  \item \textbf{用 $|$FFT$|$ 去量窗的 $-3$ dB 主瓣宽度}：窗长小时栅格太粗，
+        宽度会被量化到整格（rect 会报 $0.44$ 格而不是 $0.884$ 格）。
+        本章改用解析窗谱（与 Harris 表最大差 $0.0050$ dB）。
+  \item \textbf{把卷绕误差当成"$N$ 不够大"的小问题}：$(N,M)=(16,8)$ 时它 $=0.251$
+        （相对 $42.1\%$），且只出现在前 $7=M-1$ 项上（正好在头部）；
+        $N$ 翻到 $64$ 仍有 $2.63\times10^{-3}$。它不会自己变成 $0$，
+        必须补零到 $N_a+N_b-1$（之后是 $1.22\times10^{-16}$）。
+  \item \textbf{拿两类不同的曲线相减当"误差"}：泄漏页早先拿"加窗信号的谱"减"窗的谱"，
+        两条曲线不同类，$rel\_error$ 在 $offset=0$ 时恒为 $1.0$、$offset=0.25$ 时是 $0.784$，
+        与实现精度无关。改成同类对同类（$|$FFT$|$ vs 解析窗谱）后是 $0.0055\sim0.0132$，
+        且与 $offset$ 无关。
+  \item \textbf{把理论的旁瓣线画在"形状对、位置错"的地方}：包络的常数项决定它画在哪。
+        早先把自变量写成 $f\cdot n$（$n$ 是点数不是时长），矩形窗的理论线被压低
+        $64$ 倍 $=36$ dB，而且它"总在实测曲线下方"，看起来还挺保守。
+        正确自变量是 $f\cdot T$，锚点取窗自己的最高旁瓣。
+  \item \textbf{把"测到 $3$ Hz"当成"信号是 $3$ Hz"}：$f_s=20$ 时 $3$ Hz 与 $17$ Hz
+        的样本逐位相同，幅度都读 $1.0$；$20$ Hz 以内 $3$ Hz 的候选真频率至少 $2$ 个。
+  \item \textbf{补零之后振幅整整齐齐掉一半}：$2/N$ 里的 $N$ 必须是原始长度。
+        用补零后的长度归一化时每个峰掉 $p$ 倍（$p=2$ 时 $0.5$），但谱形完全正常。
+        判据是"补零倍数改变时峰值不动"。
+  \item \textbf{把断言里的"理论值"当成抄来的常数}：本章有四处写错过，全部留在
+        \texttt{pitfalls.md} 里。例如单边谱长度算 $\Delta f$ 我曾写成"能量只剩 $96.5\%$"，
+        实测是放大 $1.9804$ 倍（方向都反了）；"波形偏差 $=2\sin(\omega/2)$"实测是
+        $0.1469$ 而该式给 $0.2935$（差一倍，正确式是 $2\sin(\omega/4)\cdot2\sin(\omega/2)/\omega$）；
+        "补零后误差逐位为 $0$"实测是 $1.11\times10^{-16}$。理论值必须有来源
+        （推导/独立实现/文献表），判据要写成带容差的等式，少用"够大就过"的单向判据。
+  \item \textbf{把 $i\omega$ 与 $e^{i\omega}-1$ 混用}：在 $\omega=2\pi\cdot3/64$ 处两者模只差
+        $0.36\%$，相位差 $\omega/2$，作用在纯正弦上是 $14.69\%$ 的波形偏差。
+        $i\omega$ 是精确的谱微分，$e^{i\omega}-1$ 是精确的一阶差分；两个都对，
+        但代表不同算子。
+\end{enumerate}
