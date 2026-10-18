@@ -245,6 +245,8 @@ class _FrameCodec:
         self._frag_len = 0
         self._close_code: int | None = None
         self._close_reason = ""
+        self._peer_close_code: int | None = None
+        self._peer_close_reason = ""
         if timeout is not None:
             sock.settimeout(timeout)
         # Nagle 会把交互式小帧（ping/pong、JSON 控制消息）攒批，往返上引入 ~40 ms 抖动；
@@ -263,13 +265,23 @@ class _FrameCodec:
 
     @property
     def close_code(self) -> int | None:
-        """结束这次连接的 close code（本端发出的或对端发来的；正常情况下两者相同）。"""
+        """这次连接的结束码：本端发起的 close 用本端的值，否则用对端发来的值。"""
         return self._close_code
 
     @property
     def close_reason(self) -> str:
-        """结束这次连接的 close 原因短语。"""
+        """这次连接的结束原因短语（与 :attr:`close_code` 同时确定）。"""
         return self._close_reason
+
+    @property
+    def peer_close_code(self) -> int | None:
+        """对端 close 帧里的 code（做日志/断言时可以和本端的值对照）。"""
+        return self._peer_close_code
+
+    @property
+    def peer_close_reason(self) -> str:
+        """对端 close 帧里的原因短语。"""
+        return self._peer_close_reason
 
     @property
     def max_frame(self) -> int:
@@ -666,8 +678,14 @@ class _FrameCodec:
             self._fail(1007, "close 帧的原因短语不是合法 UTF-8")
         if not _code_allowed_in_frame(code):
             self._fail(1002, f"close code {code} 不允许出现在帧里")
-        self._close_code = code
-        self._close_reason = reason
+        self._peer_close_code = code
+        self._peer_close_reason = reason
+        if self._close_code is None:
+            # 本端没发起过 close（对端主动关的）→ 结束码就是它给的那个。
+            # 本端发起时保留本端的值：RFC 只要求对端回显 code，不回显 reason，
+            # 否则「我发的 close 原因」会被对端的空原因覆盖掉。
+            self._close_code = code
+            self._close_reason = reason
 
     def _handle_peer_close(self, payload: bytes) -> None:
         """对端发来 close：回一个 close（通常回显 code），随后即可安全断开。"""
@@ -814,7 +832,11 @@ class WebSocket(_FrameCodec):
             self._reject("400 Bad Request", "缺少 Upgrade: websocket")
         if not _has_token(headers.get("connection", ""), "upgrade"):
             self._reject("400 Bad Request", "缺少 Connection: Upgrade")
-        offered_version = headers.get("sec-websocket-version", "").strip()
+        # 区分「压根没写版本头」（握手不完整 → 400）与「写了但不是 13」（版本不支持 → 426）。
+        # RFC 6455 §4.2.1 要求版本头必须存在，§4.4 则规定版本不认识时回 426 并告诉对端我们支持 13。
+        if "sec-websocket-version" not in headers:
+            self._reject("400 Bad Request", "缺少 Sec-WebSocket-Version 头")
+        offered_version = headers["sec-websocket-version"].strip()
         if offered_version != "13":
             self._reject(
                 "426 Upgrade Required",

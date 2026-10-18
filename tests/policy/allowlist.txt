@@ -1,0 +1,9 @@
+# 行内豁免登记表
+#
+# 用法：源码里写 `# policy: allow P<规则号> <理由>`（Python）
+#       或 `// policy: allow P<规则号> <理由>`（TypeScript）
+# 之后**必须**在这里登记一行 `路径:规则`，否则 check_policy 会报 ALLOWLIST 违规。
+# 目的：让每一处"开后门"都出现在 diff 与审查里，而不是藏在注释里。
+#
+# 格式（每行一条，`#` 开头为注释）：
+# numcore/linalg/lu.py:P4

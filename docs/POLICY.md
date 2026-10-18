@@ -34,7 +34,24 @@
 
 ### 例外登记
 
-确需例外时，必须在源码处写 `# policy: allow <规则号> <理由>`，并在 `tests/policy/test_allowlist.py` 中登记该文件；
+| 例外 | 位置 | 理由 | 检查器中的体现 |
+|---|---|---|---|
+| P6 豁免 | `numcore/verify/plugin.py`、`numcore/verify/report.py` | 它们是**测试基础设施**（pytest 插件与断言报告落盘），IO 被限制在具名函数（`write_report`、pytest 钩子）内，不参与任何数值计算 | `P6_EXEMPT_FILES`，并在 CI 输出中显式列出 |
+| P4 豁免 | `numcore/utils.py` | 它是 `numpy.random` 的**唯一合法封装点**（`rng(seed)`），集中管理确定性 | `ALLOWED_PATHS["P4"]` |
+| P1/P2/P5 豁免 | `numcore/reference/**` | 参照物层的存在意义就是调用成熟实现 | `ALLOWED_PATHS` |
+
+**规则作用域**（避免"一刀切"误伤）：
+
+* P1、P2、P4 —— **全仓库**（含 `tests/`、`tools/`、`server/`）：Python 侧的"现成求解器"只有 `numcore/reference/` 可以用，
+  测试想对拍也必须经由它，这样"边界"只有一个。
+* P3、P5、P6 —— 只约束 `numcore/`：测试与工具里用 `numpy.polyfit` 做交叉验证是**合法且鼓励**的
+  （它们不是交付的自研实现）。
+
+行内豁免 `# policy: allow P<n> <理由>` 必须在 `tests/policy/allowlist.txt` 登记，
+否则 `check_policy.py` 报 `ALLOWLIST` 违规——防止有人用注释悄悄开后门。
+检查器用 `tokenize` 识别**真正的注释**，不会被字符串/文档里的同样文字骗过。
+
+确需例外时，必须在源码处写 `# policy: allow <规则号> <理由>`，并在 `tests/policy/allowlist.txt` 中登记；
 检查器只承认**已登记**的豁免。禁止行内豁免不登记。
 
 ---

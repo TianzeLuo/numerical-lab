@@ -157,12 +157,7 @@ function writeElement(
   }
 }
 
-/** 统一的按索引读取：TypedArray 联合类型的索引访问 TS 表达不了，在这里集中转型一次。 */
-function getElement(arr: TypedArray, index: number): number | bigint {
-  return (arr as unknown as { readonly [i: number]: number | bigint })[index];
-}
-
-/** 统一的按索引写入（见 `getElement` 的说明）。 */
+/** 统一的按索引写入：TypedArray 联合类型的索引赋值 TS 表达不了，在这里集中转型一次。 */
 function setElement(arr: TypedArray, index: number, value: number | bigint): void {
   (arr as unknown as { [i: number]: number | bigint })[index] = value;
 }
@@ -579,7 +574,9 @@ async function inflatePayload(payload: Uint8Array, codec: "zlib" | "gzip"): Prom
     const pump = (async () => {
       const writer = stream.writable.getWriter();
       try {
-        await writer.write(payload);
+        // 复制一份：流 API 要求 BufferSource 背后是 ArrayBuffer，而传入的视图
+        // 可能挂在 SharedArrayBuffer 上；这里只多一次压缩路径上的拷贝。
+        await writer.write(new Uint8Array(payload));
         await writer.close();
       } catch {
         /* 读端会报同一个错误，见下 */
@@ -610,7 +607,9 @@ async function deflatePayload(payload: Uint8Array, codec: "zlib" | "gzip"): Prom
     const pump = (async () => {
       const writer = stream.writable.getWriter();
       try {
-        await writer.write(payload);
+        // 复制一份：流 API 要求 BufferSource 背后是 ArrayBuffer，而传入的视图
+        // 可能挂在 SharedArrayBuffer 上；这里只多一次压缩路径上的拷贝。
+        await writer.write(new Uint8Array(payload));
         await writer.close();
       } catch {
         /* 读端会报同一个错误 */
@@ -820,7 +819,7 @@ export async function encodeNlf(frame: Frame, opts?: { codec?: "none" | "zlib" }
     throw new NlfError(`header 过大：${headerBytes.byteLength} 字节 > ${MAX_HEADER_LEN}`);
   }
 
-  let body = payload;
+  let body: Uint8Array = payload;
   if (codec === "zlib") body = await deflatePayload(payload, "zlib");
   else if (codec === "gzip") body = await deflatePayload(payload, "gzip");
 
