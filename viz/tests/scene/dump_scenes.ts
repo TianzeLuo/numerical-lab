@@ -36,6 +36,7 @@ interface Args {
   height: number;
   json: boolean;
   maxHistory: number;
+  chapter: string;
 }
 
 function parseArgs(argv: string[]): Args {
@@ -50,6 +51,7 @@ function parseArgs(argv: string[]): Args {
     height: Number.parseInt(get("height", "600"), 10),
     json: argv.includes("--json"),
     maxHistory: Number.parseInt(get("max-history", "60"), 10),
+    chapter: get("chapter", ""),
   };
 }
 
@@ -88,7 +90,12 @@ function main(): number {
   const skipped: { chapter: string; viz: string; reason: string }[] = [];
   const problems: string[] = [];
 
+  // `--chapter 1.2`：只转储指定章节。并发开发时别的章节随时可能处于半成品状态，
+  // 而"我只想看我这一章的图"不该被别人的中间态拖成一次失败（与 tools/visual_regression.py、
+  // tools/precompute.py 的 `--chapter` 同一条规矩）。
+  const only = args.chapter ? new Set(args.chapter.split(",").map((c) => c.trim()).filter(Boolean)) : null;
   for (const [chapter, bundle] of Object.entries(chapterModels)) {
+    if (only && !only.has(chapter)) continue;
     for (const viz of bundle.manifest.vizzes) {
       const model = bundle.models[viz.id];
       if (!model) {
