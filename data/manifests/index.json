@@ -197,6 +197,37 @@
       ]
     },
     {
+      "chapter": "3.3",
+      "hasModule": true,
+      "nViz": 4,
+      "notesFile": "chapters/3.3/notes.tex",
+      "part": "III",
+      "summary": "哈密顿系统的数值解有两种错法：辛方法的能量误差在一条**带**里来回振荡（不随时间长大），非辛方法的能量误差**线性漂移**（RK4 单调掉、显式 Euler 指数涨）。本章把这句话变成三个可测的数：带宽、漂移率、以及漂移率与 h 的幂律。",
+      "title": "几何数值积分与长期行为",
+      "vizzes": [
+        "energy_drift_duel",
+        "phase_orbit",
+        "modified_hamiltonian",
+        "long_term_orbit"
+      ]
+    },
+    {
+      "chapter": "3.5",
+      "hasModule": true,
+      "nViz": 5,
+      "notesFile": "chapters/3.5/notes.tex",
+      "part": "III",
+      "summary": "相空间里的轨道、分岔图上的窗口、Lyapunov 指数的正负，三件事说的是同一件事：相邻轨道分不分开。本章每一步都给实测：1e-8 的初值差多久分开（以及步长减半后这个数是否还站得住）、周期窗口的闭合残差、λ 估计的分块标准误、截面点离平面多远。",
+      "title": "动力系统、分岔与混沌",
+      "vizzes": [
+        "lorenz_butterfly",
+        "bifurcation_logistic",
+        "lyapunov_overlay",
+        "poincare_section",
+        "phase_portrait"
+      ]
+    },
+    {
       "chapter": "4.1",
       "hasModule": true,
       "nViz": 4,
@@ -210,8 +241,23 @@
         "numerical_dissipation",
         "boundary_conservation"
       ]
+    },
+    {
+      "chapter": "5.1",
+      "hasModule": true,
+      "nViz": 4,
+      "notesFile": "chapters/5.1/notes.tex",
+      "part": "V",
+      "summary": "梯度下降的条件数依赖、牛顿法的二次收敛（以及它在什么条件下**不**成立）、BFGS/L-BFGS 的割线方程与正定性、非线性共轭梯度、信赖域半径自适应、鞍点与负曲率。",
+      "title": "无约束优化与拟牛顿",
+      "vizzes": [
+        "descent_race",
+        "convergence_rates",
+        "saddle_escape",
+        "trust_region_radius"
+      ]
     }
   ],
-  "count": 14,
-  "totalViz": 57
+  "count": 17,
+  "totalViz": 70
 }

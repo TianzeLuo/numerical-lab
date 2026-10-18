@@ -10,7 +10,7 @@ export interface ChapterModels {
 }
 
 /** 已经实现可视化的章节 id（未实现的不在表里；判断「能不能点」看它，不需要加载 model） */
-export const chapterIds: string[] = ["0.0", "1.1", "1.2", "1.3", "1.5", "2.1", "2.2", "2.3", "3.2"];
+export const chapterIds: string[] = ["0.0", "1.1", "1.2", "1.3", "1.4", "1.5", "2.1", "2.2", "2.3", "2.4", "3.1", "3.2"];
 
 /** 章节 id → 加载器（动态 import：坏掉的兄弟章节不会拖垮整包） */
 const loaders: Record<string, () => Promise<ChapterModels>> = {
@@ -18,10 +18,13 @@ const loaders: Record<string, () => Promise<ChapterModels>> = {
   "1.1": () => import("./1.1/index.js"),
   "1.2": () => import("./1.2/index.js"),
   "1.3": () => import("./1.3/index.js"),
+  "1.4": () => import("./1.4/index.js"),
   "1.5": () => import("./1.5/index.js"),
   "2.1": () => import("./2.1/index.js"),
   "2.2": () => import("./2.2/index.js"),
   "2.3": () => import("./2.3/index.js"),
+  "2.4": () => import("./2.4/index.js"),
+  "3.1": () => import("./3.1/index.js"),
   "3.2": () => import("./3.2/index.js"),
 };
 

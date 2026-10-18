@@ -107,12 +107,36 @@ export const chapterIndex: ChapterIndexEntry[] = [
     "vizzes": ["stability_region", "stiff_dilemma", "stability_surface", "explicit_vs_implicit", "bdf_angle"],
   },
   {
+    "chapter": "3.3",
+    "nViz": 4,
+    "part": "III",
+    "summary": "哈密顿系统的数值解有两种错法：辛方法的能量误差在一条**带**里来回振荡（不随时间长大），非辛方法的能量误差**线性漂移**（RK4 单调掉、显式 Euler 指数涨）。本章把这句话变成三个可测的数：带宽、漂移率、以及漂移率与 h 的幂律。",
+    "title": "几何数值积分与长期行为",
+    "vizzes": ["energy_drift_duel", "phase_orbit", "modified_hamiltonian", "long_term_orbit"],
+  },
+  {
+    "chapter": "3.5",
+    "nViz": 5,
+    "part": "III",
+    "summary": "相空间里的轨道、分岔图上的窗口、Lyapunov 指数的正负，三件事说的是同一件事：相邻轨道分不分开。本章每一步都给实测：1e-8 的初值差多久分开（以及步长减半后这个数是否还站得住）、周期窗口的闭合残差、λ 估计的分块标准误、截面点离平面多远。",
+    "title": "动力系统、分岔与混沌",
+    "vizzes": ["lorenz_butterfly", "bifurcation_logistic", "lyapunov_overlay", "poincare_section", "phase_portrait"],
+  },
+  {
     "chapter": "4.1",
     "nViz": 4,
     "part": "IV",
     "summary": "热方程 θ 族格式的全部结论都挂在一个数上：放大因子 G(φ)。显式的 r ≤ 1/2、隐式的无条件稳定、CN 的二阶、数值耗散掉得最快的是短波——都是 G(φ) 的不同侧面。这一章把三条证据链并排放：解析的 G(φ)、从真的解里分解出来的逐模态存活率、以及二分实测的稳定阈值。三个最容易被骗的地方也都标出来了：r ≤ 1/2 不是普适常数、稳定不等于精确、解看起来光滑不等于收敛。",
     "title": "抛物型方程与时间推进",
     "vizzes": ["stability_threshold", "convergence_order", "numerical_dissipation", "boundary_conservation"],
+  },
+  {
+    "chapter": "5.1",
+    "nViz": 4,
+    "part": "V",
+    "summary": "梯度下降的条件数依赖、牛顿法的二次收敛（以及它在什么条件下**不**成立）、BFGS/L-BFGS 的割线方程与正定性、非线性共轭梯度、信赖域半径自适应、鞍点与负曲率。",
+    "title": "无约束优化与拟牛顿",
+    "vizzes": ["descent_race", "convergence_rates", "saddle_escape", "trust_region_radius"],
   },
 ];
 
