@@ -1,0 +1,25 @@
+/**
+ * `butterfly_stages` 的挂载入口（章节可视化 → 页面）。理由同 1.2 章的 `lu_heatmap.viz.ts`：
+ * model 是纯函数（Frame→Scene），这一层只负责把 manifest spec、model 与宿主元素交给 `mountViz`。
+ *
+ * radix-2 分级：逐级轨迹（左列上）、逐级残差与 |FFT−DFT| 参照线（左列下）、位反序重排后的 |X_k|（右列整高）。
+ * **本章唯一带时间轴**：`mode="scrub"`，`t ∈ [0, 1]` 映射到级号 `round(t·log2N)`；
+ * 画面以帧 `meta.stage` 为准，请求 t 与实到级不一致时在正文里说明（不假装 t 就是级号）。
+ */
+
+import type { VizView, VizViewOptions } from "../../shared/src/view.js";
+import { mountViz } from "../../shared/src/view.js";
+import { manifest } from "./manifest.gen.js";
+import { butterflyStagesModel } from "./butterfly_stages.model.js";
+
+export const vizId = "butterfly_stages";
+
+export function vizSpec() {
+  const spec = manifest.vizzes.find((v) => v.id === vizId);
+  if (!spec) throw new Error(`manifest 里没有 ${vizId}（manifest.gen.ts 需要重新生成？）`);
+  return spec;
+}
+
+export function mount(host: HTMLElement, opts: Partial<VizViewOptions> = {}): Promise<VizView> {
+  return mountViz({ manifest, viz: vizSpec(), model: butterflyStagesModel, host, ...opts });
+}

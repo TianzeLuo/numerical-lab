@@ -147,6 +147,14 @@ export const chapterIndex: ChapterIndexEntry[] = [
     "vizzes": ["stability_threshold", "convergence_order", "numerical_dissipation", "boundary_conservation"],
   },
   {
+    "chapter": "4.2",
+    "nViz": 4,
+    "part": "IV",
+    "summary": "平流方程的离散误差分成两种脸：耗散把波压矮、色散在后面拖尾巴，而它们都来自同一个对象 G(φ) 的对数展开。这一章把四条证据链并排放：真跑出来的解、逐波数的相速度、限制器函数与总变差、以及长时波包的包络。三个最容易被骗的地方也标出来了：相速度必须逐波数谈（谈「格式的相速度」没有意义）；「限制了斜率」不等于「解更好看」（限制器只在极值处退化，且 CFL 是 TVD 的必要条件）；二阶格式在间断处一定起振（Godunov 定理），「起振」不是 bug 而是定理的结论。",
+    "title": "双曲型方程：色散、耗散与限制器",
+    "vizzes": ["scheme_zoo", "phase_error", "limiter_interaction", "packet_long_time"],
+  },
+  {
     "chapter": "4.4",
     "nViz": 4,
     "part": "IV",
@@ -169,6 +177,14 @@ export const chapterIndex: ChapterIndexEntry[] = [
     "summary": "梯度下降的条件数依赖、牛顿法的二次收敛（以及它在什么条件下**不**成立）、BFGS/L-BFGS 的割线方程与正定性、非线性共轭梯度、信赖域半径自适应、鞍点与负曲率。",
     "title": "无约束优化与拟牛顿",
     "vizzes": ["descent_race", "convergence_rates", "saddle_escape", "trust_region_radius"],
+  },
+  {
+    "chapter": "5.2",
+    "nViz": 4,
+    "part": "V",
+    "summary": "病态性与奇异值衰减、Tikhonov 与谱滤波因子、L 曲线与广义交叉验证、TSVD、迭代正则化与早停、全变差、偏差-方差分解——以及「最优 lambda 是按什么准则最优」这一句必须被实测数字钉死的话。",
+    "title": "反问题与正则化",
+    "vizzes": ["lcurve_tradeoff", "filter_shapes", "image_deconvolution", "bias_variance"],
   },
 ];
 
