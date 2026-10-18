@@ -1,0 +1,260 @@
+# 4.2 章断言清单（真源：`tests/4.2/test_advection.py` 与 `tests/4.2/test_limiters.py`）
+#
+# 这一章分两半测：
+#   * **格式与符号**（test_advection.py）：闭式符号 vs 实空间算子乘子、修正方程系数两条
+#     独立路线对拍、真推进的相位 vs 解析相速度、迎风黏性闭式 vs Richardson 极限、
+#     矩恒等式与 Godunov 界、CFL 边界、ν=1 的精确平移、Burgers 激波速度 vs
+#     Rankine–Hugoniot——A 类与 C 类。
+#   * **限制器与总变差**（test_limiters.py）：Sweby 区域逐点核对、φ(1)=1 与"在区域内"
+#     的分离（limiter=none 是反例）、对称性 φ(1/r)=φ(r)/r、r<0 必须为 0、
+#     TVD 在 ν≤1 成立 / ν>1 破裂、过冲/欠冲把限制器与无条件二阶格式分开、
+#     TVD≠单调、极限数值黏性、限制器不恢复二阶、削波宽度亚线性——A 类与 C 类。
+#
+# 帧级（tests/4.2/test_frames.py）另测"帧会不会撒谎"：角点有限性、掩码自洽、
+# meta 与 numcore 闭式一致、requiredAux 齐备、t=0 不是缓存副本——这些不进断言报告。
+#
+# 实测规模（最近一次 `python3 -m pytest tests/4.2 -q`）：A 26 条、B 7 条、C 6 条，
+# 共 39 条，全部通过（47 个测试函数；帧级契约测试不进断言报告）。
+# `docs/chapters.yaml` 对 4.2 声明 `asserts: [A, B, C]`，三类都有：
+#   * B 类是四条形如"守恒 / 极值原理 / 判据与实测一致 / 限制器只能削"的不变量，
+#     它们**不需要**解析靶子，但不能单独构成结论——每一条都配着 A 或 C 的读数。
+# min_counts 留了余量：记录条数会随多对拍一个格式/一个 ν 而增减，
+# 余量避免"算法没坏、清单先红"。
+chapter: "4.2"
+title: 双曲型方程：色散、耗散与限制器
+required_kinds: [A, B, C]
+
+min_counts:
+  A: 24
+  B: 6
+  C: 5
+
+tests:
+  # ------------------------------------------------------- 格式与符号（A）
+  - name: test_symbol_matches_the_real_space_operator
+    kind: A
+    what: >-
+      五个格式的闭式 G(φ) 与"把格式当循环算子作用在 e^{iφj} 上"的乘子逐位一致
+    theory: >-
+      G(φ) 是循环算子的特征值；闭式与数值乘子必须一致到舍入（实测最大相对差 2.830e-16）
+
+  - name: test_downwind_is_the_known_branch_counterexample
+    kind: A
+    what: >-
+      downwind 的闭式与实空间算子差 1.94e+00（upwind 只差 1.63e-16）
+    theory: >-
+      downwind 的闭式取的是解析延拓的另一支；反例必须留在测试里，防止有人"顺手"把它改成迎风
+
+  - name: test_log_symbol_coefficients_agree_with_an_independent_extraction
+    kind: A
+    what: >-
+      (d2,a3,d4) 的闭式与"从 ln G 残差反解"的独立路线最大差 ≤2.2e-7
+    theory: >-
+      κ=−ln|G|=d₂φ²+d₄φ⁴+…、−arg G=νφ+a₃φ³+a₅φ⁵+…；两条路线不共享代码
+
+  - name: test_upwind_viscosity_closed_form_matches_the_measurement
+    kind: A
+    what: >-
+      迎风闭式 D=aΔx(1−ν)/2 与 Richardson 极限实测的相对差 ≤4.2e-11；ν=1 时一步平移一格
+    theory: >-
+      Taylor 展开迎风格式并用 u_tt=a²u_xx 消时间导数
+
+  - name: test_measured_phase_speed_matches_the_symbol
+    kind: A
+    what: >-
+      真推进（余弦初值 + (cos,sin) 投影）测出的相速度比与解析符号差 ≤5e-15
+    theory: >-
+      单模态推进就是乘 G^n；相位增量 −arg G 除以 νφ
+
+  - name: test_phase_speed_expansion_is_only_valid_for_small_phi
+    kind: A
+    what: >-
+      预测在 φ=0.02 上差 1.3e-14、φ=2.0 上差 1.7e-2；中间区间偏差按 φ^3.9 长大
+    theory: >-
+      级数收敛半径由 1−4ν(1−ν)sin²(φ/2)=0 限制（ν=0.4 时 |φ|≈0.4），但"半径"不等于"误差立刻变大"
+
+  - name: test_godunov_moment_identity_separates_monotone_from_second_order
+    kind: A
+    what: >-
+      m0=1；定向格式 m1=−ν（中心差分 m1=+ν）；单调 ⟹ m2∈[ν²,ν²+1/4]；与二阶要求 m2=2 的差 1.6
+    theory: >-
+      单调 + 相容 ⟹ 方差 σ²=m2−ν²=μ₁μ₂≤1/4；这就是 Godunov 定理在矩上的样子
+
+  - name: test_amplification_bounds_follow_the_closed_forms
+    kind: A
+    what: >-
+      三条 |G| 闭式与符号逐点差 ≤4.7e-16；中心差分在任何 ν 下 max|G|>1；BW 与 LW 的 |G| 差 0.72
+    theory: >-
+      迎风 |G|²=1−4ν(1−ν)sin²(φ/2)；中心 |G|²=1+ν²sin²φ；LW |G|²=1−2ν²ψ+ν⁴ψ²+ν²sin²φ（ψ=1−cos φ）
+
+  - name: test_richardson_limit_reproduces_known_limits
+    kind: A
+    what: >-
+      偶数幂函数被外推精确消掉（≤1e-12）；含 h³ 的项消不掉，剩余误差按 h³ 掉（斜率 3.0000）
+    theory: >-
+      三级 r=2 外推只消偶次幂列，h³ 是设计边界而不是 bug
+
+  - name: test_burgers_shock_speed_matches_rankine_hugoniot
+    kind: A
+    what: >-
+      实测激波位置对时间线性拟合得 0.50000711，RH 闭式 0.5，相对差 1.4e-5
+    theory: >-
+      守恒律的激波速度由跳跃条件唯一确定，与数值格式无关
+
+  - name: test_unit_cfl_is_exact_for_the_three_schemes
+    kind: A
+    what: >-
+      ν=1 时迎风/LW/BW 走 37 步后与精确平移逐位重合（≤1e-11）
+    theory: >-
+      ν=1 时 G(φ)=e^{−iφ}，格式退化成恒等平移
+
+  # ------------------------------------------------------- 限制器（A）
+  - name: test_limiter_functions_lie_in_the_sweby_region
+    kind: A
+    what: >-
+      9 个限制器在 r∈[0,6] 上全部落在 [0,min(2r,2)] 内；r<0 上 |φ| 上确界为 0
+    theory: >-
+      Sweby 区域是 TVD 的充分条件；r<0（极值处）要求 φ=0
+
+  - name: test_sweby_region_is_not_sufficient_for_second_order
+    kind: A
+    what: >-
+      limiter=none 的 φ≡0 也在 Sweby 区内（φ(1)=0）；其余 9 个都有 φ(1)=1
+    theory: >-
+      "在区域内"保证 TVD，"φ(1)=1"才是二阶；两个条件独立
+
+  - name: test_symmetric_limiters_are_self_consistent
+    kind: A
+    what: >-
+      7 个对称限制器满足 φ(1/r)=φ(r)/r（≤1e-12）；minmod 与逐点判据差 ≤1e-15
+    theory: >-
+      对称性是按公式算出来的，不是按名字分的——koren/osher/umist 实测不对称
+
+  - name: test_tvd_holds_below_cfl_and_fails_above
+    kind: A
+    what: >-
+      ν=0.4/0.9/0.99/1.0 时 TVD 成立；ν=1.01 时 umax=1.4889、ν=1.1 时 umax=172.4
+    theory: >-
+      TVD 的证明要用 CFL（新值是旧值的凸组合）；ν>1 时凸性丢失，限制器管不住增长
+
+  - name: test_overshoot_separates_tvd_from_plain_second_order
+    kind: A
+    what: >-
+      5 个 TVD 限制器 over=under=0（TV 1.9999–2.0000）；迎风 TV=1.9981 over=0； 中心差分 over=0.2796/under=0.3712、TV=11.0820
+    theory: >-
+      TVD ⟹ 不产生新极值 ⟹ over=under=0；但反过来不成立（一阶迎风也 over=0）
+
+  - name: test_tvd_does_not_imply_monotonicity
+    kind: A
+    what: >-
+      TVD 成立（rel ≤1e-12）的同时解里仍有平台与极值
+    theory: >-
+      TVD 是总变差的非增性，不是逐点单调性
+
+  - name: test_max_tv_increase_reports_the_worst_frame
+    kind: A
+    what: >-
+      5 个限制器 40 步内 TV 的最大增量都在 1e-12 相对容差内
+    theory: >-
+      TVD 要求逐帧 TV 不增；max_tv_increase 必须报出最坏的那一帧（含帧号）
+
+  - name: test_limiter_reduces_the_leading_viscosity
+    kind: A
+    what: >-
+      MUSCL 极限数值黏性：none 0.3（= (1−ν)/2）、minmod 1.46e-3、mc 0、superbee −1.46e-3、vanleer 5e-7
+    theory: >-
+      none 退化成迎风；启用限制器后前导黏性降到 1e-3 量级，这就是二阶性的来源
+
+  # ------------------------------------------------------- 不变量（B）
+  - name: test_conservative_schemes_conserve_total_mass
+    kind: B
+    what: >-
+      四种格式 50 步后总质量漂移 <1e-12（周期域）
+    theory: >-
+      周期域上 Σ_j L(u)_j = 0（通量望远镜求和），所以离散质量逐位守恒
+
+  - name: test_tvd_schemes_do_not_grow_the_max_norm
+    kind: B
+    what: >-
+      6 个 MUSCL 限制器 60 步后 max|u| 的增长 ≤0（MC/superbee 恰好到 1.0，不越过）
+    theory: >-
+      TVD ⟹ 不产生新极值 ⟹ max 范数不增
+
+  - name: test_is_stable_flag_matches_actual_growth
+    kind: B
+    what: >-
+      is_stable 的判定与 200 步真推进是否增长逐例一致（含 ν=1.01 的越界例）
+    theory: >-
+      |G(φ)|≤1 对所有 φ 成立 ⟺ 单步不放大 ⟹ 任意步数不放大
+
+  - name: test_limited_slope_is_bounded_by_the_unlimited_one
+    kind: B
+    what: >-
+      5 个限制器的 |限制后斜率|/|Δu_+| 上确界 ≤2
+    theory: >-
+      φ(r) ≤ min(2r,2) ⟹ |φ(r)Δu_+| ≤ 2|Δu_+|；限制器只能把斜率削小，不能放大
+
+  - name: test_max_abs_symbol_is_the_supremum_of_the_scan
+    kind: B
+    what: >-
+      max_abs_symbol 与 20001 点扫描的上确界差 <1e-6
+    theory: >-
+      max_abs_symbol 是解析上确界；离散扫描只能逼近它，差应可忽略
+
+  - name: test_all_declared_names_resolve
+    kind: B
+    what: >-
+      limiters/advection 的 __all__ 里每个名字都能解析（这条是被一个真错抓出来的：
+      limiters.__all__ 曾列了不存在的 limiter_values）
+    theory: >-
+      __all__ 是模块的公开契约，import * 会逐个取；缺一个就当场 ImportError
+
+  - name: test_limiter_values_matches_limiter_phi_with_a_mask
+    kind: B
+    what: >-
+      limiter_values 与 limiter_phi 在含 nan/inf 的 r 上逐位相同（差 0.0），掩码只标有限性
+    theory: >-
+      薄封装只加掩码不改取值；nan/inf 由 _ratio_branch 折到 0/big，取值仍有限
+
+  # ------------------------------------------------------- 阶与阈值（C）
+  - name: test_measured_orders_at_fixed_cfl
+    kind: C
+    what: >-
+      固定 ν=0.4、nx=40→320：upwind 0.984、LW 0.996、BW 1.001、centered 2.000
+    theory: >-
+      这个口径量的是含时间误差的总阶；前三个的前导误差是奇次项 ⟹ 约 1
+
+  - name: test_godunov_order_bound_is_measured_not_assumed
+    kind: C
+    what: >-
+      迎风在 ν=0.1…0.9 上的实测阶上确界 <1.05，且全部判定为单调
+    theory: >-
+      线性 + 单调 + 相容 ⟹ 至多一阶（Godunov）
+
+  - name: test_cfl_boundary_behaviour
+    kind: C
+    what: >-
+      迎风/LW 在 ν=0.99/1.00 时 max|G|≤1、ν=1.01 时 >1；中心差分恒 >1； BW 在 ν=1.01 时 max|G| 仍是 1.0（越界表现为相速度错）
+    theory: >-
+      |G|≤1 ⟺ ν≤1 只对迎风/LW 这类格式成立；"CFL 是充要条件"不能一概而论
+
+  - name: test_measure_decay_coefficient_finds_the_right_leading_order
+    kind: C
+    what: >-
+      迎风实测 d2、LW/BW 实测 d4，与闭式的相对差 <1e-4
+    theory: >-
+      d2≠0 时前导是 φ² 阶，d2=0 时是 φ⁴ 阶；归一化选错就会得到 0 或发散
+
+  - name: test_limiter_does_not_restore_second_order_on_smooth_data
+    kind: C
+    what: >-
+      MUSCL+minmod 在光滑正弦上的阶只有 1.0337（muscl/none 与纯迎风逐位相同，阶 0.9795）
+    theory: >-
+      限幅器在光滑极值处退化为一阶，那一小段主导截断误差；"装了限制器就二阶"是错的
+
+  - name: test_shock_smearing_width_is_sublinear
+    kind: C
+    what: >-
+      minmod 的削波宽度从 0.3906 收缩到 0.1250，幂律指数 0.5495（比一阶还慢）
+    theory: >-
+      TVD 的代价是间断永远被抹开；实测收缩率不要按"一阶 ⟹ p=1"去预期

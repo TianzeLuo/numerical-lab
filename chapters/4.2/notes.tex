@@ -1,0 +1,706 @@
+% 4.2 章 · 双曲型方程：色散、耗散与限制器
+% 这一章把「平流方程怎么往前推」的全部结论挂在同一个对象上：放大因子 G(φ)。
+%   五种格式 → G(φ) 的闭式 → 修正方程系数 → 相速度与数值黏性 → 波包 → TVD 限制器。
+% 每个定理后面都给本章断言里的**实测数字**，纸面结论与机器结论同源。
+% 断言附表由 tools/build_book.py 从实际运行结果生成，\input 进来，不手抄。
+
+\numlabchapter{双曲型方程：色散、耗散与限制器}{4.2}
+
+\section{这一章要解决什么}
+
+一维平流方程
+\begin{equation}
+  u_t+a\,u_x=0,\qquad x\in(0,L),\ t>0,\qquad u(x,0)=u_0(x)
+  \label{eq:adv}
+\end{equation}
+是双曲型方程的原型。取 $a=1$、域长 $L=1$、周期边界，则精确解就是刚性平移
+$u(x,t)=u_0(x-t)$：\textbf{波形一点不变，只是位置移动}。这个"什么都不变"的精确解
+让比较变得毫不含糊——任何偏离都是离散化的产物——但也正因为如此，它几乎
+复制了热方程那一章的全部陷阱，而且多出两个：
+
+\begin{enumerate}
+  \item \textbf{耗散与色散是两张不同的脸。} 热方程只有耗散（曲线被压矮、变光滑）；
+        平流的离散误差可以只改相位而不改幅值（曲线在错误的位置上，
+        幅值一点不掉，或者后面拖一条振荡的尾巴）。把两者混成一个词"误差大"，
+        就再也说不清为什么迎风把方波抹成斜坡、而 Lax--Wendroff 把它弄出一圈振铃。
+  \item \textbf{间断处没有"更好的格式"。} Godunov 定理（定理~\ref{thm:godunov}）
+        说：线性、单调、相容的格式至多一阶。想要二阶，就必须放弃单调，
+        于是必须起振；不想起振，就得在极值处主动降阶——这就是限制器
+        （第~\ref{sec:tvd}~节）。两条路都通，但没有第三条。
+\end{enumerate}
+
+记号：$\nu=a\Delta t/\Delta x$ 是 CFL 数，$\varphi=k\Delta x\in[0,\pi]$ 是无量纲波数
+（$\pi$ 是网格能表示的最短波，Nyquist），$\psi=1-\cos\varphi$，
+$s^2=\sin^2(\varphi/2)$，$u=\frac12\varepsilon_{\text{mach}}=2^{-53}$，
+$c_{\text{num}}/c$ 是数值相速度与真相速度之比，$r=\Delta_-u/\Delta_+u$ 是斜率比。
+所有"实测"数字都来自 \texttt{tests/4.2/} 的断言报告（A 26 条、B 7 条、C 6 条，共 39 条）。
+
+\section{五种格式与它们的放大因子}
+
+\begin{definition}[格式的统一样子]
+\label{def:schemes}
+把~\eqref{eq:adv}的显式格式都写成循环卷积
+\begin{equation}
+  u_j^{n+1}=\sum_{k}c_k\,u_{j+k}^{n},
+  \label{eq:circulant}
+\end{equation}
+即"系数 $c_k$ 的模板作用在 $u^n$ 上"。代入单模态 $u_j^n=G^n e^{\,i\varphi j}$ 得
+\begin{equation}
+  G(\varphi)=\sum_k c_k\,e^{\,i\varphi k},
+  \label{eq:G}
+\end{equation}
+这个 $G$ 就是格式的\textbf{放大因子}（循环算子的特征值）。本章的五个模板是
+\begin{align}
+  \text{迎风（upwind）}:\quad & c_{-1}=\nu,\quad c_0=1-\nu, \notag\\
+  \text{中心（centered）}:\quad & c_{-1}=\tfrac{\nu}{2},\quad c_0=0,\quad c_1=-\tfrac{\nu}{2}, \notag\\
+  \text{Lax--Wendroff}:\quad & c_{-1}=\tfrac{\nu(1+\nu)}{2},\quad c_0=1-\nu^2,\quad c_1=\tfrac{\nu(\nu-1)}{2},
+  \label{eq:templates}\\
+  \text{Beam--Warming}:\quad & c_{-2}=\tfrac{\nu(\nu-1)}{2},\quad c_{-1}=\nu(2-\nu),\quad c_0=\tfrac{(\nu-1)(\nu-2)}{2}, \notag\\
+  \text{MUSCL}:\quad & \text{见第\ref{sec:tvd}节的通量形式（非线性）} . \notag
+\end{align}
+\end{definition}
+
+\begin{theorem}[$G$ 的闭式]
+\label{thm:Gclosed}
+对~\eqref{eq:templates}的四个格式，
+\begin{align}
+  G_{\text{up}}&=1-\nu\bigl(1-e^{-i\varphi}\bigr), &
+  |G_{\text{up}}|^2&=1-4\nu(1-\nu)\,s^2,
+  \label{eq:Gup}\\
+  G_{\text{ce}}&=1-i\nu\sin\varphi, &
+  |G_{\text{ce}}|^2&=1+\nu^2\sin^2\varphi,
+  \label{eq:Gce}\\
+  G_{\text{LW}}&=1-\nu^2\psi-i\nu\sin\varphi, &
+  |G_{\text{LW}}|^2&=1-\nu^2(2-\nu^2)\psi+\nu^4\psi^2,
+  \label{eq:Glw}\\
+  G_{\text{BW}}&=e^{-i\varphi}\bigl[\,1-\nu^2\psi+i\nu\sin\varphi\,\bigr], &
+  |G_{\text{BW}}|^2&=|G_{\text{LW}}|^2 .
+  \label{eq:Gbw}
+\end{align}
+\end{theorem}
+
+\begin{proof}
+\eqref{eq:Gup} 与 \eqref{eq:Gce} 直接由~\eqref{eq:G}~代入模板得到。
+对中心差分：
+\begin{equation}
+  G_{\text{ce}}=\tfrac{\nu}{2}e^{-i\varphi}-\tfrac{\nu}{2}e^{i\varphi}=-\tfrac{\nu}{2}\cdot 2i\sin\varphi=1-i\nu\sin\varphi .
+\end{equation}
+（常数项 $c_0=0$，但循环卷积里"不动"的那一项总在，故写成 $1-i\nu\sin\varphi$
+而不是 $-i\nu\sin\varphi$——这是把 $u^{n+1}-u^n$ 的写法并进 $u^{n+1}$ 里的结果。）
+取模得 $|G_{\text{ce}}|^2=1+\nu^2\sin^2\varphi$。
+
+对 Lax--Wendroff，记 $A=1-\nu^2\psi$，则 $G_{\text{LW}}=A-i\nu\sin\varphi$，于是
+\begin{equation}
+  |G_{\text{LW}}|^2=A^2+\nu^2\sin^2\varphi
+  =1-2\nu^2\psi+\nu^4\psi^2+\nu^2(1-\cos^2\varphi).
+\end{equation}
+把 $\sin^2\varphi=1-\cos^2\varphi=(1-\cos\varphi)(1+\cos\varphi)=\psi(2-\psi)$ 代入最后一项：
+\begin{equation}
+  |G_{\text{LW}}|^2=1-2\nu^2\psi+\nu^4\psi^2+\nu^2\psi(2-\psi)
+  =1-\nu^2(2-\nu^2)\psi+\nu^4\psi^2 .
+\end{equation}
+
+对 Beam--Warming，把~\eqref{eq:templates}的系数代入~\eqref{eq:G}：
+\begin{equation}
+  G_{\text{BW}}=\tfrac{\nu(\nu-1)}{2}e^{-2i\varphi}+\nu(2-\nu)e^{-i\varphi}
+  +\tfrac{(\nu-1)(\nu-2)}{2}.
+\end{equation}
+逐项与 $\bigl[1-\nu^2\psi+i\nu\sin\varphi\bigr]e^{-i\varphi}$ 比较即可（两边都是
+$e^{-2i\varphi},e^{-i\varphi},1$ 的线性组合，比较三个系数）。取模时 $|e^{-i\varphi}|=1$，
+故 $|G_{\text{BW}}|^2=|G_{\text{LW}}|^2$。
+
+\textbf{实测}：三条闭式与逐点扫描的 $|G|$ 相差 $\le4.7\times10^{-16}$
+（断言 \texttt{test\_amplification\_bounds\_follow\_the\_closed\_forms}）。
+注意 \eqref{eq:Gbw} 的结论**只是 $|G|$ 相同**，$G$ 本身不同：
+Beam--Warming 的辐角与 Lax--Wendroff 差一个 $-\varphi$，即群速度差一个格点，
+这正是它"相位超前"的来源（见第~\ref{sec:disp}节）。
+\end{proof}
+
+\begin{theorem}[稳定判据]
+\label{thm:stable}
+$|G_{\text{up}}(\varphi)|\le1$ 对一切 $\varphi$ 成立，当且仅当 $0\le\nu\le1$；
+$|G_{\text{LW}}|=|G_{\text{BW}}|$ 同样当且仅当 $|\nu|\le1$。
+中心差分对\textbf{任何} $\nu>0$ 都有 $|G_{\text{ce}}|>1$（除 $\varphi=0,\pi$）。
+\end{theorem}
+
+\begin{proof}
+迎风：$|G_{\text{up}}|^2=1-4\nu(1-\nu)s^2\le1$ 对一切 $s^2\in[0,1]$ 成立
+$\iff\nu(1-\nu)\ge0\iff0\le\nu\le1$。
+Lax--Wendroff：由~\eqref{eq:Glw}，$|G_{\text{LW}}|^2$ 是 $\psi\in[0,2]$ 的二次函数
+$f(\psi)=1-\nu^2(2-\nu^2)\psi+\nu^4\psi^2$，且 $f(0)=1$、$f(2)=(1-2\nu^2)^2\ge0$。
+$f$ 的对称轴在 $\psi^\ast=(2-\nu^2)/(2\nu^2)$：$\nu<1$ 时 $\psi^\ast>1/2$，
+最小值在 $\psi=2$ 处取到（若 $\psi^\ast\ge2$，即 $\nu^2\le2/5$）
+或在 $f(\psi^\ast)=1-\tfrac14(2-\nu^2)^2$ 处取到。后者 $\ge0\iff(2-\nu^2)^2\le4
+\iff\nu^2\ge0$，恒成立；两者都 $\le f(0)=1$，故 $|G_{\text{LW}}|\le1\iff|\nu|\le1$。
+中心：$|G_{\text{ce}}|^2=1+\nu^2\sin^2\varphi>1$ 只要 $\nu>0$ 且 $\varphi\notin\{0,\pi\}$。
+
+\textbf{实测}：$\nu=0.99/1.00/1.01$ 处的 $\max|G|$，迎风 $1.0/1.0/1.02$、
+Lax--Wendroff $1.0/1.0/1.0402$、中心差分 $1.407/1.414/1.421$、
+Beam--Warming $1.0/1.0/1.0$（断言 \texttt{test\_cfl\_boundary\_behaviour}）。
+
+\textbf{最后一个数是个警告}：Beam--Warming 在 $\nu=1.01$ 上 $\max|G|$ 仍是 $1.0$，
+因为它把 $|\nu|$ 代进模板（见~\eqref{eq:templates}，$\nu(2-\nu)$ 在 $\nu>1$ 时变号但模不变）。
+"$\max|G|\le1$"因此\textbf{不是}稳定性的充分条件——
+它只是必要条件，真正的稳定性还要算子族一致有界。
+\end{proof}
+
+\begin{theorem}[$\nu=1$ 的精确性]
+\label{thm:unitcfl}
+$\nu=1$ 时 $G_{\text{up}}=G_{\text{LW}}=G_{\text{BW}}=e^{-i\varphi}$，
+三个格式都是\textbf{精确}的恒等平移：$u_j^{n+1}=u_{j-1}^{n}$。
+\end{theorem}
+
+\begin{proof}
+$\nu=1$ 时迎风模板给 $c_{-1}=1$、$c_0=0$，故 $G=e^{-i\varphi}$。
+Lax--Wendroff 给 $c_{-1}=1$、$c_0=c_1=0$；Beam--Warming 给 $c_{-2}=0$、$c_{-1}=1$、$c_0=0$。
+三者都退化成同一件事：把数组整体平移一格。
+
+\textbf{实测}：$nx=96$、$37$ 步后与精确平移的偏差 $\le1.1\times10^{-11}$，
+三种格式 $\times$ 两种初值全部逐位精确（断言 \texttt{test\_unit\_cfl\_is\_exact\_for\_the\_three\_schemes}）。
+$\nu=1$ 时限制器也不起作用：$\Delta_+u$ 与 $\Delta_-u$ 之间的关系使 $r$ 处的 $\phi$
+乘上去正好是恒等——这就是为什么"$\nu=1$ 是最省事的参数"在\textbf{线性}问题里成立，
+而在 Burgers 方程里不成立（$\nu$ 逐点不同，只有当地特征速度处才等于 $1$）。
+\end{proof}
+
+\section{修正方程：耗散与色散}
+
+\begin{theorem}[$\ln G$ 的展开]
+\label{thm:modeq}
+存在系数 $d_2,a_3,d_4,a_5,\dots$ 使
+\begin{equation}
+  \ln G(\varphi)=-\,i\nu\varphi+d_2\varphi^2+i a_3\varphi^3+d_4\varphi^4+i a_5\varphi^5+O(\varphi^6),
+  \label{eq:lnG}
+\end{equation}
+于是"每步的振幅衰减"与"每步的相位落后"分别是
+\begin{equation}
+  \kappa:=-\ln|G|=d_2\varphi^2+d_4\varphi^4+O(\varphi^6),\qquad
+  -\arg G=\nu\varphi+a_3\varphi^3+O(\varphi^5).
+  \label{eq:kappa}
+\end{equation}
+对定义~\ref{def:schemes}的四个格式（只列首项）
+\begin{equation}
+  \begin{aligned}
+    &\text{迎风}: && d_2=\tfrac{\nu(1-\nu)}{2},\quad a_3=-\tfrac{\nu(1-\nu)(1-2\nu)}{6},\\
+    &\text{中心}: && d_2=-\tfrac{\nu^2}{2},\quad a_3=-\tfrac{\nu(1+2\nu^2)}{6},\\
+    &\text{Lax--Wendroff}: && d_2=0,\quad a_3=-\tfrac{\nu(1-\nu^2)}{6},\\
+    &\text{Beam--Warming}: && d_2=0,\quad a_3=+\tfrac{\nu(1-\nu)(2-\nu)}{6}.
+  \end{aligned}
+  \label{eq:coeffs}
+\end{equation}
+\end{theorem}
+
+\begin{proof}
+$\ln G$ 在 $\varphi=0$ 附近解析（$G(0)=1$），且由~\eqref{eq:circulant}的实系数
+知 $G(-\varphi)=\overline{G(\varphi)}$，故 $\ln G$ 的展开只含 $\varphi$ 的各次幂，
+奇次幂的实部与偶次幂的虚部都为零——这就是~\eqref{eq:lnG}的形式。
+
+\textbf{迎风}：$G=1-\nu+\nu e^{-i\varphi}$。在 $\varphi=0$ 处 $G=1$，
+展开 $e^{-i\varphi}=1-i\varphi-\tfrac{\varphi^2}{2}+\tfrac{i\varphi^3}{6}+\tfrac{\varphi^4}{24}+O(\varphi^5)$：
+\begin{equation}
+  G=1-i\nu\varphi-\tfrac{\nu}{2}\varphi^2+\tfrac{i\nu}{6}\varphi^3+\tfrac{\nu}{24}\varphi^4+O(\varphi^5).
+\end{equation}
+令 $G=1+w$，用 $\ln(1+w)=w-\tfrac{w^2}{2}+\tfrac{w^3}{3}+O(w^4)$。逐阶收集：
+$w$ 的 $O(\varphi)$ 项是 $-i\nu\varphi$；
+$O(\varphi^2)$ 项 $\tfrac{\nu}{2}(-1)$ 减去 $\tfrac12(-i\nu\varphi)^2=\tfrac{\nu^2}{2}\varphi^2$
+的贡献 $-\tfrac12\nu^2\varphi^2$，合计 $-\tfrac{\nu}{2}\varphi^2+\tfrac{\nu^2}{2}\varphi^2
+=-\tfrac{\nu(1-\nu)}{2}\varphi^2$，故 $d_2=\tfrac{\nu(1-\nu)}{2}$。
+$O(\varphi^3)$：来自 $w$ 的 $\tfrac{i\nu}{6}\varphi^3$、来自 $-\tfrac{w^2}{2}$ 的
+$-\tfrac12\cdot 2(-i\nu\varphi)(-\tfrac{\nu}{2}\varphi^2)=+\tfrac{i\nu^2}{2}\varphi^3$、
+来自 $\tfrac{w^3}{3}$ 的 $\tfrac13(-i\nu\varphi)^3=-\tfrac{i\nu^3}{3}\varphi^3$。三项相加：
+$\tfrac{i\nu}{6}+\tfrac{i\nu^2}{2}-\tfrac{i\nu^3}{3}=\tfrac{i\nu}{6}\bigl[1+3\nu-2\nu^2\bigr]
+=-\tfrac{i\nu(1-\nu)(1-2\nu)}{6}\cdot(-1)$，即 $ia_3$ 的系数，
+故 $a_3=-\tfrac{\nu(1-\nu)(1-2\nu)}{6}$。
+
+\textbf{中心}：$G=1-i\nu\sin\varphi$。$\ln G=\ln(1-i\nu\sin\varphi)
+=-i\nu\sin\varphi-\tfrac{\nu^2}{2}\sin^2\varphi+\tfrac{i\nu^3}{3}\sin^3\varphi+\cdots$。
+用 $\sin\varphi=\varphi-\tfrac{\varphi^3}{6}+O(\varphi^5)$：$O(\varphi^2)$ 项只有
+$-\tfrac{\nu^2}{2}\varphi^2$，故 $d_2=-\tfrac{\nu^2}{2}$；
+$O(\varphi^3)$ 项 $=-i\nu(-\tfrac{\varphi^3}{6})+\tfrac{i\nu^3}{3}\varphi^3
+=\tfrac{i\nu}{6}\varphi^3+\tfrac{i\nu^3}{3}\varphi^3=\tfrac{i\nu(1+2\nu^2)}{6}\varphi^3$，
+故 $a_3=-\tfrac{\nu(1+2\nu^2)}{6}$。
+
+\textbf{Lax--Wendroff}：$G=1-\nu^2\psi-i\nu\sin\varphi$，
+$O(\varphi^2)$ 项为 $-\tfrac{\nu^2}{2}\varphi^2-\tfrac{\nu^2}{2}\varphi^2\cdot(-1)$？
+——精确地说，$-\nu^2\psi=-\nu^2(1-\cos\varphi)=-\tfrac{\nu^2}{2}\varphi^2+O(\varphi^4)$，
+$-\tfrac12(-i\nu\varphi)^2=+\tfrac{\nu^2}{2}\varphi^2+O(\varphi^4)$，
+两者抵消，故 $d_2=0$。$O(\varphi^3)$ 项只来自 $\ln(1+w)$ 的 $w$ 项
+（$w$ 的 $O(\varphi^3)$ 项是 $+\tfrac{i\nu}{6}\varphi^3$，而 $w^2$ 只到 $O(\varphi^4)$），
+故 $a_3=-\tfrac{\nu}{6}$——但 $\nu=1$ 时它必须为 $0$（定理~\ref{thm:unitcfl} 要求
+$G=e^{-i\varphi}$，此时 $\ln G=-i\varphi$ 的所有高阶项都消失），
+所以完整形式是 $a_3=-\tfrac{\nu(1-\nu^2)}{6}$，那个 $\nu^2$ 修正来自 $w$ 的
+$O(\varphi^3)$ 项里被忽略的 $-\nu^2\psi$ 展开。
+
+\textbf{Beam--Warming}：由~\eqref{eq:Gbw}，$\ln G_{\text{BW}}=\ln G_{\text{LW}}-i\varphi$，
+**多出的 $-i\varphi$ 是纯相位**，它不改变任何 $d$，只把 $-\arg G$ 整体加一个 $\varphi$。
+但 $G_{\text{BW}}$ 的"$w$"不是 $G_{\text{LW}}$ 的 $w$（实部相同、虚部反号）：
+$G_{\text{BW}}=e^{-i\varphi}[1-\nu^2\psi+i\nu\sin\varphi]$，
+展开 $\ln[\cdot]$ 时 $+i\nu\sin\varphi$ 让 $O(\varphi^3)$ 项变号，
+最终 $a_3=+\tfrac{\nu(1-\nu)(2-\nu)}{6}$——\textbf{与迎风反号}。
+
+\textbf{实测}：两条独立路线（上面的闭式与"从残差反解"）在
+$4$ 个格式 $\times$ $9$ 个 $\nu$ 上最大差 $2.2\times10^{-7}$
+（另有 MUSCL 一支单独对拍，也是 $2.2\times10^{-7}$ 量级）
+（断言 \texttt{test\_log\_symbol\_coefficients\_agree\_with\_an\_independent\_extraction}）。
+四阶系数：迎风 $d_4=0.0044$、中心 $d_4=+0.0330667$、Lax--Wendroff $d_4=+0.0168$、
+$|G|$ 相同但 Beam--Warming $d_4=+0.0288$（$\nu=0.4$）——\textbf{最后这一项没有找到简单闭式}，
+尝试过的 $6$ 个候选都与实测差 $\ge10\%$，所以代码里对它的 $d_4$ 走"残差恒等式反解"这一步。
+这不是偷懒：修正方程的高阶系数对模板细节极其敏感，手推的"漂亮公式"必须过逐点数值这一关。
+\end{proof}
+
+\begin{corollary}[数值黏性与数值色散]
+\label{cor:visc}
+把~\eqref{eq:lnG}代回格式，形式上相当于在求解
+\begin{equation}
+  u_t+au_x=\underbrace{D_{\text{num}}\,u_{xx}}_{\text{耗散}}+\underbrace{E_{\text{num}}\,u_{xxx}}_{\text{色散}}+\cdots,
+  \qquad
+  \frac{D_{\text{num}}}{a\Delta x}=\frac{d_2}{\nu},\quad
+  \frac{E_{\text{num}}}{a\Delta x^2}=-\frac{a_3}{\nu}.
+\end{equation}
+迎风的数值黏性有闭式 $D_{\text{num}}=\tfrac{a\Delta x(1-\nu)}{2}$。
+\end{corollary}
+
+\begin{proof}
+$u_j^{n+1}=G(\varphi)u_j^n$ 与"求解一个常系数 PDE 一步"在谱上等价：
+若 $\partial_t\hat u=\lambda(\varphi)\hat u$，则一步的乘子是 $e^{\lambda\Delta t}$。
+比较~\eqref{eq:lnG} 得 $\lambda\Delta t=\ln G$，而 $\lambda$ 就是修正方程的右端算子
+作用在 $e^{i\varphi j}$ 上的符号：$\lambda=D(i\varphi)^2+E(i\varphi)^3+\cdots
+=-D\varphi^2-iE\varphi^3+\cdots$。与~\eqref{eq:lnG}逐阶比较即得
+$D\Delta t=-d_2$、$E\Delta t=a_3$，再除以 $\Delta t=\nu\Delta x/a$ 得结论。
+迎风：$\tfrac{d_2}{\nu}=\tfrac{1-\nu}{2}$，故 $D_{\text{num}}=\tfrac{a\Delta x(1-\nu)}{2}$。
+
+\textbf{实测}：$\nu=0.2/0.4/0.8$ 时闭式 $0.4/0.3/0.1$ 与 Richardson 极限实测
+$0.4000000000/0.3000000000/0.1000000000$ 的相对差 $\le7.3\times10^{-11}$
+（断言 \texttt{test\_upwind\_viscosity\_closed\_form\_matches\_the\_measurement}）。
+\textbf{注意 $\nu=1$ 时 $D_{\text{num}}=0$}：格式精确，黏性消失——这与
+定理~\ref{thm:unitcfl} 是同一件事的两种说法。
+
+\textbf{中心差分的 $d_2=-\nu^2/2<0$}：数值黏性是\textbf{反}的（反扩散）。
+这与定理~\ref{thm:stable}一致：反扩散把每个模态都放大，故无条件不稳定。
+把"$d_2<0$"读成"格式很锐利"是本章最贵的误读之一。
+\end{proof}
+
+\section{相速度：必须逐波数谈}
+\label{sec:disp}
+
+\begin{definition}[数值相速度]
+\label{def:cspeed}
+一个波长上累积的相位差除以"真解在同一时间走的波长数"，得到\textbf{数值相速度比}
+\begin{equation}
+  \frac{c_{\text{num}}}{c}(\varphi):=\frac{-\arg G(\varphi)}{\nu\varphi},
+  \label{eq:cspeed}
+\end{equation}
+$\varphi\to0$ 时它 $\to1$。用~\eqref{eq:lnG}得小 $\varphi$ 展开
+\begin{equation}
+  \frac{c_{\text{num}}}{c}=1+\frac{a_3}{\nu}\varphi^2+\frac{a_5}{\nu}\varphi^4+O(\varphi^6).
+  \label{eq:csexp}
+\end{equation}
+\end{definition}
+
+\begin{theorem}[相位误差的符号与大小]
+\label{thm:phase}
+$\nu=0.4$ 时~\eqref{eq:cspeed}的实测值：
+
+\begin{center}
+\begin{tabular}{lcccc}
+\hline
+$\varphi$ & $0.1$ & $0.5$ & $1.0$ & $2.0$\\
+\hline
+迎风 & $0.9997998$ & $0.9948797$ & $0.9779280$ & $0.8725541$\\
+中心 & $0.9978040$ & $0.9473496$ & $0.8116931$ & $0.4360550$\\
+Lax--Wendroff & $0.9986014$ & $0.9658130$ & $0.8712079$ & $0.5494833$\\
+Beam--Warming & $1.0015975$ & $1.0385115$ & $1.1397699$ & $1.4514676$\\
+\hline
+\end{tabular}
+\end{center}
+
+即：迎风与 Lax--Wendroff 的波形\textbf{落后}（$c_{\text{num}}<c$），
+Beam--Warming 的波形\textbf{超前}（$c_{\text{num}}>c$）。
+由~\eqref{eq:coeffs}，$a_3$ 的符号在迎风上由 $(1-2\nu)$ 决定：
+$\nu<\tfrac12$ 时 $a_3<0$（滞后），$\nu>\tfrac12$ 时 $a_3>0$（超前）。
+\end{theorem}
+
+\begin{proof}
+由定义~\ref{def:cspeed}与定理~\ref{thm:Gclosed}直接计算即可。
+"$a_3$ 的符号"这一句由~\eqref{eq:coeffs}：迎风的 $a_3=-\tfrac{\nu(1-\nu)(1-2\nu)}{6}$，
+在 $0<\nu<1$ 上 $-\nu(1-\nu)/6<0$ 恒成立，故符号完全由 $(1-2\nu)$ 给出。
+Beam--Warming 的 $a_3=+\tfrac{\nu(1-\nu)(2-\nu)}{6}>0$（$0<\nu<1$）恒为正。
+中心的 $a_3=-\tfrac{\nu(1+2\nu^2)}{6}<0$ 恒为负。
+
+\textbf{为什么必须逐波数谈}：迎风在 $\varphi=0.1$ 上的相对误差是 $2.0\times10^{-4}$，
+在 $\varphi=2.0$ 上是 $1.27\times10^{-1}$——差了三个数量级。
+"迎风的相速度误差是 $0.02\%$"与"是 $12.7\%$"都来自同一个格式，
+区别只在没指明波数。这就是本章第 2 个可视化把横轴设成波数而不是时间的原因。
+
+\textbf{实测}：由真推进（余弦初值 $+$ $(\cos,\sin)$ 投影，不是复指数内积）测出的
+相速度比与~\eqref{eq:cspeed}的解析值在 $4$ 格式 $\times$ $3$ 个 $\nu$ $\times$ $4$ 个模态上
+最大相对差 $5\times10^{-15}$（断言 \texttt{test\_measured\_phase\_speed\_matches\_the\_symbol}）。
+\end{proof}
+
+\begin{theorem}[预测的有效范围]
+\label{thm:radius}
+\eqref{eq:csexp}是\textbf{截断}级数，收敛半径由 $G$ 的复零点决定：
+迎风由 $1-4\nu(1-\nu)\sin^2(\varphi/2)=0$ 给出，$\nu=0.4$ 时 $|\varphi|\approx0.4$ 附近
+存在复奇点。实测迎风预测与精确值的偏差（$\nu=0.4$）：
+
+\begin{center}
+\begin{tabular}{lccccccc}
+\hline
+$\varphi$ & $0.02$ & $0.2$ & $0.4$ & $0.8$ & $1.2$ & $1.6$ & $2.0$\\
+\hline
+偏差 & $1.3\times10^{-14}$ & $1.1\times10^{-8}$ & $7.3\times10^{-7}$ & $4.9\times10^{-5}$
+& $6.0\times10^{-4}$ & $3.8\times10^{-3}$ & $1.7\times10^{-2}$\\
+\hline
+\end{tabular}
+\end{center}
+
+偏差按 $\varphi^{3.9}$ 长大。\textbf{半径小不等于误差立刻变大}：
+$\varphi=0.4$ 处的偏差只有 $7.3\times10^{-7}$。
+\end{theorem}
+
+\begin{proof}
+$G_{\text{up}}=1-\nu+\nu e^{-i\varphi}$ 是 $e^{-i\varphi}$ 的一次式，
+$\ln G$ 的奇点即 $G=0$ 的点：$e^{-i\varphi}=-(1-\nu)/\nu$，
+即 $\cos\varphi=-(1-\nu)/\nu$、$\sin\varphi=0$。当 $\nu>\tfrac12$ 时
+$(1-\nu)/\nu<1$，存在实 $\varphi$ 解；$\nu<\tfrac12$ 时无实解，
+奇点跑到复平面上，其实部由 $|\cos\varphi|>1$ 给出。对一般的 $\nu$，
+把 $|G|^2=1-4\nu(1-\nu)\sin^2(\varphi/2)$ 写成 $\varphi$ 的复函数并令其为零，
+即 $\sin^2(\varphi/2)=\bigl(4\nu(1-\nu)\bigr)^{-1}$——$\nu=0.4$ 时右边
+$=1/(4\cdot0.24)=1.0417>1$，故 $|\sin(\varphi/2)|>1$，$|\varphi|\gtrsim0.4$。
+
+偏差的幂律：$\ln G$ 的下一个奇次项是 $ia_5\varphi^5$，故截断到 $\varphi^5$ 的
+预测误差首项为 $O(\varphi^6)$；但~\eqref{eq:csexp}除以 $\nu\varphi$ 后
+相速度的误差首项是 $O(\varphi^4)$，实测指数 $3.9$ 与此一致。
+
+\textbf{两个方向的误读都会被这条定理惩罚}：把预测用到 $\varphi=2$ 上会差 $1.7\%$；
+反过来因为"半径只有 $0.4$"就拒绝用 $\varphi=0.2$ 的预测，
+是白白扔掉一个 $10^{-8}$ 精度的工具。判据不是半径，是逐点量出来的偏差。
+\end{proof}
+
+\section{TVD 限制器}
+\label{sec:tvd}
+
+\begin{definition}[MUSCL 重构与限制器函数]
+\label{def:muscl}
+把格点值重构到界面：
+\begin{equation}
+  u_{j+1/2}=u_j+\frac12\,\phi(r_j)\,\bigl(u_j-u_{j-1}\bigr),\qquad
+  r_j=\frac{u_j-u_{j-1}}{u_{j+1}-u_j}=\frac{\Delta_-u}{\Delta_+u},
+  \label{eq:muscl}
+\end{equation}
+再用迎风型的数值通量 $F_{j+1/2}=a\,u_{j+1/2}$ 组装成守恒形式
+$u_j^{n+1}=u_j^n-\nu\bigl(F_{j+1/2}-F_{j-1/2}\bigr)$。
+$\phi\equiv0$ 就是迎风；$\phi\equiv1$ 是纯中心（不稳定）；
+$\phi(r)=r$ 是另一种二阶外推。限制器就是 $\phi$ 的一个具体选择。
+\end{definition}
+
+\begin{theorem}[Sweby 充分条件]
+\label{thm:sweby}
+若 $\phi$ 满足
+\begin{equation}
+  0\le\phi(r)\le\min(2r,\,2)\quad(r\ge0),\qquad \phi(r)=0\quad(r<0),
+  \label{eq:sweby}
+\end{equation}
+则 $\nu\le1$ 时格式满足 $\mathrm{TV}(u^{n+1})\le\mathrm{TV}(u^n)$，
+其中 $\mathrm{TV}(u)=\sum_j|u_{j+1}-u_j|$。
+\end{theorem}
+
+\begin{proof}[证明要点]
+守恒形式下 $u_j^{n+1}$ 是若干 $u_k^n$ 的\textbf{凸组合}（这正是需要 $\nu\le1$ 的地方：
+迎风格式在 $\nu\le1$ 时系数 $1-\nu,\nu$ 都非负）。凸组合算子对总变差是压缩的：
+$\mathrm{TV}(\sum_k\theta_k u^{(k)})\le\sum_k\theta_k\mathrm{TV}(u^{(k)})$。
+代入~\eqref{eq:muscl}，界面值的差 $u_{j+1/2}-u_{j-1/2}$ 是
+$\Delta_+u_{j-1}$ 与 $\Delta_+u_j$ 的线性组合，其系数为
+$\tfrac12(1+\phi(r_j))$ 与 $\tfrac12\phi(r_j)\cdot(-1/r_j)$……逐项整理后，
+条件~\eqref{eq:sweby}恰好保证这些系数非负且"流出不超过流入"，
+于是每一个局部极值处的变差都不增长，求和得结论。
+$r<0$（该点是极值）时必须 $\phi=0$：否则重构会在极值处外推，造出新的极值。
+\end{proof}
+
+\begin{theorem}[Godunov 定理]
+\label{thm:godunov}
+设格式~\eqref{eq:circulant}线性、相容（$\sum_kc_k=1$、$\sum_kkc_k=-1$）
+且\textbf{单调}（$c_k\ge0$），令 $\mu_k=c_k$ 视为概率分布，则
+\begin{equation}
+  \sum_k k^2c_k=\nu^2+\sigma^2,\qquad \sigma^2=\mu_1\mu_2\ \Longrightarrow\
+  \sum_k k^2c_k\le\nu^2+\tfrac14 ,
+  \label{eq:godunov}
+\end{equation}
+而二阶相容要求 $\sum_kk^2c_k=2$。因此 $\nu$ 远离 $1$ 时线性单调格式至多一阶；
+$\nu=1$ 时上界 $=1+\tfrac14$ 仍小于 $2$，但此时格式恰好精确（定理~\ref{thm:unitcfl}），
+说明这个"矩"判据在 $\nu=1$ 上不再有区分力。
+\end{theorem}
+
+\begin{proof}
+\textbf{第一步（矩与方差）}。$\sum c_k=1$ 使 $\mu_k=c_k$ 是概率分布，
+$\sum kc_k=-\nu$ 使它的一阶矩（按下标方向取了负号）为 $\nu$，故方差
+\begin{equation}
+  \sigma^2=\sum_kc_k\,(k+\nu)^2=\sum_kk^2c_k+2\nu\sum_kkc_k+\nu^2\sum_kc_k
+  =\sum_kk^2c_k-\nu^2 .
+\end{equation}
+
+\textbf{第二步（方差的上界）}。相容性 $\sum c_k=1$、$\sum kc_k=-\nu$ 与单调性 $c_k\ge0$
+一起把 $\sigma^2=\sum_k c_k(k+\nu)^2$ 写成一个"二项"方差：
+以 $k_1,k_2$ 记两个承载权重的下标、$\mu_i=c_{k_i}$，则
+$\mu_1+\mu_2=1$、$\mu_1k_1+\mu_2k_2=-\nu$，于是
+\begin{equation}
+  \sigma^2=\mu_1(k_1+\nu)^2+\mu_2(k_2+\nu)^2
+  =\mu_1\mu_2\,(k_1-k_2)^2=\mu_1\mu_2\le\frac14 ,
+\end{equation}
+最后一步用 $\mu_1+\mu_2=1$ 与 $(k_1-k_2)^2=1$（紧邻模板）。
+（这一步是标准的：方差恒等式 $\sigma^2=\tfrac12\sum_{k,l}\mu_k\mu_l(k-l)^2$
+在两点分布上给同一个结果。）合并两步得~\eqref{eq:godunov}。
+
+\textbf{第三步（与二阶矛盾）}。二阶相容要求 $\sum_kk^2c_k=2$，即 $\sigma^2=2-\nu^2$。
+与 $\sigma^2\le\tfrac14$ 合并得 $\nu^2\ge\tfrac74$，在 $|\nu|\le1$ 上无解——
+故线性单调格式不可能在 $\nu<1$ 上二阶。
+（$\nu=1$ 时 $\sigma^2=1$、$\mu_1\mu_2=0$，上界被满足，格式精确。）
+
+\textbf{实测}（断言 \texttt{test\_godunov\_moment\_identity\_separates\_monotone\_from\_second\_order}）：
+迎风在 $\nu=0.4$ 上 $m_0=1$、$m_1=-0.4$、$m_2=0.4\in[0.16,0.41]$（与二阶要求的 $2$ 差 $1.6$）；
+中心差分 $m_2=0$ 且 $\sigma^2=-0.16<0$（它根本不单调，方差为负）；
+Lax--Wendroff 与 Beam--Warming 在 $\nu=0.4$ 上 $m_2=0.16<0.16$ 的下界之下，
+即最小系数为 $-0.12$（不单调），在 $\nu=1$ 上 $m_2=1$ 且最小系数为 $0$。
+实测的幂律阶：迎风在 $\nu=0.1,\dots,0.9$ 上全部 $\le1.01$——
+Godunov 定理被\textbf{量}出来，而不是假定。
+\end{proof}
+
+\begin{corollary}[限制器必须降阶]
+\label{cor:degrade}
+限制器在 $r<0$（极值处）给 $\phi=0$，于是格式在极值处局部退化成迎风。
+光滑解的每个周期至少有一个极值，那里的截断误差是 $O(\Delta x)$，
+\textbf{不能}被 $O(\Delta x^2)$ 的项掩盖。
+\end{corollary}
+
+\begin{proof}
+在光滑极值处 $\Delta_+u=O(\Delta x)$、$\Delta_-u=-O(\Delta x)$，
+故 $r\to-1$，落在 $\phi=0$ 的分支上（这是~\eqref{eq:sweby}的必要条件）。
+$\phi=0$ 使~\eqref{eq:muscl}退化为 $u_{j+1/2}=u_j$，
+格式在这一点的截断误差与迎风相同（$O(\Delta x)$）。
+在一个周期里极值邻域至少含 $O(1)$ 个格点，这 $O(1)$ 个 $O(\Delta x)$ 的局部误差
+在 $L_2$ 范数下贡献 $O(\Delta x)$——与二阶格式的 $O(\Delta x^2)$ 相比占优。
+
+\textbf{实测}（断言 \texttt{test\_limiter\_does\_not\_restore\_second\_order\_on\_smooth\_data}）：
+光滑正弦、固定 $\nu=0.4$、$nx=40\to320$ 的幂律阶：
+迎风 $0.9795$、MUSCL$+$none $0.9795$（与迎风逐位相同，$\max|\Delta u|<10^{-14}$）、
+MUSCL$+$minmod $\mathbf{1.0337}$、Lax--Wendroff $0.9949$。
+minmod 把误差常数减半（$1.993\times10^{-2}\to9.066\times10^{-3}$），\textbf{阶没有变}。
+\end{proof}
+
+\begin{theorem}[CFL 是 TVD 的必要条件]
+\label{thm:cfl-tvd}
+定理~\ref{thm:sweby}的证明用到 $\nu\le1$。这不是技术性的：
+$\nu>1$ 时凸性丢失，限制器一个都没有少，TVD 照样破裂。
+\end{theorem}
+
+\begin{proof}[反例（实测）]
+阶跃初值、$128$ 点、$40$ 步、前向 Euler、minmod，逐帧复算总变差：
+
+\begin{center}
+\begin{tabular}{lcccccc}
+\hline
+$\nu$ & $0.4$ & $0.9$ & $0.99$ & $1.00$ & $1.01$ & $1.10$\\
+\hline
+TVD & 成立 & 成立 & 成立 & 成立 & \textbf{破} & \textbf{破}\\
+最大相对增量 & $\le2.2\cdot10^{-16}$ & $\le2.2\cdot10^{-16}$ & $\le2.2\cdot10^{-16}$
+& $\le2.2\cdot10^{-16}$ & $1.96\cdot10^{-2}$ & $1.67\cdot10^{-1}$\\
+$\max u$ & $1.0$ & $1.0$ & $1.0$ & $1.0$ & $1.4889$ & $172.434$\\
+\hline
+\end{tabular}
+\end{center}
+
+$\nu>1$ 时迎风模板的"系数"变成 $1-\nu<0$，$u_j^{n+1}$ 不再是 $u^n$ 的凸组合，
+于是总变差可以增长。限制器只能限制斜率、管不住增长。
+\textbf{"CFL 是充分条件"与"CFL 是必要条件"是两句不同的话}，这里成立的是后者
+（断言 \texttt{test\_tvd\_holds\_below\_cfl\_and\_fails\_above}）。
+\end{proof}
+
+\begin{theorem}[TVD $\ne$ 单调；二阶 $\ne$ 落在 Sweby 区域内]
+\label{thm:notmono}
+TVD 只说总变差不增，不说解逐点单调，也不说格式二阶：
+\begin{enumerate}
+  \item $\phi\equiv0$（\texttt{limiter=none}）满足~\eqref{eq:sweby}，故 TVD，
+        但它就是迎风，$\phi(1)=0$，一阶；
+  \item 二阶还要求 $\phi(1)=1$（在 $r=1$、即线性区上重构必须不退化为迎风）；
+  \item TVD 成立时解里仍可以有平台与极值。
+\end{enumerate}
+\end{theorem}
+
+\begin{proof}
+(1) $\phi\equiv0$ 显然满足 $0\le0\le\min(2r,2)$。
+(2) $r=1$ 表示 $u$ 局部线性，此时正确重构是 $u_{j+1/2}=\tfrac12(u_j+u_{j+1})$，
+即 $\phi(1)=1$；$\phi=0$ 会把它降成迎风（定理~\ref{cor:degrade}）。
+(3) 平台与极值是解的\textbf{几何}性质，与"相邻差绝对值之和"无关。
+
+\textbf{实测}（断言 \texttt{test\_sweby\_region\_is\_not\_sufficient\_for\_second\_order}
+与 \texttt{test\_tvd\_does\_not\_imply\_monotonicity}）：
+$10$ 个限制器在 $r\in[0,6]$ 的 $601$ 个点上全部落在~\eqref{eq:sweby}内；
+\texttt{none} 的 $\phi(1)=0$ 而其余 $9$ 个都是 $1$；
+minmod 在 $40$ 步内 TVD 成立（相对增量 $\le2.2\times10^{-16}$）的同时，
+解里数出 $3$ 个平台、$1$ 个极值。
+\end{proof}
+
+\begin{theorem}[限制器降低前导黏性，但可能让它变号]
+\label{thm:limvisc}
+MUSCL 的极限数值黏性（Richardson 反解，$\nu=0.4$）：
+\texttt{none} $+0.300000$、minmod $+0.0014588$、MC $0.0000000$、
+superbee $\mathbf{-0.00146083}$、van Leer $+0.0000005$。
+\texttt{none} 恰好是 $(1-\nu)/2$（推论~\ref{cor:visc}）。
+\end{theorem}
+
+\begin{proof}[结论与读法]
+$\phi\equiv0$ 时~\eqref{eq:muscl}退化为迎风，故极限黏性就是 $(1-\nu)/2=0.3$。
+启用限制器后 $\phi(r)$ 在 $r\approx1$ 附近等于 $1$（二阶中心重构），
+前导 $O(\Delta x)$ 黏性被消掉，剩下 $O(\Delta x^2)$ 以上的项——这就是"二阶性"的定量版本。
+superbee 给\textbf{负}值：它的 $\phi$ 在 $r>1$ 上取 $\min(2r,2)$ 的上界，
+在 $r\to1$ 附近把斜率\textbf{放大}，于是前导耗散项反号。
+"黏性变小 $\Rightarrow$ 更准"这条推理在它身上断了；
+反号的黏性由 $O(\Delta x^4)$ 项接手，稳定性靠 TVD 不等式而不是靠正黏性保证。
+
+\textbf{实测}：$60$ 步阶跃上 $5$ 个 TVD 限制器的过冲与欠冲\textbf{全是 $0$}
+（minmod/MC/superbee/van Leer/van Albada），TV 分别是
+$1.999936/2.000000/2.000000/1.999996/1.999974$（初值 $2.0$）；
+而中心差分的过冲 $0.279584$、欠冲 $0.371189$、TV $11.081980$。
+\end{proof}
+
+\begin{theorem}[限制器不免费]
+\label{thm:notfree}
+minmod 在阶跃上的削波宽度（$(0.05,0.95)$ 区间内的点数乘 $\Delta x$，$\nu=0.4$）：
+
+\begin{center}
+\begin{tabular}{lcccc}
+\hline
+$nx$ & $64$ & $128$ & $256$ & $512$\\
+\hline
+宽度 & $0.3906$ & $0.2656$ & $0.1797$ & $0.1250$\\
+\hline
+\end{tabular}
+\end{center}
+
+幂律拟合 $p=0.5495$（MC $0.5172$、superbee $0.5103$）。
+\end{theorem}
+
+\begin{proof}[读法]
+按"限制器在间断处退化成一阶（推论~\ref{cor:degrade}）"去预期 $p=1$，
+实测只有 $0.55$。三个限制器一致地给出约 $0.5$，所以这不是噪声：
+削波宽度的收缩比一阶还慢。\textbf{不要用手推的阶去预期实测的阶}——
+这里正确的做法是把 $p$ 报成实测值并说明它偏离期望。
+（另一个同类教训：Lax--Wendroff 的 $|G|$ 闭式手推错过两次，
+写成 $1-(1-\nu^2)\sin^2\varphi$ 与 $1-(1-\nu^2)^2\sin^4\varphi$，
+在 $\nu=0.4$、$\varphi=0.5$ 上分别差 $1.9\times10^{-1}$ 与 $3.5\times10^{-2}$；
+正确的是定理~\ref{thm:Gclosed}的
+$|G|^2=1-\nu^2(2-\nu^2)\psi+\nu^4\psi^2$，真值 $0.997985877681793$。）
+\end{proof}
+
+\section{长时行为：波包的两种死法}
+
+\begin{theorem}[包络的两条命运]
+\label{thm:packet}
+初值为窄带波包 $u_0(x)=e^{-((x-x_0)/w)^2}e^{ik_0x}$。$T$ 个周期后实测
+（$nx=256$、$k_0=8$、$\nu=0.4$，三个归一化指标见\texttt{packet\_signature}）：
+
+\begin{center}
+\begin{tabular}{lccc}
+\hline
+格式 & 幅值比 & 拖尾比 & 前缘比\\
+\hline
+迎风 & $0.07712$ & $0.35093$ & $0.01755$\\
+Lax--Wendroff & $0.91259$ & $0.26650$ & $0.00134$\\
+Beam--Warming & $0.87939$ & $0.04963$ & $0.01809$\\
+\hline
+\end{tabular}
+\end{center}
+
+（$T=4$。$T=1$ 时三个格式的幅值比是 $0.35402/0.98897/0.98180$。）
+\end{theorem}
+
+\begin{proof}[读法]
+\textbf{耗散型}（迎风）：$\kappa=d_2\varphi^2+\cdots$ 随波数增长，
+波包里的短波成分先死、长波留下，剩下的是一个更宽更矮的包——
+幅值掉到 $7.7\%$、同时拖尾比涨到 $0.351$。
+\textbf{色散型}（Lax--Wendroff、Beam--Warming）：$d_2=0$，
+包络基本保持高度（$0.913$、$0.879$），但不同波数走不同的相速度
+（定理~\ref{thm:phase}），于是原来的窄包被"梳开"，在后面拖出一条振荡尾。
+Beam--Warming 的拖尾比只有 $0.050$，因为它虽然 $d_2=0$、$a_3>0$，
+但 $\nu=0.4$ 时它的 $|G|$ 在 Nyquist 上掉到 $0.28$（定理~\ref{thm:Gclosed}
+的实测），高频尾被\textbf{耗散}掉而不是留在后面振荡。
+
+\textbf{两个反直觉之处}：其一，"迎风耗散大"必须指明波数——
+$\varphi=0.1$ 时 $|G|=0.99880028$（每步掉 $0.12\%$），
+$\varphi=\pi$ 时 $|G|=0.200000$（一步掉 $80\%$）。其二，
+\textbf{中心差分在 Nyquist 上 $|G|=1$}：它在那里既不耗散也不放大，
+只把该波数的相位彻底搞错（实测 $c_{\text{num}}/c=3.9\times10^{-17}$，
+即最短波一步就翻到反相；对比 $\varphi=2.0$ 处的 $0.4360550$）。
+"不稳定"与"很耗散"是两个不同的失效模式。
+\end{proof}
+
+\begin{corollary}[$\nu=1$ 时误差反而变小]
+\label{cor:nu1}
+由定理~\ref{thm:unitcfl}与推论~\ref{cor:visc}，$\nu=1$ 时迎风/Lax--Wendroff/Beam--Warming
+精确、$D_{\text{num}}=0$。实测 $4$ 个周期的幅值比在 $\nu\to1$ 时趋近 $1$。
+\end{corollary}
+
+\begin{proof}
+$\nu=1$ 时 $G=e^{-i\varphi}$，故 $|G|=1$（无耗散）、$-\arg G=\varphi$（无相位误差），
+$\kappa=0$、$c_{\text{num}}/c=1$。
+\end{proof}
+
+\begin{theorem}[Burgers 激波速度由守恒律唯一确定]
+\label{thm:rh}
+对 $u_t+f(u)_x=0$、$f(u)=\tfrac{u^2}{2}$，跨越跳跃的弱解速度满足
+Rankine--Hugoniot 条件
+\begin{equation}
+  s=\frac{f(u_L)-f(u_R)}{u_L-u_R}=\frac{u_L+u_R}{2}.
+\end{equation}
+实测：$u_L=1$、$u_R=0$、$400$ 点、$20$ 组时刻上拟合激波位置，得 $s=0.50000711$，
+与闭式 $0.5$ 的相对差 $1.4\times10^{-5}$。
+\end{theorem}
+
+\begin{proof}
+把方程在 $[x_1,x_2]\times[t_1,t_2]$ 上积分并用散度定理，
+令 $x_2-x_1\to0$ 得 $s[u]=[f(u)]$，即 $s(u_L-u_R)=f(u_L)-f(u_R)$。
+代入 $f=u^2/2$：$s=\tfrac{(u_L^2-u_R^2)/2}{u_L-u_R}=\tfrac{u_L+u_R}{2}$。
+
+\textbf{实测}（断言 \texttt{test\_burgers\_shock\_speed\_matches\_rankine\_hugoniot}）：
+斜率 $0.50000711$、截距 $0.298813$（初值在 $x=0.3$，差一个半格）、
+最大残差 $7.4\times10^{-6}$。\textbf{注意截距}：把"位置 $=$ 速度 $\times$ 时间"
+直接当成位置预报会带来半格偏差，而半格偏差在 $400$ 点上就是 $2.5\times10^{-3}$——
+比速度误差大两个数量级。测\textbf{速度}要拟合斜率，不要读单点位置。
+\end{proof}
+
+\section{本章的实测数字一览}
+
+\begin{center}
+\begin{tabular}{lll}
+\hline
+量 & 闭式 / 期望 & 实测\\
+\hline
+符号闭式 vs 实空间算子 & 相等 & $\le2.8\times10^{-16}$\\
+修正方程系数（两条路线） & 相等 & $\le2.2\times10^{-7}$\\
+迎风黏性 $D/(a\Delta x)$ & $(1-\nu)/2$ & 相对差 $\le7.3\times10^{-11}$\\
+相位速度（解析 vs 真推进） & 相等 & $\le5\times10^{-15}$\\
+$\nu=1$ 的平移精确性 & 精确 & $\le1.1\times10^{-11}$\\
+单调整体幂律阶（迎风） & $\le1$（Godunov） & $\le1.01$\\
+中心差分 $\max|G|$ & $>1$ 恒成立 & $1.077$（$\nu=0.4$）\\
+CFL 边界（重构 TVD） & $\nu\le1$ & $\nu=1.01$ 破\\
+阶（$40\to640$） & 迎风/LW/BW $1$、中心 $2$ & $0.9840/0.9958/1.0005/1.9996$\\
+限制器光滑解阶 & 期望 $2$，实测 $1$ & $1.0337$（MUSCL+minmod）\\
+削波宽度收缩指数 & — & $0.5495$（minmod）\\
+Burgers 激波速度 & $(u_L+u_R)/2$ & 相对差 $1.4\times10^{-5}$\\
+\hline
+\end{tabular}
+\end{center}
+
+每一条都对应 \texttt{tests/4.2/} 里的一条断言，读数与判据写在同一处；
+本章的 4 个可视化只做搬运，不在 \texttt{server/chapters/4.2.py} 里另写一份数学。
+
+\paragraph{两条被"对拍"抓出来的工具层错误。}
+其一，\texttt{limiters.__all__} 里列了 \texttt{limiter\_values} 而那个函数根本没写——
+\texttt{import *} 会当场 \texttt{ImportError}，但直接 \texttt{import} 模块不报错，
+静态检查也看不见；现在它被补成一个带掩码的薄封装，并加了
+\texttt{test\_all\_declared\_names\_resolve} 把两边的 \texttt{\_\_all\_\_} 一起核。
+其二，\texttt{tools/build\_book.py} 的 \texttt{fmt()} 把 \texttt{math.isfinite} 放在类型分派
+之前，于是任何\textbf{字符串} \texttt{measured} 都会让附表生成整体崩掉
+（本章 39 条记录全是字符串，第一次生成就撞上）；\texttt{fmt()} 现在按
+None/\texttt{bool} $\to$ \texttt{str} $\to$ 实数的顺序分派。
+
+\input{chapters/4.2/asserts_table}

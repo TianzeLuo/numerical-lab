@@ -1,0 +1,54 @@
+% 本文件由 tools/build_book.py 从 dist/reports/assertions.json 生成，请勿手改。
+\begin{longtable}{@{}p{0.06\textwidth}p{0.32\textwidth}p{0.22\textwidth}p{0.16\textwidth}@{}}
+\caption{章节 4.2 数值断言（生成时间 2026-10-18T18:22:32-0400）}\\
+\toprule
+类别 & 断言 & 理论值 & 实测值 \\
+\midrule
+\endfirsthead
+\toprule
+类别 & 断言 & 理论值 & 实测值 \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+
+A & 符号闭式 vs 实空间算子乘子的最大相对差 & G(\allowbreak{}$\varphi$) 是循环算子的特征值，闭式与数值乘子必须一致到舍入 & 2.830e-16 \checkmark \\
+A & upwind 与 downwind 的 闭式-vs-算子 残差之比 & downwind 的稳定支与闭式的解析延拓不同支，故残差量级差 10\textasciicircum{}15 倍 & upwind=\allowbreak{}1.144e-16,\allowbreak{} downwind=\allowbreak{}6.090e-02,\allowbreak{} ratio=\allowbreak{}5.321e+14 \checkmark \\
+A & (d2, a3, d4) 闭式与残差反解的最大绝对差 & 同一批系数由解析推导与复平面数值采样两条路线给出，必须一致 & 7.009e-08 \checkmark \\
+A & 迎风数值黏性 D/(a$\Delta$x)：闭式 (1$-$$\nu$)/2 与实测的相对差 & Taylor 展开迎风格式并用 u\_tt=\allowbreak{}a$^2$u\_xx 消时间导数，得 D=\allowbreak{}a$\Delta$x(\allowbreak{}1$-$$\nu$)/\allowbreak{}2 & 7.328e-11(\allowbreak{}nu=\allowbreak{}0.4 时 0.3000000000) \checkmark \\
+A & nu=1 时迎风一步平移一格的误差 & $\nu$=\allowbreak{}1 时 G(\allowbreak{}$\varphi$)=\allowbreak{}e\textasciicircum{}\{$-$i$\varphi$\}，格式退化成精确平移 & 2.435e-18 \checkmark \\
+A & 实测相速度比与解析符号的最大相对差 & 单模态下推进就是乘 G\textasciicircum{}n；相位增量 $-$arg G 除以 $\nu$$\varphi$ 就是相速度比 & 1.452e-15 \checkmark \\
+A & 迎风相速度预测在 $\varphi$=0.02 与 $\varphi$=2.0 上的绝对偏差 & 级数的收敛半径由 1$-$4$\nu$(\allowbreak{}1$-$$\nu$)sin$^2$(\allowbreak{}$\varphi$/\allowbreak{}2)=\allowbreak{}0 限制，$\nu$=\allowbreak{}0.4 时 |$\varphi$|$\approx$0.4 附近；但「收敛半径」不等于「误差立刻变大」------实测 $\varphi$=\allowbreak{}0.4 时偏差才 7.3e-7 & phi=\allowbreak{}0.02:1.25e-14 phi=\allowbreak{}0.8:4.86e-05 phi=\allowbreak{}2.0:1.74e-02 \checkmark \\
+A & 预测偏差随 $\varphi$ 增长的幂律指数($\varphi$$\le$0.2) & 偏差首项是下一个被截断的奇次项，量级 $\varphi$$^6$/\allowbreak{}$\varphi$$^3$ 后残差表现为 $\varphi$\textasciicircum{}p & p=\allowbreak{}5.979 \checkmark \\
+A & 四个格式 $\times$ 两个 $\nu$ 的矩恒等式(m0=1；定向格式 m1=$-$$\nu$；单调 $\implies$ m2$\in$[$\nu$$^2$,$\nu$$^2$+1/4]) & $\Sigma$c\_k=\allowbreak{}1 与 $\Sigma$k c\_k=\allowbreak{}$-$1 是**定向格式**的相容性；中心差分对称，实测 m1=\allowbreak{}+$\nu$。单调 $\implies$ 把 c\_k 当概率，$\sigma$$^2$=\allowbreak{}m2$-$$\nu$$^2$=\allowbreak{}$\mu$$_1$$\mu$$_2$$\in$[0,\allowbreak{}1/\allowbreak{}4] $\implies$ m2$\in$[$\nu$$^2$,\allowbreak{}$\nu$$^2$+1/\allowbreak{}4](\allowbreak{}实测迎风 $\nu$=\allowbreak{}0.4 时 0.4$\in$[0.16,\allowbreak{}0.41] 在界内；中心差分 $\sigma$$^2$=\allowbreak{}$-$0.16<0 在界外)；两个 $\nu$ 上单调格式的 m2 都远小于二阶要求的 2(\allowbreak{}$\nu$=\allowbreak{}1 时差 1.0) & all-ok \checkmark \\
+A & 迎风 $\nu$=0.4 上「二阶要求 m2=2」与实际 m2=0.4 的差 & 单调 + 相容 $\implies$ m2 $\in$ [$\nu$$^2$,\allowbreak{} $\nu$$^2$+1/\allowbreak{}4]，$\nu$=\allowbreak{}0.4 时上界只有 0.41 < 2；这就是 Godunov 定理在矩上的样子 & gap=\allowbreak{}1.6000000000 \checkmark \\
+A & |G| 的闭式(迎风/中心/LW)与符号逐点值的最大差 & 迎风 |G|$^2$=\allowbreak{}1$-$4$\nu$(\allowbreak{}1$-$$\nu$)sin$^2$(\allowbreak{}$\varphi$/\allowbreak{}2)；中心 |G|$^2$=\allowbreak{}1+$\nu$$^2$sin$^2$$\varphi$；LW |G|$^2$=\allowbreak{}1$-$(\allowbreak{}1$-$$\nu$$^2$)$^2$sin$^4$$\varphi$ & up=\allowbreak{}4.718e-16 centered=\allowbreak{}2.220e-16 lw=\allowbreak{}2.220e-16 \checkmark \\
+A & BW 的 |G| 与 LW 的闭式之间的最大差(反例：d2 相同 $\ne$ |G| 相同) & 两者 d2 都为 0，但高阶衰减项不同，|G| 逐点不等；在 Nyquist 上 |G|\_BW =\allowbreak{} 1$-$2$\nu$(\allowbreak{}$\nu$=\allowbreak{}0.4 时 0.28)、\allowbreak{}而 LW 的闭式给 1.0 & 4.000e-01(\allowbreak{}BW 在 $\varphi$=\allowbreak{}$\pi$ 上 0.2800 vs LW 闭式 0.6800) \checkmark \\
+A & 中心差分的 max|G|($\nu$=0.05/0.2/0.5/1.0) & |G|$^2$=\allowbreak{}1+$\nu$$^2$sin$^2$$\varphi$ 对所有 $\nu$>0 都 >1：它**无条件**放大，与 CFL 无关 & nu=\allowbreak{}0.05:1.001249; nu=\allowbreak{}0.2:1.019804; nu=\allowbreak{}0.5:1.118034; nu=\allowbreak{}1.0:1.414214 \checkmark \\
+A & Richardson 外推：偶数幂函数的极限误差与含 h$^3$ 项的收敛指数 & 外推消 h$^2$、\allowbreak{}h$^4$、\allowbreak{}h$^6$；含 x$^3$ 的项消不掉，剩余误差按 h$^3$ 掉(\allowbreak{}实测斜率 3.0000) & even-powers worst=\allowbreak{}4.44e-16; h\textasciicircum{}3 slope=\allowbreak{}3.0000 \checkmark \\
+A & Burgers 激波速度：实测拟合斜率 vs RH 闭式 s=(uL+uR)/2 & 守恒律的激波速度由跳跃条件唯一确定，与数值格式的细节无关 & fitted=\allowbreak{}0.50000711 RH=\allowbreak{}0.50000000 rel=\allowbreak{}1.42e-05 \checkmark \\
+A & nu=1、37 步后与精确平移的最大偏差 & $\nu$=\allowbreak{}1 时 G=\allowbreak{}e\textasciicircum{}\{$-$i$\varphi$\}，格式是恒等平移；三个格式都该逐位精确 & 0.000e+00 \checkmark \\
+C & 固定 $\nu$=0.4、nx=40$\to$320 的 L2 幂律阶 & 这一口径量的是含时间误差的总阶：一阶耗散/\allowbreak{}色散项主导 $\implies$ 约 1；中心差分的前导误差是纯色散项(\allowbreak{}d2<0 且 |d2| 与 a3 同阶)$\implies$ 约 2 & upwind=\allowbreak{}0.9795; centered=\allowbreak{}1.9994; lax\_wendroff=\allowbreak{}0.9949; beam\_warming=\allowbreak{}1.0015 \checkmark \\
+C & 迎风在 $\nu$=0.1$\dots$0.9 上的实测阶上确界 & 线性 + 单调 + 相容 $\implies$ 至多一阶(\allowbreak{}Godunov)；实测应当全部逼近 1 而不越过 & max=\allowbreak{}0.9903(\allowbreak{}逐点 0.9817,\allowbreak{} 0.9839,\allowbreak{} 0.9837,\allowbreak{} 0.9903,\allowbreak{} 0.9426,\allowbreak{} 0.9552) \checkmark \\
+C & $\nu$=0.99/1.00/1.01 上的 max|G|(迎风、LW、中心、BW) & 迎风/\allowbreak{}LW 的 |G|$\le$1 $\iff$ $\nu$$\le$1；中心差分恒 >1；BW 的模板用 |$\nu$|，越界不体现在 |G| 上 & upwind/\allowbreak{}LW 边界行为正确=\allowbreak{}True; centered 恒>1=\allowbreak{}True; BW(\allowbreak{}1.01)=\allowbreak{}1.000000 \checkmark \\
+C & 实测前导衰减系数 vs 闭式(迎风 d2、LW/BW 的 d4) & d2$\ne$0 时前导是 $\varphi$$^2$ 阶；d2=\allowbreak{}0 时是 $\varphi$$^4$ 阶------归一化选错就会得到 0 或发散 & all-ok \checkmark \\
+B & 四种格式 50 步后总质量的漂移 & 周期域上 $\Sigma$\_j L(\allowbreak{}u)\_j =\allowbreak{} 0(\allowbreak{}通量望远镜求和)，所以质量逐位守恒 & worst=\allowbreak{}5.258e-13(\allowbreak{}m0=\allowbreak{}96.000000) \checkmark \\
+B & 6 个 MUSCL 限制器 60 步后 max|u| 相对初值的增长 & TVD $\implies$ 不产生新极值 $\implies$ max 范数不增；实测最大增长 0(\allowbreak{}MC/\allowbreak{}superbee 恰好到 1.0) & worst=\allowbreak{}+0.000e+00(\allowbreak{}初值 max=\allowbreak{}1.0) \checkmark \\
+B & is\_\allowbreak{}stable 判定与 200 步实测增长的一致性 & |G(\allowbreak{}$\varphi$)|$\le$1 对所有 $\varphi$ 成立 $\iff$ 单步不放大 $\implies$ 任意步数不放大(\allowbreak{}正规算子) & all-agree \checkmark \\
+B & 5 个限制器的 |限制后斜率|/|$\Delta$u\_\allowbreak{}+| 上确界(必须 $\le$2) & $\varphi$(\allowbreak{}r) $\le$ min(\allowbreak{}2r,\allowbreak{}2) $\implies$ |$\varphi$(\allowbreak{}r)$\Delta$u\_+| $\le$ 2|$\Delta$u\_+|；限制器永远不能把斜率放大超过 2 倍 & all-within \checkmark \\
+B & max\_\allowbreak{}abs\_\allowbreak{}symbol 与 20001 点扫描上确界的最大差 & max\_abs\_symbol 是解析上确界；扫描只在离散点上取值，所以扫描 $\le$ 闭式，差应可忽略 & worst=\allowbreak{}0.000e+00 \checkmark \\
+A & 9 个限制器在 r$\in$[0,6] 上全部落在 Sweby 区域 [0, min(2r,2)] 内 & Sweby 区域内的线性格式满足 TVD(\allowbreak{}充分条件)；区域外的限制器不能保证 TV 非增 & all-inside \checkmark \\
+A & 9 个限制器在 r<0 上的 |$\varphi$(r)| 上确界 & r<0 表示该点处于极值：TVD 要求 $\varphi$=\allowbreak{}0(\allowbreak{}完全退化成迎风)，不允许外推 & 0.000e+00 \checkmark \\
+A & $\varphi$(1) 与「在 Sweby 区内」的关系(limiter=none 是反例) & $\varphi$(\allowbreak{}1)=\allowbreak{}1 是二阶的必要条件；Sweby 区域只保证 TVD。none 的 $\varphi$$\equiv$0 在区内但 $\varphi$(\allowbreak{}1)=\allowbreak{}0 & none: inside=\allowbreak{}True,\allowbreak{} phi(\allowbreak{}1)=\allowbreak{}0.0；其余 9 个: all-ok=\allowbreak{}True \checkmark \\
+A & 对称限制器 $\varphi$(1/r)=$\varphi$(r)/r 的最大偏差(6 个 r 值) & 左右对称的 TVD 限制器必须满足这条；不满足的会偏一侧(\allowbreak{}BW 型不对称) & 0.000e+00 \checkmark \\
+A & minmod(a,b) 与逐点判据 max(0,min(|a|,|b|)$\cdot$sgn(a)) 的最大差 & minmod 的闭式必须与「同号取小、\allowbreak{}异号取 0」逐点一致 & 0.000e+00 \checkmark \\
+A & $\nu$$\le$1 时 TVD 成立 / $\nu$>1 时破(阶跃、40 步、minmod) & TVD 的证明要用到 CFL(\allowbreak{}新值必须是旧值的凸组合)；$\nu$>1 时凸性丢失，限制器只能限制斜率、\allowbreak{}管不住增长 & below-ok=\allowbreak{}True; umax(\allowbreak{}1.01)=\allowbreak{}1.488864; umax(\allowbreak{}1.1)=\allowbreak{}172.4340 \checkmark \\
+A & 阶跃($\nu$=0.4、60 步、RK3)上的过冲/欠冲与 TV & TVD $\implies$ 不产生新的极值 $\implies$ over=\allowbreak{}under=\allowbreak{}0；但反过来不成立(\allowbreak{}一阶迎风也 over=\allowbreak{}0) & minmod:over=\allowbreak{}0.000e+00,\allowbreak{}under=\allowbreak{}0.000e+00,\allowbreak{}TV=\allowbreak{}1.999936; mc:over=\allowbreak{}0.000e+00,\allowbreak{}under=\allowbreak{}0.000e+00,\allowbreak{}TV=\allowbreak{}2.000000; superbee:over=\allowbreak{}0.000e+00,\allowbreak{}under=\allowbreak{}0.000e+00,\allowbreak{}TV=\allowbreak{}2.000000; vanleer:over=\allowbreak{}0.000e+00,\allowbreak{}under=\allowbreak{}0.000e+00,\allowbreak{}TV=\allowbreak{}1.999996; vanalbada:over=\allowbreak{}0.000e+00,\allowbreak{}under=\allowbreak{}0.000e+00,\allowbreak{}TV=\allowbreak{}1.999974 | upwind:T=\allowbreak{}1.998071 over=\allowbreak{}0.0e+00 | centered:over=\allowbreak{}0.2796,\allowbreak{}under=\allowbreak{}0.3712,\allowbreak{}TV=\allowbreak{}11.0820 \checkmark \\
+A & TVD 成立的同时解里的平台数与极值数 & TVD 是**总变差**的非增性，不是逐点单调性；限制器只在极值处退化，既没有抹掉平台也没有消掉极值 & tvd=\allowbreak{}True rel=\allowbreak{}2.22e-16 plateaus=\allowbreak{}2 extrema=\allowbreak{}1 \checkmark \\
+A & 5 个限制器的 TV 最大增量(40 步) & TVD 要求逐帧 TV 不增；允许舍入级(\allowbreak{}1e-12 相对容差)的负向/\allowbreak{}零增量 & all-ok \checkmark \\
+A & MUSCL 各限制器在 $\nu$=0.4 上的极限数值黏性 & limiter=\allowbreak{}none 的 MUSCL 退化成迎风，黏性恰为 (\allowbreak{}1$-$$\nu$)/\allowbreak{}2=\allowbreak{}0.3；启用限制器后前导黏性降到 1e-3 量级(\allowbreak{}这就是二阶性的来源) & none=\allowbreak{}+0.30000000; minmod=\allowbreak{}+0.00144568; mc=\allowbreak{}-0.00000228; superbee=\allowbreak{}-0.00149011; vanleer=\allowbreak{}-0.00000283 \checkmark \\
+C & MUSCL+minmod 在光滑正弦上固定 $\nu$=0.4 的 L2 幂律阶(预期约 1，不是 2) & 限幅器在光滑极值处退化为一阶；那一小段主导截断误差，故湍流阶仍是 1 & p=\allowbreak{}1.0337(\allowbreak{}errs 9.07e-03$\to$1.06e-03) \checkmark \\
+C & minmod 的间断削波宽度随 $\Delta$x 的幂律指数 & TVD 限制器在间断附近把 $\varphi$ 压到 0(\allowbreak{}一阶迎风)，所以削波宽度 $\propto$ $\Delta$x 而不是 $\Delta$x$^2$ & p=\allowbreak{}0.5495(\allowbreak{}宽度 0.3906$\to$0.1250) \checkmark \\
+B & limiters/advection 的 \_\allowbreak{}\_\allowbreak{}all\_\allowbreak{}\_\allowbreak{} 里无法解析的名字 & `\_\_all\_\_` 声明了公开名字，`import *` 会逐个取；缺一个就炸 & limiters: 21 names,\allowbreak{} missing=\allowbreak{}[]; advection: 46 names,\allowbreak{} missing=\allowbreak{}[] \checkmark \\
+B & limiter\_\allowbreak{}values 与 limiter\_\allowbreak{}phi 逐点一致(含 nan/inf)的最大差 & 薄封装只加掩码，不改取值；nan/\allowbreak{}inf 由 \_ratio\_branch 折到 0/\allowbreak{}big，取值仍有限 & 0.000e+00 \checkmark \\
+\end{longtable}

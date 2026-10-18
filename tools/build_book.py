@@ -179,20 +179,32 @@ def allow_wrap(s: str) -> str:
 
 
 def fmt(v: Any) -> str:
-    if not math.isfinite(v):  # inf/nan 会让 f-string 直接抛，整本书的附表都生成不了
-        return "+inf" if v > 0 else ("-inf" if v < 0 else "nan")
+    # 非数值先分流：``math.isfinite`` 只接受实数，而 ``record(measured=...)`` 完全可以
+    # 传字符串（"all-ok"、``f"{err:.2e}"``、把好几个读数拼成一句都行——numcore.verify
+    # 不限制类型）。早先这里把 ``math.isfinite`` 放在最前面，于是任何字符串 measured
+    # 都会让 ``TypeError: must be real number, not str`` 直接冒出来，
+    # **整本书的附表都生成不了**（4.2 章 39 条记录全是字符串，第一次生成就撞上了）。
+    # 顺序必须是：None/bool → str → 实数。
+    if v is None:
+        return "—"
     if isinstance(v, bool):
         return "真" if v else "假"
+    if isinstance(v, str):
+        return soft_breaks(tex_escape(v))
+    if isinstance(v, (list, tuple)):
+        return ", ".join(fmt(x) for x in v)
+    if not isinstance(v, (int, float)) or not math.isfinite(v):
+        # inf/nan 会让 f-string 直接抛，整本书的附表都生成不了
+        try:
+            return "+inf" if v > 0 else ("-inf" if v < 0 else "nan")
+        except TypeError:
+            return soft_breaks(tex_escape(str(v)))
     if isinstance(v, float):
         if v != 0.0 and (abs(v) < 1e-4 or abs(v) >= 1e5):
             m, e = f"{v:.3e}".split("e")
             return f"${m}\\times 10^{{{int(e)}}}$"
         return f"{v:.6g}"
-    if v is None:
-        return "—"
-    if isinstance(v, (list, tuple)):
-        return ", ".join(fmt(x) for x in v)
-    return soft_breaks(tex_escape(v))
+    return str(v)
 
 
 def soft_breaks(s: str) -> str:
