@@ -1,0 +1,343 @@
+{
+  "chapter": "1.5",
+  "part": "I",
+  "summary": "迭代法的收敛由迭代矩阵的谱半径决定；Krylov 方法把问题投影到逐步扩张的子空间上，CG 极小化 A-范数误差、GMRES 极小化残差；预条件改的是谱分布，而不只是一个 κ 数字。",
+  "title": "稀疏迭代法与预条件",
+  "vizzes": [
+    {
+      "axes": [
+        {
+          "autoscaled": false,
+          "id": "plane",
+          "title": "等高线与迭代轨迹（物理坐标，固定轴）",
+          "ylabel": "x2"
+        },
+        {
+          "autoscaled": true,
+          "id": "convergence",
+          "scale": "log",
+          "title": "各方法的相对残差 ‖r_k‖/‖r_0‖",
+          "ylabel": "相对残差"
+        }
+      ],
+      "dataSource": "backend",
+      "description": "二次型 (x−x*)ᵀA(x−x*) 的等高线是椭圆（扁度 = κ）；Jacobi / GS / SOR / CG / GMRES 五条迭代轨迹同图竞速，粗点标出当前方法在第 k 步的位置。副轴是各方法的相对残差曲线。",
+      "id": "iteration_race",
+      "params": [
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": "sor",
+          "label": "当前高亮的方法",
+          "name": "method",
+          "options": [
+            "jacobi",
+            "gs",
+            "sor",
+            "cg",
+            "gmres"
+          ],
+          "type": "enum"
+        },
+        {
+          "critical": [
+            1.0
+          ],
+          "criticalNote": "ω = 1 时 SOR 退化为 Gauss–Seidel；收敛的必要条件是 0 < ω < 2（ω ≥ 2 时 ρ(T_ω) ≥ 1，迭代发散）。最优值 ω_opt = 2/(1+√(1−μ²)) 由当前矩阵的 Jacobi 谱半径 μ 决定，帧里的 meta.omega_opt 给出它的真实取值。",
+          "default": 1.3,
+          "label": "SOR 松弛因子 ω",
+          "max": 1.99,
+          "min": 0.5,
+          "name": "omega",
+          "step": 0.01,
+          "type": "float"
+        },
+        {
+          "beyond": "below",
+          "critical": [
+            1.0
+          ],
+          "criticalNote": "κ = λmax/λmin = 1 时等高线是正圆，任何方法一步到解；κ 越大椭圆越扁，沿长轴方向的误差衰减越慢——Jacobi 的谱半径 μ 与 SOR 的最优 ω 都由它决定。",
+          "default": 20.0,
+          "label": "条件数 κ（目标）",
+          "max": 200.0,
+          "min": 1.5,
+          "name": "kappa",
+          "step": 0.5,
+          "type": "float"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": 35.0,
+          "label": "特征向量方向 θ（度）",
+          "max": 180.0,
+          "min": 0.0,
+          "name": "angle",
+          "step": 5.0,
+          "type": "float"
+        }
+      ],
+      "pitfalls": "这张图有两个经典骗局。第一，**固定坐标轴**是刻意的：κ=200 时椭圆扁得几乎是一条线，如果让坐标轴自适应，椭圆会被拉成正圆、「条件数」这个几何事实当场消失（这就是规则 1 要求逐轴声明 autoscaled 的原因）。第二，轨迹在方法收敛之后是**重复点**（帧里没有 NaN，免得前端拒绝整张图），所以右下角那团「不动了」的点要配合 meta.race_len 读——它才告诉你每条轨迹真正在第几步停住。另外 CG/GMRES 在 n=2 的平面上至多两步就到解，它们的轨迹几乎是直线段；把它们的「快」当成「Krylov 方法在所有问题上都快」是另一个错误（κ 大到 CG 的最坏界 2((√κ−1)/(√κ+1))^k 生效时，CG 也会一步一挪）。",
+      "requiredAux": [
+        "residual"
+      ],
+      "theory": [
+        "定常迭代收敛 ⟺ ρ(T) < 1，且渐近收敛因子就是 ρ(T)（误差 e_k = T^k e_0）",
+        "SOR 在一致次序矩阵上的解析谱半径：ω ≤ ω_opt 时为 ((ωμ+√(ω²μ²−4(ω−1)))/2)²，ω ≥ ω_opt 时为 ω−1",
+        "CG 在 n 维空间里至多 n 步给出精确解（精确算术）；GMRES(m) 同理，m ≥ n 时一步周期收敛"
+      ],
+      "time": {
+        "dt": 1.0,
+        "label": "迭代步 k",
+        "mode": "scrub",
+        "tMax": 60.0
+      },
+      "title": "迭代路径赛跑：椭圆等高线上的五条轨迹"
+    },
+    {
+      "axes": [
+        {
+          "autoscaled": false,
+          "id": "modes",
+          "title": "各模态的误差分量（对数色阶条形）",
+          "ylabel": "模态 j"
+        },
+        {
+          "autoscaled": true,
+          "id": "decay",
+          "scale": "log",
+          "title": "误差与残差（对数）",
+          "ylabel": "‖e_k‖/‖e_0‖ 与 ‖r_k‖/‖r_0‖"
+        }
+      ],
+      "dataSource": "backend",
+      "description": "一维 Laplacian 的解析正弦模态基下，误差分量 |v_jᵀe_k| 随迭代步的条形演化；每个模态旁标注理论衰减因子 |λ_j(T)| 与实测比值。副轴给出误差 2-范数与相对残差。",
+      "id": "error_spectrum",
+      "params": [
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": 32,
+          "label": "网格规模 n（模态数）",
+          "max": 64,
+          "min": 8,
+          "name": "n",
+          "type": "int"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": "sor",
+          "label": "迭代法",
+          "name": "method",
+          "options": [
+            "jacobi",
+            "gs",
+            "sor"
+          ],
+          "type": "enum"
+        },
+        {
+          "critical": [
+            1.0
+          ],
+          "criticalNote": "ω = 1 退化为 Gauss–Seidel；n=32 时 μ = cos(π/33) ≈ 0.99547，ω_opt = 2/(1+√(1−μ²)) ≈ 1.8236，此时 ρ = ω_opt − 1 ≈ 0.8236。拖过 ω_opt 之后主特征值变成复共轭对，误差会一边旋转一边衰减。",
+          "default": 1.6,
+          "label": "SOR 松弛因子 ω",
+          "max": 1.99,
+          "min": 0.5,
+          "name": "omega",
+          "step": 0.01,
+          "type": "float"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": "all_modes",
+          "label": "初始误差的模态构成",
+          "name": "init",
+          "options": [
+            "all_modes",
+            "low_mode",
+            "high_mode"
+          ],
+          "type": "enum"
+        }
+      ],
+      "pitfalls": "最容易被这张图骗到的地方是「模态分量按理论因子单调衰减」。对 **Jacobi** 它确实成立（T_J = I − D⁻¹A 与 A 同特征向量，c_j(k) = μ_j^k c_j(0) 精确成立，实测偏差只有 1e-16）；但对 **GS/SOR**，A 的特征基不是 T 的特征基，投影系数会**先混后衰减**：早期几步低频模态甚至会短暂变大（非正规性的可见后果），只有渐近段的斜率才等于理论因子。第二，分量幅值掉到1e-16 以下就是舍入噪声，帧里用 meta.component_floor 明确标了这个地板——把地板以下的条形当成「误差真的降到 1e-300」是自欺。第三，SOR 的最优 ω 让 |λ|max 最小，但**不是**让每个模态都最小：某些高频模态在 ω 略小于 ω_opt 时反而衰减更快，只有最慢的那个模态（通常是 j=1）决定整体收敛。",
+      "requiredAux": [
+        "error",
+        "residual"
+      ],
+      "theory": [
+        "误差传播 e_{k+1} = T e_k，故 e_k = T^k e_0；ρ(T) < 1 是收敛的充要条件",
+        "一维 Laplacian：λ_j(A) = 4 sin²(jπ/(2(n+1)))，μ_j(T_J) = cos(jπ/(n+1))，T_GS 的谱是 μ_j²",
+        "SOR 的逐模态因子由 Young 关系给出（ω 越过 ω_opt 后为复共轭对，模长 √(ω−1)）"
+      ],
+      "time": {
+        "dt": 1.0,
+        "label": "迭代步 k",
+        "mode": "scrub",
+        "tMax": 60.0
+      },
+      "title": "误差的特征分量分解：谁先衰减完"
+    },
+    {
+      "axes": [
+        {
+          "autoscaled": true,
+          "id": "space",
+          "title": "Krylov 基与解轨迹（2D/3D）",
+          "ylabel": "x2"
+        },
+        {
+          "autoscaled": false,
+          "id": "orth",
+          "title": "残差正交性实测矩阵",
+          "ylabel": "步 i / 基 j"
+        }
+      ],
+      "dataSource": "backend",
+      "description": "在 2D/3D 平面上画出 Krylov 基 v_0…v_k、解轨迹 x_k 与被扩张的子空间；右侧给出残差正交性的实测矩阵（CG 用 |r_iᵀr_j|，GMRES 用 |r_iᵀAv_j|）与 Arnoldi 的 H。",
+      "id": "krylov_growth",
+      "params": [
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": 3,
+          "label": "空间维数 n",
+          "max": 3,
+          "min": 2,
+          "name": "dim",
+          "type": "int"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": "gmres",
+          "label": "Krylov 方法",
+          "name": "method",
+          "options": [
+            "cg",
+            "gmres"
+          ],
+          "type": "enum"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": 2.0,
+          "label": "对角反差 s（A = D S D）",
+          "max": 8.0,
+          "min": 1.0,
+          "name": "stretch",
+          "step": 0.1,
+          "type": "float"
+        }
+      ],
+      "pitfalls": "两条正交性极易混为一谈：CG 的残差满足 r_k ⊥ K_k，所以 |r_iᵀr_j|（i≠j）应当接近 0；GMRES 的残差满足的是 r_k ⊥ A K_k，即 |r_iᵀ A v_j| ≈ 0，而 |r_iᵀr_j| **并不**小（GMRES 只最小化残差，不保证残差两两正交）。把 GMRES 的 r_iᵀr_j 当作「应该为 0」去检查，会得出「GMRES 实现错了」的错误结论。第二，正交性只在残差还高于舍入底时成立：实测最后一步残差落到 1e-17 之后，|r_iᵀr_j| 的归一化值会跳到 0.04 甚至 0.2——那不是算法失效，是分子分母都只剩噪声。第三，坐标轴自适应会把「子空间已经张开到整个 R^n」画成「向量还在变长」，要读 meta.subspace_dim 与 H 的次对角元（它变成 0 才是子空间不变）。",
+      "requiredAux": [
+        "residual"
+      ],
+      "theory": [
+        "K_k(A,r_0) = span{r_0, Ar_0, …, A^{k−1}r_0}；Arnoldi 给出 AV_m = V_{m+1} H̄_m",
+        "CG：r_k ⊥ K_k 且 p_iᵀAp_j = 0（i≠j）；GMRES：r_k ⊥ A K_k（最小残差的法方程）",
+        "精确算术下 Krylov 方法至多 n 步终止（H 的次对角元变 0 即 happy breakdown）"
+      ],
+      "time": {
+        "dt": 1.0,
+        "label": "Krylov 步 k",
+        "mode": "scrub",
+        "tMax": 3.0
+      },
+      "title": "Krylov 子空间逐步扩张与残差正交性"
+    },
+    {
+      "axes": [
+        {
+          "autoscaled": false,
+          "id": "spectrum",
+          "title": "M⁻¹A 的谱（Ritz 值，按序号排列）",
+          "ylabel": "λ(M⁻¹A)"
+        },
+        {
+          "autoscaled": true,
+          "id": "convergence",
+          "scale": "log",
+          "title": "相对残差与 CG 收敛界（对数）",
+          "ylabel": "‖r_k‖/‖r_0‖"
+        }
+      ],
+      "dataSource": "backend",
+      "description": "左：M⁻¹A 的 Ritz 谱散点（预条件前 vs 后）；右：PCG 的相对残差曲线与CG 收敛界参考线。角标实时给出实测 κ、由迭代数反推的等效 κ 与 ILU(0) 丢弃的填充数。",
+      "id": "precond_effect",
+      "params": [
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": "ssor",
+          "label": "预条件子",
+          "name": "precond",
+          "options": [
+            "none",
+            "jacobi",
+            "ssor",
+            "ilu0"
+          ],
+          "type": "enum"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": 8,
+          "label": "二维网格 k（n = k²）",
+          "max": 14,
+          "min": 4,
+          "name": "grid",
+          "type": "int"
+        },
+        {
+          "critical": [
+            1.0
+          ],
+          "criticalNote": "ω = 1 时 SSOR 退化为对称 Gauss–Seidel（SSGS）；SSOR 预条件子要求 0 < ω < 2 才能保持对称正定，否则 PCG 的前提就不成立。",
+          "default": 1.2,
+          "label": "SSOR 松弛因子 ω",
+          "max": 1.9,
+          "min": 0.5,
+          "name": "omega",
+          "step": 0.05,
+          "type": "float"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": "cg",
+          "label": "迭代解法",
+          "name": "solver",
+          "options": [
+            "cg",
+            "gmres"
+          ],
+          "type": "enum"
+        }
+      ],
+      "pitfalls": "最常见的误读是「κ 降了 √κ 倍，迭代数就该降 √κ 倍」。实测（二维 8×8 Laplacian，κ₂ = 32.163）：SSOR(ω=1.2) 把 κ 压到 3.586（降了 8.97 倍），迭代数只从 23 降到 14；一维 n=32 的 κ = 440.7，但由实测收敛因子 0.5549 反推的等效 κ 只有 12.2——CG 的实际迭代数由**整个谱分布**决定，谱聚成几簇时远快于最坏界 2((√κ−1)/(√κ+1))^k（图上那条参考线就是这层「悲观」的实测证据）。第二条：Jacobi 预条件在一维 Laplacian 上**什么都没做**（对角是 2I，乘常数不改变任何谱比，实测 κ 仍是 440.69）——「预条件」不等于「一定有效」。第三条最隐蔽：这里的谱是 Lanczos 的 Ritz 值，只有**两端**收敛快，内部 Ritz 值收敛很慢，拿少量步数的谱去宣称「整个谱都量到了」是假的；ILU(0) 在一维三对角上更是直接退化成精确 LU（κ = 1.00、PCG 一步收敛），这个「完美」完全不能推广到二维（那里丢了 98 次填充、κ 只到 3.684，GMRES 23 步只降到 13 步）。",
+      "requiredAux": [
+        "error",
+        "residual"
+      ],
+      "theory": [
+        "预条件 CG 解 M⁻¹Ax = M⁻¹b；M 对称正定时 M⁻¹A 关于 ⟨x,y⟩_M = xᵀMy 自伴（不是 M⁻¹-内积），谱全实",
+        "CG 收敛因子 ρ = (√κ−1)/(√κ+1) 是最坏界；实测因子反推的等效 κ = ((1+ρ)/(1−ρ))²",
+        "SSOR：M = (D+ωL)D⁻¹(D+ωU)/(ω(2−ω))；ILU(0)：M = L̃Ũ，结构 = A 的结构（零填充）"
+      ],
+      "time": {
+        "label": "t",
+        "mode": "none"
+      },
+      "title": "预条件前后：谱分布与收敛曲线联动"
+    }
+  ]
+}

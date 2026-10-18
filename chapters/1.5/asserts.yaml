@@ -1,0 +1,116 @@
+# 1.5 章断言清单（真源：`tests/1.5/test_iterative.py` 与 `tests/1.5/test_krylov.py`）
+#
+# 分工：**A 类**把解析结论钉死（余弦谱、Young 关系、2×2 闭式、模态恒等式、CG/GMRES 的最优性）；
+# **B 类**守的是"实现真的等于数学"（迭代矩阵 vs 真实扫描、CSR vs 稠密、预条件 apply= M⁻¹、帧契约）；
+# **C 类**是**实测**出来的速率与阈值：SOR 最优 ω 的二分、残差尾部因子 vs 谱半径、
+# CG 迭代数对 √κ 的斜率、以及"κ 降 8.6 倍而迭代数只降 1.6 倍"这条反直觉结论。
+chapter: "1.5"
+title: 稀疏迭代法与预条件
+required_kinds: [A, B, C]
+
+min_counts:
+  A: 13
+  B: 51
+  C: 7
+
+tests:
+  # ---------------------------------------------------------------- 定常迭代
+  - name: test_spectral_radius_matches_analytic_cosine
+    kind: A
+    what: n=7/15/31/63 上幂法量 ρ(T_J)、ρ(T_GS)，与 cos(π/(n+1))、cos²(π/(n+1)) 逐位比对（并用参照特征值独立复核）
+    theory: 一维 Laplacian：λ_j=4sin²(jπ/(2(n+1)))，T_J=I−½A ⇒ μ_j=cos(jπ/(n+1))，T_GS 的谱是 μ_j²
+  - name: test_two_by_two_spectral_radius_formula
+    kind: A
+    what: κ=2…100、5 组旋转角下 ρ(T_J) 与 √|a₁₂a₂₁/(a₁₁a₂₂)| 的最大相对偏差
+    theory: 2×2 椭圆模型 A=R·diag(1,κ)·Rᵀ 的 Jacobi 迭代矩阵谱半径有闭式，且 κ(A)=κ 精确
+  - name: test_sor_young_relation_and_optimal_omega
+    kind: A
+    what: 欠松弛段（ω=0.8/1.2/1.5）实测 ρ(T_ω) 与 Young 解析式的偏差；ω_opt 处 ρ 与 ω_opt−1 的偏差（含 2×2 两组）
+    theory: ρ(T_ω)=((ωμ+√(ω²μ²−4(ω−1)))/2)²（ω≤ω_opt），ρ(T_ωopt)=ω_opt−1；ω>ω_opt 时主特征值是共轭对、模长 √(ω−1)
+  - name: test_jacobi_mode_decay_is_exact
+    kind: A
+    what: n=31、k≤5，31 个模态逐一核对 c_j^(k)=μ_j^k·c_j^(0)（跳过落到 1e-12·max|c₀| 以下的舍入噪声项）
+    theory: Jacobi 的迭代矩阵与 A 同特征向量 ⇒ 模态分解是恒等式而不是渐近近似
+  - name: test_iteration_matrix_reproduces_sweep
+    kind: B
+    what: 把 c=(D−ωL)⁻¹ωb 与 T 拼成一步，与 stationary_solve 的第二步逐位比对（n=17）
+    theory: x_{k+1}=T x_k+c 是迭代矩阵的定义
+  - name: test_sor_iteration_matrix_algebra
+    kind: B
+    what: ω=0.7/1.0/1.4/1.8 上 ‖(D−ωL)T_ω−((1−ω)D+ωU)‖/‖·‖
+    theory: SOR 迭代矩阵的代数恒等式（它由 LU 逐列求逆实现，必须真的是它）
+  - name: test_sor_at_one_equals_gauss_seidel
+    kind: B
+    what: ω=1 的 T_ω 与 T_GS、以及 5 步迭代序列的最大偏差
+    theory: ω=1 时 SOR 退化为 Gauss–Seidel
+  - name: test_csr_rows_reproduce_dense_gauss_seidel
+    kind: B
+    what: 用 CSR 的行手写 GS 前向扫描，与稠密实现比对（n=18，4 步）
+    theory: 稀疏容器不改变数学，只改变存储与访问
+  - name: test_convergence_iff_spectral_radius_below_one
+    kind: B
+    what: 削弱对角（ρ(T_J)>1）与加 10I（ρ(T_J)<1）两个矩阵上 25 步的残差走向
+    theory: ρ(T)<1 ⟺ 收敛；ρ(T)>1 ⟹ 残差发散
+  # ---------------------------------------------------------------- Krylov
+  - name: test_cg_optimality_and_chebyshev_bound
+    kind: A
+    what: 一维 n=32、二维 8×8（CSR）、2×2 κ=100 三个算例的迭代数/维数、‖e_k‖_A 单调性、以及 Chebyshev 界与实际的比值
+    theory: CG 至多 n 步精确收敛；‖e_k‖_A=min_{p(0)=1}‖p(A)e₀‖_A ≤ 2ρ^k‖e₀‖_A，ρ=(√κ−1)/(√κ+1)
+  - name: test_gmres_residual_monotone_and_estimate_exact
+    kind: A
+    what: 三个算例的残差单调性、Givens 递推残差与真实残差的差、解与直接 LU 解的差；另附 m=5/10/20/40 的重启停滞表
+    theory: 同周期内 ‖r_{k+1}‖≤‖r_k‖（子空间嵌套 + 最小残差）；m≥n 时一个周期内收敛；重启会丢掉 Krylov 信息
+  - name: test_arnoldi_lanczos_spectrum
+    kind: A
+    what: 2D 6×6 Laplacian（n=36，只有 19 个相异特征值）上 Arnoldi 基正交性、相异 Ritz 值与相异特征值的偏差、Lanczos 步数
+    theory: VᵀV=I；Krylov 维数 = 最小多项式次数；退化谱上 Lanczos 提前终止，Ritz 值只给"相异"谱
+  - name: test_orthogonality_conditions
+    kind: A
+    what: n=24 上 CG 的 |r_iᵀr_j|、|p_iᵀAp_j|（i≠j）与 GMRES 的 |r_iᵀAv_j|（j<i），都屏蔽掉落到 √u·‖r₀‖ 以下的噪声行
+    theory: CG：r_iᵀr_j=0、p_iᵀAp_j=0；GMRES：r_iᵀ(Av_j)=0——两条不是一回事
+  - name: test_preconditioners_do_not_change_the_solution
+    kind: A
+    what: 一维 n=64 与二维 8×8 上 none/jacobi/ssor/ilu0 四种预条件的 PCG 解与直接 LU 解的偏差与迭代数
+    theory: 预条件只改变收敛速度，不改变解
+  - name: test_csr_and_dense_give_same_iterates
+    kind: B
+    what: 二维 7×7（CSR 与稠密）上 CG/GMRES 的**整条**迭代序列之差
+    theory: 稀疏与稠密是同一套数学
+  - name: test_preconditioner_apply_is_the_inverse
+    kind: B
+    what: jacobi/ssor/ilu0 的 apply 与 to_dense 是否互逆（M·M⁻¹r=r），一维 n=32 与二维 8×8
+    theory: z=M⁻¹r ⟺ Mz=r（ILU(0) 的 M=L̃Ũ 是**近似** A，但 apply 必须是它自己的精确逆）
+  - name: test_preconditioned_spectrum_matches_exact
+    kind: A
+    what: 一维 n=32 与二维 8×8 上 none/jacobi/ssor/ilu0 的 κ(M⁻¹A) 估计 vs 用 M^{-1/2}AM^{-1/2} 精确参照谱算的 κ
+    theory: M⁻¹A 在 ⟨x,y⟩_M=xᵀMy 下自伴 ⇒ Lanczos 的 Ritz 值全实且收敛到它的谱（内积选错会偏 2%~5%）
+  # ---------------------------------------------------------------- 实测速率
+  - name: test_optimal_omega_measured_by_bisection
+    kind: C
+    what: 用中心差分符号（ρ(ω+h)<ρ(ω−h)）二分实测 ω_opt，h=0.01/0.005/0.002 三档；与 2/(1+√(1−μ²)) 比对
+    theory: ρ_meas(ω) 在 ω_opt 处取极小 ⇒ 差分符号在 ω_opt 翻转；实测阈值有 ≈0.47h 的系统偏移
+  - name: test_measured_factor_matches_spectral_radius
+    kind: C
+    what: n=31 上 Jacobi/GS/SOR(ω=1.5) 的残差尾部几何平均因子 vs 幂法量到的 ρ(T)
+    theory: 渐近收敛因子就是 ρ(T)
+  - name: test_measured_factor_equals_spectral_radius
+    kind: C
+    what: n=31 上 Jacobi/GS/SOR(ω=1.4) 的 estimate_linear_factor(skip=10, tail=25) vs ρ(T)
+    theory: 同一件事的两种量法：残差对数斜率 = 迭代矩阵谱半径
+  - name: test_cg_iterations_scale_like_sqrt_kappa
+    kind: C
+    what: 一维 n=32…256 与二维 k=16…48（CSR，κ 由 Lanczos+Sturm 估计）的迭代数对 √κ 的双对数斜率
+    theory: CG 迭代数 ~ √κ（最坏界 2ρ^k 给的是同阶），斜率应为 1
+  - name: test_preconditioner_iteration_count_is_not_sqrt_kappa
+    kind: C
+    what: 二维 8×8 上 SSOR(ω=1.2) 把 κ 压低的倍数 vs 迭代数降低的倍数，以及由实测因子反推的等效 κ
+    theory: 迭代数由谱**分布**决定；κ 降 8.6 倍时迭代数只降 1.6 倍（√κ 比是 2.9）
+  # ---------------------------------------------------------------- 帧契约
+  - name: test_chapter_frames_obey_contract
+    kind: B
+    what: 四个 viz 在 t=0/中途/末端的帧：requiredAux 命中、数组全有限、meta 只放标量、frame.validate() 通过
+    theory: NLF 帧契约（PROTOCOLS §1）——可视化只能读数值，缺的必须是显式的 null + strings 说明
+  - name: test_race_frame_trajectory_invariants
+    kind: B
+    what: 竞速帧五条轨迹的 race_len、首步瞬态增量、60 步后的残差；CG/GMRES 单调而 Jacobi/GS/SOR 只有奇偶子列单调
+    theory: 2×2 上 T_J 形如 [[0,a],[b,0]]、特征值 ±μ ⇒ 残差每两步换相位；CG/GMRES 有极小化性质 ⇒ 单调

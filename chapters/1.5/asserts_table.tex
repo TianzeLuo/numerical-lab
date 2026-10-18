@@ -1,0 +1,86 @@
+% 本文件由 tools/build_book.py 从 dist/reports/assertions.json 生成，请勿手改。
+\begin{longtable}{@{}p{0.06\textwidth}p{0.32\textwidth}p{0.22\textwidth}p{0.16\textwidth}@{}}
+\caption{章节 1.5 数值断言（生成时间 2026-10-18T14:21:18-0400）}\\
+\toprule
+类别 & 断言 & 理论值 & 实测值 \\
+\midrule
+\endfirsthead
+\toprule
+类别 & 断言 & 理论值 & 实测值 \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+
+B & $\rho$(T\_\allowbreak{}J) 与 cos($\pi$/(n+1)) 的最大相对偏差 & $\le$ 1.00000e-08 & $1.374\times 10^{-11}$ \checkmark \\
+B & $\rho$(T\_\allowbreak{}GS) 与 cos$^2$($\pi$/(n+1)) 的最大相对偏差 & $\le$ 1.00000e-08 & $4.497\times 10^{-10}$ \checkmark \\
+A & $\rho$ 的解析比对(n=7$\dots$63) & cos(\allowbreak{}$\pi$/\allowbreak{}(\allowbreak{}n+1)) 与 cos$^2$(\allowbreak{}$\pi$/\allowbreak{}(\allowbreak{}n+1)) & $\rho$\_J 偏差 $\le$ 1.374e-11，$\rho$\_GS 偏差 $\le$ 4.497e-10 \checkmark \\
+B & $\rho$(T\_\allowbreak{}J) 与闭式 $\surd$|a12a21/(a11a22)| 的最大相对偏差 & $\le$ 1.00000e-07 & $3.491\times 10^{-16}$ \checkmark \\
+B & $\kappa$(A) 与设定值 $\kappa$ 的最大相对偏差 & $\le$ 1.00000e-12 & $1.407\times 10^{-14}$ \checkmark \\
+A & 2$\times$2 椭圆模型($\kappa$ $\le$ 100，5 组角度) & $\rho$(\allowbreak{}T\_J)=\allowbreak{}$\surd$|a12a21/\allowbreak{}(\allowbreak{}a11a22)|，$\lambda$(\allowbreak{}A)=\allowbreak{}\{1,\allowbreak{}$\kappa$\} & $\rho$ 偏差 $\le$ 3.491e-16，$\kappa$ 偏差 $\le$ 1.407e-14 \checkmark \\
+B & 欠松弛段 $\rho$(SOR) 与 Young 解析式的最大相对偏差 & $\le$ 1.00000e-07 & $3.981\times 10^{-10}$ \checkmark \\
+B & $\rho$(T\_\allowbreak{}$\omega$opt) 与 $\omega$\_\allowbreak{}opt$-$1 的最大相对偏差 & $\le$ 0.005 & $9.846\times 10^{-5}$ \checkmark \\
+A & SOR 的 Young 关系(一维 n=15/31 + 2$\times$2 两组) & $\rho$(\allowbreak{}T\_$\omega$)=\allowbreak{}(\allowbreak{}(\allowbreak{}$\omega$$\mu$+$\surd$(\allowbreak{}$\omega$$^2$$\mu$$^2$$-$4(\allowbreak{}$\omega$$-$1)))/\allowbreak{}2)$^2$(\allowbreak{}$\omega$$\le$$\omega$\_opt)，$\rho$(\allowbreak{}T\_$\omega$opt)=\allowbreak{}$\omega$\_opt$-$1 & 欠松弛段偏差 $\le$ 3.981e-10；$\omega$\_opt 处偏差 $\le$ 9.846e-05 \checkmark \\
+B & Jacobi 模态衰减与 $\mu$\_\allowbreak{}j\textasciicircum{}k 的最大相对偏差 & $\le$ 1.00000e-10 & $4.992\times 10^{-11}$ \checkmark \\
+A & n=31 的 31 个模态逐一比对(k=1$\dots$5) & c\_j\textasciicircum{}(\allowbreak{}k)/\allowbreak{}c\_j\textasciicircum{}(\allowbreak{}0) =\allowbreak{} cos(\allowbreak{}j$\pi$/\allowbreak{}32)\textasciicircum{}k & 最大相对偏差 4.992e-11；单步比值与 $\mu$\_j 的最大绝对偏差 2.998e-15 \checkmark \\
+B & T$\cdot$x0+c 与真实扫描一步的最大偏差 & $\le$ 1.00000e-12 & $8.882\times 10^{-16}$ \checkmark \\
+B & Jacobi/GS/SOR 的迭代矩阵一致性(n=17) & x\_\{k+1\}=\allowbreak{}Tx\_k+c，c=\allowbreak{}(\allowbreak{}D$-$$\omega$L)$^{-1}$$\omega$b & 最大偏差 8.882e-16 \checkmark \\
+B & (D$-$$\omega$L)T\_\allowbreak{}$\omega$ $-$ ((1$-$$\omega$)D+$\omega$U) 的最大相对残差 & $\le$ 1.00000e-13 & $1.234\times 10^{-16}$ \checkmark \\
+B & SOR 迭代矩阵恒等式(n=23，$\omega$=0.7/1.0/1.4/1.8) & (\allowbreak{}D$-$$\omega$L)T\_$\omega$ =\allowbreak{} (\allowbreak{}1$-$$\omega$)D+$\omega$U & 最大相对残差 1.234e-16 \checkmark \\
+B & $\omega$=1 的 SOR 与 GS 的最大偏差 & $\le$ 1.00000e-14 & 0 \checkmark \\
+B & SOR($\omega$=1) 与 GS 的等价性 & T\_1 =\allowbreak{} T\_GS，(\allowbreak{}D$-$L)$^{-1}$U 完全一致 & 迭代矩阵偏差 0.000e+00，5 步迭代偏差 0.000e+00 \checkmark \\
+B & CSR 行扫描与稠密 GS 的最大偏差 & $\le$ 1.00000e-13 & 0 \checkmark \\
+B & CSR 行访问 vs 稠密 GS(n=18，4 步) & 稀疏与稠密是同一套数学 & 最大偏差 0.000e+00，CSR nnz=\allowbreak{}52(\allowbreak{}稠密 nnz=\allowbreak{}52) \checkmark \\
+B & $\rho$(T)>1 与 $\rho$(T)<1 的残差走向(n=12，25 步) & $\rho$(\allowbreak{}T)<1 收敛，$\rho$(\allowbreak{}T)$\ge$1 不收敛 & $\rho$=\allowbreak{}1.6182 时残差 $\times$1.569e+05；$\rho$=\allowbreak{}0.1618 时残差 $\times$4.532e-17 \checkmark \\
+C & SOR 最优 $\omega$ 的二分实测值(h=0.002) & 1.67351 & 1.6751 \checkmark \\
+C & $\omega$\_\allowbreak{}opt 的实测偏差 vs 差分步长 h & $\omega$\_opt =\allowbreak{} 2/\allowbreak{}(\allowbreak{}1+$\surd$(\allowbreak{}1$-$$\mu$$^2$)) =\allowbreak{} 1.673514(\allowbreak{}h$\to$0 的极限) & h=\allowbreak{}0.01: 实测 1.682870(\allowbreak{}偏差 +9.36e-03)；h=\allowbreak{}0.005: 实测 1.678116(\allowbreak{}偏差 +4.60e-03)；h=\allowbreak{}0.002: 实测 1.675101(\allowbreak{}偏差 +1.59e-03) \checkmark \\
+C & 实测最优点上的 $\rho$(T\_\allowbreak{}$\omega$opt) 与 $\omega$\_\allowbreak{}opt$-$1 & 0.675101 & 0.675886 \checkmark \\
+B & jacobi 残差渐近单调 & nonincreasing & 违反 0 处 \checkmark \\
+B & gs 残差渐近单调 & nonincreasing & 违反 0 处 \checkmark \\
+B & sor 残差渐近单调 & nonincreasing & 违反 0 处 \checkmark \\
+B & 实测收敛因子与 $\rho$(T) 的最大相对偏差 & $\le$ 0.005 & 0.000358096 \checkmark \\
+C & 残差尾部因子 vs $\rho$(T)(Jacobi/GS/SOR，n=31) & 渐近因子 =\allowbreak{} $\rho$(\allowbreak{}T) & 最大相对偏差 3.581e-04 \checkmark \\
+B & 四个可视化的帧契约(含 t=0/中途/末端) & requiredAux 命中、\allowbreak{}数组有限、\allowbreak{}meta 标量、\allowbreak{}可序列化 & 10 帧全部通过(\allowbreak{}4 个 viz) \checkmark \\
+B & CG 残差单调 & nonincreasing & 违反 0 处 \checkmark \\
+B & GMRES 残差单调 & nonincreasing & 违反 0 处 \checkmark \\
+B & Jacobi 残差偶子列单调 & nonincreasing & 违反 0 处 \checkmark \\
+B & Jacobi 残差奇子列单调 & nonincreasing & 违反 0 处 \checkmark \\
+B & GS 残差偶子列单调 & nonincreasing & 违反 0 处 \checkmark \\
+B & GS 残差奇子列单调 & nonincreasing & 违反 0 处 \checkmark \\
+B & SOR 残差偶子列单调 & nonincreasing & 违反 0 处 \checkmark \\
+B & SOR 残差奇子列单调 & nonincreasing & 违反 0 处 \checkmark \\
+B & 竞速帧：五条轨迹的步数、瞬态与整体下降($\kappa$=20、$\theta$=35$^\circ$) & 收敛后为重复点；$\rho$<1 不排除早期瞬态上升 & race\_len =\allowbreak{} [60.0,\allowbreak{} 60.0,\allowbreak{} 57.0,\allowbreak{} 2.0,\allowbreak{} 2.0](\allowbreak{}Jacobi/\allowbreak{}GS/\allowbreak{}SOR/\allowbreak{}CG/\allowbreak{}GMRES)；首步最大增量 [1.39e-01/\allowbreak{}5.36e-03/\allowbreak{}4.33e-01/\allowbreak{}9.57e-01/\allowbreak{}0.00e+00]；60 步后的相对残差 1.2e-03/\allowbreak{}1.8e-06/\allowbreak{}7.6e-13/\allowbreak{}2.2e-16/\allowbreak{}2.2e-15 \checkmark \\
+B & 1d\_\allowbreak{}n32 解误差 & $\le$ 1.00000e-09 & $3.332\times 10^{-15}$ \checkmark \\
+B & 1d\_\allowbreak{}n32 的 A-范数误差单调 & nonincreasing & 违反 0 处 \checkmark \\
+B & 2d\_\allowbreak{}k8 解误差 & $\le$ 1.00000e-09 & $9.991\times 10^{-16}$ \checkmark \\
+B & 2d\_\allowbreak{}k8 的 A-范数误差单调 & nonincreasing & 违反 0 处 \checkmark \\
+B & 2x2\_\allowbreak{}k100 解误差 & $\le$ 1.00000e-09 & $1.661\times 10^{-15}$ \checkmark \\
+B & 2x2\_\allowbreak{}k100 的 A-范数误差单调 & nonincreasing & 违反 0 处 \checkmark \\
+B & A-范数误差的最大回升幅度(相对) & $\le$ 1.00000e-12 & 0 \checkmark \\
+A & CG 的 A-范数单调性 + Chebyshev 界(1d n=32 / 2d 8$\times$8 / 2$\times$2 $\kappa$=100) & e\_k 单调；e\_k $\le$ 2$\rho$\textasciicircum{}k e\_0，$\rho$=\allowbreak{}(\allowbreak{}$\surd$$\kappa$$-$1)/\allowbreak{}(\allowbreak{}$\surd$$\kappa$+1) & 迭代数/\allowbreak{}维数 1d\_n32=\allowbreak{}32/\allowbreak{}32、\allowbreak{}2d\_k8=\allowbreak{}23/\allowbreak{}64、\allowbreak{}2x2\_k100=\allowbreak{}3/\allowbreak{}2；最大回升 0.00e+00；界相对实际误差最松处 $\times$670192009415552.5 \checkmark \\
+B & Givens 递推残差与真实残差的最大偏差 & $\le$ 1.00000e-08 & $5.917\times 10^{-14}$ \checkmark \\
+B & GMRES 解与直接 LU 解的最大相对偏差 & $\le$ 1.00000e-08 & $1.989\times 10^{-13}$ \checkmark \\
+A & GMRES 的单调性、残差估计与解精度(3 个算例) & $\|$r\_\{k+1\}$\|$$\le$$\|$r\_k$\|$；est=\allowbreak{}true；m$\ge$n 时 $\le$n 步 & 1d\_n40(\allowbreak{}m=\allowbreak{}40): 40步,\allowbreak{} est$-$true$\le$5.9e-14；2d\_k8\_csr(\allowbreak{}m=\allowbreak{}20): 29步,\allowbreak{} est$-$true$\le$3.4e-16；rot2x2(\allowbreak{}m=\allowbreak{}2): 2步,\allowbreak{} est$-$true$\le$1.6e-15；解最大相对偏差 1.99e-13 \checkmark \\
+A & 重启 GMRES 的停滞：m 越小越慢(1D Poisson n=40，tol=1e-10，上限 400 步) & 重启丢掉 Krylov 信息，m 太小时停滞(\allowbreak{}本算例 m=\allowbreak{}5/\allowbreak{}10 在 400 步内不收敛) & m=\allowbreak{}5: 400步/\allowbreak{}80周期,\allowbreak{} 末残差 2.6e-03,\allowbreak{} 未收敛；m=\allowbreak{}10: 400步/\allowbreak{}40周期,\allowbreak{} 末残差 1.3e-05,\allowbreak{} 未收敛；m=\allowbreak{}20: 291步/\allowbreak{}15周期,\allowbreak{} 末残差 9.4e-11,\allowbreak{} 收敛；m=\allowbreak{}40: 40步/\allowbreak{}1周期,\allowbreak{} 末残差 5.9e-14,\allowbreak{} 收敛 \checkmark \\
+B & Arnoldi 基的正交性 & $\le$ 1.00000e-13 & $2.220\times 10^{-16}$ \checkmark \\
+B & Lanczos 的相异 Ritz 值与相异特征值的最大偏差 & $\le$ 1.00000e-08 & $5.000\times 10^{-10}$ \checkmark \\
+A & Arnoldi 正交性和 Lanczos 相异谱(2D 6$\times$6 Laplacian，n=36) & V$^{\mathsf T}$V=\allowbreak{}I；相异 Ritz 值 =\allowbreak{} 相异特征值 & Arnoldi 正交偏差 2.22e-16；相异 Ritz 19 个 vs 相异特征值 19 个，最大偏差 5.00e-10；Lanczos 跑了 33 步才停下(\allowbreak{}$\beta$$\le$1e-14) \checkmark \\
+B & CG 的 |r\_\allowbreak{}i$^{\mathsf T}$r\_\allowbreak{}j| 最大值(i$\ne$j) & $\le$ 1.00000e-13 & $6.560\times 10^{-15}$ \checkmark \\
+B & CG 的 |p\_\allowbreak{}i$^{\mathsf T}$Ap\_\allowbreak{}j| 最大值(i$\ne$j) & $\le$ 1.00000e-13 & $3.224\times 10^{-15}$ \checkmark \\
+B & GMRES 的 |r\_\allowbreak{}i$^{\mathsf T}$(Av\_\allowbreak{}j)| 最大值(j<i) & $\le$ 1.00000e-11 & $1.636\times 10^{-12}$ \checkmark \\
+A & CG/GMRES 的正交性条件(n=24 一维 Laplacian) & CG: r\_i$^{\mathsf T}$r\_j=\allowbreak{}0、\allowbreak{}p\_i$^{\mathsf T}$Ap\_j=\allowbreak{}0；GMRES: r\_i$^{\mathsf T}$(\allowbreak{}Av\_j)=\allowbreak{}0 & |r\_i$^{\mathsf T}$r\_j|$\le$6.6e-15、\allowbreak{}|p\_i$^{\mathsf T}$Ap\_j|$\le$3.2e-15、\allowbreak{}|r\_i$^{\mathsf T}$Av\_j|$\le$1.6e-12 \checkmark \\
+B & 四种预条件下解的最大相对偏差 & $\le$ 1.00000e-08 & $1.123\times 10^{-12}$ \checkmark \\
+A & PCG(none/jacobi/ssor/ilu0) 解精度与迭代数 & 预条件只改收敛速度，不改解 & 1d\_n64/\allowbreak{}none:64步(\allowbreak{}9.0e-15)；1d\_n64/\allowbreak{}jacobi:64步(\allowbreak{}9.0e-15)；1d\_n64/\allowbreak{}ssor:28步(\allowbreak{}2.8e-14)；1d\_n64/\allowbreak{}ilu0:1步(\allowbreak{}7.6e-15)；2d\_k8/\allowbreak{}none:23步(\allowbreak{}8.0e-16)；2d\_k8/\allowbreak{}jacobi:23步(\allowbreak{}8.0e-16)；2d\_k8/\allowbreak{}ssor:15步(\allowbreak{}1.8e-13)；2d\_k8/\allowbreak{}ilu0:14步(\allowbreak{}1.1e-12) \checkmark \\
+B & 预条件 $\kappa$ 估计与精确 $\kappa$ 的最大相对偏差 & $\le$ 1.00000e-08 & $4.441\times 10^{-14}$ \checkmark \\
+A & 预条件谱估计 vs 精确谱(1d n=32 / 2d 8$\times$8，四种预条件) & M$^{-1}$A 在 $\langle$x,\allowbreak{}y$\rangle$\_M=\allowbreak{}x$^{\mathsf T}$My 下自伴 $\Rightarrow$ Lanczos 的 Ritz 值全实且收敛到它的谱 & 1d\_n32/\allowbreak{}none: 440.6886 vs 440.6886；1d\_n32/\allowbreak{}jacobi: 440.6886 vs 440.6886；1d\_n32/\allowbreak{}ssor: 38.0129 vs 38.0129；1d\_n32/\allowbreak{}ilu0: 1.0000 vs 1.0000；2d\_k8/\allowbreak{}none: 32.1634 vs 32.1634；2d\_k8/\allowbreak{}jacobi: 32.1634 vs 32.1634；2d\_k8/\allowbreak{}ssor: 3.5861 vs 3.5861；2d\_k8/\allowbreak{}ilu0: 3.6837 vs 3.6837；最大相对偏差 4.44e-14 \checkmark \\
+B & CSR 与稠密迭代序列的最大偏差 & $\le$ 1.00000e-13 & $3.553\times 10^{-15}$ \checkmark \\
+B & CSR vs 稠密：CG/GMRES 的整条迭代序列(2D 7$\times$7，nnz=217 / 2401) & 同一套数学 & CG 偏差 3.55e-15，GMRES 偏差 3.55e-15 \checkmark \\
+B & M$\cdot$apply(r)$-$r 的最大相对偏差 & $\le$ 1.00000e-12 & $6.661\times 10^{-15}$ \checkmark \\
+B & 预条件子的 apply 与 to\_\allowbreak{}dense 互为逆(1d n=32 / 2d 8$\times$8) & z =\allowbreak{} M$^{-1}$r $\iff$ Mz =\allowbreak{} r & 最大相对偏差 6.661e-15 \checkmark \\
+B & 实测收敛因子与 $\rho$(T) 的最大相对偏差 & $\le$ 0.005 & 0.000139754 \checkmark \\
+C & 残差尾部因子 vs 幂法谱半径(n=31，Jacobi/GS/SOR $\omega$=1.4) & 渐近收敛因子 =\allowbreak{} $\rho$(\allowbreak{}T) & jacobi: 实测 0.995095 vs $\rho$ 0.995185(\allowbreak{}9.0e-05)；gs: 实测 0.990511 vs $\rho$ 0.990393(\allowbreak{}1.2e-04)；sor: 实测 0.977621 vs $\rho$ 0.977484(\allowbreak{}1.4e-04) \checkmark \\
+A & CG 迭代数对 $\surd$$\kappa$ 的斜率(一维 Laplacian) & 1 & 1.01255 \checkmark \\
+A & CG 迭代数对 $\surd$$\kappa$ 的斜率(二维五点格式，CSR) & 1 & 1.03639 \checkmark \\
+C & CG 迭代数 \textasciitilde{} $\surd$$\kappa$ 的双对数斜率 & 斜率 1(\allowbreak{}最坏界 2(\allowbreak{}(\allowbreak{}$\surd$$\kappa$$-$1)/\allowbreak{}(\allowbreak{}$\surd$$\kappa$+1))\textasciicircum{}k 给的是同阶) & 一维 n=\allowbreak{}[32,\allowbreak{} 64,\allowbreak{} 128,\allowbreak{} 256]: iters=\allowbreak{}[32,\allowbreak{} 64,\allowbreak{} 128,\allowbreak{} 256],\allowbreak{} $\kappa$=\allowbreak{}['440.7',\allowbreak{} '1711.7',\allowbreak{} '6743.7',\allowbreak{} '26768.0'],\allowbreak{} 斜率 1.0125；二维 k=\allowbreak{}16..48: iters=\allowbreak{}[50,\allowbreak{} 75,\allowbreak{} 100,\allowbreak{} 150],\allowbreak{} 斜率 1.0364 \checkmark \\
+C & 预条件：$\kappa$ 降幅 vs 迭代数降幅(2D 8$\times$8，SSOR $\omega$=1.2) & 迭代数由谱**分布**决定，$\surd$$\kappa$ 只是最坏界的启发 & $\kappa$ 32.16 $\to$ 3.59(\allowbreak{}$\times$8.97)，迭代 23 $\to$ 14(\allowbreak{}$\times$1.64)，$\surd$$\kappa$ 比 =\allowbreak{} 2.99；实测因子 0.0996 $\Rightarrow$ 等效 $\kappa$ 1.49 \checkmark \\
+\end{longtable}

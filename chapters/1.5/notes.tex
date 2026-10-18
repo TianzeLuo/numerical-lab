@@ -1,0 +1,1093 @@
+% 1.5 章 · 稀疏迭代法与预条件
+% 这一章把"解 Ax=b"从直接法换到迭代法，要回答三个互不相同的问题：
+%   1) 定常迭代（Jacobi / GS / SOR）什么时候收敛？界线只有一条：谱半径 < 1；
+%   2) Krylov 方法（CG / GMRES）为什么能快？因为它在多项式空间里做逼近，快慢由谱分布决定；
+%   3) 预条件改的是什么？改的是谱分布，不是"条件数"这一个数。
+% 断言附表由 tools/build_book.py 从实际运行结果生成，\input 进来，不手抄。
+
+\numlabchapter{稀疏迭代法与预条件}{1.5}
+
+\section{这一章要解决什么}
+
+1.2 章把 $Ax=b$ 当成一次分解来解决：$A=LU$，代价 $O(n^3)$，填充决定内存。
+可是当 $A$ 来自 PDE 离散时，$n$ 是 $10^5$ 到 $10^9$ 量级，而 $A$ 的每一行只有常数个非零元。
+这时有两个选择：
+
+\begin{enumerate}
+  \item \textbf{稀疏直接法}：填充会把 $O(n)$ 的非零元变成 $O(n^{3/2})$（二维网格）甚至更多，
+        代价和内存都随填充爆炸；但它是"一次性"的，$\kappa$ 再大也只在回代时付一次。
+  \item \textbf{迭代法}：只用到"矩阵乘向量"这一个操作，内存就是 $A$ 本身；
+        代价是收敛快慢变成一个新问题——它由 $A$ 的\emph{谱}决定，而且和右端项 $b$ 有关。
+\end{enumerate}
+
+这一章要把迭代法的三件事拆开，它们是三个\textbf{互相独立}的问题：
+
+\begin{enumerate}
+  \item \textbf{定常迭代会不会收敛？} Jacobi / Gauss--Seidel / SOR 都是
+        $x^{(k+1)}=Tx^{(k)}+c$，所以答案只有一条：$\rho(T)<1$（定理 \ref{thm:stationary}）。
+        收敛\emph{多快}也只由 $\rho(T)$ 一个数决定。
+  \item \textbf{Krylov 方法为什么快？} CG 与 GMRES 不沿坐标方向走，而是在第 $k$ 个
+        Krylov 子空间里挑"最优"的那个点：CG 最小化 A-范数误差，
+        GMRES 最小化残差。于是问题变成"能不能找到一个在谱上很小、又过原点的 $k$ 次多项式"
+        （定理 \ref{thm:cg-optimal}、\ref{thm:cg-cheb}、\ref{thm:gmres}）。
+        \textbf{谱聚簇}才是快的原因，$\kappa$ 只是一个最坏情形界的参数。
+  \item \textbf{预条件改的是什么？} 把 $Ax=b$ 换成 $M^{-1}Ax=M^{-1}b$。
+        它不改解，改的是谱分布：$M^{-1}A$ 在 $M$-内积下自伴（定理 \ref{thm:m-selfadj}），
+        所以 PCG 仍然是最优的，只是最优性换了一个内积。
+\end{enumerate}
+
+本章四个可视化分别对着这三点：\texttt{iteration\_race}（定常迭代的轨迹与谱半径）、
+\texttt{error\_spectrum}（误差的模态分解）、\texttt{krylov\_growth}（Krylov 子空间与正交性）、
+\texttt{precond\_effect}（预条件前后的谱分布与收敛曲线）。
+
+\subsection*{记号（两套分裂，务必分清）}
+
+定常迭代一节沿用 \texttt{numcore/linalg/iterative.py} 的记号
+\begin{equation}
+  A = D - L - U,\qquad
+  D=\operatorname{diag}(A),\quad
+  L=-\operatorname{tril}(A,-1),\quad
+  U=-\operatorname{triu}(A,1),
+  \label{eq:split-minus}
+\end{equation}
+对 M 矩阵（对角正、非对角非正）这样写使 $L,U\ge0$。
+预条件一节沿用 \texttt{numcore/linalg/precond.py} 的记号 $A=D+L+U$，
+其中 $L=\operatorname{tril}(A,-1)$、$U=\operatorname{triu}(A,1)$ 就是 $A$ 的严格下、上三角部分。
+两套记号差一个负号，跨节引用时每次都会重述。
+
+其余记号：$u=2^{-53}\approx1.11\times10^{-16}$ 是单位舍入；
+$\rho(T)=\max_i|\lambda_i(T)|$ 是谱半径；$\kappa_2(A)=\lambda_{\max}/\lambda_{\min}$（$A$ 对称正定时）；
+$\|e\|_A=\sqrt{e^{\mathsf T}Ae}$ 是 A-范数；
+$\mathcal K_k(A,r_0)=\operatorname{span}\{r_0,Ar_0,\dots,A^{k-1}r_0\}$ 是第 $k$ 个 Krylov 子空间；
+$\mathcal P_k$ 是次数不超过 $k$ 的实系数多项式全体。
+
+\section{定常迭代：谱半径是唯一判据}
+
+\begin{definition}[分裂与迭代矩阵]
+设 $A$ 非奇异，$A=M-N$ 且 $M$ 非奇异。把 $Ax=b$ 改写成 $Mx=Nx+b$，得定常迭代
+\begin{equation}
+  x^{(k+1)} = T x^{(k)} + c,\qquad T=M^{-1}N,\qquad c=M^{-1}b .
+  \label{eq:stationary}
+\end{equation}
+$T$ 叫\textbf{迭代矩阵}。三种经典分裂（按 \eqref{eq:split-minus} 的 $A=D-L-U$）：
+\begin{equation}
+  T_J=D^{-1}(L+U),\qquad
+  T_{\mathrm{GS}}=(D-L)^{-1}U,\qquad
+  T_\omega=(D-\omega L)^{-1}\bigl((1-\omega)D+\omega U\bigr).
+  \label{eq:iters}
+\end{equation}
+SOR 的更新式是逐分量的
+\begin{equation}
+  x_i\leftarrow(1-\omega)x_i+\frac{\omega}{a_{ii}}\Bigl(b_i-\sum_{j\ne i}a_{ij}x_j\Bigr),
+\end{equation}
+$\omega=1$ 即 Gauss--Seidel。
+\end{definition}
+
+\begin{lemma}[Gelfand 公式]
+\label{lem:gelfand}
+对任意矩阵范数 $\|\cdot\|$ 与任意 $T\in\mathbb R^{n\times n}$，
+\begin{equation}
+  \rho(T)=\lim_{k\to\infty}\|T^k\|^{1/k}.
+  \label{eq:gelfand}
+\end{equation}
+\end{lemma}
+
+\begin{proof}
+\emph{下界}：谱半径不超过任何范数（$\rho(T)=\max_i|\lambda_i|\le\|T\|$，取特征向量取范数即得），
+故 $\rho(T)^k=\rho(T^k)\le\|T^k\|$，于是 $\|T^k\|^{1/k}\ge\rho(T)$ 对一切 $k$ 成立。
+
+\emph{上界}：取 Jordan 标准形 $T=XJX^{-1}$，$J=\operatorname{diag}(J_1,\dots,J_s)$，
+$J_i=\lambda_iI+N_i$，$N_i^{m_i}=0$。二项式展开给出
+\begin{equation}
+  J_i^k=\sum_{l=0}^{m_i-1}\binom{k}{l}\lambda_i^{k-l}N_i^{\,l}.
+\end{equation}
+令 $m=\max_im_i$、$c_0=\max_i\|N_i\|$。对 $k\ge m$ 与 $|\lambda_i|\le\rho$ 有
+$\binom{k}{l}\le k^{\,m-1}$ 与 $|\lambda_i|^{k-l}\le\rho^{\,k-l}$，$l\le m-1$，
+故 $\|J^k\|\le s\,k^{m-1}\max(1,c_0)^{m-1}\rho^{\,k-m+1}$。乘以 $\|X\|\,\|X^{-1}\|$
+并把常数全部吸收进 $C$，得 $\|T^k\|\le Ck^{m-1}\rho^k$（$\rho>0$；$\rho=0$ 时 $T$ 幂零，
+$k\ge n$ 后 $T^k=0$，结论直接成立）。于是
+$\|T^k\|^{1/k}\le C^{1/k}k^{(m-1)/k}\rho\to\rho$，因为 $C^{1/k}\to1$、$k^{1/k}\to1$。
+上下界夹逼即得 \eqref{eq:gelfand}。
+\end{proof}
+
+\begin{theorem}[定常迭代收敛判据]
+\label{thm:stationary}
+设 $A$ 非奇异、$A=M-N$、$M$ 非奇异，迭代 \eqref{eq:stationary}，误差 $e^{(k)}=x^{(k)}-x^\ast$。
+则
+\begin{equation}
+  \text{对任意 }x^{(0)}\text{ 收敛}\quad\iff\quad\rho(T)<1 .
+\end{equation}
+当 $\rho(T)<1$ 时，对任意 $\varepsilon>0$ 存在 $C(\varepsilon)$ 使
+$\|e^{(k)}\|\le C(\varepsilon)\bigl(\rho(T)+\varepsilon\bigr)^k\|e^{(0)}\|$；
+反过来，若 $e^{(0)}$ 在某个模为 $\rho(T)$ 的特征方向上有非零分量，则
+$\lim_{k\to\infty}\|e^{(k)}\|^{1/k}=\rho(T)$。
+也就是说：\textbf{渐近收敛因子就是 $\rho(T)$，不多也不少。}
+\end{theorem}
+
+\begin{proof}
+\emph{误差递推}：把 $x^{(k+1)}=Tx^{(k)}+M^{-1}b$ 与 $x^\ast=Tx^\ast+M^{-1}b$ 相减，得
+\begin{equation}
+  e^{(k+1)}=Te^{(k)},\qquad\text{于是}\qquad e^{(k)}=T^ke^{(0)} .
+  \label{eq:errorpow}
+\end{equation}
+
+\emph{充分性}（$\rho<1\Rightarrow$ 收敛）：由引理 \ref{lem:gelfand}，
+$\|T^k\|^{1/k}\to\rho<1$，取 $\varepsilon>0$ 使 $\rho+\varepsilon<1$，
+则存在 $K$ 使 $k\ge K$ 时 $\|T^k\|^{1/k}\le\rho+\varepsilon$，即 $\|T^k\|\le(\rho+\varepsilon)^k\to0$。
+由 \eqref{eq:errorpow}，$\|e^{(k)}\|\to0$，且对一切初值成立。
+
+\emph{必要性}（收敛 $\Rightarrow\rho<1$）：反设 $\rho\ge1$，取特征对 $Tv=\lambda v$、$|\lambda|\ge1$。
+若 $v$ 是实向量，则 $\|T^kv\|=|\lambda|^k\|v\|\ge\|v\|$，取 $e^{(0)}=v$ 误差不趋于零。
+若 $v$ 复，则 $\|\operatorname{Re}(\lambda^kv)\|^2+\|\operatorname{Im}(\lambda^kv)\|^2
+=|\lambda|^{2k}\|v\|^2\ge\|v\|^2$，故 $\operatorname{Re}(\lambda^kv)$ 与 $\operatorname{Im}(\lambda^kv)$
+不可能同时趋于零，取其中之一作初值即得反例。所以收敛性逼出 $\rho<1$。
+
+\emph{渐近因子}：上界已由引理给出。下界取 $e^{(0)}$ 在模为 $\rho$ 的特征方向上的投影
+$e^{(0)}=u+w$（$u$ 落在该特征（广义）子空间，$w$ 落在其余特征方向）。
+$T^ku$ 的增长恰为 $\rho^k$ 量级，而 $T^kw$ 的增长率至多 $\rho'<\rho$，
+于是 $\liminf_k\|e^{(k)}\|^{1/k}\ge\rho-\varepsilon$ 对任意 $\varepsilon>0$ 成立，
+与上界合并即得极限为 $\rho$。
+
+注意 $T$ 有复共轭主特征值时 $\|e^{(k)}\|$ 本身会\emph{振荡}（见下面的注），
+但 $k$ 次根与几何平均仍然收敛到 $\rho$。
+\end{proof}
+
+\begin{corollary}[达到精度要多少步]
+\label{cor:steps}
+$\rho(T)<1$ 时，把误差压到相对 $10^{-t}$ 需要的步数约为
+$k\approx t\ln10\bigl/(-\ln\rho(T)\bigr)$。特别地 $\rho=1-\delta$（$\delta$ 小）时
+$k\approx t\ln10/\delta$：收敛因子离 $1$ 有多近，比"是否小于 $1$"重要得多。
+\end{corollary}
+
+\begin{proof}
+由 $\|e^{(k)}\|\lesssim\rho^k\|e^{(0)}\|$，令 $\rho^k\le10^{-t}$ 即 $k\ln\rho\le-t\ln10$，
+而 $\ln\rho<0$，故 $k\ge t\ln10/(-\ln\rho)$。用 $-\ln(1-\delta)\approx\delta$ 得第二式。
+\end{proof}
+
+\begin{remark}[复共轭对：幂法的增长比为什么不收敛]
+\label{rem:complex}
+主特征值是一对复共轭 $\lambda_\pm=|\lambda|e^{\pm i\theta}$ 时，
+$x_k=T^kx_0/\|T^kx_0\|$ 不再收敛到单个方向，而是在二维不变子空间里\emph{转圈}：
+$\|Tx_k\|/\|x_k\|$ 逐次振荡，只有它的几何平均收敛到 $|\lambda|$。
+SOR 在 $\omega>\omega_{\rm opt}$ 时恰好落到这个情形（定理 \ref{thm:sor-opt}）。
+本仓库的 \texttt{power\_method} 因此同时维护两个估计：瑞利商（实主特征值下二次收敛）
+与增长比的几何平均（复对的兜底）。实测（$n=15$，$\omega=1.9$）：
+理论 $\rho=\omega-1=0.9$，幂法给 $0.9004\sim0.9006$（随种子在末位波动），
+而单看最后两个增长比会给出完全对不上的数。
+\end{remark}
+
+\section{模型问题：一维 Laplacian 的解析谱}
+
+\begin{definition}[模型问题]
+\label{def:model}
+$\theta_j=\dfrac{j\pi}{n+1}$（$j=1,\dots,n$），
+\begin{equation}
+  A=\operatorname{tridiag}(-1,2,-1)\in\mathbb R^{n\times n},\qquad
+  D=2I,\qquad
+  v_j(i)=\sin(i\theta_j)\ (i=1,\dots,n).
+\end{equation}
+$A$ 是 $-\Delta$ 在一维 Dirichlet 边界下的三点差分，对称正定，$L,U\ge0$。
+\end{definition}
+
+\begin{lemma}[模型问题上 SOR 谱的精确刻画]
+\label{lem:transfer}
+对定义 \ref{def:model} 的模型问题与任意 $\omega\in(0,2)$，记
+$\mu_j=\cos\theta_j=\cos\frac{j\pi}{n+1}$。
+\begin{enumerate}
+  \item \textbf{特征多项式有闭式}：
+  \begin{equation}
+    \begin{split}
+      \chi_\omega(\lambda):=\det(\lambda I-T_\omega)
+      &=\prod_{j=1}^{\lfloor n/2\rfloor}
+      \Bigl(\lambda^2-\bigl(\omega^2\mu_j^2-2(\omega-1)\bigr)\lambda+(\omega-1)^2\Bigr)\\
+      &\qquad\cdot(\lambda+\omega-1)^{\,n\bmod 2},
+    \end{split}
+    \label{eq:sor-charpoly}
+  \end{equation}
+  这里的 $\mu_j$ 取正的那些（$j=1,\dots,\lfloor n/2\rfloor$）。
+  \item \textbf{特征值与特征向量}：对 $\lambda\ne0$，
+  \begin{equation}
+    \lambda\in\sigma(T_\omega)
+    \iff
+    \exists\, j\in\{1,\dots,n\},\ \exists\,\rho\ (\rho^2=\lambda):
+    \quad \rho^2-\omega\mu_j\rho+(\omega-1)=0,
+    \label{eq:young-cond}
+  \end{equation}
+  此时 $x_i=\rho^{\,i}\sin(i\theta_j)$ 是对应特征向量；
+  等价地，每个特征值都满足 Young 关系
+  \begin{equation}
+    (\lambda+\omega-1)^2=\lambda\,\omega^2\mu_j^2 .
+    \label{eq:young}
+  \end{equation}
+\end{enumerate}
+\end{lemma}
+
+\begin{proof}
+\textbf{(1) 把特征值问题变成三对角方程组}。
+$T_\omega x=\lambda x$ 等价于 $((1-\omega)D+\omega U)x=\lambda(D-\omega L)x$，移项得
+$B(\lambda)x=0$，其中
+\begin{equation}
+  B(\lambda)=(\lambda+\omega-1)D-\lambda\omega L-\omega U .
+  \label{eq:Bmatrix}
+\end{equation}
+又 $T_\omega-\lambda I=(D-\omega L)^{-1}\bigl((1-\omega)D+\omega U-\lambda(D-\omega L)\bigr)
+=-(D-\omega L)^{-1}B(\lambda)$，取行列式并用 $\det(D-\omega L)=\det(2I)=2^n$：
+\begin{equation}
+  \chi_\omega(\lambda)=\det(\lambda I-T_\omega)=\frac{\det B(\lambda)}{2^n}.
+  \label{eq:chi-via-B}
+\end{equation}
+对模型问题，\eqref{eq:Bmatrix} 是\textbf{三对角 Toeplitz}：对角 $d=2(\lambda+\omega-1)$、
+次对角 $a=-\lambda\omega$、超对角 $c=-\omega$。
+
+\textbf{(2) 三对角行列式的闭式}。记 $D_n=\det B(\lambda)$，按最后一行展开得
+$D_n=dD_{n-1}-acD_{n-2}$，$D_0=1$、$D_1=d$。
+第二类 Chebyshev 多项式满足 $U_n(x)=2xU_{n-1}(x)-U_{n-2}(x)$、$U_0=1$、$U_1=2x$，
+逐项比对（对 $n$ 归纳）得 $D_n=(ac)^{n/2}U_n\bigl(d/(2\sqrt{ac})\bigr)$。
+代入 $ac=\lambda\omega^2$、$\sqrt{ac}=\omega\sqrt\lambda$：
+\begin{equation}
+  \det B(\lambda)=\omega^n\lambda^{n/2}\,U_n\!\Bigl(\frac{\lambda+\omega-1}{\omega\sqrt\lambda}\Bigr).
+  \label{eq:detB-cheb}
+\end{equation}
+
+\textbf{(3) 因式分解}。$U_n(\cos\theta)=\dfrac{\sin((n+1)\theta)}{\sin\theta}$，
+故 $U_n$ 的 $n$ 个根是 $\mu_j=\cos\frac{j\pi}{n+1}$（全为单根），首项系数为 $2^n$：
+$U_n(x)=2^n\prod_{j=1}^n(x-\mu_j)$。代入 \eqref{eq:detB-cheb} 得
+$\det B(\lambda)=2^n\prod_{j=1}^n\bigl(\lambda+\omega-1-\omega\mu_j\sqrt\lambda\bigr)$。
+把 $j$ 与 $n+1-j$ 配对（$\mu_{n+1-j}=-\mu_j$，两根之积把 $\sqrt\lambda$ 消掉）：
+\begin{equation}
+  \begin{split}
+    &\bigl(\lambda+\omega-1-\omega\mu_j\sqrt\lambda\bigr)
+    \bigl(\lambda+\omega-1+\omega\mu_j\sqrt\lambda\bigr)\\
+    &\qquad=(\lambda+\omega-1)^2-\omega^2\mu_j^2\lambda
+    =\lambda^2-\bigl(\omega^2\mu_j^2-2(\omega-1)\bigr)\lambda+(\omega-1)^2 ,
+  \end{split}
+\end{equation}
+$n$ 为奇数时，中间那个 $\mu=0$ 留下一元因子 $\lambda+\omega-1$。
+把这个配好对的乘积代回 \eqref{eq:chi-via-B}，右边是 $\lfloor n/2\rfloor$ 个首一二次因子
+（也可能再乘一个首一线性因子），总次数为 $n$，与首一的 $\chi_\omega$ 相同；
+而 \eqref{eq:chi-via-B} 是逐因子的恒等式，
+所以 \eqref{eq:sor-charpoly} 成立。这一步没有用"零点相同就相等"，
+重数记账是逐因子做掉的。
+
+\textbf{(4) 特征值与特征向量}。把 $D=2I$、$(Ux)_i=x_{i+1}$、$(Lx)_i=x_{i-1}$
+（约定 $x_0=x_{n+1}=0$）代入 $B(\lambda)x=0$，即得三项递推
+\begin{equation}
+  \omega\bigl(x_{i+1}+\lambda x_{i-1}\bigr)=2(\lambda+\omega-1)x_i,\qquad i=1,\dots,n .
+  \label{eq:sor-recurrence}
+\end{equation}
+
+\emph{传递矩阵}。把 \eqref{eq:sor-recurrence} 写成
+$x_{i+1}=\dfrac{2(\lambda+\omega-1)}{\omega}x_i-\lambda x_{i-1}$，即
+\begin{equation}
+  \begin{pmatrix}x_{i+1}\\ x_i\end{pmatrix}
+  =M(\lambda)\begin{pmatrix}x_i\\ x_{i-1}\end{pmatrix},\qquad
+  M(\lambda)=\begin{pmatrix}2c & -\lambda\\ 1 & 0\end{pmatrix},\qquad
+  c=\frac{\lambda+\omega-1}{\omega},
+\end{equation}
+于是 $\begin{pmatrix}x_{n+1}\\ x_n\end{pmatrix}=M(\lambda)^n\begin{pmatrix}x_1\\ 0\end{pmatrix}$，
+边界条件 $x_{n+1}=0$ 等价于 $\bigl(M(\lambda)^n\bigr)_{11}x_1=0$。
+$x_1=0$ 会由递推逼出 $x\equiv0$，所以 $x\ne0$ 时必须有
+\begin{equation}
+  \bigl(M(\lambda)^n\bigr)_{11}=0 .
+  \label{eq:transfer-condition}
+\end{equation}
+
+\emph{求 $M^n$}。$M$ 的特征值是 $r_\pm$，满足 $r_++r_-=2c$、$r_+r_-=\det M=\lambda$。
+若两根相异，标准的 $2\times2$ 幂公式给出
+\begin{equation}
+  \bigl(M^n\bigr)_{11}=\frac{r_+^{n+1}-r_-^{n+1}}{r_+-r_-}.
+\end{equation}
+取 $\rho$ 使 $\rho^2=\lambda$ 并写 $r_\pm=\rho e^{\pm i\theta}$，则
+$r_+^{n+1}-r_-^{n+1}=2i\rho^{n+1}\sin((n+1)\theta)$、$r_+-r_-=2i\rho\sin\theta$，于是
+\begin{equation}
+  \bigl(M^n\bigr)_{11}=\rho^n\,\frac{\sin((n+1)\theta)}{\sin\theta}
+  =\rho^n\,U_n(\cos\theta),
+  \label{eq:cheb-transfer}
+\end{equation}
+$U_n$ 是第二类 Chebyshev 多项式（重根情形是上式的极限，结论不变）。
+
+\emph{解条件} \eqref{eq:transfer-condition}。$\rho\ne0$（因 $\lambda\ne0$），
+故必须 $\sin((n+1)\theta)=0$：$\theta=0$ 或 $\pi$ 时 $r_+=r_-$ 使
+$(M^n)_{11}=n\rho^n\ne0$，不满足条件；剩下 $\theta=\theta_j=\dfrac{j\pi}{n+1}$，$j=1,\dots,n$。
+再由 $2c=r_++r_-=2\rho\cos\theta$ 得 $c=\rho\mu_j$，即
+$\rho^2-\omega\mu_j\rho+(\omega-1)=0$，这就是 \eqref{eq:young-cond}。
+
+反过来，若 \eqref{eq:young-cond} 成立，直接构造
+\begin{equation}
+  x_i=\rho^{\,i}\sin(i\theta_j),\qquad i=1,\dots,n,
+  \label{eq:sor-eigvec}
+\end{equation}
+则 $x_0=0$、$x_{n+1}=\rho^{n+1}\sin((n+1)\theta_j)=0$，且由积化和差
+\begin{equation}
+  x_{i+1}+\lambda x_{i-1}
+  =\rho^{\,i+1}\bigl[\sin((i+1)\theta_j)+\sin((i-1)\theta_j)\bigr]
+  =2\mu_j\rho^{\,i+1}\sin(i\theta_j)=2\rho\mu_j\,x_i ,
+\end{equation}
+两边乘 $\omega$ 并用 $\omega\rho\mu_j=\rho^2+\omega-1=\lambda+\omega-1$ 即得
+\eqref{eq:sor-recurrence}，所以 $x$ 是特征向量、$\lambda$ 是特征值。
+最后把 \eqref{eq:young-cond} 看成 $\rho$ 的二次方程、代入 $\lambda=\rho^2$，
+即得 Young 关系 \eqref{eq:young}。
+\end{proof}
+
+\begin{theorem}[模型问题的解析谱]
+\label{thm:model-spectrum}
+对定义 \ref{def:model} 的 $A$：
+\begin{enumerate}
+  \item $\lambda_j(A)=2-2\cos\theta_j=4\sin^2\!\Bigl(\dfrac{j\pi}{2(n+1)}\Bigr)$，
+        特征向量 $v_j$，且 $v_1,\dots,v_n$ 两两正交；
+  \item $T_J=I-\tfrac12A$，故 $\mu_j(T_J)=\cos\theta_j=\cos\dfrac{j\pi}{n+1}$，
+        于是 $\rho(T_J)=\cos\dfrac{\pi}{n+1}=1-\dfrac{\pi^2}{2(n+1)^2}+O(n^{-4})$。
+\end{enumerate}
+实测（$n=31$）：解析 $\rho(T_J)=\cos(\pi/32)=0.9951847267$，
+手写幂法给 $0.9951847267$（相对偏差 $\sim10^{-11}$ 量级）。
+\end{theorem}
+
+\begin{proof}
+\emph{(1)} 用积化和差：对 $i=1,\dots,n$，
+\begin{equation}
+  \begin{split}
+    (Av_j)_i&=2\sin(i\theta_j)-\sin((i-1)\theta_j)-\sin((i+1)\theta_j)\\
+    &=\bigl(2-2\cos\theta_j\bigr)\sin(i\theta_j)=\lambda_j\,v_j(i),
+  \end{split}
+\end{equation}
+边界项自动正确：$i=1$ 时 $\sin(0)=0$，$i=n$ 时 $\sin((n+1)\theta_j)=\sin(j\pi)=0$。
+正交性来自离散正弦函数的正交关系
+$\sum_{i=1}^n\sin(i\theta_j)\sin(i\theta_k)=\dfrac{n+1}{2}\delta_{jk}$。
+特征值 $\lambda_j=4\sin^2(\theta_j/2)$ 关于 $j$ 单调增，故 $\lambda_{\min}=\lambda_1$。
+
+\emph{(2)} 由 \eqref{eq:split-minus}，$L+U=D-A=2I-A$，于是
+$T_J=D^{-1}(L+U)=\tfrac12(2I-A)=I-\tfrac12A$，与 $A$ 同特征向量，
+$\mu_j=1-\lambda_j/2=\cos\theta_j$。$\cos$ 在 $(0,\pi)$ 上单调减、$\theta_1$ 最小，
+故 $\rho(T_J)=\mu_1=\cos\frac{\pi}{n+1}$，展开式由 $\cos z=1-z^2/2+O(z^4)$ 得到。
+\end{proof}
+
+\begin{theorem}[Gauss--Seidel 在模型问题上的谱]
+\label{thm:gs-spectrum}
+设 $A$ 为模型问题，$\mu_j=\cos\theta_j$。则 $T_{\mathrm{GS}}$ 的特征值（计代数重数）恰为
+\begin{equation}
+  \bigl\{\,\mu_j^2:\ \mu_j>0\,\bigr\}\ \cup\ \bigl\{\,0\ \text{（共 }\lceil n/2\rceil\text{ 个）}\,\bigr\},
+  \label{eq:gs-spectrum}
+\end{equation}
+即\textbf{非零}特征值是"正的 Jacobi 特征值的平方"；于是
+\begin{equation}
+  \rho(T_{\mathrm{GS}})=\mu_1^2=\cos^2\frac{\pi}{n+1}=1-\frac{\pi^2}{(n+1)^2}+O(n^{-4}).
+  \label{eq:gs-rho}
+\end{equation}
+此外 $T_{\mathrm{GS}}$ 在 $0$ 处\textbf{亏损}：$\operatorname{rank}T_{\mathrm{GS}}=n-1$ 给出
+$\dim\ker T_{\mathrm{GS}}=1$，而 $0$ 的代数重数是 $\lceil n/2\rceil$，
+所以 $T_{\mathrm{GS}}$ 不可对角化。
+实测（$n=31$）：$\rho(T_{\mathrm{GS}})=0.9903926402$；
+本章断言附表在 $n=7,\dots,63$ 上比对 $\rho(T_{\mathrm{GS}})$ 与 $\cos^2\frac{\pi}{n+1}$，
+最大相对偏差 $4.5\times10^{-10}$。
+\end{theorem}
+
+\begin{proof}
+\emph{特征值的定位}。在引理 \ref{lem:transfer} 中取 $\omega=1$，\eqref{eq:young-cond} 变成
+$\rho^2-\mu_j\rho=0$，即 $\rho\in\{0,\mu_j\}$，于是 $\lambda=\rho^2\in\{0,\mu_j^2\}$。
+$\mu_j$ 关于 $j$ 单调减且 $\mu_{n+1-j}=-\mu_j$，所以 $n$ 个 $j$ 按 $\{\pm\mu_j\}$ 配成
+$\lceil n/2\rceil$ 对（$n$ 奇数时中间那个 $\mu=0$ 自成一类），
+每对给出的 $\lambda$ 集合都是 $\{0,\mu_j^2\}$（$\mu_j>0$ 的那个代表），共
+$2\cdot\lfloor n/2\rfloor+(n\bmod 2)=n$ 个，正好把 $n$ 维谱数完：
+非零值是正的 $\mu_j$ 的平方，其余全是 $0$。按 $\mu$ 递减排序即得
+$\rho(T_{\mathrm{GS}})=\mu_1^2=\cos^2\frac{\pi}{n+1}$。
+
+\emph{亏损性}。$T_{\mathrm{GS}}=(D-L)^{-1}U$，而 $U$ 是严格上双对角（超对角全为 $1$），
+$\operatorname{rank}U=n-1$，$(D-L)^{-1}$ 可逆，故 $\operatorname{rank}T_{\mathrm{GS}}=n-1$，
+$\dim\ker T_{\mathrm{GS}}=1$：只有 $e_1$ 一个（线性无关的）零特征向量。
+而上面数出来的零特征值有 $\lceil n/2\rceil$ 个（$n\ge3$ 时大于 $1$），
+几何重数小于代数重数，故不可对角化。
+
+\emph{特征向量}。引理 \ref{lem:transfer} 的构造 \eqref{eq:sor-eigvec} 在 $\omega=1$、$\rho=\mu_j>0$ 时给出
+\begin{equation}
+  T_{\mathrm{GS}}\,x^{(j)}=\mu_j^2x^{(j)},\qquad
+  x^{(j)}_i=\mu_j^{\,i}\sin(i\theta_j),\qquad j=1,\dots,\lfloor n/2\rfloor .
+  \label{eq:gs-eigvec}
+\end{equation}
+注意它\textbf{不是} Jacobi 特征向量按奇偶分块的简单缩放（见 \S\ref{sec:sor} 的注），
+而是整条向量的对角缩放 $x^{(j)}=\operatorname{diag}(\mu_j^{\,i})v_j$。
+\end{proof}
+
+\begin{corollary}[GS 的代价是 Jacobi 的一半]
+\label{cor:gs-half}
+$\rho(T_{\mathrm{GS}})=\rho(T_J)^2$，故由推论 \ref{cor:steps}，
+同样的精度下 Gauss--Seidel 的步数约为 Jacobi 的一半；代价是每步要做前后两次三角扫描，
+且\textbf{不能并行}（就地更新有数据依赖）。
+\end{corollary}
+
+\begin{proof}
+由定理 \ref{thm:model-spectrum} 与 \ref{thm:gs-spectrum}，
+$\rho(T_{\mathrm{GS}})=\mu_1^2=(\cos\frac{\pi}{n+1})^2=\rho(T_J)^2$。
+步数比由 $-\ln\rho(T_{\mathrm{GS}})=2(-\ln\rho(T_J))$ 代入推论 \ref{cor:steps} 得到。
+\end{proof}
+
+\begin{remark}[误差的模态分解只在 Jacobi 下是逐模态的]
+\label{rem:modes}
+$T_J=I-\frac12A$ 与 $A$ 同特征向量，所以 Jacobi 的误差投影系数严格满足
+$c_j^{(k)}=\mu_j^kc_j^{(0)}$。实测（$n=31$）：
+$c_1^{(k+1)}/c_1^{(k)}=0.99518473$、$c_2^{(k+1)}/c_2^{(k)}=0.98078528$，
+与解析的 $\mu_1=\cos(\pi/32)$、$\mu_2=\cos(2\pi/32)$ 逐位一致（偏差 $\sim10^{-16}$）。
+GS/SOR 没有这个性质：它们的特征向量是 \eqref{eq:gs-eigvec} 那种带缩放的模态，
+投影到正弦基上会\emph{混模态}，只在渐近意义下按预测速率衰减——
+\texttt{error\_spectrum} 里前几十步的"串门"就是这件事，不是数值错误。
+\end{remark}
+
+\section{SOR 与 Young 关系}
+\label{sec:sor}
+
+\begin{theorem}[SOR 的特征值是二次因子的根]
+\label{thm:sor-spectrum}
+对模型问题与 $\omega\in(0,2)$，$T_\omega$ 的特征值（计代数重数）就是
+$j=1,\dots,\lfloor n/2\rfloor$ 这些二次因子
+\begin{equation}
+  Q_j(\lambda)=\lambda^2-\bigl(\omega^2\mu_j^2-2(\omega-1)\bigr)\lambda+(\omega-1)^2,
+  \qquad \mu_j=\cos\frac{j\pi}{n+1}>0,
+  \label{eq:Qj}
+\end{equation}
+的根；$n$ 为奇数时再加一个单根 $\lambda=-(\omega-1)$。
+每一个特征值都满足 Young 关系
+\begin{equation}
+  (\lambda+\omega-1)^2=\lambda\,\omega^2\mu^2,\qquad \mu\in\{\pm\mu_j\},
+  \label{eq:young2}
+\end{equation}
+而 $j$ 与 $n+1-j$ 给出同一对根（因为 $\mu_{n+1-j}=-\mu_j$，而 \eqref{eq:young2} 只含 $\mu^2$）。
+等价的说法就是引理 \ref{lem:transfer} 的特征多项式闭式 \eqref{eq:sor-charpoly}。
+\end{theorem}
+
+\begin{proof}
+引理 \ref{lem:transfer} 已经给出特征多项式的闭式 \eqref{eq:sor-charpoly}，
+按定义它的根就是那些二次因子（$n$ 奇数时再加线性因子）的根。
+Young 关系：把 $\rho^2-\omega\mu_j\rho+(\omega-1)=0$ 中的
+$\omega\mu_j\rho$ 移项后平方，并代入 $\lambda=\rho^2$ 即得
+$(\lambda+\omega-1)^2=\omega^2\mu_j^2\lambda$。
+也可直接由 $Q_j$ 的两根验证：把 $\lambda_\pm=\rho_\pm^2$ 写出，
+$\rho_\pm=\frac{\omega\mu_j\pm\sqrt{\omega^2\mu_j^2-4(\omega-1)}}{2}$，
+两根之和 $\rho_+^2+\rho_-^2=(\rho_++\rho_-)^2-2\rho_+\rho_-=\omega^2\mu_j^2-2(\omega-1)$、
+两根之积 $(\rho_+\rho_-)^2=(\omega-1)^2$，正与 $Q_j$ 的系数吻合。
+\end{proof}
+
+\begin{theorem}[最优松弛因子与分段谱半径]
+\label{thm:sor-opt}
+沿用定理 \ref{thm:sor-spectrum} 的记号，令 $\mu=\mu_1=\cos\frac{\pi}{n+1}=\rho(T_J)$、
+$s=\sqrt{1-\mu^2}$，并定义
+\begin{equation}
+  \omega_{\rm opt}=\frac{2}{1+\sqrt{1-\mu^2}}=\frac{2}{1+s}.
+  \label{eq:omegaopt}
+\end{equation}
+则 $T_\omega$ 的谱半径满足分段公式
+\begin{equation}
+  \rho(T_\omega)=
+  \begin{cases}
+  \Bigl(\dfrac{\omega\mu}{2}+\sqrt{\dfrac{\omega^2\mu^2}{4}-\omega+1}\Bigr)^{2},
+  & 0<\omega\le\omega_{\rm opt},\\[3mm]
+  \omega-1, & \omega_{\rm opt}\le\omega<2,
+  \end{cases}
+  \qquad
+  \rho(T_{\omega_{\rm opt}})=\omega_{\rm opt}-1 .
+  \label{eq:sor-rho}
+\end{equation}
+并且 $\rho(T_\omega)$ 在 $(0,\omega_{\rm opt}]$ 上单调减、在 $[\omega_{\rm opt},2)$ 上单调增；
+$\omega\ge2$ 时 $\rho\ge1$（SOR 发散的经典必要条件）。
+$\omega>\omega_{\rm opt}$ 时\emph{所有}特征值都是复共轭对（或那个单实根 $-(\omega-1)$），
+模长都等于 $\omega-1$；主对可写成
+\begin{equation}
+  \lambda_\pm=\Bigl(\frac{\omega\mu}{2}\pm i\sqrt{\omega-1-\frac{\omega^2\mu^2}{4}}\Bigr)^{2},
+  \qquad |\lambda_\pm|=\omega-1 .
+  \label{eq:sor-complex}
+\end{equation}
+实测（$n=15$，$\mu=\cos\frac{\pi}{16}=0.9807852804$）：
+$\omega_{\rm opt}=1.6735137$、$\rho(\omega_{\rm opt})=\omega_{\rm opt}-1=0.6735137$，
+幂法给 $0.6737$（误差 $\sim10^{-4}$：$\omega_{\rm opt}$ 处是\textbf{二重根}，幂法在重根附近本来就慢）；
+$\omega=1.9$ 时理论 $\rho=0.9$，幂法给 $0.9004\sim0.9006$。
+\end{theorem}
+
+\begin{proof}
+\emph{判别式与两种情形}。二次因子
+$Q_j(\lambda)=\lambda^2-\bigl(\omega^2\mu_j^2-2(\omega-1)\bigr)\lambda+(\omega-1)^2$ 的判别式是
+\begin{equation}
+  \Delta_j=\omega^2\mu_j^2\bigl(\omega^2\mu_j^2-4(\omega-1)\bigr).
+\end{equation}
+$\Delta_j\ge0\iff\omega^2\mu_j^2-4\omega+4\ge0\iff\omega\le\omega_{\rm opt}(\mu_j)$，
+其中 $\omega_{\rm opt}(\mu)=\dfrac{2}{1+\sqrt{1-\mu^2}}$（关于 $\omega$ 的二次式
+$\omega^2\mu^2-4\omega+4$ 的两根是 $\omega_{\rm opt}(\mu)$ 与 $\frac{2}{1-\sqrt{1-\mu^2}}>2$，
+抛物线开口向上，故在 $(0,2)$ 内符号只翻一次）。$\omega_{\rm opt}(\mu)$ 关于 $\mu$ 单调增，
+所以对一切 $\mu_j\le\mu_1$ 有 $\omega_{\rm opt}(\mu_j)\le\omega_{\rm opt}(\mu_1)=\omega_{\rm opt}$。
+
+\emph{实根情形 $\omega\le\omega_{\rm opt}$}。此时 $\Delta_j\ge0$，把
+$\lambda_\pm=\bigl(\frac{\omega\mu_j}{2}\pm\sqrt{\frac{\omega^2\mu_j^2}{4}-(\omega-1)}\bigr)^2$
+（与 $Q_j$ 的两根同和同积，故一致）展开即知两根非负，
+较大者为 $g(\mu_j)^2$，$g(\mu)=\frac{\omega\mu}{2}+\sqrt{\frac{\omega^2\mu^2}{4}-\omega+1}$
+关于 $\mu$ 单调增。故 $\rho(T_\omega)=g(\mu_1)^2$，即 \eqref{eq:sor-rho} 的第一段。
+
+\emph{单调性}。记 $D(\omega)=\frac{\omega^2\mu^2}{4}-\omega+1$，$g=\frac{\omega\mu}{2}+\sqrt D$，
+\begin{equation}
+  g'(\omega)=\frac{\mu}{2}+\frac{\frac{\omega\mu^2}{2}-1}{2\sqrt D}.
+\end{equation}
+在 $\omega\le\omega_{\rm opt}$ 上 $D\ge0$，且由 $\frac{\omega_{\rm opt}\mu^2}{2}=1-s$（$s=\sqrt{1-\mu^2}$）
+得 $1-\frac{\omega\mu^2}{2}\ge s>0$。于是
+$g'\le0\iff\mu\sqrt D\le1-\frac{\omega\mu^2}{2}
+\iff\mu^2D\le\bigl(1-\frac{\omega\mu^2}{2}\bigr)^2$（两边非负，可平方），
+而左边 $=\frac{\omega^2\mu^4}{4}-\omega\mu^2+\mu^2$、
+右边 $=1-\omega\mu^2+\frac{\omega^2\mu^4}{4}$，比较得等价于 $\mu^2\le1$，恒成立。
+所以 $g$（从而 $\rho$）在 $(0,\omega_{\rm opt}]$ 上单调不增。
+
+\emph{最优点}。$\omega=\omega_{\rm opt}$ 时 $D=0$，$g=\frac{\omega\mu}{2}$，
+于是 $\rho=g^2=\frac{\omega_{\rm opt}^2\mu^2}{4}$。由 $\frac{\omega_{\rm opt}\mu^2}{2}=1-s$ 得
+$\frac{\omega_{\rm opt}^2\mu^2}{4}=\frac{\omega_{\rm opt}}{2}(1-s)=\frac{1-s}{1+s}=\omega_{\rm opt}-1$，
+即第二段的公式在 $\omega_{\rm opt}$ 处连续，且这是左侧的最小值。
+
+\emph{复共轭情形 $\omega\ge\omega_{\rm opt}$}。此时对每个 $j$ 都有
+$\omega\ge\omega_{\rm opt}\ge\omega_{\rm opt}(\mu_j)$，故 $\Delta_j\le0$，
+$Q_j$ 的两根是一对共轭复数，乘积为 $(\omega-1)^2$，于是两根模长都等于 $\omega-1$。
+$n$ 奇数时额外的实根是 $-(\omega-1)$，模长同样是 $\omega-1$。
+所以 $\rho(T_\omega)=\omega-1$，在 $[\omega_{\rm opt},2)$ 上单调增，且 $\omega\ge2$ 时 $\ge1$。
+
+\emph{主对}。把 $\lambda_\pm$ 写成 $\bigl(\frac{\omega\mu}{2}\pm ib\bigr)^2$、
+$b=\sqrt{\omega-1-\frac{\omega^2\mu^2}{4}}\ge0$，则
+$|\lambda_\pm|=\bigl(\frac{\omega\mu}{2}\bigr)^2+b^2=\omega-1$，即 \eqref{eq:sor-complex}；
+注意模长是 $\omega-1$，而 $\bigl|\frac{\omega\mu}{2}\pm ib\bigr|=\sqrt{\omega-1}$
+（前者是后者的平方）。逐次乘 $T_\omega$ 时向量在这对特征方向上每步转过 $2\arctan(2b/\omega\mu)$，
+范数增长比因此振荡，只有几何平均等于 $\omega-1$（与注 \ref{rem:complex} 一致）。
+\end{proof}
+
+\begin{remark}[一致次序下的经典 Young 论证，以及它在本例中的坑]
+\label{rem:consistent}
+经典证明要求存在置换把 $A$ 写成
+$\begin{pmatrix}D_1&-B\\-B^{\mathsf T}&D_2\end{pmatrix}$（$D_1,D_2$ 对角），
+且在\emph{该置换后的次序}里低块全部属于 $L$、高块全部属于 $U$（红黑序）。
+这时 $T_J=\begin{pmatrix}0&F\\G&0\end{pmatrix}$、
+$\hat L=\begin{pmatrix}0&0\\G&0\end{pmatrix}$、
+$\hat U=\begin{pmatrix}0&F\\0&0\end{pmatrix}$，特征方程
+$(\lambda+\omega-1)x=\omega(\lambda\hat L+\hat U)x$ 给出
+$x_1=\frac{\omega\lambda}{\lambda+\omega-1}Fx_2$ 与
+$(\lambda+\omega-1)^2x_2=\omega^2\lambda^2GFx_2$；
+而 $T_J^2=\operatorname{diag}(FG,GF)$，$\sigma(GF)\subset\sigma(T_J)^2$，
+于是 $\lambda$ 满足 Young 关系。这就是"一致次序"四个字的全部用处。
+
+两个坑必须点出来：
+\begin{enumerate}
+  \item 对三对角矩阵，自然序的\emph{奇偶分块}并不是这种干净分块：
+        $(2,1)$ 块里混着 $L$ 的元素（下标更小的一侧）和 $U$ 的元素（下标更大的一侧）。
+        要用经典论证必须换成红黑序。
+  \item 经典论证里那条漂亮的映射
+        $(\lambda,[x_1;x_2])\to(\lambda^2,[x_1;\lambda x_2])$ 在自然序下\textbf{不成立}。
+        自然序下 $T_{\mathrm{GS}}$ 的特征向量是 \eqref{eq:gs-eigvec}：
+        整条向量乘 $\mu_j^{\,i}$，而不是只把偶数列乘 $\lambda$。
+        本章定理 \ref{thm:gs-spectrum} 与 \ref{thm:sor-spectrum} 因此走传递矩阵，
+        不依赖分块映射。
+\end{enumerate}
+好消息是谱本身与这两种次序无关：实测 $n=5,8,15$、$\omega\in\{1,1.2,1.5,1.9\}$
+在自然序与红黑序下的 SOR 谱逐位相同（$\omega=1$ 时偏差 $10^{-10}\sim10^{-3}$，
+且偏差来自 $T_{\mathrm{GS}}$ 的亏损性——数值特征值求解器对亏损矩阵本来就不准）。
+所以在自然序上用 \eqref{eq:sor-rho} 是安全的。
+\end{remark}
+
+\section{共轭梯度：A-范数下的最优性与 Chebyshev 界}
+
+\begin{definition}[Krylov 子空间与误差多项式]
+$r_0=b-Ax_0$，$\mathcal K_k=\mathcal K_k(A,r_0)=\operatorname{span}\{r_0,Ar_0,\dots,A^{k-1}r_0\}$，
+$\mathcal K_0=\{0\}$。记 $x^\ast=A^{-1}b$、$e_k=x_k-x^\ast$。
+$\mathcal P_k$ 是次数 $\le k$ 的多项式集合；"$p(0)=1$"的多项式集合记为
+$\mathcal P_k^0=\{p\in\mathcal P_k:\ p(0)=1\}$。
+\end{definition}
+
+\begin{theorem}[CG 的最优性与误差多项式]
+\label{thm:cg-optimal}
+设 $A$ 对称正定，$x_0$ 任意，CG（$\alpha_k=\frac{r_k^{\mathsf T}r_k}{p_k^{\mathsf T}Ap_k}$、
+$\beta_k=\frac{r_{k+1}^{\mathsf T}r_{k+1}}{r_k^{\mathsf T}r_k}$、$p_{k+1}=r_{k+1}+\beta_kp_k$）不停机。则
+\begin{enumerate}
+  \item $x_k\in x_0+\mathcal K_k$，且
+        $x_k=\arg\min_{x\in x_0+\mathcal K_k}\|x-x^\ast\|_A$；
+  \item 等价刻画是 $r_k\perp\mathcal K_k$（残差两两正交、搜索方向 A-共轭：
+        $r_i^{\mathsf T}r_j=0$、$p_i^{\mathsf T}Ap_j=0$，$i\ne j$）；
+  \item 误差有精确的多项式刻画
+        \begin{equation}
+          e_k=p(A)e_0\ \text{对某个 }p\in\mathcal P_k^0,
+          \qquad
+          \|e_k\|_A=\min_{p\in\mathcal P_k^0}\|p(A)e_0\|_A .
+          \label{eq:cg-poly}
+        \end{equation}
+\end{enumerate}
+\end{theorem}
+
+\begin{proof}
+\emph{(2) 正交性与共轭性}：对 $k$ 归纳。$p_0=r_0$。
+设 $r_i^{\mathsf T}r_j=0$（$i\ne j\le k$）、$p_i^{\mathsf T}Ap_j=0$（$i\ne j\le k$）。
+由 $r_{k+1}=r_k-\alpha_kAp_k$ 得
+$r_{k+1}^{\mathsf T}p_k=r_k^{\mathsf T}p_k-\alpha_kp_k^{\mathsf T}Ap_k=0$，
+这正是 $\alpha_k$ 的取法（注意 $r_k^{\mathsf T}p_k=r_k^{\mathsf T}r_k$，因为
+$p_k=r_k+\beta_{k-1}p_{k-1}$ 且 $r_k\perp p_{k-1}$）。对 $i<k$，
+$r_{k+1}^{\mathsf T}p_i=r_k^{\mathsf T}p_i-\alpha_kp_k^{\mathsf T}Ap_i=0$
+（前者由 $r_k\perp\mathcal K_k\supset p_i$，后者由 A-共轭）。
+又 $p_{k+1}^{\mathsf T}Ap_i=r_{k+1}^{\mathsf T}Ap_i+\beta_kp_k^{\mathsf T}Ap_i$：
+$i<k$ 时第二项为 $0$、第一项 $=r_{k+1}^{\mathsf T}(r_i-r_{i+1})/\alpha_i=0$；
+$i=k$ 时由 $\beta_k$ 的取法使 $p_{k+1}^{\mathsf T}Ap_k
+=r_{k+1}^{\mathsf T}Ap_k+\beta_kp_k^{\mathsf T}Ap_k=0$。
+最后 $r_{k+1}^{\mathsf T}r_i=0$（$i\le k$）由 $r_i\in\operatorname{span}\{p_0,\dots,p_i\}$ 得到。
+
+\emph{子空间恒等}：同样对 $k$ 归纳证明
+$\operatorname{span}\{p_0,\dots,p_{k-1}\}=\operatorname{span}\{r_0,\dots,r_{k-1}\}=\mathcal K_k$。
+$k=1$ 时 $p_0=r_0$。设对 $k$ 成立。$r_{k+1}=r_k-\alpha_kAp_k$，而
+$Ap_k\in A\mathcal K_k\subseteq\mathcal K_{k+1}$，故
+$r_{k+1}\in\mathcal K_{k+1}$；又 $p_k=r_k+\beta_{k-1}p_{k-1}\in\mathcal K_{k+1}$ 且
+$r_0,\dots,r_k$ 非零、两两正交（故线性无关，张成 $k+1$ 维），
+$p_0,\dots,p_k$ 由 A-共轭且 $p_i\ne0$ 也线性无关，
+两边维数都是 $k+1$，故三者相等。
+
+\emph{(1) 最优性}：$\varphi(x)=\|x-x^\ast\|_A^2=x^{\mathsf T}Ax-2x^{\mathsf T}b+x^{\ast\mathsf T}Ax^\ast$，
+$\nabla\varphi(x)=2(Ax-b)=-2r(x)$。在仿射子空间 $x_0+\mathcal K_k$ 上，
+$\varphi$ 严格凸（$A$ 正定），极小点唯一，且由一阶条件
+$\nabla\varphi(x)^{\mathsf T}v=0\ (\forall v\in\mathcal K_k)$ 刻画，即 $r(x)\perp\mathcal K_k$。
+CG 的 $x_k=x_0+\sum_{i<k}\alpha_ip_i\in x_0+\mathcal K_k$，
+而上面已证 $r_k\perp\operatorname{span}\{p_0,\dots,p_{k-1}\}=\mathcal K_k$，
+所以 $x_k$ 就是那个唯一极小点。
+
+\emph{(3) 多项式刻画}：$r_0=b-Ax_0=-Ae_0$。
+$x\in x_0+\mathcal K_k\iff x-x_0=q(A)r_0$，$\deg q\le k-1$，于是
+\begin{equation}
+  e=x-x^\ast=e_0+q(A)r_0=e_0-q(A)Ae_0=\bigl(I-Aq(A)\bigr)e_0=p(A)e_0,
+\end{equation}
+其中 $p(\lambda)=1-\lambda q(\lambda)$ 满足 $p(0)=1$、$\deg p\le k$；
+反之给定 $p\in\mathcal P_k^0$，$q=(1-p)/\lambda$ 是次数 $\le k-1$ 的多项式
+（$p(0)=1$ 保证整除），于是 $p(A)e_0$ 对应该仿射空间中的一点。
+两边是同一个集合，故 \eqref{eq:cg-poly} 的两个极小化完全等价。
+\end{proof}
+
+\begin{theorem}[Chebyshev 收敛界]
+\label{thm:cg-cheb}
+设 $A$ 对称正定，$\kappa=\kappa_2(A)=\lambda_{\max}/\lambda_{\min}$，则 CG 的误差满足
+\begin{equation}
+  \|e_k\|_A\le 2\Bigl(\frac{\sqrt\kappa-1}{\sqrt\kappa+1}\Bigr)^{k}\|e_0\|_A .
+  \label{eq:cg-bound}
+\end{equation}
+\end{theorem}
+
+\begin{proof}
+\emph{第一步：谱上的极值控制范数}。取 $A$ 的正交特征基 $A=Q\Lambda Q^{\mathsf T}$，
+$\Lambda=\operatorname{diag}(\lambda_1,\dots,\lambda_n)$，$c=Q^{\mathsf T}e_0$。则
+\begin{equation}
+  \begin{split}
+    \|p(A)e_0\|_A^2=\sum_i\lambda_ip(\lambda_i)^2c_i^2
+    &\le\Bigl(\max_i|p(\lambda_i)|\Bigr)^2\sum_i\lambda_ic_i^2\\
+    &=\Bigl(\max_{\lambda\in[\lambda_{\min},\lambda_{\max}]}|p(\lambda)|\Bigr)^2\|e_0\|_A^2 .
+  \end{split}
+  \label{eq:cg-spectral}
+\end{equation}
+
+\emph{第二步：仿射变换到 $[-1,1]$}。令
+\begin{equation}
+  \xi(\lambda)=\frac{\lambda_{\max}+\lambda_{\min}-2\lambda}{\lambda_{\max}-\lambda_{\min}},
+  \qquad \xi([\lambda_{\min},\lambda_{\max}])=[-1,1],\qquad
+  \xi(0)=\frac{\kappa+1}{\kappa-1}>1 .
+\end{equation}
+取第一类 Chebyshev 多项式 $T_k$（$|T_k(\xi)|\le1$ 对 $\xi\in[-1,1]$），令
+\begin{equation}
+  p^\ast(\lambda)=\frac{T_k(\xi(\lambda))}{T_k(\xi(0))} .
+\end{equation}
+$\deg p^\ast=k$、$p^\ast(0)=1$，且在谱上 $|p^\ast(\lambda)|\le1/|T_k(\xi(0))|$。
+由 \eqref{eq:cg-spectral} 与 CG 的极小性 \eqref{eq:cg-poly}，
+\begin{equation}
+  \|e_k\|_A\le\|p^\ast(A)e_0\|_A\le\frac{\|e_0\|_A}{|T_k(\xi(0))|} .
+\end{equation}
+
+\emph{第三步：估 $T_k(\xi(0))$}。$T_k(\xi)=\cosh(k\operatorname{arccosh}\xi)$（$\xi\ge1$）给出
+\begin{equation}
+  T_k(\xi_0)=\frac12\Bigl[\bigl(\xi_0+\sqrt{\xi_0^2-1}\bigr)^k+\bigl(\xi_0-\sqrt{\xi_0^2-1}\bigr)^k\Bigr]
+  \ge\frac12\bigl(\xi_0+\sqrt{\xi_0^2-1}\bigr)^k .
+\end{equation}
+由 $\xi_0^2-1=\frac{4\kappa}{(\kappa-1)^2}$ 得
+$\xi_0+\sqrt{\xi_0^2-1}=\frac{\kappa+1+2\sqrt\kappa}{\kappa-1}
+=\frac{(\sqrt\kappa+1)^2}{(\sqrt\kappa+1)(\sqrt\kappa-1)}=\frac{\sqrt\kappa+1}{\sqrt\kappa-1}$，
+于是 $|T_k(\xi_0)|\ge\frac12\bigl(\frac{\sqrt\kappa+1}{\sqrt\kappa-1}\bigr)^k$，取倒数即得 \eqref{eq:cg-bound}。
+\end{proof}
+
+\begin{corollary}[有限终止，以及"相异特征值"才是步数上界]
+\label{cor:cg-terminate}
+CG 在精确算术下至多 $d$ 步终止，$d$ 是 $A$ 的\emph{相异}特征值个数（$\le n$）：
+取 $p(\lambda)=\prod_{i=1}^{d}(1-\lambda/\lambda_i)$ 即 $p\in\mathcal P_d^0$ 且 $p(A)=0$，
+故 $\|e_d\|_A=0$。对模型问题 $d=n$；对 $8\times8$ 网格上的五点 Laplacian $d=33<n=64$
+（解析谱 $\lambda_{ij}=4-2\cos\frac{i\pi}{9}-2\cos\frac{j\pi}{9}$，
+$(i,j)$ 与 $(9-i,9-j)$ 给同一个值）。
+\end{corollary}
+
+\begin{proof}
+谱定理：$p(A)=Qp(\Lambda)Q^{\mathsf T}$，$p(\lambda_i)=0$ 对一切相异特征值成立，
+故 $p(A)=0$。代入 \eqref{eq:cg-poly} 得 $\|e_d\|_A\le\|p(A)e_0\|_A=0$。
+五点 Laplacian 的相异特征值个数由对 $\{2\cos\frac{i\pi}{9}\}$ 的配对计数得到，
+本仓库用数值特征值去重验证为 $33$。
+\end{proof}
+
+\begin{remark}[$\kappa$ 不是迭代数]
+\label{rem:kappa-not-iters}
+\eqref{eq:cg-bound} 是\emph{最坏情形}界，只有在谱恰好铺满两端、初值恰好落在最坏方向时才紧。
+实测（一维 Laplacian，$x_0=0$、$b=\mathbf 1$、相对残差 $\le10^{-10}$）：
+$n=32,64,128,256$ 时 $\sqrt{\kappa_2}=21.0,41.4,82.1,163.6$，
+CG 迭代数 $16,32,64,128$，对 $\sqrt\kappa$ 的双对数拟合斜率 $1.0125$、$R^2=0.99999$——
+漂亮得像教科书插图。但这条直线是\textbf{右端项挑出来的}：
+$b=\mathbf 1$ 的奇数号正弦模态系数为零（$c_j=\sqrt{2/(n+1)}\cot\frac{j\pi}{2(n+1)}$，偶数 $j$ 为 $0$），
+Krylov 空间天然只有一半维数，于是迭代数恰好是 $n/2$。
+换成一般位置的 $b$，同一批矩阵上 CG 要跑满或近乎跑满 $n$ 步
+（实测 $n=32,64,128$ 为 $32,64,128$ 步，$n=256$ 时舍入底把它截在 $164$ 步）。
+二维五点 Laplacian（CSR，$k=16..64$）上拟合斜率约 $1.03$。
+另一条更直接的反例：一维 $n=32$ 的 $\kappa_2=440.69$，
+但由实测收敛因子 $0.5549$ 反推的"等效 $\kappa$"只有
+$\bigl(\frac{1+0.5549}{1-0.5549}\bigr)^2=12.2$——
+驱动收敛的是谱的\emph{聚簇程度}，不是 $\kappa$ 这个两端极值之比。
+界本身有多松也可以量出来：断言附表把 \eqref{eq:cg-bound} 与逐步真实误差比过，
+一维 $n=32$ 上"界最松的一步"是真实误差的 $6.7\times10^{14}$ 倍。
+\textbf{Chebyshev 界是安全网，不是预测器}：它保证不会更坏，从不承诺会多好。
+\end{remark}
+
+\section{GMRES：多项式视角与残差单调性}
+
+\begin{theorem}[GMRES 的最小残差与多项式刻画]
+\label{thm:gmres}
+设 $A$ 非奇异，Arnoldi 过程给出 $AV_k=V_{k+1}\underline H_k$
+（$V_{k+1}$ 列正交归一，$\underline H_k$ 是 $(k+1)\times k$ 上 Hessenberg），
+$x_k=\arg\min_{x\in x_0+\mathcal K_k}\|b-Ax\|_2$。则
+\begin{enumerate}
+  \item $r_k=p_k(A)r_0$，其中 $p_k\in\mathcal P_k^0$，且
+        \begin{equation}
+          \|r_k\|_2=\min_{p\in\mathcal P_k^0}\|p(A)r_0\|_2 ;
+          \label{eq:gmres-poly}
+        \end{equation}
+  \item （同一周期内）$\|r_{k+1}\|_2\le\|r_k\|_2$；
+  \item 最优性条件是 $r_k\perp A\mathcal K_k$：因为
+        $\mathcal K_k=\operatorname{range}V_k$，$A\mathcal K_k=\operatorname{range}AV_k$。
+\end{enumerate}
+实现上，把 $x=x_0+V_ky$ 代入并用 $AV_k=V_{k+1}\underline H_k$、$r_0=\beta v_1$ 得
+\begin{equation}
+  \|b-Ax\|_2=\|\beta v_1-V_{k+1}\underline H_ky\|_2
+  =\bigl\|\beta e_1-\underline H_ky\bigr\|_2 ,
+  \label{eq:gmres-ls}
+\end{equation}
+于是最小化变成一个 $(k+1)\times k$ 的最小二乘问题，用 Givens 旋转化 $\underline H_k$ 为上三角即可，
+递推残差就是 $\beta e_1$ 被旋转后的最后一个分量。
+\end{theorem}
+
+\begin{proof}
+\emph{(1)} 同定理 \ref{thm:cg-optimal} 的第 (3) 段：$x\in x_0+\mathcal K_k$ $\iff$
+$x-x_0=q(A)r_0$（$\deg q\le k-1$），于是
+$r=b-Ax=r_0-Aq(A)r_0=(I-Aq(A))r_0=p(A)r_0$，$p(\lambda)=1-\lambda q(\lambda)$，$p(0)=1$；
+反之亦然。所以两类极小化是同一个集合上的极小化，
+\eqref{eq:gmres-poly} 成立（这里\textbf{不要求} $A$ 对称，也不需要内积换基）。
+
+\emph{(2)} $\mathcal K_k\subseteq\mathcal K_{k+1}$（同一个 $r_0$ 生成的），
+所以 $x_0+\mathcal K_k\subseteq x_0+\mathcal K_{k+1}$，
+在更大的集合上取极小不会更大：$\|r_{k+1}\|\le\|r_k\|$。
+迭代本身的实现细节：Arnoldi 给出 $AV_k=V_{k+1}\underline H_k$（$V_{k+1}$ 列正交归一），
+故 $\|b-Ax\|=\|r_0-AV_ky\|=\|V_{k+1}(\beta e_1-\underline H_ky)\|
+=\|\beta e_1-\underline H_ky\|$，即 \eqref{eq:gmres-ls}；
+Givens 旋转是正交变换，不改变 2-范数，把 $\underline H_k$ 变成上三角后
+最小二乘解由回代给出，递推残差 $\le$ 真实残差的偏差随 $\kappa(V)$ 增长。
+
+\emph{(3)} 一阶条件：$\|b-Ax\|_2^2$ 在 $x_0+\mathcal K_k$ 上极小
+$\iff(Av)^{\mathsf T}(b-Ax_k)=0$ 对一切 $v\in\mathcal K_k$
+$\iff r_k\perp A\mathcal K_k$。
+\end{proof}
+
+\begin{remark}[重启到底破坏了什么]
+\label{rem:restart}
+GMRES($m$) 每 $m$ 步把 $x$ 固定下来、用新的 $r$ 重新建 Krylov 空间。
+容易误写成"重启破坏单调性"——严格说这在精确算术下是\textbf{不对}的：
+每个周期的起点是上一个周期的终点，而 $0\in\mathcal K_m$，
+所以周期内的极小化至少能取到起点本身，$\|r\|$ 逐周期不增，
+整条精确算术曲线仍然单调。真正被破坏的是三件事：
+\begin{enumerate}
+  \item \textbf{全局多项式刻画}：重启后 $r_{jm}$ 不再是 $p(A)r_0$（$\deg p\le jm$）的形状，
+        只剩下"每个周期内部"的多项式刻画，\eqref{eq:gmres-poly} 的最优性范围收缩到
+        当前周期。这才是"台阶/停滞"的来源：曲线没有上升，只是斜率突然变平。
+  \item \textbf{跨周期的正交性}：$r_k\perp A\mathcal K_k$ 只在当前周期成立，
+        跨周期的 $r$ 与旧的 $Av_j$ 之间没有保证。
+  \item \textbf{浮点意义下的单调性}：真实残差与 Givens 递推残差的差随 $\kappa(V)$ 增长，
+        "残差替换"之类加速技巧还会主动改写 $r$。此时真实残差可能出现小幅回升，
+        但那是舍入与算法变体，不是极小性失效。
+\end{enumerate}
+\end{remark}
+
+\begin{remark}[CG 与 GMRES 的正交性不要写混]
+\label{rem:orth}
+两者都是"在 $\mathcal K_k$ 里挑最优点"，但正交性条件不同：
+\begin{equation}
+  \text{CG（}A\text{ 对称正定）：} r_k\perp\mathcal K_k ;
+  \qquad
+  \text{GMRES（任意非奇异 }A\text{）：} r_k\perp A\mathcal K_k .
+\end{equation}
+GMRES 的最优性来自"最小残差"，CG 的来自"最小 A-范数误差"；
+在 CG 里 $r_k\perp\mathcal K_k$ 与 $p_i^{\mathsf T}Ap_j=0$ 是同一件事的两种说法，
+在 GMRES 里则根本没有 $A$-共轭方向。
+实测（一维 $n=24$ Laplacian，本章断言附表）：
+$|r_i^{\mathsf T}r_j|\le6.6\times10^{-15}$、
+$|p_i^{\mathsf T}Ap_j|\le3.2\times10^{-15}$（$i\ne j$）、
+$|r_i^{\mathsf T}Av_j|\le1.6\times10^{-12}$（$j<i$）——
+三个量都在舍入底附近，量级差异只是残差范数不同。
+更细的观察（$8\times8$ 网格，$m=30$）：
+\begin{itemize}
+  \item Givens 递推残差与真实残差的最大差：一维 $n=40$（$m=40$）$5.9\times10^{-14}$，
+        二维 $8\times8$（$m=20$）$3.4\times10^{-16}$，同一族算例换 $m=30$ 是 $2.2\times10^{-15}$；
+        它随 $\kappa(V)$ 增长，所以"递推残差曲线"必须配一条真实残差曲线一起看。
+  \item 归一化后的 $|r_i^{\mathsf T}Av_j|/(\|r_i\|\|Av_j\|)$ 在残差高于舍入底的那些步是
+        $10^{-16}\sim10^{-11}$，随 $\|r_i\|$ 变小而变差；
+        最后一步 $\|r_i\|\sim10^{-14}$ 时这个比值变成 $0.6$——
+        分母塌了，不是正交性被破坏（CG 一侧同理，末步 $\sim0.04$）。
+\end{itemize}
+$\|e_k\|_A$ 的单调下降是 CG 的硬性质（定理 \ref{thm:cg-optimal}），全程成立；
+但 $\|r_k\|_2$ 单调\textbf{不是} CG 的性质：断言附表的竞速帧（$2\times2$，$\kappa=20$）里
+首步最大增量 CG 是 $0.957$，而 GMRES 是 $0.000$——
+GMRES 的最小残差保证让它在第一步就不可能回升，CG 只保证 A-范数误差不回升。
+看 CG 的图要用 A-范数误差，看 GMRES 的图才用残差。
+\end{remark}
+
+\begin{remark}[Lanczos 的提前终止：别把舍入底当成最小多项式]
+\label{rem:lanczos}
+$A$ 对称时 Arnoldi 退化为三项递推（Lanczos），$V_k^{\mathsf T}AV_k=T_k$ 三对角。
+精确算术下，递推会在 $\mathcal K_k$ 成为不变子空间时终止，终止步数等于
+$A$ 关于 $v_0$ 的\textbf{最小多项式次数}；$v_0$ 在各单位特征向量上分量都非零时，
+它等于\textbf{相异特征值个数}。
+实测：一维 $n=24,32$ 上 Lanczos 跑满 $n$ 步，Ritz 值与解析谱
+$4\sin^2\frac{j\pi}{2(n+1)}$ 的最大偏差 $8.9\times10^{-16}$
+（手写 Sturm 二分求三对角特征值），基的正交性 $\max|V^{\mathsf T}V-I|\sim4\times10^{-16}$
+（断言附表在一维 $n=36$、二维 $6\times6$ 上分别给 $2.2\times10^{-16}$ 与 $5.0\times10^{-10}$ 的谱偏差）。
+最容易踩的坑在二维：$6\times6$ 网格（$n=36$）只有 $19$ 个相异特征值，
+断言附表确认"相异 Ritz 值 $=19$ 个 $=$ 相异特征值"，但 Lanczos 是跑到第 $33$ 步
+才因为 $\beta\le10^{-14}$ 停下的；$8\times8$ 网格（相异特征值 $33$ 个）更夸张，
+$\beta_j$ 在 $10^{-5}$ 与 $1.5$ 之间乱跳，直到第 $59$ 步才落到 $10^{-13}$ 以下被截住。
+\textbf{"第 59 步提前终止"是舍入造成的，不是最小多项式次数}：
+把它当成相异特征值个数会得到 $59\ne33$（$6\times6$ 上是 $33\ne19$）的错误结论。
+真正该看的是 $\beta_j$ 变得多小才算"到了"——这需要一个阈值，而阈值本身是人为的。
+\end{remark}
+
+\section{预条件：谱分布比条件数更重要}
+\label{sec:precond}
+
+本节改用 \texttt{precond.py} 的记号 $A=D+L+U$（$L,U$ 是 $A$ 的严格下、上三角部分）。
+
+\begin{definition}[左预条件与三种预条件子]
+解等价的方程组 $M^{-1}Ax=M^{-1}b$（$M$ 对称正定），$M$ 叫\textbf{预条件子}。
+本仓库统一用左预条件，$M$ 以"能作用 $M^{-1}r$ 的对象"形式传入：
+\begin{align}
+  M&=D &&\text{(Jacobi)},\\
+  M&=\frac{1}{\omega(2-\omega)}(D+\omega L)D^{-1}(D+\omega U),\quad 0<\omega<2
+    &&\text{(SSOR)},\\
+  M&=\tilde L\tilde U &&\text{(ILU(0))},
+\end{align}
+其中 $\tilde L\tilde U$ 是\textbf{只允许在 $A$ 的稀疏结构上}做消元得到的不完全分解
+（任何落在结构外的更新都被丢弃，丢弃次数记为 \texttt{dropped}）。
+SSOR 的求逆用恒等式
+$M^{-1}=\omega(2-\omega)(D+\omega U)^{-1}D(D+\omega L)^{-1}$：两次三角回代加一次对角缩放。
+\end{definition}
+
+\begin{theorem}[$M^{-1}A$ 在 $M$-内积下自伴正定]
+\label{thm:m-selfadj}
+设 $A,M$ 都对称正定，内积 $\langle x,y\rangle_M=x^{\mathsf T}My$，$\|x\|_M^2=x^{\mathsf T}Mx$。则
+$M^{-1}A$ 关于 $\langle\cdot,\cdot\rangle_M$ 自伴：
+\begin{equation}
+  \langle M^{-1}Ax,y\rangle_M=x^{\mathsf T}Ay=\langle x,M^{-1}Ay\rangle_M ,
+  \label{eq:selfadj}
+\end{equation}
+且正定：$\langle M^{-1}Ax,x\rangle_M=x^{\mathsf T}Ax>0\ (x\ne0)$。
+于是 $M^{-1}A$ 的特征值全为正实数，$\kappa(M^{-1}A)=\lambda_{\max}/\lambda_{\min}$ 有意义，
+Lanczos 的三项递推（因而 Ritz 值全是实数）才有依据。
+\end{theorem}
+
+\begin{proof}
+$\langle M^{-1}Ax,y\rangle_M=(M^{-1}Ax)^{\mathsf T}My=x^{\mathsf T}A^{\mathsf T}M^{-1}My=x^{\mathsf T}Ay$，
+这里用了 $A^{\mathsf T}=A$、$M^{\mathsf T}=M$；把 $x,y$ 互换得另一半，
+故 \eqref{eq:selfadj} 成立。正定性即 $x^{\mathsf T}Ax>0$。
+自伴算子的特征值全实、正定算子的特征值全正，是标准结论
+（对特征对取内积：$\lambda\langle x,x\rangle_M=\langle M^{-1}Ax,x\rangle_M=x^{\mathsf T}Ax>0$）。
+\end{proof}
+
+\begin{corollary}[PCG 就是在 $M$-内积下跑 CG]
+\label{cor:pcg}
+定义 $z=M^{-1}r$。则 PCG 的
+$\alpha_k=\dfrac{r_k^{\mathsf T}z_k}{p_k^{\mathsf T}Ap_k}$、
+$\beta_k=\dfrac{r_{k+1}^{\mathsf T}z_{k+1}}{r_k^{\mathsf T}z_k}$ 中出现的
+$r^{\mathsf T}z=r^{\mathsf T}M^{-1}r=\|r\|_{M^{-1}}^2$
+是 $M^{-1}$-范数的平方（这是算法里真正在减小的量），
+而自伴性依据的内积是 $\langle\cdot,\cdot\rangle_M$——两个内积不要混。
+在 $M$-内积下，PCG 是 $A$ 换成 $M^{-1}A$ 的 CG，于是定理 \ref{thm:cg-cheb} 变成
+\begin{equation}
+  \|x_k-x^\ast\|_A\le2\Bigl(\frac{\sqrt{\kappa}-1}{\sqrt{\kappa}+1}\Bigr)^k\|x_0-x^\ast\|_A,
+  \qquad \kappa=\kappa(M^{-1}A),
+  \label{eq:pcg-bound}
+\end{equation}
+其中 $A$-范数不变（$\|e\|_A=\sqrt{e^{\mathsf T}Ae}$，与 $M$ 无关）。
+\end{corollary}
+
+\begin{proof}
+在 $M$-内积下，$M^{-1}A$ 自伴正定（定理 \ref{thm:m-selfadj}），
+CG 的推导（定理 \ref{thm:cg-optimal} 与 \ref{thm:cg-cheb}）逐字成立，
+只需把每个欧氏内积换成 $\langle\cdot,\cdot\rangle_M$：
+$\langle M^{-1}Ap,p\rangle_M=p^{\mathsf T}Ap$（分子分母正好是 PCG 里的两个量），
+$\langle r,r\rangle_M=r^{\mathsf T}Mr$，而算法里用 $r^{\mathsf T}z=r^{\mathsf T}M^{-1}r$——
+这两个是不同内积下的量，PCG 用后者做停机与正交化是为了省一次 $M$ 乘法。
+\end{proof}
+
+\begin{theorem}[ILU(0) 在一维三对角上就是精确 LU]
+\label{thm:ilu-tridiag}
+设 $A=\operatorname{tridiag}(a,b,c)$ 且无零主元（例如模型问题 $b=2$、$a=c=-1$，
+主元为 $\frac{k+1}{k}$）。则 ILU(0) 的丢弃次数 \texttt{dropped} $=0$，
+$\tilde L\tilde U=A$ 精确成立（到舍入），于是 $M^{-1}A=I$、$\kappa(M^{-1}A)=1$，
+PCG 一步收敛。
+\end{theorem}
+
+\begin{proof}
+三对角矩阵的无主元消元不产生填充：消去第 $k$ 列时只更新 $(k+1,k+1)$ 一个位置
+（第 $k$ 行的非零列只有 $k$ 与 $k+1$，第 $k$ 列的非零行只有 $k$ 与 $k+1$），
+Schur 补仍是三对角。ILU(0) 在第 $k$ 步的更新目标是
+$(i,j)=(k+1,k+1)$——正好落在 $A$ 的结构里，所以没有任何更新被丢弃，
+\texttt{dropped} $=0$；逐步做的运算与精确消元完全相同，故 $\tilde L\tilde U=A$。
+于是 $M^{-1}A=I$，$\kappa=1$；PCG 的第一步误差
+$\|e_1\|_A\le2\bigl(\frac{\sqrt1-1}{\sqrt1+1}\bigr)\|e_0\|_A=0$
+（或直接看：预条件后系统是 $Ix=M^{-1}b$，CG 一步取到精确解）。
+\end{proof}
+
+\begin{remark}[二维就没这么便宜：填充不是可有可无的]
+\label{rem:ilu2d}
+二维五点 Laplacian 的精确 LU 有 $O(n\log n)$ 量级的填充，
+ILU(0) 把它们全丢掉。实测（一维用 CG/PCG、二维用 GMRES($m=30$)，
+相对残差容差 $10^{-10}$）：
+\begin{center}
+\begin{tabular}{llrrrl}
+\toprule
+算例 & 预条件 & $\kappa_2(A)$ & 预条件后 $\kappa$ & 步数 & \texttt{dropped}\\
+\midrule
+一维 $n=32$ & 无 & 440.69 & 440.69 & 32 & ---\\
+一维 $n=32$ & Jacobi & 440.69 & 440.69 & 32 & 0\\
+一维 $n=32$ & SSOR($\omega=1.2$) & 440.69 & 38.01 & 18 & 0\\
+一维 $n=32$ & ILU(0) & 440.69 & 1.00 & 1 & 0\\
+\midrule
+二维 $8\times8$ & 无 & 32.16 & 32.16 & 23 & ---\\
+二维 $8\times8$ & SSOR($\omega=1.2$) & 32.16 & 3.59 & 14 & 0\\
+二维 $8\times8$ & ILU(0) & 32.16 & 3.68 & 13 & 98\\
+\bottomrule
+\end{tabular}
+\end{center}
+三件事值得盯住：
+\begin{enumerate}
+  \item \textbf{Jacobi 改不动条件数}：一维 Laplacian 的 $D=2I$，
+        $M^{-1}A=\frac12A$ 只是乘了个常数，$\kappa$ 一位不变（440.69 $\to$ 440.69），
+        步数也一位不变。对角本来就均匀的问题，对角预条件几乎没用。
+        本章断言附表用一维 $n=64$ 复跑：无预条件 $64$ 步、Jacobi $64$ 步，结论相同。
+  \item \textbf{ILU(0) 的一步收敛不是"预条件强"，而是"预条件就是解"}：
+        一维三对角上它等于精确 LU（定理 \ref{thm:ilu-tridiag}），
+        断言附表里 $n=64$ 的 ILU(0) 同样是 $1$ 步。
+        同样的 ILU(0) 到了二维必须丢弃填充，$\kappa$ 只降到 $3.68$，
+        GMRES 也只从 $23$ 步降到 $13$ 步（附表的 PCG 版本是 $23\to14$ 步）。
+  \item \textbf{$\kappa$ 的"实测"要靠谱}：本仓库用 $M^{-1}A$ 在 $M$-内积下的手写 Lanczos
+        （三项递推 + 全正交化）加 Sturm 二分求 Ritz 值，$m$ 取矩阵阶数时是精确谱。
+        $m$ 取小值时只有两端的 Ritz 值可信——内部 Ritz 值收敛很慢，
+        拿它当谱是这类图最常见的谎言。
+  \item \textbf{步数的绝对值不是重点}：它随 $n$、右端项、容差一起变
+        （附表的一维 SSOR 在 $n=64$ 上是 $28$ 步，本表 $n=32$ 上是 $18$ 步）。
+        换参数时该看的是"$\kappa$ 降没降、步数降没降、降的比例对不对"。
+\end{enumerate}
+顺带记一个真实的坑（本章实现真的踩过一次）：如果把自伴性配到 $M^{-1}$-内积上
+（即用 $\langle x,y\rangle_{M^{-1}}=x^{\mathsf T}M^{-1}y$ 正交化、同时作用 $M^{-1}A$），
+三项递推就不再对称，Ritz 值会系统偏几个百分点——一维 $n=32$、SSOR($\omega=1.2$) 时给
+$\kappa=38.82$（真值 $38.01$），二维 $8\times8$ 给 $3.75$（真值 $3.59$）。
+现行实现已改成 $M$-内积（\texttt{numcore/linalg/precond.py} 的三个预条件子都提供 \texttt{matvec\_M}），
+上表的"预条件后 $\kappa$"与精确谱一致到 $10^{-14}$，
+这条护栏由断言 \texttt{test\_preconditioned\_spectrum\_matches\_exact} 守着。
+\end{remark}
+
+\section{四个可视化该怎么看}
+
+\begin{enumerate}
+  \item \textbf{iteration\_race}：二维椭圆等高线上 Jacobi / GS / SOR / CG / GMRES 的迭代轨迹赛跑。
+        看三件事：(a) Jacobi 在椭圆长短轴方向上的步长完全不同，
+        $\kappa$ 越大越像"锯齿"；(b) SOR 的 $\omega$ 拖过 $\omega_{\rm opt}$ 之后谱半径反而上升
+        （$n=15$：$\omega_{\rm opt}=1.6735137$ 处 $\rho=0.6735137$，拖到 $1.9$ 变成 $0.9$）；
+        (c) CG / GMRES 不沿坐标方向走，一步吃掉整个 Krylov 方向。
+        副轴的"谱半径 vs 实测收敛因子"必须对得上，否则图在骗你。
+  \item \textbf{error\_spectrum}：误差按正弦模态分解的条形图加每步衰减因子。
+        Jacobi 下投影系数严格按 $\mu_j$ 衰减，逐位可对
+        （实测 $n=31$：$j=1$ 是 $0.99518473$，$j=2$ 是 $0.98078528$）。
+        GS / SOR 下会看到模态"串门"，那是特征向量不是正弦模态造成的
+        （注 \ref{rem:modes}），前几十步别拿它当收敛率。
+        最后剩下的永远是 $j=1$：$\mu_1=\cos\frac{\pi}{n+1}$ 最大，衰减最慢。
+  \item \textbf{krylov\_growth}：Krylov 基逐列扩张 + 正交性热力图。
+        热力图的量纲要对：CG 画 $|r_i^{\mathsf T}r_j|$，GMRES 画 $|r_i^{\mathsf T}Av_j|$（$j<i$），
+        两者都是 $\sim10^{-16}$（残差高于舍入底时）。
+        注意热力图在最后一步会整片亮起来——那是残差落到 $10^{-14}$ 以下、分母塌了。
+        同时显示 Arnoldi 的 $\max|V^{\mathsf T}V-I|$（实测 $\sim7\times10^{-16}$）：
+        它一坏，后面的曲线全是幻觉。
+  \item \textbf{precond\_effect}：左图是 $M^{-1}A$ 的 Ritz 谱散点，右图是收敛曲线与 $\kappa$。
+        看"谱聚簇"与"$\kappa$ 变小"哪个先发生：一维 Jacobi 让 $\kappa$ 一动不动，
+        SSOR 把它压到 $38.8$，ILU(0) 直接 $1.00$ 一步收敛；
+        二维 ILU(0) 丢了 $98$ 次填充、$\kappa$ 只到 $3.68$。
+        谱散点图的横轴必须固定，$m$ 小时只标两端可信的 Ritz 值。
+\end{enumerate}
+
+\input{chapters/1.5/asserts_table}
+
+\section{它会怎样骗你（本章版）}
+
+\begin{enumerate}
+  \item \textbf{把 $\rho<1$ 读成"几步就好"}：一维 $n=31$ 的 Jacobi 有
+        $\rho=0.9951847267$，离 $1$ 只差 $0.0048$：迭代矩阵每步只把误差乘 $0.9952$，
+        压到 $10^{-6}$ 要 $2870$ 步（推论 \ref{cor:steps}）。
+        "收敛"和"能用"是两件事。
+  \item \textbf{用幂法的逐次增长比读复共轭对}：SOR $\omega=1.9$ 时主特征值是一对复共轭，
+        理论 $\rho=0.9$（模长恰好是 $\omega-1$），逐次比值却在 $0.9$ 附近振荡；
+        实测幂法靠增长比的几何平均才给对 $0.9004\sim0.9006$。
+        只看最后两个比值会得到一个完全错的数。
+  \item \textbf{把"GS 的谱是 Jacobi 谱的平方"当成逐模态等式}：
+        一维 $n=15$ 上 GS 的\emph{非零}谱只有正的 $\mu_j^2$，
+        其余 $\lceil n/2\rceil$ 个特征值是 $0$，而且 $0$ 处\textbf{亏损}
+        （$\dim\ker T_{\mathrm{GS}}=1$，代数重数 $8$），$T_{\mathrm{GS}}$ 根本不可对角化。
+        后果是数值特征值求解器给出的"零特征值"带虚部误差：
+        自然序与红黑序的 SOR 谱在 $\omega=1$ 时差到 $1.06\times10^{-3}$（$n=15$），
+        而 $\rho=0.9619398$ 依旧准到 $8$ 位。看图时只信谱半径，别信单个特征值。
+  \item \textbf{把 CG 的迭代数当成 $\kappa$ 的函数}：一维 $n=32$ 的 $\kappa_2=440.69$，
+        由实测收敛因子 $0.5549$ 反推的等效 $\kappa$ 只有 $12.2$。
+        $b=\mathbf 1$ 时迭代数 $16,32,64,128$ 对 $\sqrt\kappa$ 的拟合斜率 $1.0125$、
+        $R^2=0.99999$；换成一般位置的 $b$，同一批矩阵跑满 $32,64,128$ 步，
+        $n=256$ 被舍入底截在 $164$ 步。那条直线是右端项挑出来的。
+  \item \textbf{把 GMRES 的递推残差当真实残差}：断言附表实测两者最大差
+        一维 $n=40$（$m=40$）是 $5.9\times10^{-14}$、二维 $8\times8$（$m=20$）是 $3.4\times10^{-16}$；
+        这个差随 $\kappa(V)$ 增长，基一旦失真，递推残差会给你一条漂亮的假收敛曲线。
+        任何时候都要同时画真实残差。
+  \item \textbf{把 CG 与 GMRES 的正交性写混}：CG 是 $r_k\perp\mathcal K_k$，
+        GMRES 是 $r_k\perp A\mathcal K_k$。断言附表（一维 $n=24$）实测
+        $|r_i^{\mathsf T}r_j|\le6.6\times10^{-15}$、$|p_i^{\mathsf T}Ap_j|\le3.2\times10^{-15}$、
+        $|r_i^{\mathsf T}Av_j|\le1.6\times10^{-12}$（$j<i$）。
+        更要注意末步：残差落到 $10^{-14}$ 以下时归一化比值变成 $0.6$（CG 一侧 $0.04$）——
+        不是正交性被破坏，是分母塌了。
+  \item \textbf{以为 CG 的残差也单调}：CG 保证的是 $\|e_k\|_A$ 单调（断言附表实测最大回升 $0$），
+        $\|r_k\|_2$ 没有这个保证。竞速帧（$2\times2$，$\kappa=20$）里首步最大增量：
+        CG 是 $0.957$、GMRES 是 $0.000$——GMRES 的最小残差性质让它在第一步就不可能回升。
+        看 CG 用 A-范数误差，看 GMRES 才用残差。
+  \item \textbf{把 Chebyshev 界当预测}：\eqref{eq:cg-bound} 只保证不会更坏。
+        断言附表把界与逐步真实误差比过：一维 $n=32$ 上最松的一步，
+        界是真实误差的 $6.7\times10^{14}$ 倍。
+        用 $\kappa$ 和这条界去估步数，误差可以有十几个数量级。
+  \item \textbf{把条件数下降当成迭代数下降}：一维 Jacobi 预条件后
+        $\kappa$ 从 $440.69$ 到 $440.69$（$M=2I$，只是乘常数），迭代数一步没省
+        （$n=64$ 上同样是无预条件 $64$ 步、Jacobi $64$ 步）；
+        ILU(0) 在一维三对角上 \texttt{dropped} $=0$、$\kappa=1.00$、PCG 一步收敛——
+        这不是"预条件很强"，而是"预条件就是精确 LU"。
+  \item \textbf{把二维 ILU(0) 也当精确 LU}：$8\times8$ 上它丢弃了 $98$ 次更新，
+        $\kappa$ 只降到 $3.68$，GMRES 从 $23$ 步只降到 $13$ 步。
+        填充被丢掉的那一刻，"不完全"三个字才开始收费。
+  \item \textbf{把 Lanczos 的终止步数当相异特征值个数}：$8\times8$ 网格 Laplacian
+        只有 $33$ 个相异特征值，精确算术下第 $33$ 步就该终止；
+        实测 $\beta_j$ 在 $10^{-5}$ 与 $1.5$ 之间乱跳，直到第 $59$ 步才被 $10^{-14}$ 阈值截住。
+        断言附表里 $6\times6$ 网格更干净地复现了同一件事：
+        相异特征值 $19$ 个，Ritz 值也确实是 $19$ 个，可递推跑到第 $33$ 步才停。
+        那条"提前终止"是舍入底，不是数学。
+  \item \textbf{把自伴性配错内积}：$M^{-1}A$ 自伴配的是 $M$-内积
+        $\langle x,y\rangle_M=x^{\mathsf T}My$，不是 $M^{-1}$-内积；
+        PCG 里出现的 $r^{\mathsf T}z=\|r\|_{M^{-1}}^2$ 是另一回事。
+        配错的代价实测：SSOR($\omega=1.2$) 一维 $n=32$ 会给 $\kappa=38.82$（真值 $38.01$）、
+        二维 $8\times8$ 给 $3.75$（真值 $3.59$）；改回 $M$-内积后偏差 $\le10^{-14}$，
+        断言 \texttt{test\_preconditioned\_spectrum\_matches\_exact} 就是这条护栏。
+  \item \textbf{在重根附近信幂法}：$\omega_{\rm opt}=1.6735137$ 处 $\rho$ 是\textbf{二重根}，
+        幂法只给到 $0.6737$（误差 $\sim10^{-4}$），而 $\omega=1.9$ 处是简单复对，
+        同样步数下能准到 $\sim10^{-4}$ 以内。看 $\rho(\omega)$ 曲线在 $\omega_{\rm opt}$ 附近的
+        尖点时，先把"这是重根"这件事记在脑子里。
+  \item \textbf{把 Krylov 子空间的维数当成迭代步数}：$b=\mathbf 1$ 的一维算例里
+        奇模态缺失使 Krylov 维数天然减半，$n=32$ 只要 $16$ 步；
+        换成一般位置的 $b$，同一个矩阵要 $32$ 步。
+        可视化里的"步数"是右端项的函数，不是矩阵的函数。
+\end{enumerate}
