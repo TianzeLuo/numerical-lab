@@ -91,6 +91,14 @@ export const chapterIndex: ChapterIndexEntry[] = [
     "vizzes": ["signal_spectrum", "leak_window", "butterfly_stages", "conv_theorem", "resolution"],
   },
   {
+    "chapter": "2.6",
+    "nViz": 4,
+    "part": "II",
+    "summary": "多分辨分析的嵌套子空间、滤波器组的完美重构、消失矩与逼近阶、阈值去噪的偏差-方差权衡。",
+    "title": "小波与多分辨分析",
+    "vizzes": ["decomp_tree", "time_scale_map", "denoise_threshold", "vanishing_moments"],
+  },
+  {
     "chapter": "3.1",
     "nViz": 4,
     "part": "III",
@@ -137,6 +145,22 @@ export const chapterIndex: ChapterIndexEntry[] = [
     "summary": "热方程 θ 族格式的全部结论都挂在一个数上：放大因子 G(φ)。显式的 r ≤ 1/2、隐式的无条件稳定、CN 的二阶、数值耗散掉得最快的是短波——都是 G(φ) 的不同侧面。这一章把三条证据链并排放：解析的 G(φ)、从真的解里分解出来的逐模态存活率、以及二分实测的稳定阈值。三个最容易被骗的地方也都标出来了：r ≤ 1/2 不是普适常数、稳定不等于精确、解看起来光滑不等于收敛。",
     "title": "抛物型方程与时间推进",
     "vizzes": ["stability_threshold", "convergence_order", "numerical_dissipation", "boundary_conservation"],
+  },
+  {
+    "chapter": "4.4",
+    "nViz": 4,
+    "part": "IV",
+    "summary": "有限元的全部结论都挂在两个对象上：装配出来的矩阵 K，和用 K 解出来的 u_h。这一章把四条证据链并排放：单元矩阵怎么变成 K（三种装配路线里只有一种是对的）、K 到底是不是对称正定（对称残差为 0 能不能当合格证）、误差在哪个范数下以什么阶衰减（同一个解，L2 给 2、能量给 1；界面算例给 1 和 0.5）、以及后验指示子到底有多准（效率指数是分布，不是常数）。三个最容易被骗的地方都标出来了：对称+正定+Cholesky 成功同时成立也可能是错的矩阵、「谱收敛」在尖角解上会退化成代数、比较两种加密策略必须固定自由度而不是层数。",
+    "title": "有限元方法",
+    "vizzes": ["assembly_animation", "solve_deform", "hp_convergence", "adaptive_mesh"],
+  },
+  {
+    "chapter": "4.5",
+    "nViz": 4,
+    "part": "IV",
+    "summary": "经典迭代法不是「收敛得慢」，而是**对不同频率收敛得完全不同**：加权 Jacobi（omega=2/3）一步把最高频压到 1/3，却把最低频留在 1-O(h^2)。多重网格把这件事变成算法：平滑子管高频、粗网格管低频，于是收敛因子与网格尺寸无关。这一章把四条证据链并排放：逐模态的实测放大率、V-cycle 的真实搬运顺序、跨 h 的因子扫描（含均值/标准差/漂移）、以及 MGCG 的迭代数与 CG 的对比。三个最容易骗人的地方都标出来了：V-cycle 因子不是 0、限制算子的缩放常数必须与粗层算子配对（错配直接发散）、以及把非线性问题当线性解会收敛到一个真残差 O(1) 的假解。",
+    "title": "多重网格与快速求解",
+    "vizzes": ["smoothing_spectrum", "vcycle_hierarchy", "grid_independence", "residual_transfer"],
   },
   {
     "chapter": "5.1",

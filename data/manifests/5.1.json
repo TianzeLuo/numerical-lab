@@ -1,0 +1,360 @@
+{
+  "chapter": "5.1",
+  "part": "V",
+  "summary": "梯度下降的条件数依赖、牛顿法的二次收敛（以及它在什么条件下**不**成立）、BFGS/L-BFGS 的割线方程与正定性、非线性共轭梯度、信赖域半径自适应、鞍点与负曲率。",
+  "title": "无约束优化与拟牛顿",
+  "vizzes": [
+    {
+      "axes": [
+        {
+          "autoscaled": false,
+          "id": "main",
+          "title": "等高线 f(x)=const 与四条下降路径",
+          "ylabel": "x_2"
+        },
+        {
+          "autoscaled": true,
+          "id": "aux",
+          "scale": "log",
+          "title": "到最优解的距离 ‖x_k - x*‖",
+          "ylabel": "‖x_k - x*‖"
+        }
+      ],
+      "dataSource": "backend",
+      "description": "同一张等高线上四个方法同时出发：GD（定步长）沿最陡方向来回锯齿，重球动量绕开锯齿，BFGS 用割线信息拐弯，牛顿法一步取直。时间轴是迭代步，副轴是到最优解的距离（半对数）。把 κ 拖大看锯齿变密，把 step_scale 拖过 1 看 GD 直接发散。",
+      "id": "descent_race",
+      "params": [
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": 100.0,
+          "label": "条件数 κ = λmax/λmin",
+          "max": 10000.0,
+          "min": 2.0,
+          "name": "kappa",
+          "step": 1.0,
+          "type": "float"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": 35.0,
+          "label": "长轴与 x 轴夹角（度）",
+          "max": 90.0,
+          "min": 0.0,
+          "name": "angle_deg",
+          "step": 1.0,
+          "type": "float"
+        },
+        {
+          "critical": [
+            1.0
+          ],
+          "criticalNote": "1.0 就是二次型上的最优定步长 α* = 2/(L+μ)（误差按 (κ-1)/(κ+1) 收缩）。越过它，GD 仍然收敛但更慢；真正发散线是 α = 2/L，即 step_scale = (L+μ)/L = 1 + 1/κ——κ=100 时只有 1.01，所以「稍微大于 1」就已经在发散区。",
+          "default": 1.0,
+          "label": "GD 步长 / 最优步长 α* = 2/(L+μ)",
+          "max": 1.6,
+          "min": 0.1,
+          "name": "step_scale",
+          "step": 0.01,
+          "type": "float"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": 60,
+          "label": "最大迭代步数",
+          "max": 400,
+          "min": 10,
+          "name": "max_iter",
+          "type": "int"
+        }
+      ],
+      "pitfalls": "半对数图上的「直线」只说明误差按固定因子缩小（线性收敛），曲线突然变陡才是超线性/二次；把两种形状混着读会把 BFGS 说成二次收敛。牛顿法的漂亮直线段只出现在解附近且整步被接受时——把初值拖远、或把 alpha_cap 拖到 1 以下，同一张图立刻变回线性，而图上没有任何东西会提醒你「二次收敛的前提刚刚被破坏」。",
+      "requiredAux": [
+        "error"
+      ],
+      "theory": [
+        "定步长 GD 的误差压缩因子 ρ = max|1 - αλ_i|，最优 α*=2/(L+μ) 时 ρ=(κ-1)/(κ+1)",
+        "重球动量的最优压缩因子是 (√κ-1)/(√κ+1)，迭代数约为 GD 的 1/√κ",
+        "牛顿法在二次型上一步到达驻点（H 正定时就是极小点）"
+      ],
+      "time": {
+        "dt": 1.0,
+        "fps": 30,
+        "label": "迭代 k",
+        "mode": "scrub",
+        "tMax": 400.0
+      },
+      "title": "下降路径赛跑：锯齿、动量、割线与直取"
+    },
+    {
+      "axes": [
+        {
+          "autoscaled": true,
+          "id": "convergence",
+          "scale": "log",
+          "title": "到最优解的距离",
+          "ylabel": "‖x_k - x*‖"
+        },
+        {
+          "autoscaled": true,
+          "id": "ratio",
+          "scale": "log",
+          "title": "实测比值（二次 / 线性）",
+          "ylabel": "比值"
+        }
+      ],
+      "dataSource": "backend",
+      "description": "同一个各向异性四次型上跑 GD / 动量 / BFGS / 牛顿，画 ‖x_k - x*‖ 随 k 的曲线，并单独给出实测的二次比值 e_{k+1}/e_k^2 与线性比值 e_{k+1}/e_k。牛顿段的直线是线性收敛、向下弯的段才是二次；alpha_cap 一拖到 1 以下，二次段当场消失、比值稳定在 1-alpha_cap。",
+      "id": "convergence_rates",
+      "params": [
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": 100.0,
+          "label": "条件数 κ（二次部分）",
+          "max": 1000.0,
+          "min": 2.0,
+          "name": "kappa",
+          "step": 1.0,
+          "type": "float"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": 1.0,
+          "label": "初值尺度（x0 = (s, s)）",
+          "max": 2.0,
+          "min": 0.02,
+          "name": "start",
+          "step": 0.02,
+          "type": "float"
+        },
+        {
+          "beyond": "below",
+          "critical": [
+            0.0
+          ],
+          "criticalNote": "β=0 时问题退化为二次型，牛顿法一步到底——此时图上根本没有「二次收敛的尾巴」可看，meta.newton_quadratic_constant 会写 null 并说明原因。",
+          "default": 0.05,
+          "label": "四次项系数 β（β=0 退化成二次型）",
+          "max": 0.5,
+          "min": 0.0,
+          "name": "beta",
+          "step": 0.01,
+          "type": "float"
+        },
+        {
+          "beyond": "below",
+          "critical": [
+            1.0
+          ],
+          "criticalNote": "二次收敛要求解附近**整步** α_k = 1 被接受。α_cap < 1 时每步只能走 α_cap 倍牛顿步，实测退化为线性收敛，因子 ≈ 1 - α_cap（α_cap=0.5 实测 0.5000，α_cap=0.25 实测 0.7511）。",
+          "default": 1.0,
+          "label": "牛顿步长上限 α_cap",
+          "max": 1.0,
+          "min": 0.1,
+          "name": "alpha_cap",
+          "step": 0.05,
+          "type": "float"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": 30,
+          "label": "最大迭代步数",
+          "max": 80,
+          "min": 5,
+          "name": "max_iter",
+          "type": "int"
+        }
+      ],
+      "pitfalls": "「曲线陡」不等于二次收敛：把纵轴换成对数、横轴仍是迭代数时，任何超线性收敛都会看起来像一条竖直的线。判据只有 e_{k+1}/e_k^2 是否**趋于常数**，而且窗口右端必须砍掉舍入地板——实测在 e≈3e-29 之后这个比值会反弹成 1.74，把地板当成「超二次收敛」是最典型的假证据。另外 β=0 时牛顿一步到底，图上只剩一个点，什么都说明不了。",
+      "requiredAux": [
+        "error"
+      ],
+      "theory": [
+        "线性收敛：e_{k+1} ≤ ρ e_k；二次收敛：e_{k+1} ≤ C e_k^2（C 与 k 无关）",
+        "牛顿法在解附近且 H 正定、整步被接受时 e_{k+1} ≈ C e_k^2",
+        "四次型 f = 1/2x^TAx + (β/4)‖x‖⁴ 的最优解精确为原点，Hessian 处处正定"
+      ],
+      "time": {
+        "label": "t",
+        "mode": "none"
+      },
+      "title": "收敛率图：线性、超线性与二次在半对数图上的形状"
+    },
+    {
+      "axes": [
+        {
+          "autoscaled": false,
+          "id": "main",
+          "title": "鞍点等高线（双曲线族）与扰动轨迹",
+          "ylabel": "x_2"
+        },
+        {
+          "autoscaled": true,
+          "id": "aux",
+          "scale": "log",
+          "title": "梯度范数与到驻点距离",
+          "ylabel": "‖∇f‖ / ‖x - x*‖"
+        }
+      ],
+      "dataSource": "backend",
+      "description": "鞍点 f = 1/2(λ₊x₁^2 + λ-x₂^2)（λ-<0）上，GD 从稳定流形出发会**收敛到鞍点**并停住；扰动只有在负曲率方向 u_min 上有分量时才跑得掉。图中给出扰动轨迹、沿 u_min / 随机方向 / 正交方向的实测逃逸阈值：随机方向的阈值恰好是 u_min 方向的 1/|<u_min,d>| 倍。",
+      "id": "saddle_escape",
+      "params": [
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": -0.05,
+          "label": "负特征值 λ-",
+          "max": -0.001,
+          "min": -2.0,
+          "name": "neg",
+          "step": 0.001,
+          "type": "float"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": 1e-05,
+          "label": "扰动量级 δ",
+          "max": 0.1,
+          "min": 1e-09,
+          "name": "delta",
+          "step": 1e-09,
+          "type": "float"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": "neg_curv",
+          "label": "扰动方向",
+          "name": "direction",
+          "options": [
+            "neg_curv",
+            "random",
+            "orthogonal"
+          ],
+          "type": "enum"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": 200,
+          "label": "GD 步数",
+          "max": 400,
+          "min": 20,
+          "name": "max_iter",
+          "type": "int"
+        }
+      ],
+      "pitfalls": "「加了随机扰动就逃出来了」不是方法有效的证据：逃逸与否只取决于扰动在负曲率方向上的投影，实测沿 u_min 的阈值是 2.87e-3、沿 45° 随机方向是 4.05e-3，比值 1.414 正好等于 1/|<u_min, d>|。把扰动换成与 u_min 正交的方向，阈值在放大到 1e12 之后仍然找不到——图上看到的「没跑掉」才是真相，而 meta 里那个 null 必须如实说明它是「没测到」而不是 0。",
+      "requiredAux": [
+        "residual"
+      ],
+      "theory": [
+        "梯度下降在鞍点附近只会沿正曲率方向收缩，负曲率分量按 (1+|λ-|α)^k 增长",
+        "逃逸阈值 δ* = R·(1+|λ-|α)^(-N)（R 邻域半径、N 步数），与实测逐位吻合",
+        "随机方向的有效性由 |<u_min, d>| 决定，阈值与之成反比"
+      ],
+      "time": {
+        "dt": 1.0,
+        "fps": 30,
+        "label": "GD 步 k",
+        "mode": "scrub",
+        "tMax": 400.0
+      },
+      "title": "鞍点逃逸：负曲率方向与扰动幅度"
+    },
+    {
+      "axes": [
+        {
+          "autoscaled": false,
+          "id": "main",
+          "title": "Rosenbrock 等高线与信赖域圆",
+          "ylabel": "y"
+        },
+        {
+          "autoscaled": true,
+          "id": "aux",
+          "scale": "log",
+          "title": "半径 Δ_k、比值 ρ_k 与梯度范数",
+          "ylabel": "Δ_k / ρ_k / ‖∇f‖"
+        }
+      ],
+      "dataSource": "backend",
+      "description": "Rosenbrock 函数上逐步解信赖域子问题（Steihaug-CG），按 ρ_k = 实际下降/模型下降接受或拒绝这一步，并把 Δ_k 收缩 (×γ₁) 或扩张 (×γ₂)。图上同时给出半径历史、ρ_k、以及半径为 Δ_k 的圆；在 Hessian 不定的起点上还能看到子问题走负曲率方向撞到边界。",
+      "id": "trust_region_radius",
+      "params": [
+        {
+          "critical": [
+            0.25,
+            1.0
+          ],
+          "criticalNote": "收缩阈值 t1=0.25 与扩张阈值必须满足 0<t1<t2<1：t2 ≤ t1 时「收缩」与「扩张」的判据互相打架（同一个 ρ 两头都触发）；t2 ≥ 1 时 ρ_k 几乎不可能超过它（ρ≤1 是二次模型的性质），半径再也不扩张。",
+          "default": 0.75,
+          "label": "扩张阈值 t2（ρ>t2 且撞边界才扩张）",
+          "max": 1.5,
+          "min": 0.05,
+          "name": "t2",
+          "step": 0.05,
+          "type": "float"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": 1.0,
+          "label": "初始半径 Δ0",
+          "max": 10.0,
+          "min": 0.05,
+          "name": "delta0",
+          "step": 0.05,
+          "type": "float"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": "valley",
+          "label": "起点",
+          "name": "start",
+          "options": [
+            "valley",
+            "indefinite",
+            "high"
+          ],
+          "type": "enum"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": 24,
+          "label": "最大迭代步数",
+          "max": 40,
+          "min": 5,
+          "name": "max_iter",
+          "type": "int"
+        }
+      ],
+      "pitfalls": "「半径在自适应」这句话本身不是证据：ρ_k>0.75 只在步**撞到边界**时才扩张，而二次模型上 ρ 恒等于 1——用二次型看这个可视化，半径只会单调长大，一次拒绝都看不到。实测 Rosenbrock 从 (-1.2,1) 出发 22 步里有 3 次拒绝、ρ 出现 -4.25，半径在 0.125 与 1 之间来回；这才是自适应在工作的样子。另外 ρ 为负时若还接受这一步，f 会**上升**——eta 阈值就是拦它的那道闸。",
+      "requiredAux": [
+        "residual"
+      ],
+      "theory": [
+        "ρ_k = (f(x_k) - f(x_k+p_k)) / (m_k(0) - m_k(p_k))，ρ_k>η 才接受",
+        "ρ<t1=0.25 收缩半径、ρ>t2 且 ‖p‖=Δ 扩张半径（0<t1<t2<1）",
+        "Steihaug-CG 遇到负曲率方向时沿该方向走到信赖域边界"
+      ],
+      "time": {
+        "dt": 1.0,
+        "fps": 30,
+        "label": "迭代 k",
+        "mode": "scrub",
+        "tMax": 40.0
+      },
+      "title": "信赖域半径自适应：接受、拒绝与边界"
+    }
+  ]
+}
