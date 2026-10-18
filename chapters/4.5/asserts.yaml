@@ -1,0 +1,136 @@
+# 4.5 章断言清单（真源：`tests/4.5/test_multigrid.py` 与 `tests/4.5/test_frames.py`）
+#
+# 分工：**A 类**把解析结论钉死（转移恒等式、逐模态放大率、两网格 = 1/9、FAS = 离散牛顿解）；
+# **B 类**守「实现真的等于数学」（投影性质、线性性、代价闭式、两个假恒等式的反例留档、帧契约）；
+# **C 类**是**实测**出来的速率与阈值：GS 的 1/sqrt(5) 与 O(h) 边界误差、缩放错配从变慢到发散、
+# W 的「因子更小但总代价更大」、跨 h 的因子扫描、MGCG 迭代数 O(1)、FAS 的假解。
+chapter: "4.5"
+title: 多重网格与快速求解
+required_kinds: [B, C]
+
+min_counts:
+  A: 5
+  B: 12
+  C: 7
+
+tests:
+  - name: test_every_frame_corner_stays_finite_and_packs
+    kind: B
+    what: "四个页面 × 默认/每个参数 min·max/枚举两端的角点 × t∈{0,tMax/2,tMax} 的帧：有限性、.nlf 打包、requiredAux 命中、四类地板掩码与占位值自洽（本次 104 帧）"
+    theory: "数组与 meta 全有限、能编 .nlf；requiredAux 命中；地板/占位/哨兵掩码与数据一致"
+    file: tests/4.5/test_frames.py
+  - name: test_meta_matches_frame_arrays
+    kind: B
+    what: "四个页面：meta 的结论（平滑因子、地板计数、因子统计、损失/别名/可见幅度）与同帧数组的复算偏差"
+    theory: "meta 的每个结论都能从同帧数组复算（平滑因子/地板计数/因子统计/损失与别名）"
+    file: tests/4.5/test_frames.py
+  - name: test_frames_are_pure_and_time_is_clamped
+    kind: B
+    what: "四页：同参数两次构建的逐位一致性、t>tMax 与 t=tMax 的逐位一致、t<0 与 t=0 的逐位一致、mode=none 不声明时间轴参数"
+    theory: "同参数两次构建逐位相同；scrub 在 [0,tMax] 外钳制；mode=none 不声明 tMax/dt/fps"
+    file: tests/4.5/test_frames.py
+  - name: test_frame_thresholds_and_rates
+    kind: C
+    what: "n=127 十步后高频存活/低频存活/存活比、两网格因子量级、MG 与平滑子的总代价比、MGCG 迭代数上限、纯高频残差的损失与混合残差的损失下降倍数"
+    theory: "10 步后高频 <=1e-4 而低频 >=0.99；MG 总代价比平滑子 >=100 倍；纯高频残差的不可见比例 >=0.9 且混合残差损失至少掉 10 倍"
+    file: tests/4.5/test_frames.py
+  - name: test_manifest_is_self_consistent
+    kind: B
+    what: "四个 viz 的参数边界/默认值/临界值/枚举、轴数与 autoscaled 显式性、pitfalls 与 theory 非空、dataSource、time.mode 与时间参数的一致性"
+    theory: "参数边界/默认值/临界值/枚举自洽，轴 >= 2 且 autoscaled 显式，pitfalls 与 theory 非空"
+    file: tests/4.5/test_frames.py
+  - name: test_transfer_algebra_1d_exact
+    kind: A
+    what: "n=15/31/63/127 上 max|R−0.5Pᵀ|、max|R A_h P−A_H|、max|Pᵀ A_h P−2A_H|、以及 poisson_1d 与 1.5 章 laplacian_1d/h² 的最大偏差（四个量都是 0）"
+    theory: "max|R-0.5P^T|=0，max|R A_h P-A_H|=0，max|P^T A_h P-2A_H|=0"
+    file: tests/4.5/test_multigrid.py
+  - name: test_jacobi_mode_factors_match_theory
+    kind: A
+    what: "n=15…127、omega∈{2/3,1,1/2}：实测逐模态范数比 vs |1−omega(1−cos theta_k)|、vs |1−(4/3)sin²(theta/2)|、vs 1.5 章 mode_decay_factors，四组口径两两比对"
+    theory: "|1-omega(1-cos theta_k)|；omega=2/3 时 |1-(4/3)sin^2(theta_k/2)|"
+    file: tests/4.5/test_multigrid.py
+  - name: test_smoother_matrices_match_chapter_1_5
+    kind: A
+    what: "n=15/31/63、omega∈{2/3,1,1.2}：smoother_matrix 与 1.5 章 jacobi/gs/sor_iteration_matrix（Jacobi 用 I−omega(I−T_J) 缩放）的最大偏差"
+    theory: "与 jacobi/gs/sor_iteration_matrix 逐位相同（omega 由 I-omega(I-T_J) 缩放）"
+    file: tests/4.5/test_multigrid.py
+  - name: test_two_grid_factor_is_one_ninth
+    kind: A
+    what: "n=15/31/63/127 上对显式两网格算子做幂法，实测谱半径与 1/9 的最大偏差与跨尺寸展布"
+    theory: "rho_TG = mu_smooth^2 = (1/3)^2 = 0.111111..."
+    file: tests/4.5/test_multigrid.py
+  - name: test_fas_matches_newton_reference
+    kind: A
+    what: "n=15/31/63 上 FAS 解与 discrete_newton 参考解的最大偏差、真残差终值，以及与解析解 sin(pi x) 的离散误差"
+    theory: "FAS 不动点 = 离散方程的解：max|u_FAS - u_Newt| 到机器精度；残差 <= 1e-8"
+    file: tests/4.5/test_multigrid.py
+  - name: test_two_grid_correction_annihilates_coarse_range
+    kind: B
+    what: "n=15/31/63/127：粗网格校正算子作用在 P y 上的最大分量（相对），验证它把 P 的值域精确消掉"
+    theory: "R A_h P = A_H ⇒ (I-P A_H^{-1} R A_h) P y = 0"
+    file: tests/4.5/test_multigrid.py
+  - name: test_variational_projection_properties
+    kind: B
+    what: "n=15/31/63：Q=PA_H^{-1}RA_h 的幂等缺陷、A-内积对称缺陷、RP 与闭式 0.75I+0.125adj 的偏差、max|RP−I|"
+    theory: "Q^2=Q、A-对称（偏差 0）；R P = 0.75I+0.125 adj（偏差 0）；max|RP-I| = 0.25 != 0"
+    file: tests/4.5/test_multigrid.py
+  - name: test_inverse_commutation_claims_are_false
+    kind: B
+    what: "n=31：一般右端上 |RA_h^{-1}−2A_H^{-1}R| 的相对偏差、子空间 A_h range(P) 上 |RA_h^{-1}−A_H^{-1}R| 的绝对偏差、以及真命题 |A_H^{-1}RA_hP−I|"
+    theory: "一般右端 rel≈1.0；子空间上 abs≈0.61；真命题 A_H^{-1} R A_h P = I 偏差 0"
+    file: tests/4.5/test_multigrid.py
+  - name: test_mg_apply_is_linear_and_matches_matrix
+    kind: B
+    what: "n=31 的 V-cycle：逐列拼出的矩阵作用 vs mg_apply 的相对偏差，以及 E(x1+x2,b1+b2)−E(x1,b1)−E(x2,b2) 的叠加缺陷"
+    theory: "E 线性：E(x1+x2,b1+b2)=E(x1,b1)+E(x2,b2)，且 E 的列就是 mg_apply(e_j)"
+    file: tests/4.5/test_multigrid.py
+  - name: test_work_counter_matches_closed_form
+    kind: B
+    what: "n=15/31/63 的 V/W 循环：计数器实测每周期代价 vs 闭式求和 sum_l gamma^l·2nu·n_l/n_0 + gamma^{L−1}·24·n_L/n_0 的相对偏差"
+    theory: "V: sum_l 2*n_l/n_0 + 24*n_L/n_0；W: 重数 2^l"
+    file: tests/4.5/test_multigrid.py
+  - name: test_cycle_factor_estimator_trap
+    kind: B
+    what: "n=15：显式循环矩阵的谱半径（自研特征值/幂法）vs 正确估计器（归一化后的范数序列几何平均）vs 错法（相邻范数相除）"
+    theory: "归一化后每步范数即放大率（几何平均 -> rho(E)）；相邻相除会得到 ≈1 的假值"
+    file: tests/4.5/test_multigrid.py
+  - name: test_injection_is_not_a_scaled_transpose
+    kind: B
+    what: "n=31/63/127：injection 与最优常数 c 下 cPᵀ 的最小偏差（相对）、以及 injection 与满权的两网格因子之比"
+    theory: "R = 0.5 P^T（满权）才使 R A_h P = A_H；injection 下两网格因子显著变大（实测约 3 倍）"
+    file: tests/4.5/test_multigrid.py
+  - name: test_gs_symbol_and_boundary_error
+    kind: C
+    what: "n=15…127：GS 单步模态放大率在高频半带的最大值 vs 1/sqrt(5)、与无穷网格符号的最大偏差及其逐次减半比值、以及 Young 特征值口径的对照"
+    theory: "max_high |g(theta)| -> 1/sqrt(5)=0.447214；边界误差 ~ O(h)（比值 -> 2）"
+    file: tests/4.5/test_multigrid.py
+  - name: test_scaling_mismatch_diverges
+    kind: C
+    what: "n=63：c∈{0.25,0.5,0.75,1,2} 的 V-cycle 因子实测、Galerkin 缺口 |2c−1|，以及 c=0.5 是否最小"
+    theory: "|c-0.5|=0 时循环收敛；c>0.5 过校正可发散（粗层校正被放大 2c 倍）"
+    file: tests/4.5/test_multigrid.py
+  - name: test_w_cycle_factor_smaller_but_costlier
+    kind: C
+    what: "n=63：V/W 的实测因子、每周期代价、降到 1e-8 的周期数与总代价之比"
+    theory: "W 因子接近两网格（更小），但每周期代价约 2^L 级；总代价由 因子 与 代价 共同决定"
+    file: tests/4.5/test_multigrid.py
+  - name: test_factor_scan_grid_independence
+    kind: C
+    what: "n=15…127 的扫描：V-cycle 因子均值/标准差/漂移、两网格因子展布、单层平滑子斜率、以及两边降到 1e-8 的次数"
+    theory: "MG 因子与 h 无关（std 小、漂移小）；1-rho_smoother ~ h^2 ⇒ 斜率 -2（渐近）"
+    file: tests/4.5/test_multigrid.py
+  - name: test_mgcg_iterations_grid_independent
+    kind: C
+    what: "n=15…255：CG 与 MGCG 在同一右端、tol=1e-8 下的迭代数与加速比"
+    theory: "CG ~ O(h^-1)（sqrt(kappa)）；MGCG 迭代数 O(1)；加速比按迭代数 ~ 1/h"
+    file: tests/4.5/test_multigrid.py
+  - name: test_fas_factor_and_false_solution
+    kind: C
+    what: "n=15…127 的 FAS 因子（跨 h）与 n=63 的线性化反例：真残差、线性残差、假解误差、两者比值"
+    theory: "FAS 因子与 h 无关；线性化残差收敛到 1e-10 时真残差仍 O(1)，假解误差 ~8e-2（真解幅度 1）"
+    file: tests/4.5/test_multigrid.py
+  - name: test_window_factor_ignores_roundoff_floor
+    kind: B
+    what: "合成序列（先按 0.19 衰减 12 步、再触底 10 步）：窗口估计器给出的因子与窗口区间 vs 朴素尾部比值"
+    theory: "触底段比值 ~1；窗口估计器跳过地板与初始瞬态后应给出真衰减率 0.19"
+    file: tests/4.5/test_multigrid.py

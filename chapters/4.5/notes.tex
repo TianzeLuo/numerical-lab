@@ -1,0 +1,1128 @@
+% 4.5 章 · 多重网格与快速求解
+% 这一章只回答一个问题：为什么「几次扫描 + 几层网格」能把误差压下去，
+% 以及这句话在什么条件下是错的。四步链条：
+%   1) 平滑子是逐频率的：高频一次掉到 1/3 以下，低频几乎不动（放大率 1-O(h^2)）；
+%   2) 粗层校正把低频交给粗网格：一维插值 + 满权限制下 Galerkin 恒等式 R A_h P = A_H 精确成立；
+%   3) 两者复合的两网格算子谱恰为 {0, 1/9}（= 平滑因子的平方），
+%      V/W 循环的代价分别是 O(n_0) 与 O(n_0 log n_0)；
+%   4) 非线性必须走 FAS：把它当线性问题解，会收敛到「线性方程的解」这个假解。
+% 本章所有结论都与 numcore/pde/multigrid.py 的实现一一对应，
+% 对应关系集中写在「本章代码与结论的对应」一节。
+% 断言附表由 tools/build_book.py 从实际运行结果生成，\input 进来，不手抄。
+
+\numlabchapter{多重网格与快速求解}{4.5}
+
+\section{这一章要解决什么}
+
+1.5 章把迭代法的收敛速度归结到一件事上：迭代矩阵的谱。对一维 Poisson 模型问题，
+加权 Jacobi 与 Gauss--Seidel 的谱半径都是
+$\rho(T)=1-O(h^2)$（定理~\ref{thm:mg-spectrum}、\ref{lem:mg-stationary}），
+于是把误差压下一个固定倍数要 $\Theta(h^{-2})$ 次扫描：$h$ 每减半，扫描数翻两番。
+CG 好一些，但 $\kappa(A_h)=O(h^{-2})$，Chebyshev 界给出的迭代数仍是 $O(h^{-1})$
+（定理~\ref{thm:mg-mgcg}）。**这两条路都不可能做到 $O(1)$ 次迭代。**
+
+多重网格的出发点是：误差不是「一个数」，而是**一组频率**，
+而不同频率该交给不同的网格去处理。
+
+\begin{enumerate}
+  \item \textbf{高频（振荡）分量}：几次加权 Jacobi 就能把它按固定倍数压下去，
+        因为平滑子的放大率在频率半带 $\theta\ge\pi/2$ 上一致地小
+        （$\omega=2/3$ 时不超过 $1/3$，定理~\ref{thm:mg-smooth}）。
+        这是\textbf{平滑}，不是「迭代收敛」——低频在这个判据里几乎不动。
+  \item \textbf{低频（光滑）分量}：它在细网格上「看起来像」粗网格上的一条曲线，
+        所以在粗网格上它是高频，可以用同样的平滑子加粗层校正处理。
+        把这一步递归下去就是 V/W 循环（\S\ref{sec:mg-cycle}）。
+  \item \textbf{两者的复合}：$\nu_1$ 次前扫描 + 粗层校正 + $\nu_2$ 次后扫描。
+        在一维模型问题上，$\nu_1=\nu_2=1$、$\omega=2/3$ 的两网格算子谱恰好是
+        $\{0,\,1/9\}$（定理~\ref{thm:mg-tg-spectrum}）——
+        因子与 $h$ 无关，这就是「网格无关」的全部内容。
+  \item \textbf{代价}：每层视野内的点数按 $2^{-l}$ 缩小，所以
+        V 循环一个周期的代价是 $O(n_0)$、W 循环是 $O(n_0\log n_0)$
+        （定理~\ref{thm:mg-cost}），加上 $O(1)$ 的周期数，总代价 $O(n_0)$。
+  \item \textbf{边界条件}：线性校正算子必须是一个**固定**的线性算子，
+        这样才能当 CG 的预条件子用（\S\ref{sec:mg-mgcg}）；
+        非线性问题必须用 FAS，否则会收敛到不是解的假解（\S\ref{sec:mg-fas}）。
+\end{enumerate}
+
+\subsection*{记号（与 \texttt{numcore/pde/multigrid.py} 完全一致）}
+
+模型问题是**一维 Dirichlet Poisson 方程**
+\begin{equation}
+  -u''(x)=f(x),\quad x\in(0,1),\qquad u(0)=u(1)=0,
+  \label{eq:mg-model}
+\end{equation}
+在网格 $x_i=ih$、$h=1/(n+1)$ 上离散为
+\begin{equation}
+  A_h=h^{-2}\operatorname{tridiag}(-1,2,-1)\in\mathbb R^{n\times n},
+  \qquad A_hu_h=f_h .
+  \label{eq:mg-A}
+\end{equation}
+$A_h$ 与 1.5 章的 $\operatorname{laplacian\_1d}(n)$ 只差一个因子 $h^{-2}$。
+
+\textbf{网格层级}：$n_l$ 是第 $l$ 层的内点数，$l=0$ 最细，
+\begin{equation}
+  n_l=\frac{n_0+1}{2^{\,l}}-1,\qquad
+  h_l=\frac{1}{n_l+1}=2^{\,l}h_0,\qquad H=2h ,
+  \label{eq:mg-hierarchy}
+\end{equation}
+最粗层只有 $1$ 个内点。第 $l$ 层的算子就是 \eqref{eq:mg-A} 在粗网格上**重新离散**：
+$A_H=H^{-2}\operatorname{tridiag}(-1,2,-1)$。粗点 $j$ 与细点重合：在一基下标下，
+粗点 $j$ 落在细点 $2j$ 上（代码里数组下标从 $0$ 起，那里的写法是粗点 $j$ 落在细点 $2j+1$ 上）。
+
+\textbf{转移算子}：线性插值 $P$（粗 $\to$ 细）与满权限制 $R$（细 $\to$ 粗）
+\begin{equation}
+  (Pu)_{2j}=u_j,\qquad (Pu)_{2j\pm1}=\tfrac12\bigl(u_j+u_{j\pm1}\bigr),
+  \qquad
+  (Rr)_j=\tfrac14\bigl(r_{2j-1}+2r_{2j}+r_{2j+1}\bigr),
+  \label{eq:mg-PR}
+\end{equation}
+越界的粗值取 $0$（即 Dirichlet 边界）。
+
+\textbf{平滑子}：$A=D-L-U$（$D$ 对角、$L,U\ge0$ 严格三角），
+\begin{equation}
+  T_\omega=I-\omega D^{-1}A\quad(\text{加权 Jacobi}),\qquad
+  T_{\mathrm{GS}}=(D-L)^{-1}U\quad(\text{前向 Gauss--Seidel}),
+  \label{eq:mg-smoothers}
+\end{equation}
+$T_{\mathrm{GS}}$ 就是 $\omega=1$ 的 SOR：$T_{\mathrm{GS}}=(D-L)^{-1}\bigl((1-\omega)D+\omega U\bigr)\big|_{\omega=1}$。
+
+\textbf{模态}：$\theta_k=k\pi/(n+1)=k\pi h$，$k=1,\dots,n$；
+正弦向量 $v_k(i)=\sin(i\theta_k)$。频率半带指 $\theta_k\ge\pi/2$，即 $k\ge(n+1)/2$。
+逐模态放大率
+\begin{equation}
+  \lambda_k(A_h)=4h^{-2}\sin^2\frac{\theta_k}{2},\qquad
+  \lambda_k(D^{-1}A_h)=1-\cos\theta_k,\qquad
+  \mu_k(\omega)=1-\omega\,(1-\cos\theta_k).
+  \label{eq:mg-modes}
+\end{equation}
+记 $s_k=\sin^2(\theta_k/2)$、$c_k=\cos^2(\theta_k/2)=1-s_k$；$N=n+1$，于是 $v_{N-k}(i)=(-1)^{i+1}v_k(i)$。
+
+\textbf{算子}：$E_{\rm TG}$ 是两网格算子的误差传播算子，$E_l$ 是第 $l$ 层循环算子，
+$B$ 是循环作为预条件子时「残差 $\mapsto$ 修正」的算子（\S\ref{sec:mg-mgcg}）。
+
+\section{模型问题、平滑子与转移算子}
+\label{sec:mg-setting}
+
+\begin{theorem}[$A_h$ 的谱与加权 Jacobi 的逐模态放大率]
+\label{thm:mg-spectrum}
+$\{v_k\}_{k=1}^{n}$ 是 $\mathbb R^n$ 的正交基，并且
+\begin{equation}
+  A_hv_k=\lambda_k(A_h)v_k=4h^{-2}\sin^2\frac{\theta_k}{2}\,v_k,
+  \qquad
+  D^{-1}A_hv_k=(1-\cos\theta_k)v_k
+  \label{eq:mg-sine}
+\end{equation}
+（$D=2h^{-2}I$）。因此加权 Jacobi 的迭代矩阵 $T_\omega=I-\omega D^{-1}A_h$
+在同一组基下对角：
+\begin{equation}
+  T_\omega v_k=\mu_k(\omega)v_k,\qquad
+  \mu_k(\omega)=1-\omega(1-\cos\theta_k)=1-2\omega\sin^2\frac{\theta_k}{2},
+  \label{eq:mg-mu}
+\end{equation}
+它的第 $k$ 个模态误差系数**精确**按 $\mu_k$ 衰减（没有模态混合）：
+$c_k^{(m)}=\mu_k^m c_k^{(0)}$。此外 $T_\omega$ 对称，且关于 $A_h$-内积自伴：
+$A_hT_\omega=T_\omega^{\mathsf T}A_h$。
+\end{theorem}
+
+\begin{proof}
+第一式是 1.5 章 一维 Laplacian 特征分解的直接改写，这里给出自洽的验算。
+由积化和差
+\begin{equation}
+  \sin((i-1)\theta)+\sin((i+1)\theta)=2\cos\theta\,\sin(i\theta)
+\end{equation}
+得 $\bigl(\operatorname{tridiag}(-1,2,-1)v_k\bigr)_i=2(1-\cos\theta_k)\sin(i\theta_k)
+=4\sin^2(\theta_k/2)\sin(i\theta_k)$，乘上 $h^{-2}$ 即得第一式。
+正交性由 $\sum_{i=1}^{n}\sin(i\theta_j)\sin(i\theta_k)=\frac{N}{2}\delta_{jk}$
+（$N=n+1$）给出。$D=2h^{-2}I$ 是纯量矩阵，于是
+$D^{-1}A_hv_k=\frac12\cdot 4\sin^2(\theta_k/2)v_k=(1-\cos\theta_k)v_k$，
+第二式得证。
+
+$T_\omega=I-\omega D^{-1}A_h$ 是 $D^{-1}A_h$ 的多项式（一次），
+所以与它同特征向量，特征值 \eqref{eq:mg-mu}。
+在正弦基下 $T_\omega$ 是对角矩阵 $\operatorname{diag}(\mu_1,\dots,\mu_n)$，
+而该基正交，故 $c_k^{(m)}=\mu_k^mc_k^{(0)}$ 精确成立
+（这一点与 Gauss--Seidel 形成对照：后者在同一组基下**不是**对角的，见 \S\ref{sec:mg-gs}）。
+
+对称性：$D^{-1}A_h$ 对称（$A_h$ 对称、$D$ 是纯量矩阵），故 $T_\omega$ 对称。
+关于 $A_h$-内积自伴：$A_hT_\omega=A_h-\omega A_hD^{-1}A_h$，
+而 $A_hD^{-1}A_h$ 对称，故 $A_hT_\omega$ 对称，即
+$A_hT_\omega=(A_hT_\omega)^{\mathsf T}=T_\omega^{\mathsf T}A_h$。
+\end{proof}
+
+\begin{theorem}[最优平滑权重与平滑因子]
+\label{thm:mg-smooth}
+对任意 $\omega>0$，平滑子在高频半带上的最坏放大率是
+\begin{equation}
+  \mu_{\rm smooth}(\omega):=\max_{\theta_k\ge\pi/2}\bigl|\mu_k(\omega)\bigr|
+  =\max\bigl(|1-\omega|,\;|1-2\omega|\bigr),
+  \label{eq:mg-smoothmax}
+\end{equation}
+两个端点分别对应 $\theta=\pi/2$（$s_k=1/2$）与 $\theta=\pi$（$s_k=1$）。
+它在 $\omega=2/3$ 取到最小值 $1/3$，即
+\begin{equation}
+  \omega_\ast=\frac23,\qquad
+  \mu_{\rm smooth}\Bigl(\frac23\Bigr)=\frac13,
+  \qquad
+  \Bigl|\mu_k\Bigl(\frac23\Bigr)\Bigr|=\Bigl|1-\frac43\sin^2\frac{\theta_k}{2}\Bigr|\le\frac13
+  \quad(\theta_k\ge\pi/2).
+  \label{eq:mg-smoothing-factor}
+\end{equation}
+\end{theorem}
+
+\begin{proof}
+把 $\mu_k=1-2\omega s$ 看成 $s=\sin^2(\theta_k/2)$ 的一次函数。
+$\theta_k\ge\pi/2$ 时 $s\in[1/2,1]$，一次函数在区间上的最大模在端点取到，于是
+\begin{equation}
+  \mu_{\rm smooth}(\omega)=\max\Bigl(\bigl|1-2\omega\cdot\tfrac12\bigr|,\;
+  \bigl|1-2\omega\cdot1\bigr|\Bigr)=\max(|1-\omega|,|1-2\omega|).
+\end{equation}
+下面分四段求这个最大值的最小值（$g(\omega)=\max(|1-\omega|,|1-2\omega|)$）：
+\begin{itemize}
+  \item $\omega\le\frac12$：$g=1-\omega\ge\frac12>\frac13$；
+  \item $\frac12\le\omega\le\frac23$：$2\omega-1\le1-\omega$，故 $g=1-\omega\ge\frac13$；
+  \item $\frac23\le\omega\le1$：$g=2\omega-1\ge\frac13$；
+  \item $\omega\ge1$：$g\ge|1-2\omega|=2\omega-1\ge1>\frac13$。
+\end{itemize}
+所以最小值是 $1/3$，且只在 $\omega=2/3$ 取到；代回即得
+$\mu_k(2/3)=1-\frac43\sin^2(\theta_k/2)$，
+在 $s=1/2$ 与 $s=1$ 处分别等于 $1/3$ 与 $-1/3$，模都是 $1/3$。
+\end{proof}
+
+\begin{corollary}[「低频几乎不动」的定量含义]
+\label{cor:mg-lowmode}
+最低模态 $\theta_1=\pi h$ 的放大率满足
+\begin{equation}
+  \mu_1\Bigl(\frac23\Bigr)=1-\frac23\bigl(1-\cos(\pi h)\bigr)
+  =1-\frac{\pi^2h^2}{3}+O(h^4)
+  =1-\Theta(h^2),
+  \label{eq:mg-lowmode}
+\end{equation}
+而同一权重下任何高频模态都不超过 $1/3$。因此：
+\begin{enumerate}
+  \item 「低频几乎不动」的精确含义是\textbf{放大率 $=1-\Theta(h^2)$}：
+        $h$ 减半，距离 $1$ 的距离缩小到四分之一；
+        单靠平滑子把一个低频分量压下一个固定倍数需要 $\Theta(h^{-2})$ 次扫描
+        （首项系数由 $1-\mu_1\approx\pi^2h^2/3$ 给出）。
+  \item 高频分量每扫描一次至少缩小 $3$ 倍：$\Theta(1)$ 次扫描就够。
+        这就是「平滑」与「收敛」的分工：平滑子不是求解器，它只负责高频。
+\end{enumerate}
+\end{corollary}
+
+\begin{proof}
+由 $\cos x=1-\frac{x^2}{2}+\frac{x^4}{24}+O(x^6)$，
+\begin{equation}
+  \frac23\bigl(1-\cos(\pi h)\bigr)
+  =\frac23\Bigl(\frac{\pi^2h^2}{2}-\frac{\pi^4h^4}{24}+O(h^6)\Bigr)
+  =\frac{\pi^2h^2}{3}+O(h^4),
+\end{equation}
+故 \eqref{eq:mg-lowmode} 成立；$1-\mu_1=\frac{\pi^2h^2}{3}(1+O(h^2))$ 给出下界与上界同阶，
+即 $\Theta(h^2)$，于是把误差压下固定倍数所需的扫描数是
+$\Theta\bigl(1/(1-\mu_1)\bigr)=\Theta(h^{-2})$。
+高频部分由定理~\ref{thm:mg-smooth} 的 \eqref{eq:mg-smoothing-factor} 直接给出：
+$\theta_k\ge\pi/2$ 时 $|\mu_k|\le1/3$，$m$ 次扫描后不超过 $3^{-m}$。
+\end{proof}
+
+\begin{definition}[两个网格算子]
+\label{def:mg-tg}
+粗层校正算子与两网格误差传播算子定义为
+\begin{equation}
+  C:=I-PA_H^{-1}RA_h,\qquad
+  E_{\rm TG}:=S^{\nu_2}\,C\,S^{\nu_1},\qquad S:=T_{2/3},
+  \label{eq:mg-tg}
+\end{equation}
+其中 $\nu_1$ 次前扫描、$\nu_2$ 次后扫描，粗层用精确解（$A_H^{-1}$）。
+\end{definition}
+
+\begin{theorem}[$R=\frac12P^{\mathsf T}$ 与一维 Galerkin 恒等式]
+\label{thm:mg-galerkin}
+按 \eqref{eq:mg-PR} 定义的转移算子满足
+\begin{equation}
+  R=\tfrac12P^{\mathsf T},
+  \qquad
+  P^{\mathsf T}A_hP=2A_H,
+  \qquad
+  \boxed{\,RA_hP=A_H\,}.
+  \label{eq:mg-galerkin}
+\end{equation}
+即：一维的 Galerkin 粗层算子与在粗网格上重新离散得到的 $A_H$ **逐元素相同**，
+缺陷恒为 $0$（不是「小量」）。
+\end{theorem}
+
+\begin{proof}
+\emph{第一步：$R=\frac12P^{\mathsf T}$。}
+$P$ 的第 $j$ 列在一基下标下有：第 $2j$ 个分量 $1$，第 $2j\pm1$ 个分量 $1/2$。
+故
+\begin{equation}
+  (P^{\mathsf T}r)_j=r_{2j}+\tfrac12\bigl(r_{2j-1}+r_{2j+1}\bigr),
+  \qquad
+  \tfrac12(P^{\mathsf T}r)_j=\tfrac14\bigl(r_{2j-1}+2r_{2j}+r_{2j+1}\bigr)=(Rr)_j .
+\end{equation}
+
+\emph{第二步：$P^{\mathsf T}A_hP=2A_H$。}
+设 $u$ 是粗层向量，$y=Pu$。线性插值的两个关键取值：
+\begin{equation}
+  y_{2j}=u_j,\qquad y_{2j\pm1}=\tfrac12\bigl(u_j+u_{j\pm1}\bigr).
+\end{equation}
+先算 $A_hy$ 的两类分量。在粗点上，
+\begin{equation}
+  (A_hy)_{2j}=h^{-2}\bigl(2u_j-\tfrac12(u_{j-1}+u_j)-\tfrac12(u_j+u_{j+1})\bigr)
+  =h^{-2}\bigl(u_j-\tfrac12u_{j-1}-\tfrac12u_{j+1}\bigr);
+\end{equation}
+在中点上，因为插值是\textbf{线性}的，二阶差分正好为零：
+\begin{equation}
+  (A_hy)_{2j+1}=h^{-2}\bigl(2\cdot\tfrac12(u_j+u_{j+1})-u_j-u_{j+1}\bigr)=0 .
+\end{equation}
+于是
+\begin{equation}
+  (P^{\mathsf T}A_hPu)_j=(A_hy)_{2j}+\tfrac12\bigl((A_hy)_{2j-1}+(A_hy)_{2j+1}\bigr)
+  =h^{-2}\bigl(u_j-\tfrac12u_{j-1}-\tfrac12u_{j+1}\bigr).
+\end{equation}
+用 $h^{-2}=4H^{-2}$ 整理：
+\begin{equation}
+  h^{-2}\bigl(u_j-\tfrac12u_{j-1}-\tfrac12u_{j+1}\bigr)
+  =2H^{-2}\bigl(2u_j-u_{j-1}-u_{j+1}\bigr)=2(A_Hu)_j .
+\end{equation}
+第三步把第一步代入第二步即得 $RA_hP=\frac12P^{\mathsf T}A_hP=A_H$。
+\end{proof}
+
+\begin{corollary}[缩放常数被恒等式定死]
+\label{cor:mg-scaling}
+若把限制算子换成 $R=cP^{\mathsf T}$（$c\ne\frac12$），则
+$RA_hP=2cA_H$：粗层算子的缩放与限制算子的缩放是一个**配对**。
+只有 $c=\frac12$ 时 $RA_hP=A_H$ 才成立；$c=1$（即 $R=P^{\mathsf T}$）
+等价于把粗层校正放大一倍，$c$ 取得更小则是欠校正。
+\end{corollary}
+
+\begin{proof}
+$RA_hP=cP^{\mathsf T}A_hP=2cA_H$（定理~\ref{thm:mg-galerkin} 第二步）。
+$2c=1$ 当且仅当 $c=1/2$。
+\end{proof}
+
+\begin{remark}[二维：Galerkin 与重新离散不是同一个算子]
+一维里 $P^{\mathsf T}A_hP=2A_H$ 是**恒等式**，所以本章代码可以在每一层直接用
+$\operatorname{poisson\_1d}(n_l)$ 当粗层算子，而不必真的去算 $P^{\mathsf T}A_hP$。
+二维没有这个运气：双线性插值配满权限制（$R=\frac14Q^{\mathsf T}$）时，
+Galerkin 粗层算子是\textbf{九点格式}（四个角点权重非零），
+而不是五点重新离散 $\operatorname{tridiag}_2$。
+两者相差一个 $O(h^2)$ 的扰动项，于是二维必须**二选一**：
+\begin{itemize}
+  \item Galerkin（变分）路线：$A_H=RA_hP$，$R=\frac12P^{\mathsf T}$，
+        粗层校正是 $A_h$-正交投影，\S\ref{sec:mg-mgcg} 的对称性证明逐字成立，但粗层是九点、更贵；
+  \item 重新离散路线：粗层是五点、更便宜，但 $RA_hP\ne A_H$，
+        粗层校正不再是投影，「精确解在 $\operatorname{range}(P)$ 上被一次消掉」的结论也不再有。
+\end{itemize}
+一维的特殊之处正在于两条路线重合。
+\end{remark}
+
+\section{两网格算子：投影、h 无关性与精确谱}
+\label{sec:mg-tg}
+
+误差传播的解释：设真解为 $u^\ast$，误差 $e=u-u^\ast$。一次两网格循环里
+前扫描把误差变成 $S^{\nu_1}e$，粗层校正再把它变成 $C S^{\nu_1}e$，
+后扫描给出 $E_{\rm TG}e=S^{\nu_2}CS^{\nu_1}e$。逐项看：
+\begin{itemize}
+  \item $S$ 负责高频（定理~\ref{thm:mg-smooth}）；
+  \item $C=I-PA_H^{-1}RA_h$ 负责低频：它把误差限制到粗网格、
+        在粗网格上解出修正、再插值回来。
+\end{itemize}
+
+\begin{lemma}[粗层校正是投影，且在 $\operatorname{range}(P)$ 上精确]
+\label{lem:mg-cgc-projection}
+设 $M:=PA_H^{-1}RA_h$。则
+\begin{enumerate}
+  \item $M^2=M$，$C=I-M$ 是投影；$\operatorname{range}(M)=\operatorname{range}(P)$，
+        $\ker M=\ker(RA_h)=\ker(P^{\mathsf T}A_h)$；
+  \item 对任意粗层向量 $w$ 有 $C(Pw)=0$：粗层校正把落在
+        $\operatorname{range}(P)$ 里的误差**一次消干净**（这是「修正方程」意义上的精确性）；
+  \item 反过来，$Cx=x$ 对一切 $x\in\ker(RA_h)$ 成立：粗网格「看不见」的误差分量
+        粗层校正一点也帮不上忙，只能交给平滑子；
+  \item $C$ 关于 $A_h$-内积自伴：$A_hC$ 对称（即 $C$ 是 $A_h$-正交投影的补投影）。
+\end{enumerate}
+\end{lemma}
+
+\begin{proof}
+(1) 用 $RA_hP=A_H$（定理~\ref{thm:mg-galerkin}）：
+\begin{equation}
+  M^2=PA_H^{-1}\bigl(RA_hP\bigr)A_H^{-1}RA_h=PA_H^{-1}A_HA_H^{-1}RA_h=M .
+\end{equation}
+故 $C^2=I-2M+M^2=I-M=C$。又 $\operatorname{range}(M)\subseteq\operatorname{range}(P)$，
+且 $MPw=PA_H^{-1}RA_hPw=Pw$，故 $\operatorname{range}(M)=\operatorname{range}(P)$；
+$\ker M=\ker(RA_h)=\ker(P^{\mathsf T}A_h)$（$R=\frac12P^{\mathsf T}$，$A_h$ 可逆）。
+(2) $C(Pw)=Pw-PA_H^{-1}RA_hPw=Pw-PA_H^{-1}A_Hw=0$。
+(3) $x\in\ker(RA_h)$ 时 $Mx=0$，故 $Cx=x$。
+(4) $A_hM=A_hPA_H^{-1}RA_h=A_hP\bigl(\tfrac12P^{\mathsf T}A_hP\bigr)^{-1}\tfrac12P^{\mathsf T}A_h
+=A_hP(P^{\mathsf T}A_hP)^{-1}P^{\mathsf T}A_h$，这是对称矩阵（转置不变），
+于是 $A_hC=A_h-A_hM$ 也对称。
+\end{proof}
+
+\begin{theorem}[平滑性 $+$ 逼近性 $\Rightarrow$ $h$ 无关]
+\label{thm:mg-two-property}
+设存在与 $h$ 无关的常数 $\eta(\nu_1),C$，使得对一切 $h$：
+\begin{enumerate}
+  \item \textbf{平滑性}（per-mode 版本的算子形式）：
+        $\|A_hS^{\nu_1}\|\le\eta(\nu_1)h^{-2}$；
+  \item \textbf{逼近性}（变分版本：粗层空间确实能逼近细层解）：
+        $\|A_h^{-1}-PA_H^{-1}R\|\le Ch^{2}$；
+  \item 后扫描不放大：$\|S^{\nu_2}\|\le1$。
+\end{enumerate}
+则两网格算子的范数与 $h$ 无关：
+\begin{equation}
+  \|E_{\rm TG}\|\le\eta(\nu_1)\,C .
+  \label{eq:mg-two-property}
+\end{equation}
+\end{theorem}
+
+\begin{proof}
+关键是把粗层校正写成「逼近误差 $\times\,A_h$」的形式：
+\begin{equation}
+  I-PA_H^{-1}RA_h=\bigl(A_h^{-1}-PA_H^{-1}R\bigr)A_h .
+\end{equation}
+代入 \eqref{eq:mg-tg}：
+\begin{equation}
+  E_{\rm TG}=S^{\nu_2}\bigl(A_h^{-1}-PA_H^{-1}R\bigr)\,A_hS^{\nu_1},
+\end{equation}
+取范数并用次可乘性：
+\begin{equation}
+  \|E_{\rm TG}\|\le\|S^{\nu_2}\|\cdot\|A_h^{-1}-PA_H^{-1}R\|\cdot\|A_hS^{\nu_1}\|
+  \le 1\cdot Ch^{2}\cdot\eta(\nu_1)h^{-2}=\eta(\nu_1)C .
+\end{equation}
+$h^{-2}$ 被 $h^{2}$ 精确抵消——这就是「两条性质合起来给网格无关性」的全部机制。
+\end{proof}
+
+\begin{remark}
+两条性质缺一不可：只有平滑性（高频掉得快）而没有逼近性，低频永远留在原地；
+只有逼近性（粗层能表示低频）而没有平滑性，粗网格看不见的高频分量无人处理。
+上面这条界是\textbf{安全但不锐}的：它只保证 $h$ 无关，常数乘积一般远大于真值。
+本章模型问题的锐结论是下一个定理：谱半径恰为 $1/9$，与 $h$ 无关。
+\end{remark}
+
+\begin{theorem}[两网格算子的精确谱：$\sigma(E_{\rm TG})=\{0,\frac19\}$]
+\label{thm:mg-tg-spectrum}
+考虑一维模型问题，$\omega=2/3$ 的加权 Jacobi 平滑子 $S=I-\frac13\operatorname{tridiag}(-1,2,-1)$，
+$\nu_1=\nu_2=1$，$R=\frac12P^{\mathsf T}$，$A_H=RA_hP$（一维时即重新离散，定理~\ref{thm:mg-galerkin}）。
+记 $N=n+1$，$\theta_k=k\pi/N$，$s_k=\sin^2(\theta_k/2)$，$c_k=\cos^2(\theta_k/2)$。则
+\begin{enumerate}
+  \item 粗层校正对单个模态的作用是**混合一对模态**：
+        \begin{equation}
+          Cv_k=s_k\bigl(v_k+v_{N-k}\bigr),\qquad
+          Cv_{N-k}=c_k\bigl(v_k+v_{N-k}\bigr)
+          \label{eq:mg-C-pair}
+        \end{equation}
+        （$k=N/2$ 时两式重合，给出 $Cv_{N/2}=v_{N/2}$）；
+  \item 每个二维不变子空间 $X_k=\operatorname{span}\{v_k,v_{N-k}\}$ 在 $E_{\rm TG}$ 下不变，
+        且 $E_{\rm TG}|_{X_k}$ 的特征值是 $0$ 与
+        \begin{equation}
+          \lambda_k=s_k\mu_k^2+c_k\mu_{N-k}^2,
+          \qquad \mu_j=1-\tfrac23(1-\cos\theta_j);
+          \label{eq:mg-lambda-k}
+        \end{equation}
+  \item 恒等式 $\lambda_k=\dfrac19$ 对每个 $k$ 成立。因此
+        \begin{equation}
+          \sigma(E_{\rm TG})=\Bigl\{0,\ \frac19\Bigr\},
+          \qquad
+          \rho(E_{\rm TG})=\frac19,
+          \qquad
+          E_{\rm TG}^2=\frac19E_{\rm TG}\ne0 .
+          \label{eq:mg-rho-tg}
+        \end{equation}
+        $1/9$ 的重数是 $\lceil N/2\rceil$（$N$ 偶数时为 $N/2$，即每对模态贡献一个），
+        特征向量是 $S(v_k+v_{N-k})$。
+\end{enumerate}
+\end{theorem}
+
+\begin{proof}
+\emph{(1) 的第一步：$w_k:=v_k+v_{N-k}\in\ker(P^{\mathsf T}A_h)$。}
+记 $s_i=\sin(i\theta_k)$。由 $v_{N-k}(i)=(-1)^{i+1}v_k(i)$ 得
+\begin{equation}
+  w_k(i)=\begin{cases}2s_i,& i\ \text{奇},\\ 0,& i\ \text{偶}.\end{cases}
+\end{equation}
+于是
+\begin{equation}
+  (A_hw_k)_i=\begin{cases}
+    2h^{-2}w_k(i)=4h^{-2}s_i, & i\ \text{奇},\\[2pt]
+    -h^{-2}\bigl(w_k(i-1)+w_k(i+1)\bigr)=-4h^{-2}\cos\theta_k\,s_i, & i\ \text{偶}.
+  \end{cases}
+\end{equation}
+（偶数点用了 $s_{i-1}+s_{i+1}=2\cos\theta_k s_i$。）粗层点是一基下标里的偶数点，故
+\begin{equation}
+  \begin{aligned}
+    (P^{\mathsf T}A_hw_k)_j
+    &=(A_hw_k)_{2j}+\tfrac12\bigl((A_hw_k)_{2j-1}+(A_hw_k)_{2j+1}\bigr)\\
+    &=-4h^{-2}\cos\theta_k\,s_{2j}+\tfrac12\cdot 4h^{-2}\bigl(s_{2j-1}+s_{2j+1}\bigr)=0 .
+  \end{aligned}
+\end{equation}
+（最后一步同样用 $s_{2j-1}+s_{2j+1}=2\cos\theta_k s_{2j}$。）
+
+\emph{(1) 的第二步：$v_k-s_kw_k\in\operatorname{range}(P)$。}
+粗层点上 $w_k$ 为零，中点上是 $2s_i$，所以
+\begin{equation}
+  (v_k-s_kw_k)_{2j}=s_{2j},\qquad
+  (v_k-s_kw_k)_{2j\pm1}=(1-2s_k)s_{2j\pm1}=\cos\theta_k\,s_{2j\pm1}.
+\end{equation}
+而 $\cos\theta_k s_{2j\pm1}=\frac12\bigl(s_{2j}+s_{2j\pm2}\bigr)=\frac12\bigl(s_{2j}+s_{2(j\pm1)}\bigr)$，
+正是线性插值公式；边界上 $s_{2(n_c+1)}=\sin(N\theta_k)=\sin(k\pi)=0$，
+与 Dirichlet 的越界取零一致。故 $v_k-s_kw_k=Pu$，
+其中粗向量 $u_j=s_{2j}=\sin(j\cdot2\theta_k)$。
+
+\emph{(1) 的结论。} 由引理~\ref{lem:mg-cgc-projection}，$C$ 是「沿 $\operatorname{range}(P)$
+投影到 $\ker(RA_h)$ 上」的投影：$C$ 在 $\ker(RA_h)$ 上是恒等、在 $\operatorname{range}(P)$ 上是零。
+把 $v_k=s_kw_k+(v_k-s_kw_k)$ 分解成
+$\ker(RA_h)\ni s_kw_k$ 与 $\operatorname{range}(P)\ni v_k-s_kw_k$ 两部分，
+作用 $C$ 后只剩第一项：$Cv_k=s_kw_k$。
+同法（把 $k$ 换成 $N-k$，并用 $s_{N-k}=c_k$）得 $Cv_{N-k}=c_kw_k$。
+$k=N/2$ 时 $v_{N-k}=v_k$、$s_k=1/2$，两式都退化为 $Cv_k=v_k$。
+
+\emph{(2)} $S$ 在正弦基下对角（定理~\ref{thm:mg-spectrum}），
+$C$ 把 $X_k$ 映到 $\operatorname{span}\{w_k\}\subset X_k$，
+所以 $X_k$ 在 $E_{\rm TG}=SCS$ 下不变。在基 $(v_k,v_{N-k})$ 下
+\begin{equation}
+  S=\begin{pmatrix}\mu_k&0\\0&\mu_{N-k}\end{pmatrix},\qquad
+  C=\begin{pmatrix}s_k&c_k\\ s_k&c_k\end{pmatrix},
+\end{equation}
+\begin{equation}
+  E_{\rm TG}=SCS=\begin{pmatrix}
+    s_k\mu_k^2 & c_k\mu_k\mu_{N-k}\\[2pt]
+    s_k\mu_k\mu_{N-k} & c_k\mu_{N-k}^2
+  \end{pmatrix}.
+\end{equation}
+迹是 $\lambda_k$，行列式是 $s_kc_k\mu_k^2\mu_{N-k}^2-c_ks_k\mu_k^2\mu_{N-k}^2=0$，
+故特征值为 $0$ 与 $\lambda_k$。
+
+\emph{(3)} 记 $c=\cos\theta_k$。由 $\mu_j=1-\frac23(1-\cos\theta_j)=\frac13(1+2\cos\theta_j)$、
+$\cos\theta_{N-k}=-\cos\theta_k=-c$ 得
+$\mu_k=\frac13(1+2c)$、$\mu_{N-k}=\frac13(1-2c)$，又 $s_k=\frac{1-c}{2}$、$c_k=\frac{1+c}{2}$，于是
+\begin{equation}
+  \lambda_k=\frac{(1-c)(1+2c)^2+(1+c)(1-2c)^2}{18} .
+\end{equation}
+展开分子：$(1-c)(1+4c+4c^2)=1+3c-4c^3$，
+$(1+c)(1-4c+4c^2)=1-3c+4c^3$，两者相加恰为 $2$，
+故 $\lambda_k=\frac{2}{18}=\frac19$。
+
+\emph{(4) 全部特征值与 $E^2=\frac19E$。}
+$X_k$（$k=1,\dots,\lceil N/2\rceil$）两两正交、直和是整个 $\mathbb R^n$，
+所以 $\sigma(E_{\rm TG})=\{0,\frac19\}$，$1/9$ 每个 $k$ 一个、共 $\lceil N/2\rceil$ 个。
+在每个不变子空间上特征多项式是 $\lambda^2-\frac19\lambda$（一维的 $k=N/2$ 情形是 $\lambda-\frac19$），
+由 Cayley--Hamilton，$E_{\rm TG}$ 在每个 $X_k$ 上满足 $E^2=\frac19E$，故整体成立，特别地 $\rho=1/9$。
+特征向量：把 $S$ 作用在 $w_k$ 上，$Sw_k=\mu_kv_k+\mu_{N-k}v_{N-k}$，于是
+\begin{equation}
+  E_{\rm TG}\bigl(Sw_k\bigr)=SCS^2w_k=SC\bigl(\mu_k^2v_k+\mu_{N-k}^2v_{N-k}\bigr)
+  =S\bigl(s_k\mu_k^2+c_k\mu_{N-k}^2\bigr)w_k=\tfrac19\,Sw_k .
+\end{equation}
+\end{proof}
+
+\begin{remark}[为什么是「平方」，以及 $1/9$ 不是「每步都缩到 $1/9$」]
+\begin{enumerate}
+  \item 平滑子出现\textbf{两次}（前扫描一次、后扫描一次），故 \eqref{eq:mg-lambda-k} 里是 $\mu^2$；
+        权重 $s_k,c_k$ 来自插值/限制的 $\frac14[1,2,1]$ 模板。
+        对一般的 $\omega$，$\lambda_k(\omega)=s_k\mu_k(\omega)^2+c_k\mu_{N-k}(\omega)^2$
+        依赖于 $k$；只有 $\omega=2/3$ 时恒等式
+        $\frac{1-c}{2}(1+2c)^2+\frac{1+c}{2}(1-2c)^2=2$ 把它压成常数，
+        于是 $\rho_{\rm TG}=\mu_{\rm smooth}^2=(1/3)^2=1/9$。
+  \item $E_{\rm TG}^2=\frac19E_{\rm TG}$ 说明：第一个循环之后误差就落进
+        $\operatorname{range}(E_{\rm TG})$，此后每个循环精确乘 $1/9$——不会「更快」。
+  \item $1/9$ 是\textbf{谱半径}，即渐近速率。$E_{\rm TG}$ 并不欧氏对称
+        （$C$ 只关于 $A_h$-内积自伴），所以单步下降由 $\|E_{\rm TG}\|$ 控制，
+        一般比 $1/9$ 慢；把 $1/9$ 读成「每步误差除以 9」是过度解读。
+\end{enumerate}
+\end{remark}
+
+\section{V 循环与 W 循环：递归与代价}
+\label{sec:mg-cycle}
+
+粗层不可能真的用 $A_H^{-1}$：那要一次精确求解。实际做法是递归——
+在粗层再跑一个（更小的）多重网格循环，直到最粗层（只有 $1$ 个内点）用固定次数的扫描。
+\textbf{固定次数}这一点是本质的：它保证整个循环是一个固定的（仿射）线性算子，
+既可以用行列式讨论非奇异性（\S\ref{sec:mg-cycle}），也可以当 CG 的预条件子（\S\ref{sec:mg-mgcg}）。
+
+\begin{definition}[V/W 循环的递归]
+\label{def:mg-cycle}
+设层数 $L$，$E_l$ 是第 $l$ 层循环的误差传播算子，$\gamma\in\{1,2\}$（$\gamma=1$ 是 V 循环、
+$\gamma=2$ 是 W 循环），最粗层做 $m$ 次固定扫描：
+\begin{equation}
+  E_{L-1}=S_{L-1}^{m},
+  \qquad
+  E_l=S_l^{\nu_2}\Bigl[I-P_l\bigl(I-E_{l+1}^{\gamma}\bigr)A_{l+1}^{-1}R_lA_l\Bigr]S_l^{\nu_1},
+  \quad l<L-1 .
+  \label{eq:mg-recursion}
+\end{equation}
+\end{definition}
+
+递归 \eqref{eq:mg-recursion} 的来源：线性循环从零初值出发时是仿射的，
+$x\mapsto E_{l+1}x+(I-E_{l+1})A_{l+1}^{-1}r$，从零出发跑 $\gamma$ 次得到粗层响应
+\begin{equation}
+  \sigma_\gamma(r)=\Bigl(I+E_{l+1}+\cdots+E_{l+1}^{\gamma-1}\Bigr)\bigl(I-E_{l+1}\bigr)A_{l+1}^{-1}r
+  =\bigl(I-E_{l+1}^{\gamma}\bigr)A_{l+1}^{-1}r .
+  \label{eq:mg-coarse-response}
+\end{equation}
+把它代进「粗层校正 $x\mapsto x+P\sigma(Rr)$」即得 \eqref{eq:mg-recursion}。
+$E_{l+1}=0$（粗层精确求解）时它退化为两网格形式 \eqref{eq:mg-tg}。
+
+\begin{theorem}[V 循环 $O(n_0)$、W 循环 $O(n_0\log n_0)$]
+\label{thm:mg-cost}
+以一个「最细层等价点扫描」为代价单位（在第 $l$ 层做一次扫描的代价是 $n_l/n_0$）。
+设 $n_l=(n_0+1)/2^l-1\le n_02^{-l}$，每层 $\nu_1+\nu_2$ 次扫描，最粗层 $m$ 次（$m$ 是常数）。
+记 $W_V(l)$、$W_W(l)$ 为第 $l$ 层一个循环的代价（以点扫描为单位），则
+\begin{equation}
+  W_V(l)=(\nu_1+\nu_2)n_l+W_V(l+1),\qquad W_V(L-1)=m\,n_{L-1},
+\end{equation}
+\begin{equation}
+  W_W(l)=(\nu_1+\nu_2)n_l+2W_W(l+1),\qquad W_W(L-1)=m\,n_{L-1}.
+\end{equation}
+解出来是
+\begin{equation}
+  W_V(0)=(\nu_1+\nu_2)\sum_{l=0}^{L-2}n_l+m\,n_{L-1}
+  <\Bigl(2(\nu_1+\nu_2)+m\,2^{-(L-1)}\Bigr)n_0=O(n_0),
+  \label{eq:mg-cost-v}
+\end{equation}
+\begin{equation}
+  W_W(0)=(\nu_1+\nu_2)\sum_{l=0}^{L-2}2^{\,l}\,n_l+2^{\,L-1}m\,n_{L-1}
+  =(\nu_1+\nu_2)(L-1)n_0+m\,n_0=O\bigl(n_0\log n_0\bigr).
+  \label{eq:mg-cost-w}
+\end{equation}
+\end{theorem}
+
+\begin{proof}
+\emph{V 循环（几何级数）。}
+逐层展开递推：$W_V(0)=(\nu_1+\nu_2)\sum_{l=0}^{L-2}n_l+m\,n_{L-1}$。
+用 $n_l\le n_02^{-l}$ 与几何级数 $\sum_{l\ge0}2^{-l}=2$：
+\begin{equation}
+  \sum_{l=0}^{L-2}n_l\le n_0\sum_{l=0}^{L-2}2^{-l}<2n_0,
+  \qquad
+  m\,n_{L-1}\le m\,n_02^{-(L-1)} .
+\end{equation}
+每层只跑一个粗层循环，所以层数只以\textbf{加性}方式进入：整个 V 循环的代价被最细层支配，
+$W_V(0)=O(n_0)$，与层数 $L$ 无关（$L$ 只影响常数 $2(\nu_1+\nu_2)+m2^{-(L-1)}$）。
+
+\emph{W 循环（项数 $\times$ 每项代价）。}
+递推 $W_W(l)=(\nu_1+\nu_2)n_l+2W_W(l+1)$ 展开一次就多一倍：
+\begin{equation}
+  W_W(0)=(\nu_1+\nu_2)\sum_{l=0}^{L-2}2^{\,l}n_l+2^{\,L-1}m\,n_{L-1}.
+\end{equation}
+第 $l$ 层被访问 $2^{\,l}$ 次，每次代价 $n_l$，乘积 $2^{\,l}n_l\le n_02^{\,l}2^{-l}=n_0$
+\textbf{与 $l$ 无关}——这正是 W 循环比 V 循环贵一个对数的原因：
+\begin{equation}
+  W_W(0)\le(\nu_1+\nu_2)(L-1)n_0+m\,n_0 .
+\end{equation}
+嵌套网格给出 $n_0+1=2^{\,L-1}(n_{L-1}+1)$，故 $L-1=\log_2\frac{n_0+1}{2}\le\log_2n_0$，
+于是 $W_W(0)=O(n_0\log n_0)$。
+\end{proof}
+
+\begin{remark}
+转移算子（限制与插值）每层代价也是 $O(n_l)$，把它们算进去结论不变：
+V 循环 $O(n_0)$、W 循环 $O(n_0\log n_0)$。本章代码的计数器
+（\texttt{mg\_apply} 的 \texttt{counter}）只累计点扫描数，即 \eqref{eq:mg-cost-v}、\eqref{eq:mg-cost-w}
+里的 $W_V,W_W$；转移代价按上面的道理同阶，不改变结论。
+\end{remark}
+
+\begin{theorem}[V 循环的因子不是零]
+\label{thm:mg-nonzero}
+沿用 \eqref{eq:mg-recursion} 的记号。
+\begin{enumerate}
+  \item \textbf{（粗层精确时）} $E_l$ 退化为两网格算子，由定理~\ref{thm:mg-tg-spectrum}
+        它的谱是 $\{0,1/9\}$：$\rho=1/9>0$，且 $E_{\rm TG}^2=\frac19E_{\rm TG}\ne0$，
+        故 $E_{\rm TG}$ 不是幂零的；它在高频子空间上也不为零——
+        例如 $w_k=v_k+v_{N-k}$ 满足 $E_{\rm TG}(Sw_k)=\frac19Sw_k\ne0$。
+  \item \textbf{（一般递归）} 与两网格算子的差是「粗层误差被重新注入」这一项：
+        \begin{equation}
+          E_l-E_l^{\rm TG}=S_l^{\nu_2}P_l\,E_{l+1}^{\gamma}A_{l+1}^{-1}R_lA_l\,S_l^{\nu_1},
+          \label{eq:mg-cycle-diff}
+        \end{equation}
+        它为零当且仅当 $E_{l+1}=0$，即当且仅当粗层被精确求解。
+        粗层只要是用固定次数扫描做的，$E_{l+1}\ne0$，循环算子与两网格算子就\textbf{不是}同一个算子。
+  \item \textbf{（非零下界）} 由 Sylvester 行列式恒等式
+        $\det(I-XY)=\det(I-YX)$ 与 Galerkin 恒等式 $R_lA_lP_l=A_{l+1}$：
+        \begin{equation}
+          \begin{aligned}
+            \det E_l&=\det(S_l)^{\nu_1+\nu_2}\cdot
+            \det\bigl(I-P_l(I-E_{l+1}^{\gamma})A_{l+1}^{-1}R_lA_l\bigr)\\
+            &=\det(S_l)^{\nu_1+\nu_2}\cdot\det\bigl(E_{l+1}\bigr)^{\gamma}.
+          \end{aligned}
+          \label{eq:mg-det}
+        \end{equation}
+        于是逐层递推得
+        $\det E_0=\Bigl[\prod_{l=0}^{L-2}\det(S_l)^{\nu_1+\nu_2}\Bigr]\det(S_{L-1})^{m}$。
+        只要每层的平滑子与最粗层算子都非奇异，$E_0$ 就非奇异，
+        从而\textbf{不是幂零的}：$\rho(E_0)>0$，V 循环的因子是一个正数。
+\end{enumerate}
+\end{theorem}
+
+\begin{proof}
+(1) 见定理~\ref{thm:mg-tg-spectrum}（取 $\gamma=1$、$E_{l+1}=0$ 时
+\eqref{eq:mg-recursion} 与 \eqref{eq:mg-tg} 一致）。
+(2) 把 $I-P(I-E^{\gamma})A^{-1}RA=I-PA^{-1}RA+PE^{\gamma}A^{-1}RA$ 代入 \eqref{eq:mg-recursion}，
+与 $E_l^{\rm TG}=S^{\nu_2}(I-PA_{l+1}^{-1}R_lA_l)S^{\nu_1}$ 相减即得 \eqref{eq:mg-cycle-diff}。
+(3) 记 $X=P_l(I-E_{l+1}^{\gamma})A_{l+1}^{-1}$、$Y=R_lA_l$，则
+\begin{equation}
+  \begin{aligned}
+    \det\bigl(I-XY\bigr)&=\det\bigl(I_{n_{l+1}}-YX\bigr)
+    =\det\Bigl(I-R_lA_lP_l\bigl(I-E_{l+1}^{\gamma}\bigr)A_{l+1}^{-1}\Bigr)\\
+    &=\det\bigl(I-\bigl(I-E_{l+1}^{\gamma}\bigr)\bigr)=\det\bigl(E_{l+1}^{\gamma}\bigr),
+  \end{aligned}
+\end{equation}
+第二个等号用 Sylvester，第三个用 $R_lA_lP_l=A_{l+1}$。
+（$X$ 是 $n_l\times n_{l+1}$、$Y$ 是 $n_{l+1}\times n_l$，两者行列式因子同。）
+幂零矩阵的特征值全为零、行列式为零，故行列式非零即排除了幂零性，$\rho>0$。
+\end{proof}
+
+\begin{remark}[应该期待什么]
+$\omega=2/3$、$\nu_1=\nu_2=1$ 的 V 循环在一维模型问题上的因子是 $O(0.1)$ 量级——
+与两网格的 $1/9$ 同阶、略大，因为粗层没有精确求解（\eqref{eq:mg-cycle-diff} 的注入项是正的）。
+把误差压到 $10^{-8}$ 需要的循环数由 $\rho^k\le10^{-8}$ 定出：
+$k\ge \ln(10^{8})/\ln(1/\rho)$；取理想值 $\rho=1/9$ 得 $k\approx8.4$，即 $9$ 个循环
+（这是 $1/9$ 的直接推算，不是实测值；实际因子略大，循环数也略多）。
+W 循环的因子更接近 $1/9$，代价是每周期 $O(n_0\log n_0)$（定理~\ref{thm:mg-cost}）。
+\end{remark}
+
+\section{多重网格作为预条件子（MGCG）}
+\label{sec:mg-mgcg}
+
+把循环当求解器用，收敛速率由 $\rho(E)$ 决定；把它当\textbf{预条件子}用，
+则是让 CG 去处理谱分布。PCG 算法（与 \texttt{numcore/linalg/krylov.py} 逐行一致）：
+\begin{equation}
+  \begin{aligned}
+    &r_0=b-Ax_0,\quad z_0=M^{-1}r_0,\quad p_0=z_0,\\
+    &\alpha_k=\frac{r_k^{\mathsf T}z_k}{p_k^{\mathsf T}Ap_k},\quad
+    x_{k+1}=x_k+\alpha_kp_k,\quad
+    r_{k+1}=r_k-\alpha_kAp_k,\\
+    &z_{k+1}=M^{-1}r_{k+1},\quad
+    \beta_k=\frac{r_{k+1}^{\mathsf T}z_{k+1}}{r_k^{\mathsf T}z_k},\quad
+    p_{k+1}=z_{k+1}+\beta_kp_k .
+  \end{aligned}
+  \label{eq:mg-pcg}
+\end{equation}
+在多重网格里 $M^{-1}r$ 就是「以 $r$ 为右端、零初值跑一个循环」，
+所以需要回答：这个算子是不是一个合格的预条件子？
+
+\begin{theorem}[对称循环算子是对称正定的]
+\label{thm:mg-cycle-spd}
+设 $\nu_1=\nu_2=\nu$，平滑子 $S=S^{\mathsf T}$ 对称且与 $D^{-1}$ 交换，
+$R=\frac12P^{\mathsf T}$，粗层算子是 Galerkin 的（一维即重新离散），
+粗层响应 $\sigma$ 对称半正定（三种典型情形都满足：精确解 $\sigma=A_H^{-1}$；
+粗层 $m$ 次扫描 $\sigma=\omega\sum_{j=0}^{m-1}S_{\!c}^{\,j}D_c^{-1}$；
+递归的粗层循环响应——对层数归纳）。
+则循环算子（零初值、右端 $r$ 的一次循环，记 $z=Br$）有闭式
+\begin{equation}
+  \boxed{\;B=\omega\sum_{j=0}^{2\nu-1}S^{\,j}D^{-1}\;+\;S^{\nu}P\,\sigma\,R\,S^{\nu}\;}
+  \label{eq:mg-B-closed}
+\end{equation}
+两项都欧氏对称，第一项正定、第二项半正定，故 $B=B^{\mathsf T}>0$。
+\end{theorem}
+
+\begin{proof}
+记一次循环的三步（零初值、右端 $r$）：前扫描
+\begin{equation}
+  x_1=\omega\sum_{j=0}^{\nu-1}S^{\,j}D^{-1}r=:\Sigma_\nu r,
+\end{equation}
+（因为单次扫描是 $x\mapsto Sx+\omega D^{-1}r$，$\nu$ 次求和即得；
+也等价于 $x_1=(I-S^{\nu})A^{-1}r$），粗层校正
+\begin{equation}
+  x_2=x_1+P\sigma R\bigl(r-Ax_1\bigr),
+\end{equation}
+后扫描
+\begin{equation}
+  x_3=S^{\nu}x_2+\Sigma_\nu r .
+\end{equation}
+代入并用 $\Sigma_\nu=\omega\sum_{j<\nu}S^jD^{-1}$、$A\Sigma_\nu=I-S^{\nu}$
+（由 $I-S=\omega D^{-1}A$ 与 $A$ 和 $D^{-1}$、$S$ 都交换得到）：
+\begin{equation}
+  B=S^{\nu}\bigl(I-P\sigma RA\bigr)\Sigma_\nu+S^{\nu}P\sigma R+\Sigma_\nu
+  =\Sigma_{2\nu}+S^{\nu}P\sigma RS^{\nu},
+\end{equation}
+最后一步用了 $I-A\Sigma_\nu=S^{\nu}$。
+
+\emph{对称性}：$S$ 与 $D^{-1}$ 都对称且交换，故 $S^{\,j}D^{-1}$ 对称（写成
+$S^{\lfloor j/2\rfloor}D^{-1}S^{\lceil j/2\rceil}$），第一项对称。
+第二项里 $(P\sigma R)^{\mathsf T}=R^{\mathsf T}\sigma^{\mathsf T}P^{\mathsf T}
+=\frac12P\sigma P^{\mathsf T}=P\sigma\frac12P^{\mathsf T}=P\sigma R$ 对称，再被对称的 $S^{\nu}$ 夹住仍对称。
+\emph{正定性}：第一项是正定矩阵 $D^{-1}$ 与半正定矩阵的乘积之和（$\omega>0$、$S^{\,j}D^{-1}$ 半正定），
+第二项半正定，故 $B$ 正定。
+\end{proof}
+
+\begin{theorem}[MGCG 保持 CG 的最优性；迭代数 $h$ 无关]
+\label{thm:mg-mgcg}
+设 $B$ 如 \eqref{eq:mg-B-closed} 对称正定，取 $M=B^{-1}$ 代入 \eqref{eq:mg-pcg}。则
+\begin{enumerate}
+  \item PCG 良定义，且保持 CG 的最优性：第 $k$ 步迭代在
+        $x_0+\mathcal K_k(BA,Br_0)$ 中最小化 A-范数误差，并有 Chebyshev 界
+        \begin{equation}
+          \|e_k\|_A\le2\left(\frac{\sqrt\kappa-1}{\sqrt\kappa+1}\right)^{k}\|e_0\|_A,
+          \qquad \kappa=\kappa(BA)=\frac{\lambda_{\max}(BA)}{\lambda_{\min}(BA)};
+          \label{eq:mg-cheb}
+        \end{equation}
+  \item 因为 $B$ 是一个固定的循环算子，$\lambda(BA)$ 落在一个\textbf{与 $h$ 无关}的区间里，
+        所以迭代数 $O(1)$；而普通 CG 的 $\kappa(A_h)=O(h^{-2})$，
+        \eqref{eq:mg-cheb} 给出 $k=O(h^{-1})$。这正是 MGCG 与 CG 的分水岭。
+\end{enumerate}
+\end{theorem}
+
+\begin{proof}
+$B$ 对称正定，故 $M=B^{-1}$ 对称正定，\eqref{eq:mg-pcg} 就是标准的预条件共轭梯度法，
+其最优性与 \eqref{eq:mg-cheb} 的推导与 1.5 章 定理（CG 最优性与 Chebyshev 界）逐字相同，
+只需把那里的 $M$ 换成这里的 $B^{-1}$：$\kappa=\kappa(M^{-1}A)=\kappa(BA)$。
+
+第二条分两步。
+\emph{普通 CG}：由 \eqref{eq:mg-modes}，
+\begin{equation}
+  \kappa(A_h)=\frac{\lambda_n(A_h)}{\lambda_1(A_h)}
+  =\frac{\sin^2(\theta_n/2)}{\sin^2(\theta_1/2)}
+  =\frac{\cos^2(\pi h/2)}{\sin^2(\pi h/2)}=\cot^2\frac{\pi h}{2}=O(h^{-2}),
+\end{equation}
+（用了 $\theta_1=\pi h$、$\theta_n=\pi-\pi h$）。于是 $\sqrt\kappa=\cot\frac{\pi h}{2}\approx\frac{2}{\pi h}$，
+\eqref{eq:mg-cheb} 里的收缩因子
+$\frac{\sqrt\kappa-1}{\sqrt\kappa+1}\approx1-\frac{2}{\sqrt\kappa}\approx1-\pi h$，
+把误差压下一个固定倍数需要 $O(1/(\pi h))=O(h^{-1})$ 步。
+\emph{MGCG}：$B$ 由 \eqref{eq:mg-B-closed} 给出，其中 $S,D^{-1},P,\sigma,R$ 全是固定的算子组合，
+$\sigma$ 的最粗层部分只是固定次数的扫描，故 $BA$ 与 $h$ 无关（至多差一个与 $h$ 无关的相似变换），
+$\kappa(BA)=O(1)$，\eqref{eq:mg-cheb} 给出 $k=O(1)$。
+\end{proof}
+
+\begin{remark}[「作为求解器」与「作为预条件子」的代价之别]
+\begin{itemize}
+  \item \textbf{作为求解器}：每次迭代 $=$ 一个循环，代价 $O(n_0)$（V）或 $O(n_0\log n_0)$（W）；
+        迭代数 $O(1)$（由 $\rho(E)$ 定）；总代价 $O(n_0)$（V）或 $O(n_0\log n_0)$（W）。
+        实现最短、每步最省，但收敛速率完全由 $\rho(E)$ 决定，
+        对 $\omega$、$\nu$、循环类型、限制方式都敏感。
+  \item \textbf{作为预条件子}：每次 PCG 迭代 $=$ 一个循环 $+$ 若干次 $O(n_0)$ 的向量运算
+        （内积、$axpy$、方向更新），单步常数更大（本章的实现里一次 V 循环约合几个最细层等价代价）；
+        迭代数由 $\kappa(BA)$ 定，也是 $O(1)$，通常比循环数更少，
+        而且 CG 的最优性让方法对参数不敏感：谱的聚簇被 Krylov 空间自动利用。
+  \item \textbf{共同前提}：预条件子必须是\textbf{固定}的线性算子。
+        最粗层的扫描次数必须固定（本章 \texttt{COARSE\_SWEEPS}），
+        不能按残差停机——按残差停机时循环是数据依赖的非线性算子，
+        $B$ 不再固定，\eqref{eq:mg-cheb} 的最优性证明失效。这也是
+        \S\ref{sec:mg-cycle} 一开始强调「固定次数扫描」的第二个理由。
+\end{itemize}
+\end{remark}
+
+\section{非线性问题：FAS}
+\label{sec:mg-fas}
+
+模型问题换成
+\begin{equation}
+  -u''(x)+u(x)^3=f(x),\qquad x\in(0,1),\qquad u(0)=u(1)=0,
+  \label{eq:mg-nl}
+\end{equation}
+离散为 $A_h(u)=f_h$，其中
+\begin{equation}
+  \bigl(A_h(u)\bigr)_i=h^{-2}\bigl(2u_i-u_{i-1}-u_{i+1}\bigr)+u_i^3 .
+  \label{eq:mg-nl-op}
+\end{equation}
+平滑子不再是线性扫描，而是逐点的标量非线性解：
+把 $u_{i-1},u_{i+1}$ 固定，对 $u_i$ 解
+\begin{equation}
+  h^2u_i^3+2u_i=u_{i-1}+u_{i+1}+h^2f_i .
+  \label{eq:mg-cubic}
+\end{equation}
+
+\begin{theorem}[标量三次方程恰有一个实根；二分区间无条件有效]
+\label{thm:mg-cubic}
+对任意 $s\in\mathbb R$，方程
+\begin{equation}
+  g(u):=h^2u^3+2u=s
+  \label{eq:mg-cubic-root}
+\end{equation}
+在 $\mathbb R$ 上恰有一个实根；而且这个根落在区间
+$\bigl[\min(0,s),\max(0,s)\bigr]$ 内。因此在该区间上做二分法无条件收敛
+（不需要任何 Newton 型收敛假设）。此外，$\omega=1$ 时平滑子的不动点与细层非线性方程
+$A_h(u)=f_h$ **完全等价**。
+\end{theorem}
+
+\begin{proof}
+$g'(u)=3h^2u^2+2>0$，故 $g$ 严格单调增；又 $g(u)\to\pm\infty$（$u\to\pm\infty$），
+所以对每个 $s$ 恰有一个实根。
+设 $s\ge0$：若 $u<0$ 则 $g(u)<g(0)=0\le s$，无根；
+若 $u>s\ge0$ 则 $g(u)=h^2u^3+2u>2u>2s\ge s$，也无根。
+所以根必在 $[0,s]=[\min(0,s),\max(0,s)]$ 内（$s<0$ 时对称地得 $[s,0]$）。
+二分法在这段区间上每一步都把区间减半，$52$ 步后区间长度小于 $2^{-52}$，已是机器精度。
+
+不动点等价性：一次逐点解把 $u_i$ 换成 \eqref{eq:mg-cubic} 的根，
+故 $u$ 是不动点当且仅当 \eqref{eq:mg-cubic} 对每个 $i$ 成立；
+把它除以 $h^2$ 并移项得
+$h^{-2}(2u_i-u_{i-1}-u_{i+1})+u_i^3=f_i$，即 $A_h(u)=f_h$。
+\end{proof}
+
+\begin{theorem}[FAS：粗层方程是「被限制的细层方程」，且没有假不动点]
+\label{thm:mg-fas}
+记 $R=\frac12P^{\mathsf T}$、$\tilde u$ 为前扫描后的迭代。FAS 的粗层问题是
+\begin{equation}
+  A_H(u_H)=f_H(\tilde u):=R\bigl(f_h-A_h(\tilde u)\bigr)+A_H\bigl(R\tilde u\bigr),
+  \label{eq:mg-fas-coarse}
+\end{equation}
+初值 $u_H^{(0)}=R\tilde u$，修正为 $u\leftarrow\tilde u+P(u_H-R\tilde u)$。
+则
+\begin{enumerate}
+  \item \textbf{（一致性/推导）} 若 $A_h(u)=f_h$，则 \eqref{eq:mg-fas-coarse} 的右端恰为
+        $A_H(Ru)$，即 $u_H=Ru$ 精确满足粗层方程；粗层问题因此是细层问题的**限制**，
+        不含额外的截断项。（这正是必须保留 $A_H(R\tilde u)$ 这一项的原因。）
+  \item \textbf{（无假不动点）} 取 $\nu_1=\nu_2=1$、平滑子为 \eqref{eq:mg-cubic} 的精确逐点解、
+        粗层精确求解。若 $u$ 是 FAS 循环的不动点，则 $A_h(u)=f_h$。
+\end{enumerate}
+\end{theorem}
+
+\begin{proof}
+\textbf{(1)} 把 $A_h(u)=f_h$ 代入：$f_H=R(f_h-f_h)+A_H(Ru)=A_H(Ru)$，
+于是 $u_H=Ru$ 是粗层方程的解；反过来，粗层方程两边同减 $A_H(R\tilde u)$ 后右端只剩限制残差，
+所以在解 $u$ 处没有任何 $O(1)$ 的偏差项。
+
+\textbf{(2)} 记 $w=\tilde u+d$、$d=P(u_H-R\tilde u)$、$e=u-\tilde u$。
+\begin{itemize}
+  \item \emph{平滑恒等式}：若 $v=S(z)$ 是逐点解，则
+        $h^{-2}(2v_i-z_{i-1}-z_{i+1})+v_i^3=f_i$，与 $(A_h(v))_i$ 的定义相减得
+        \begin{equation}
+          A_h\bigl(S(z)\bigr)=f_h+h^{-2}(L+U)\bigl(z-S(z)\bigr),
+          \label{eq:mg-smooth-identity}
+        \end{equation}
+        其中 $\bigl((L+U)x\bigr)_i=x_{i-1}+x_{i+1}$。特别地 $S(z)=z$ 时 $A_h(z)=f_h$。
+  \item \emph{后扫描}（$z=w$、$v=u$）：$\rho(u):=f_h-A_h(u)=-h^{-2}(L+U)(w-u)$。
+  \item \emph{前扫描}（$z=u$、$v=\tilde u$）：$\rho(\tilde u)=f_h-A_h(\tilde u)=-h^{-2}(L+U)e$。
+  \item \emph{中值定理}：$A_h(u)-A_h(\tilde u)=De$，其中
+        $D=\int_0^1A_h'(\tilde u+te)\,dt$ 对称正定，因为
+        $A_h'(v)=h^{-2}\operatorname{tridiag}(-1,2,-1)+3\operatorname{diag}(v^2)$。
+        与前两条相减得 $De=h^{-2}(L+U)(d-e)$，即
+        \begin{equation}
+          \begin{aligned}
+            &\Lambda e=h^{-2}(L+U)d,\\
+            &\Lambda:=D+h^{-2}(L+U)=3\operatorname{diag}\!\Bigl(\int_0^1v^2\Bigr)+2h^{-2}I
+            \quad\text{（对角、正定）}.
+          \end{aligned}
+          \label{eq:mg-lambda}
+        \end{equation}
+        （$D$ 的次对角 $-h^{-2}$ 与 $(L+U)$ 的 $+h^{-2}$ 正好抵消，$\Lambda$ 是对角的。）
+  \item \emph{粗层方程}：由精确求解，$A_H(u_H)-A_H(R\tilde u)=R\rho(\tilde u)=-Rh^{-2}(L+U)e$。
+        再用一次中值定理（粗层）：$A_H(u_H)-A_H(R\tilde u)=M_Hc$，
+        $c=u_H-R\tilde u$，$M_H$ 对称正定。代入 \eqref{eq:mg-lambda} 与 $d=Pc$：
+        \begin{equation}
+          \Bigl[M_H+\tfrac12P^{\mathsf T}h^{-2}(L+U)\Lambda^{-1}h^{-2}(L+U)P\Bigr]c=0 .
+        \end{equation}
+        方括号是正定矩阵（$M_H$ 正定）加半正定矩阵（$P^{\mathsf T}(\cdot)P$），故正定、可逆，
+        于是 $c=0$；回到 $d=Pc=0$ 与 \eqref{eq:mg-lambda} 得 $e=0$，
+        即 $u=\tilde u$ 是平滑子的不动点，由定理~\ref{thm:mg-cubic} 得 $A_h(u)=f_h$。
+\end{itemize}
+\end{proof}
+
+\begin{remark}[粗层扫描次数有限时]
+实现里最粗层只做固定次数 $m$ 的扫描（\texttt{COARSE\_SWEEPS}），粗层方程留有缺陷
+$\delta_H=f_H-A_H(u_H)$。上面的第五步变成
+$\bigl[M_H+\frac12P^{\mathsf T}(\cdot)P\bigr]c=-\delta_H$，
+于是不动点的细层残差被 $\|\delta_H\|$ 线性控制：粗层解得越准，假不动点越接近真解；
+只有粗层精确（或逐层归纳到各层自身的不动点）时「无假不动点」才是严格等式。
+\end{remark}
+
+\begin{theorem}[把非线性当线性解会收敛到错方程的解]
+\label{thm:mg-false}
+若在残差与粗层算子中都丢掉三次项（即用线性算子
+$A_h^{\rm lin}=h^{-2}\operatorname{tridiag}(-1,2,-1)$ 代替 $A_h(\cdot)$，
+平滑子也退化成线性扫描），则整个循环就是**线性**多重网格的校正格式，
+其不动点恰是线性方程组 $A_h^{\rm lin}u=f_h$ 的解；
+在这个点上真非线性残差等于 $u^3$，不会随迭代变小——收敛到的是解错方程得到的假解。
+\end{theorem}
+
+\begin{proof}
+丢掉三次项后循环是仿射的：$u\mapsto Gu+c$，$G$ 就是线性多重网格的误差传播算子。
+由定理~\ref{thm:mg-tg-spectrum}（或其递归版本，只要因子 $<1$），$\rho(G)<1$，
+故 $I-G$ 可逆，不动点唯一，且由线性理论它就是
+$u^\ast=(A_h^{\rm lin})^{-1}f_h$（把 $u^\ast$ 代进仿射格式，误差项 $Gu^\ast+c-u^\ast$ 为零）。
+在 $u^\ast$ 处 $A_h(u^\ast)-f_h=(u^\ast)^3$，一般不为零；
+两个残差（线性残差 $\approx0$ 与真残差 $\approx u^3$）的比值可以任意大。
+\end{proof}
+
+\begin{remark}[丢掉 $A_H(R\tilde u)$ 也一样致命]
+若把 \eqref{eq:mg-fas-coarse} 换成 $A_H(u_H)=R(f_h-A_h(\tilde u))$（即丢掉 $A_H(R\tilde u)$），
+并把 $u_H$ 当修正用，则不动点（修正为零 $\Rightarrow u_H=R\tilde u$）只满足
+\begin{equation}
+  R\bigl(f_h-A_h(u)\bigr)=A_H(Ru),
+\end{equation}
+这是**限制后的残差方程**，不是细层方程：$R$ 只有 $n_c$ 行，
+$R(f_h-A_h(u))=0$ 有大量非零解，格式因此有假不动点。
+FAS 的写法把 $A_H(R\tilde u)$ 留在粗层方程里，正是为了让不动点方程回到
+$R(f_h-A_h(u))=0$ 之前的「方程限制」形式，再由定理~\ref{thm:mg-fas} 排除假解。
+\end{remark}
+
+\section{谱半径与「一次扫描的模态放大」：Gauss--Seidel 的两个数}
+\label{sec:mg-gs}
+
+\begin{lemma}[定常迭代的收敛判据（引自 1.5 章）]
+\label{lem:mg-stationary}
+对 $x^{(k+1)}=Tx^{(k)}+c$，迭代收敛（对任意初值）当且仅当 $\rho(T)<1$；
+且误差按 $\rho(T)$ 渐近衰减。特别地本章的加权 Jacobi 收敛当且仅当
+$\max_k|\mu_k(\omega)|<1$。
+\end{lemma}
+
+\begin{proof}
+这是 1.5 章 的定常迭代判据与 Gelfand 公式的直接结论，这里只把结论搬过来：
+$T^k\to0$ 当且仅当 $\rho(T)<1$（Jordan 块 + $\rho^k$ 因子），
+而 $e^{(k)}=T^ke^{(0)}$。本章只需把它用在 $T_\omega$
+（特征值 $\mu_k$，定理~\ref{thm:mg-spectrum}）上。
+\end{proof}
+
+\begin{theorem}[Gauss--Seidel 的无穷网格符号]
+\label{thm:mg-gs-symbol}
+在无穷网格（无边界）上，$T_{\mathrm{GS}}=(D-L)^{-1}U=(2I-S_-)^{-1}S_+$
+（$S_\pm$ 是移位算子，$h^{-2}$ 因子完全约掉，符号与 $h$ 无关）。
+把形式模态 $u_j=z^j$ 代入 $T_{\mathrm{GS}}u=\lambda u$ 得
+\begin{equation}
+  \lambda(z)=\frac{z^2}{2z-1},
+  \qquad
+  z=e^{\mathrm i\theta}\ \Rightarrow\
+  |\lambda|=\frac{1}{|2e^{\mathrm i\theta}-1|}=\frac{1}{\sqrt{5-4\cos\theta}} .
+  \label{eq:mg-gs-symbol}
+\end{equation}
+它在高频半带 $\theta\in[\pi/2,\pi]$ 上的最大值在 $\theta=\pi/2$ 取到，等于
+\begin{equation}
+  \max_{\theta\ge\pi/2}|\lambda|=\frac{1}{\sqrt5}=0.4472\ldots
+  \label{eq:mg-gs-max}
+\end{equation}
+（端点 $\theta=\pi$ 给出 $1/3$）。
+\end{theorem}
+
+\begin{proof}
+$A=D-L-U$，其中 $D=2h^{-2}I$、$L=h^{-2}S_-$、$U=h^{-2}S_+$。
+于是 $(D-L)^{-1}U=(2I-S_-)^{-1}S_+$，$h^{-2}$ 被约掉。
+设 $u_j=z^j$：$(S_+u)_j=z^{j+1}$、$(S_-u)_j=z^{j-1}$，代入 $S_+u=\lambda(2I-S_-)u$ 得
+\begin{equation}
+  z^{j+1}=\lambda\bigl(2z^j-z^{j-1}\bigr)
+  \ \Longrightarrow\
+  z=\lambda\bigl(2-z^{-1}\bigr)
+  \ \Longrightarrow\
+  \lambda=\frac{z^2}{2z-1}.
+\end{equation}
+取 $z=e^{\mathrm i\theta}$：$|2e^{\mathrm i\theta}-1|^2=5-4\cos\theta$，
+故 $|\lambda|=(5-4\cos\theta)^{-1/2}$。
+在 $[\pi/2,\pi]$ 上 $\cos\theta$ 从 $0$ 单调降到 $-1$，所以 $5-4\cos\theta$ 从 $5$ 单调升到 $9$，
+最小值 $5$ 在 $\theta=\pi/2$ 取到，故最大值是 $1/\sqrt5=0.4472\ldots$，端点 $\theta=\pi$ 是 $1/3$。
+\end{proof}
+
+\begin{remark}[两个不同的数，别混用]
+对同一维模型问题，Gauss--Seidel 有两个都很重要的数字：
+\begin{itemize}
+  \item \textbf{谱半径}（决定作为求解器的渐近速率）：
+        由 1.5 章的 Young 关系，特征值是 $\cos^2\theta_k$，最大的是
+        $\cos^2(\pi/(n+1))=1-O(h^2)$——低频几乎不动，与 \eqref{eq:mg-lowmode} 同一量级。
+  \item \textbf{一次扫描对一个振荡分量的放大}：定理~\ref{thm:mg-gs-symbol} 的符号
+        $1/\sqrt{5-4\cos\theta}$，在 $\theta=\pi/2$ 附近约为 $0.4472$——
+        高频一次就掉一半多。
+\end{itemize}
+两者差这么远，是因为 $T_{\mathrm{GS}}$ **不是正规矩阵**：
+它的特征向量（低频形状的伸缩模态）与它实际放大/衰减的模态（振荡的移位模态）不是同一组，
+谱半径只描述最终速率，不描述一次扫描对某个振荡分量的即时效果。
+多重网格的平滑性分析用的正是后者（定理~\ref{thm:mg-smooth} 对 Jacobi 是精确的，
+对 GS 则用符号 \eqref{eq:mg-gs-max}），这也是为什么 $\omega=2/3$ 的加权 Jacobi
+在多重网格里比 GS 更常被拿来做分析：它的迭代矩阵在正弦基下**对角**，
+逐模态放大率是精确的，而 GS 的同一句话只能作为内点的渐近描述。
+\end{remark}
+
+\section{本章代码与结论的对应}
+\label{sec:mg-code}
+
+\begin{itemize}
+  \item \texttt{mode\_factors\_theory} / \texttt{mode\_factors\_measured}
+        $\leftrightarrow$ 定理~\ref{thm:mg-spectrum}：前者给闭式
+        $|\mu_k(\omega)|$，后者给算子作用下的实测比值；
+        对 Jacobi 两者逐模态相符，对 GS 会出现模态混合（\S\ref{sec:mg-gs}）。
+  \item \texttt{smoothing\_factor} $\leftrightarrow$ 定理~\ref{thm:mg-smooth}：
+        $\omega=2/3$ 时高频半带上的最坏放大率 $1/3$。
+  \item \texttt{galerkin\_defect} / \texttt{coarse\_scaling\_ratio}
+        $\leftrightarrow$ 定理~\ref{thm:mg-galerkin}、推论~\ref{cor:mg-scaling}：
+        缺陷恒为 $0$，比例恒为 $2$（$P^{\mathsf T}A_hP=2A_H$）。
+        \texttt{restriction\_matrix} 的 \texttt{factor=0.5} 不是可调参数，
+        它被恒等式定死；换成别的值就落到推论~\ref{cor:mg-scaling} 的
+        $RA_hP=2cA_H$，粗层校正要么欠、要么过（$c=1$ 时过一倍）。
+  \item \texttt{two\_grid\_matrix} / \texttt{two\_grid\_factor}
+        $\leftrightarrow$ 定理~\ref{thm:mg-tg-spectrum}：谱是 $\{0,1/9\}$，
+        幂迭代量到的就是 $\rho=1/9$。
+  \item \texttt{mg\_hierarchy} / \texttt{mg\_apply} / \texttt{cycle\_factor} /
+        \texttt{factor\_scan} $\leftrightarrow$ 定义~\ref{def:mg-cycle} 与
+        定理~\ref{thm:mg-cost}：递归算子与它的代价计数器（点扫描数）；
+        \texttt{factor\_scan} 把因子沿 $h$ 序列扫一遍，用来看「网格无关」是否真的成立。
+  \item \texttt{MGPrecond} $\leftrightarrow$ 定理~\ref{thm:mg-cycle-spd}、
+        \ref{thm:mg-mgcg}：零初值一次循环就是预条件子 $B$ 的作用。
+  \item \texttt{nonlinear\_smooth} / \texttt{fas\_cycle} / \texttt{measure\_fas\_factor} /
+        \texttt{discrete\_newton} $\leftrightarrow$ 定理~\ref{thm:mg-cubic}、
+        \ref{thm:mg-fas}、\ref{thm:mg-false}：
+        逐点三次方程用二分（区间由 \eqref{eq:mg-cubic-root} 的括住性质给出），
+        FAS 的粗层方程是 \eqref{eq:mg-fas-coarse}，
+        牛顿法（自研 LU）提供独立参考解，用来区分「残差小」与「解对」。
+        \texttt{measure\_fas\_factor} 的 \texttt{nonlinear=False} 分支就是
+        定理~\ref{thm:mg-false} 的反例入口。
+  \item 合规说明（P2/P3）：本章不调用任何现成求解器。
+        粗层求解用的是自研追赶法（\texttt{numcore.linalg.lu} 的三对角 LU 族），
+        因子用自研幂迭代测，随机初值只经 \texttt{numcore.utils.rng}（P4），
+        牛顿参考解也用自研 LU。
+\end{itemize}
+
+\section{它会怎样骗你（本章版）}
+
+\begin{enumerate}
+  \item \textbf{把「多重网格一步到位」当成默认}：V-cycle 的实测收敛因子是
+        $0.1837$（$n=15$）、$0.1894$（$n=31$）、$0.1887$（$n=63$）、$0.1902$（$n=127$），
+        降到 $10^{-8}$ 要\textbf{真的数}到 $11$ 个周期。它不是 $0$：固定递归的循环只是一个
+        收缩算子，粗层永远只解了个近似。
+  \item \textbf{把「网格无关」说成「因子是常数」}：同一条 $h$ 序列上因子是
+        $0.1609/0.1837/0.1894/0.1887/0.1902$，均值 $0.1826$、标准差 $1.1\times10^{-2}$、
+        漂移 $+2.9\times10^{-2}$——它是\textbf{缓慢变大}的。$n=7$ 那个 $0.1609$ 还是小网格异常：
+        最粗层只有 $1$ 个内点却做了 $24$ 次扫描，等于把粗层过度求解了。
+  \item \textbf{拿平滑因子给循环因子下结论}：Gauss--Seidel 的高频平滑因子实测
+        $0.4453$（$n=127$，趋近 $1/\sqrt5=0.4472$），比最优 Jacobi 的 $1/3$ \emph{更差}；
+        可同一个循环里 GS 的 V-cycle 因子是 $0.104$（$n=31$）与 $0.134$（$n=127$），
+        比 Jacobi 的 $0.190$ \emph{更好}。原因是低频：$\rho(T_{\rm GS})=\cos^2\theta_1$，
+        比 Jacobi 的 $\cos\theta_1$ 快一倍。
+  \item \textbf{把理论曲线当实际衰减}：$n=127$、$\omega=1.2$ 的 SOR，迭代矩阵特征值口径给
+        $0.999097$（几乎不动），而单模态一步范数比只有 $0.541905$。SOR 的迭代矩阵不是正规矩阵，
+        特征值模长只决定渐近速率；两条线相差 $0.46$，不是画错。
+  \item \textbf{只看整体误差范数}：$n=63$、初值 $c_k=1/k$、$10$ 步之后整段范数只掉到
+        $0.936$，看上去「平滑几乎没用」；同一时刻高频模态从 $1.587\times10^{-2}$ 掉到
+        $1.067\times10^{-9}$，低/高存活比 $6.0\times10^{4}$。范数那条平线完全由
+        $\lambda_1=0.999197$ 决定。
+  \item \textbf{限制算子随便定个缩放}：粗层算子固定为重离散、$R=cP^{\mathsf T}$ 时，
+        $c=0.25$ 的因子是 $0.8919$（像「只是慢一点」），$c=0.75$ 就跳到 $2.0433$，
+        $c=1.0$ 是 $6.0376$，$c=2.0$ 是 $53.4368$——循环\textbf{发散}。
+        Galerkin 缺口 $\max|RA_hP-A_H|$ 恰好等于 $|2c-1|$，是最省事的体检量。
+  \item \textbf{以为 injection 与满权只差一个常数}：injection 只取 $r_{2j+1}$，
+        破坏的是伴随关系本身。两网格因子从 $0.111111$ 退到 $0.332263$（$n=63$），
+        而且把最优常数 $c$ 调到最好，$\|R_{\rm inj}-cP^{\mathsf T}\|$ 仍有 $0.5$ 量级。
+  \item \textbf{只看因子不看代价}：$n=63$ 上 W-cycle 的因子是 $0.1145$，确实比 V 的 $0.1887$ 小
+        （接近两网格的 $1/9$）；但每个周期的实测代价是 $21.365$ 个「最细层等价点扫描」，
+        V 只有 $4.159$。降到 $10^{-8}$ 的总代价是 $9\times21.365=192.3$ 对 $11\times4.159=45.7$
+        ——W 贵 $4.2$ 倍。「因子更小」被「一步更贵」吃掉。
+  \item \textbf{把加速比说成时间比}：同一右端、$\mathrm{tol}=10^{-8}$，CG 的迭代数恰好是
+        $n$（$15/31/63/127/255$），MGCG 恒为 $7$，迭代数加速比
+        $2.14/4.43/9.00/18.14/36.43$。但 MGCG 每次迭代要多做一个 V-cycle（约 $4$ 个
+        「最细层等价代价」），$n=15$ 时总代价只比单独跑 V-cycle 好 $1.6$ 倍。
+        「加速 $36$ 倍」必须紧跟「这是 $n=255$ 的迭代数比」。
+  \item \textbf{顺手写下的两个「显然」恒等式}（本节作者真踩过）：第一版断言里写了
+        $RA_h^{-1}=2A_H^{-1}R$，一般右端上相对偏差 $1.0098$；退到子空间
+        $A_h\,\mathrm{range}(P)$ 上也差 $0.6126$。更隐蔽的是 $RP=I$：
+        一维里 $RP=0.75I+0.125\,\mathrm{adj}$，$\max|RP-I|=0.25$
+        （因为 $P^{\mathsf T}P\ne2I$）。真命题是 $A_H^{-1}RA_hP=I$ 与
+        $Q=PA_H^{-1}RA_h$ 幂等、$A_h$-对称。
+  \item \textbf{因子估计器读错一位}（同一个坑的另一半）：把「每步归一化后的范数」再相邻相除，
+        $n=15$ 上给出 $1.0038$，看起来像循环不收敛；显式循环矩阵的谱半径是 $0.18955$，
+        未归一化迭代 $1.24\times10^{-1}\to7.93\times10^{-10}$。归一化后的范数\textbf{就是}
+        那一步的放大率，尾部几何平均才是 $\rho$。
+  \item \textbf{把残差的舍入地板当收敛停滞}：FAS 在 $n=63$、$\nu=2$ 时残差很快压到
+        $10^{-11}$ 附近，此时相邻比值全是 $1\pm$ 噪声，拿最后四个比值求平均得到 $0.8566$
+        （真值 $0.0774$）。因子只能在\textbf{触底之前}的窗口里估。
+  \item \textbf{把非线性问题当线性解}：$n=63$ 的 $-u''+u^3=f$ 上，丢掉粗层的非线性项以后
+        \emph{线性}残差压到 $4.075\times10^{-10}$（按它自己的尺子「收敛了」），
+        真残差却停在 $5.5960$，解偏了 $7.886\times10^{-2}$（真解幅度 $1$，即 $8\%$ 误差），
+        两个残差的比值 $1.4\times10^{10}$。FAS 的正常路径同一算例的真残差是
+        $3.07\times10^{-10}$，与离散牛顿参考解差 $1.3\times10^{-13}$。
+  \item \textbf{以为粗网格「看不见」高频就是「丢掉了」高频}：$\theta/\pi=0.9531$ 的纯高频残差，
+        限制后只剩原幅度的 $3.827\times10^{-3}$，别名到粗网格频率 $-0.0938\pi$（低频），
+        而粗层可见部分 $PRr$ 的高频能量比是 $0.0000$。粗网格上的一切都是低频，
+        包括那些本来是高频的东西。
+  \item \textbf{以为多平滑几步高频就「变得可见」了}：同一个纯高频残差，$\nu=0,\dots,6$ 的
+        相对损失恒为 $0.999985$（形状不变），只有幅度每步乘 $0.3261$；真正会变的是
+        \emph{混合}残差：高频能量占一半时相对损失从 $0.6398$ 掉到 $0.0018$。
+        平滑改变的是高频的\textbf{大小}，不是它的\textbf{可见性}。
+  \item \textbf{把 $O(h^2)$ 当斜率读数}：$1-\rho(T_J)=\pi^2h^2/2+O(h^4)$ 的渐近斜率是 $2$，
+        实测（$n=7,\dots,127$）是 $-1.889$——最小那个网格还没进渐近区。同理，
+        单层平滑子降到 $10^{-8}$ 需要 $6.4\times10^{4}$ 次扫描（$n=127$，实测因子 $0.999710$），
+        帧里的这一列是\textbf{换算值}，MG 那一列（$11$ 个周期）才是真的数出来的。
+  \item \textbf{把一维的「精确」搬去二维}：$RA_hP=A_H$ 在 1D 逐位成立，所以本章可以放心用
+        重离散粗层算子；二维双线性插值配满权限制给出的是 $9$ 点 Galerkin 模板，
+        \emph{不是} $5$ 点重离散，两者差一个 $O(h^2)$ 的交叉项。本章只做 1D，
+        这一条不许当前提用。
+\end{enumerate}
+
+\input{chapters/4.5/asserts_table}
