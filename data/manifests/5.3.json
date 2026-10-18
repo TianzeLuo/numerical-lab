@@ -239,11 +239,13 @@
       "id": "gradient_check",
       "params": [
         {
-          "critical": [],
-          "criticalNote": "",
+          "critical": [
+            0.0001
+          ],
+          "criticalNote": "下界抬到 1e-4 就把整个窗口挪到 V 形的**右侧**（只剩截断段）：误差随 eps 单调上升，'最优 eps'落在端点上——那时 meta 里的 eps_opt_* 必须是 null、*_interior 必须是 false。窗口没盖住谷底就没有'最优'可言。",
           "default": 1e-16,
           "label": "扫描下界 eps",
-          "max": 1e-08,
+          "max": 0.0001,
           "min": 1e-16,
           "name": "eps_min",
           "step": 1e-16,
@@ -257,7 +259,7 @@
           "criticalNote": "扫到 1e-6 量级（中心差分的理论最优 eps ~ u^(1/3) = 4.8e-6）才盖住 V 形的谷底；上界小于它时曲线只有下降段，meta 里的最优 eps 会落在端点上，那种情形下'更小更准'是**扫描窗口的假象**而不是结论。",
           "default": 0.1,
           "label": "扫描上界 eps",
-          "max": 1.0,
+          "max": 0.1,
           "min": 0.0001,
           "name": "eps_max",
           "step": 0.0001,

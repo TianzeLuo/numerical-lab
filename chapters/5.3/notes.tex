@@ -1,0 +1,369 @@
+% 5.3 章 · 伴随方法与灵敏度分析
+% 这一章要把"灵敏度怎么算"拆成四件互不相同的事：
+%   1) 梯度是**哪个问题**的梯度：离散问题的精确梯度 vs 连续问题的近似梯度；
+%   2) 代价：伴随一次求解给出全部 k 个偏导，但它不免费（轨迹要存或要重算）；
+%   3) 梯度检验的 V 形曲线：两端各自的幂律与实测最优 eps；
+%   4) 伴随变量本身是什么：影响场（宽度律、质心守恒）与灵敏度方向（弹性）。
+% 所有结论都配一条带实测数字的断言，附表由 tools/build_book.py 生成后 \input 进来。
+
+\numlabchapter{伴随方法与灵敏度分析}{5.3}
+
+\section{这一章要解决什么}
+
+给定一个由 ODE 或 PDE 约束的目标 $J(p)=g(y(T;p))$，要算 $\nabla_pJ$。参数一多，
+有限差分就不能用了（$2k$ 次正演），于是有了伴随法。本章不满足于"伴随快"，要把四件事
+算清楚：
+
+\begin{enumerate}
+  \item \textbf{伴随求的是哪个问题的梯度？} 它是离散目标 $J_h$ 的\textbf{精确}梯度
+        （实测与中心差分差 $4.2\times10^{-11}$），只有在 $h\to0$ 时才趋近连续梯度。
+        这句话可以称重：标量衰减模型上两个梯度都有闭式，实测离散伴随与离散闭式差
+        $7.0\times10^{-14}$，与连续闭式的差按步长比 $16.09,\ 15.91$（四阶）缩小。
+  \item \textbf{"与参数个数无关"到底是什么量无关？} 正演次数比是 $2k$（实测 $k=2/8/32$
+        时 $4/16/64$），伴随一侧的残差求值 $385$、Jacobian 求值 $768$ 三个 $k$ 完全相同；
+        但它需要整条正向轨迹（$N=1024$ 时 $14342$ 个浮点数），
+        分块检查点把它换成 $2370$ 个浮点数 $+$ $2.000$ 倍重算。
+  \item \textbf{梯度检验的容差是怎么定的？} V 形曲线两端都是幂律：中心差分的截断段斜率
+        $1.993$、舍入段 $-0.980$；实测最优 $\varepsilon^\star=10^{-6}$（$u^{1/3}=4.806\times10^{-6}$，
+        比值 $0.208$），单侧差分 $\varepsilon^\star=3.16\times10^{-9}$（$u^{1/2}=1.054\times10^{-8}$，
+        比值 $0.300$）。"$\varepsilon$ 越小越准"在 $\varepsilon=10^{-16}$ 处被否掉：
+        误差 $5.69\times10^{-1}$，是最优点的 $10^{10}$ 倍。
+  \item \textbf{伴随变量是什么物理量？} 对热方程，它是\textbf{影响场}：宽度按
+        $\sigma_0^2+2\alpha\tau$ 长（实测斜率比 $0.999748$），质心\textbf{严格不动}
+        （漂移 $1.67\times10^{-16}$），扩散到 Dirichlet 壁之后律失效
+        （$\tau=T$ 处偏差 $9.96\times10^{-3}$，是干净窗口 $1.67\times10^{-4}$ 的 $60$ 倍）。
+\end{enumerate}
+
+记号：$u=2^{-53}\approx1.11\times10^{-16}$ 是单位舍入；$h=T/N$ 是步长；
+$\Phi_n$ 是一步格式；$R(z)$ 是 Runge--Kutta 的稳定多项式；$\mu$ 是伴随（余状态）变量；
+$\tau=T-t$ 是反向时间；$\varepsilon$ 是差分步长；$\eta_j=(\partial J/\partial p_j)(p_j/J)$ 是绩效弹性。
+
+\section{离散伴随：把反向模式搭在 Runge--Kutta 上}
+
+\begin{theorem}[离散伴随递推]\label{thm:discrete-adjoint}
+设 $J_h(p)=g(y_N)$，$y_{n+1}=\Phi_n(y_n,p)$，$\Phi_n$ 对 $(y,p)$ 可微。则
+\[
+\frac{dJ_h}{dp}=\sum_{n=0}^{N-1}\Bigl(\frac{\partial\Phi_n}{\partial p}\Bigr)^{\!\mathsf T}\mu_{n+1},
+\qquad
+\mu_N=\Bigl(\frac{\partial g}{\partial y_N}\Bigr)^{\!\mathsf T},\qquad
+\mu_n=\Bigl(\frac{\partial\Phi_n}{\partial y_n}\Bigr)^{\!\mathsf T}\mu_{n+1}.
+\]
+\end{theorem}
+
+\begin{proof}
+把 $J_h$ 看成复合函数 $g\circ\Phi_{N-1}\circ\cdots\circ\Phi_0$，对 $p$ 求全导数：
+\[
+\frac{dJ_h}{dp}=\Bigl(\frac{\partial g}{\partial y_N}\Bigr)\frac{dy_N}{dp},
+\qquad
+\frac{dy_{n+1}}{dp}=\frac{\partial\Phi_n}{\partial y_n}\frac{dy_n}{dp}+\frac{\partial\Phi_n}{\partial p}.
+\]
+把 $dy_{n+1}/dp$ 逐层展开并\textbf{重新结合}（反向累积）：每一项都含
+$\partial\Phi_n/\partial p$，其系数是所有后续雅可比的乘积左乘 $\partial g/\partial y_N$，
+按 $\mu$ 的定义正是 $\mu_{n+1}$。$\mu$ 的递推把"左乘一串雅可比"换成"每步一次转置乘法"，
+这正是反向模式自动微分。
+\end{proof}
+
+\begin{theorem}[显式 RK 的转置表形式]\label{thm:transposed-tableau}
+对显式 RK 表 $(A,b,c)$，一步 $\Phi_n$ 的级为 $Y_i=y_n+h\sum_{j<i}a_{ij}f(Y_j)$。则
+\[
+w_i=h\,b_i\,v+h\sum_{j>i}a_{ji}\,f_y(Y_j)^{\mathsf T}w_j,\qquad
+\mu_n=v+\sum_i f_y(Y_i)^{\mathsf T}w_i,\qquad
+\frac{\partial J_h}{\partial p}\Big|_n=\sum_i f_p(Y_i)^{\mathsf T}w_i,
+\]
+其中 $v=\mu_{n+1}$。求和方向是\textbf{级序的逆序}，且用的是 $a_{ji}$（转置表）。
+\end{theorem}
+
+\begin{proof}
+把 $\Phi_n$ 写成 $y_{n+1}=y_n+h\sum_ib_i f(Y_i)$，并对 $y_n$ 求雅可比：
+$\partial y_{n+1}/\partial y_n=I+h\sum_ib_if_y(Y_i)^{\mathsf T}\cdot\partial Y_i/\partial y_n$，
+而 $\partial Y_i/\partial y_n=I+h\sum_{j<i}a_{ij}f_y(Y_j)^{\mathsf T}\partial Y_j/\partial y_n$。
+令 $W_i=(\partial Y_i/\partial y_n)^{\mathsf T}v$ 即得第一式；$f_p$ 那一项同理。
+注意 $\partial Y_i/\partial y_n$ 只经由 $j<i$ 传递，所以累加必须\textbf{逆序}做，
+且转置把 $a_{ij}$ 变成 $a_{ji}$。用错形状（按 $a_{ij}$ 顺序、把 $b_i$ 提到外面）得到的
+是\textbf{连续}伴随的离散化，不是 $J_h$ 的梯度：实测 Duffing 上它与差分差
+$0.85\sim1.08$（相对误差 $100\%$ 量级），而正确形式差 $4.2\times10^{-11}$。
+\end{proof}
+
+\begin{corollary}[代价与参数个数无关]\label{cor:cost-k}
+一次正演（存下轨迹）$+$ 一次反向递推给出全部 $k$ 个偏导；中心差分要 $2k$ 次正演。
+实测 $k=2/8/32$ 时正演次数比恰为 $4/16/64$，而伴随一侧的残差求值 $385$、
+Jacobian 求值 $768$ 在三个 $k$ 上\textbf{逐位相同}。
+\end{corollary}
+
+\begin{theorem}[伴随法不免费]\label{thm:not-free}
+全存轨迹需要 $O(Ns\,d)$ 个浮点数（$s$ 是级数、$d$ 是维数）；把 $N$ 步切成
+$\lceil N/b\rceil$ 个块、只存块边界，则存储降到 $O((N/b)s\,d)$，代价是每块重算一次，
+残差求值涨到正演的 $2$ 倍附近。
+\end{theorem}
+
+\begin{proof}
+反向递推在第 $n$ 步要用 $f_y(Y_i)$，而 $Y_i$ 只有正演时才知道。要么存（内存），
+要么从最近的检查点重算（时间）。取 $b=\lceil\sqrt N\rceil$ 让两者平衡：
+检查点个数与块长同阶。
+\end{proof}
+
+\textbf{实测}：$N=256$ 时存储 $3590\to674$（$0.188$ 倍）、重算 $1.998$ 倍；
+$N=1024$ 时 $14342\to2370$（$0.165$ 倍）、重算 $2.000$ 倍；
+两个 $N$ 上检查点梯度与全存梯度\textbf{相对差 $0$}（逐位相同）。
+
+\section{连续伴随：另一个问题，以及两者重合的边界}
+
+\begin{definition}[连续伴随]\label{def:continuous-adjoint}
+对 $\dot y=f(t,y,p)$、$J=g(y(T))$，连续伴随是反向 ODE
+\[
+\dot\mu=-f_y(t,y,p)^{\mathsf T}\mu,\qquad \mu(T)=\bigl(\nabla g(y(T))\bigr)^{\mathsf T},
+\qquad
+\nabla_pJ=\int_0^T f_p(t,y,p)^{\mathsf T}\mu\,dt .
+\]
+\end{definition}
+
+\begin{theorem}[常雅可比时两者重合]\label{thm:linear-coincide}
+若 $f(t,y,p)=A(t)y+B(t)p$（$f_y=A$、$f_p=B$ 与 $y$、$p$ 无关），
+则离散伴随与"同一张表、同一网格"的连续伴随给出\textbf{同一个}梯度。
+\end{theorem}
+
+\begin{proof}
+此时 $\Phi_n$ 对 $y$ 是仿射的，其雅可比是常数矩阵 $M_n$，参数雅可比是 $S_n$；
+两条递推都化成同一组线性方程 $\mu_n=M_n^{\mathsf T}\mu_{n+1}$，
+参数项都是 $\sum_nS_n^{\mathsf T}\mu_{n+1}$（连续侧的积分用同一张求积表）。
+两个格式对同一个线性问题给出同一个求积权重，因此逐位相同。
+\end{proof}
+
+\textbf{实测}：$f=Ay+Bp$、$d=4$、$k=2/8/32$ 时相对差 $1.11\times10^{-16}$、
+$3.33\times10^{-16}$、$3.33\times10^{-16}$——重合到舍入级。这条边界很重要：
+"连续伴随与离散伴随不一样"这句话只对\textbf{非线性}问题成立。
+
+\begin{theorem}[非线性时差是 $O(h^p)$]\label{thm:gap-order}
+对非线性 $f$，$\|\nabla_pJ_h-\nabla_pJ_{\text{cont}}\|=O(h^p)$，$p$ 是表的阶数。
+\end{theorem}
+
+\begin{proof}
+两者都是同一个连续泛函的不同求积：离散伴随按表的求积权重累积 $f_p^{\mathsf T}\mu$，
+连续伴随是精确积分；被积函数在两种情况下都用同一族级值近似，误差同阶。
+\end{proof}
+
+\textbf{实测}（Duffing，渐近窗口写在下标里，$h=T/N$）：
+
+\begin{center}
+\begin{tabular}{llll}
+\hline
+格式 & 拟合阶 & 窗口 & 端点相对差 \\
+\hline
+RK4 & $4.159$ & $N=64\ldots512$ & $2.35\times10^{-2}\to2.32\times10^{-7}$ \\
+Heun & $2.002$ & $N=128\ldots1024$ & $4.40\times10^{-2}\to1.54\times10^{-4}$ \\
+Euler & $0.998$ & $N=2048\ldots16384$ & $2.85\times10^{-2}\to1.81\times10^{-3}$ \\
+\hline
+\end{tabular}
+\end{center}
+
+拟合窗口内的局部阶会\textbf{系统性地}略高于渐近阶（RK4 的 $4.159$ 对 $4$），
+因为窗口里还残留 $O(h^{p+1})$ 项——所以容差是 $\pm0.25$ 而不是 $\pm0.05$。
+
+\begin{corollary}[标量模型上称重]\label{cor:scalar-weight}
+$y'=-py$、$J=y(T)$ 有闭式 $J_h=R(-hp)^N$，于是
+$dJ_h/dp=-T\,R(-hp)^{N-1}R'(-hp)$。实测离散伴随与该闭式差 $6.98\times10^{-14}$；
+与连续闭式 $-Te^{-pT}$ 的差是 $4.34\times10^{-10}\to2.70\times10^{-11}\to1.70\times10^{-12}$
+（$N=128\to256\to512$），比值 $16.09,\ 15.91$。
+\end{corollary}
+
+\section{梯度检验：V 形曲线的两端都要有数}
+
+\begin{theorem}[最优差分步长]\label{thm:optimal-eps}
+中心差分的误差是截断 $C\varepsilon^2$ 与舍入 $u|g|/\varepsilon$ 之和，最优
+\[
+\varepsilon^\star=\Bigl(\frac{u|g|}{2C}\Bigr)^{1/3}\sim u^{1/3};
+\]
+单侧差分的截断是 $C\varepsilon$，故 $\varepsilon^\star\sim u^{1/2}$。
+\end{theorem}
+
+\begin{proof}
+对 $\varepsilon$ 求导令零：$-2C\varepsilon^{-3}+u|g|\varepsilon^{-2}=0$。
+一般地 $p$ 阶差分给 $\varepsilon^\star\sim u^{1/(p+1)}$。
+\end{proof}
+
+\textbf{实测}（Duffing，RK4，$N=96$，$[10^{-16},10^{-1}]$ 上对数均匀 $25$ 点）：
+
+\begin{center}
+\begin{tabular}{lllll}
+\hline
+差分 & 舍入段斜率 & 截断段斜率 & 实测 $\varepsilon^\star$ & 与理论比值 \\
+\hline
+中心 & $-0.980$ & $1.993$ & $1.000\times10^{-6}$ & $0.208$（$u^{1/3}$） \\
+单侧 & $-0.997$ & $0.987$ & $3.162\times10^{-9}$ & $0.300$（$u^{1/2}$） \\
+\hline
+\end{tabular}
+\end{center}
+
+谷底误差：中心 $4.23\times10^{-11}$、单侧 $2.99\times10^{-8}$。
+比值不是 $1$ 而是 $0.2\sim0.3$ 有两个原因：(i) 常数 $C$ 与 $|g|$ 不是 $1$；
+(ii) 对数网格间隔 $4.2$ 倍，谷底只能定位到最近的扫描点。所以本章只承诺"同量级"，
+并把"最优 $\varepsilon$ 是否落在扫描区间\textbf{内部}"当成结论的一部分：
+窗口整体挪到截断段（$\varepsilon_{\min}=10^{-4}$）时，最优必然落在端点上，
+此时帧里的 \texttt{eps\_opt\_*} 必须是 \texttt{null}、\texttt{*\_interior} 必须是 \texttt{false}。
+
+\begin{remark}["$\varepsilon$ 越小越准"是错的]
+$\varepsilon=10^{-16}$ 时中心差分的相对误差是 $5.69\times10^{-1}$，
+是最优点 $4.23\times10^{-11}$ 的 $1.3\times10^{10}$ 倍。
+原因在定理 \ref{thm:optimal-eps}：舍入项 $u|g|/\varepsilon$ 随 $\varepsilon$ 减小而增大。
+\end{remark}
+
+\section{伴随变量是影响场：宽度律与质心守恒}
+
+\begin{theorem}[纯扩散下影响场的宽度律]\label{thm:width-law}
+在 $\mathbb{R}$ 上取 $\mu_\tau=\alpha\mu_{xx}$、$\mu(x,0)=w(x)$，
+若 $w$ 是均值 $x_0$、方差 $\sigma_0^2$ 的钟形权重（且边界尚未起作用），则
+\[
+\bar x(\tau)=x_0,\qquad \operatorname{Var}(\tau)=\sigma_0^2+2\alpha\tau .
+\]
+\end{theorem}
+
+\begin{proof}
+对热方程两边求一阶、二阶矩：$\frac{d}{d\tau}\int x\mu\,dx=\alpha\int x\mu_{xx}\,dx
+=\alpha[x\mu_x-\mu]_{-\infty}^{\infty}=0$（边界项与 $\mu$ 的衰减），
+$\frac{d}{d\tau}\int x^2\mu\,dx=\alpha\int x^2\mu_{xx}\,dx=2\alpha\int\mu\,dx=2\alpha$。
+\end{proof}
+
+\textbf{实测}（$n_x=41$、$\alpha=0.05$、$T=0.2$、$N=800$、观测中心 $0.5$、$\sigma_0=0.05$）：
+$\operatorname{Var}$ 对 $\tau$ 的实测斜率 $0.099975$ 对理论 $2\alpha=0.1$，
+比值 $0.999748$；质心最大漂移 $1.67\times10^{-16}$；
+干净窗口（$\tau\le0.0935$）内宽度比的最大偏差 $1.67\times10^{-4}$。
+
+\begin{theorem}[Dirichlet 壁让 $M$ 不对称，伴随必须解 $M^{\mathsf T}$]\label{thm:MT}
+$\theta$ 格式的两端按"恒等行"实现 Dirichlet 条件时，矩阵 $M$ 的第 $0$ 行是 $e_0^{\mathsf T}$、
+第 $1$ 行含 $-M_{1,0}$，于是 $M_{0,1}=0$ 而 $M_{1,0}=-\theta r$（$r=\alpha\Delta t/\Delta x^2$）：
+$M\neq M^{\mathsf T}$。离散伴随的一步是 $G^{\mathsf T}M^{-\mathsf T}$。
+把 $M^{-\mathsf T}$ 写成 $M^{-1}$ 得到的不是任何目标函数的梯度。
+\end{theorem}
+
+\begin{proof}
+正向一步是 $u^{n+1}=M^{-1}(Gu^n+s_n)$，其雅可比是 $M^{-1}G$，转置即 $G^{\mathsf T}M^{-\mathsf T}$。
+\end{proof}
+
+\textbf{实测}：正确实现与中心差分的相对误差 $4.17\times10^{-12}$；
+用错转置（$M^{-1}$）时，观测在区域中心（$x=0.5$、$r=0.04$）梯度差只有
+$1.64\times10^{-11}$、场差 $2.29\times10^{-6}$——\textbf{几乎看不出来}；
+把观测移到 $x=0.9$、$r=2.00$，梯度差升到 $1.64\times10^{-5}$、场差 $5.20\times10^{-2}$。
+"负面对照要挑对算例"这句话在这里有数字。
+
+\begin{corollary}[端点层一阶、内部二阶]\label{cor:boundary-order}
+与半离散精确解（离散正弦模叠加，无空间截断误差）比较：
+\textbf{内部节点}上 $\theta=1/2$ 的偏差是 $O(\Delta t^2)$（实测 $3.76\times10^{-5}\to1.47\times10^{-7}$，
+拟合阶 $2.000$）；\textbf{含端点}时只剩 $O(\Delta t)$（$3.09\times10^{-4}\to1.98\times10^{-5}$，
+拟合阶 $0.991$）。端点层相对大小 $67.19$ 倍。
+\end{corollary}
+
+\begin{proof}
+转置后的端点行把"钉住"从一侧挪到另一侧（定理 \ref{thm:MT}），
+这个偏差 $\propto r=O(\Delta t)$，与格式在内部的时间阶无关。
+\end{proof}
+
+\section{"往回走会放大"的边界}
+
+\begin{theorem}[伴随放大率 = 正向压缩率的倒数]\label{thm:growth}
+对线性系统 $f=Ay$，$\mu_0=\bigl[(R(hA))^N\bigr]^{\mathsf T}\mu_N$。若 $A$ 的特征值是一对
+$-p_2/2\pm i\omega_d$，则
+\[
+\frac{\|\mu_0\|}{\|\mu_N\|}=e^{-p_2T/2}\quad(\text{到 }O(h^4)),
+\]
+即比值在 $p_2=0$ 处\textbf{恰好换向}：$p_2>0$ 时伴随往回走衰减，$p_2<0$ 时放大。
+\end{theorem}
+
+\begin{proof}
+转置不改变奇异值，故 $\|\mu_0\|/\|\mu_N\|=\|(R(hA))^N\|$，
+在 $h\to0$ 时它是谱半径 $\rho(e^{AT})=e^{-p_2T/2}$。
+\end{proof}
+
+\textbf{实测}（$T=60$、$N=192$、线性算例）：$p_2=-0.10$ 时 $19.984$（理论 $20.086$）、
+$p_2=-0.05$ 时 $4.479$（$4.482$）、$p_2=0$ 时 $0.9988$（$1.0000$）、
+$p_2=+0.05$ 时 $0.2217$（$0.2231$）、$p_2=+0.10$ 时 $0.0493$（$0.0498$）；
+最大相对差 $9.98\times10^{-3}$（非正规矩阵的有限步修正）。
+
+\section{灵敏度方向与绩效弹性}
+
+\begin{theorem}[最速上升方向与弹性]\label{thm:elasticity}
+$g/\|g\|$ 是参数空间里 $J$ 的最速上升方向；但跨参数比较"谁更值钱"要用
+$\eta_j=(\partial J/\partial p_j)(p_j/J)$，因为 $\partial J/\partial p_j$ 带参数的量纲。
+\end{theorem}
+
+\begin{proof}
+方向导数 $\nabla J^{\mathsf T}d$ 在 $\|d\|=1$ 时最大者是 $d=g/\|g\|$（Cauchy--Schwarz）。
+弹性是对数导数 $\partial\ln J/\partial\ln p_j$，无量纲。
+\end{proof}
+
+\textbf{实测}（Duffing，$p=(1.0,0.1,0.05)$，$N=96$）：伴随方向与差分方向夹角
+$8.538\times10^{-7}$ 度，相对误差 $4.23\times10^{-11}$；原始梯度
+$(-1.811,-3.183,-0.794)$ 的\textbf{第 1 个}分量最大，而弹性
+$(-6.073,-1.067,-0.133)$ 的\textbf{第 0 个}分量最大。
+同一个点上"最灵敏的参数"有两个答案——差的就是量纲。
+
+\section{四个可视化与它们各自的"读法"}
+
+\begin{enumerate}
+  \item \texttt{gradient\_field}：参数平面上的等高线叠\textbf{归一化}伴随梯度箭头。
+        箭头长度按范数对数压缩（实测范数 $0.028\sim16.9$，跨三个量级），
+        所以\textbf{长度不是灵敏度大小}；副图给出伴随与中心差分的逐点相对误差
+        （实测最大 $1.41\times10^{-10}$、中位 $5.80\times10^{-11}$），
+        粗差分（$\varepsilon=0.1$）会涨到 $6.88\times10^{-1}$。
+  \item \texttt{influence\_field}：影响场 $\mu(x,\tau)$ 随反向时间扩散。
+        副图画宽度比与质心漂移，\texttt{boundary\_flag} 标出被壁污染的行。
+        读到掩码以外就该停：那里连续律已经不成立。
+  \item \texttt{gradient\_check}：V 形曲线（两条差分）+ 两段斜率 + 实测最优
+        $\varepsilon$ + 代价三点。$\varepsilon^\star$ 落在端点上时该字段是 \texttt{null}，
+        不要当数字读。
+  \item \texttt{forward\_adjoint\_playback}：正向轨迹与反向伴随轨迹叠加播放。
+        播放头处的 \texttt{sensitivity\_residual} 是"$\Delta J\approx\mu^{\mathsf T}\delta$"
+        的直接检验（脉冲响应，实测残差 $2.5\times10^{-10}$）。
+        两条轨迹画在同一相平面上只是视觉安排：$y$ 与 $\mu$ 活在不同的空间里。
+\end{enumerate}
+
+\input{chapters/5.3/asserts_table}
+
+\section{它会怎样骗你（本章版）}
+
+\begin{enumerate}
+  \item \textbf{把"伴随梯度"当成连续问题的梯度。} 它精确等于\textbf{离散}目标 $J_h$ 的梯度
+        （实测与离散闭式差 $6.98\times10^{-14}$），与连续问题差 $O(h^p)$：
+        标量模型上 $4.34\times10^{-10}\to1.70\times10^{-12}$（步长比 $16$）；
+        RK4 上 $2.35\times10^{-2}\to2.32\times10^{-7}$（阶 $4.159$）、Heun 阶 $2.002$、
+        Euler 阶 $0.998$。两个都报才算说清楚，只报一个必错。
+  \item \textbf{转置表搭错顺序。} 反向递推必须\textbf{逆级序}且用 $a_{ji}$：
+        用成 $\sum_j a_{ij}$ 的形状，Duffing 上的梯度相对误差 $0.85\sim1.08$
+        （症状是"梯度随 $N$ 剧烈变化"，而不是某个小偏差）。
+  \item \textbf{"计算量与前向同阶"被读成"和正演一样便宜"。} 与 $k$ \textbf{无关}是真的：
+        $k=2/8/32$ 时正演次数比 $4/16/64$，伴随的 $385$ 次残差求值与 $768$ 次
+        Jacobian 求值三个 $k$ 完全相同；但 $N=1024$ 要存 $14342$ 个浮点数，
+        或换成 $2370$ 个浮点数 $+$ $2.000$ 倍重算。存储与重算这两笔账必须一起报。
+  \item \textbf{"$\varepsilon$ 越小越准"。} 实测 $\varepsilon=10^{-16}$ 时相对误差
+        $5.69\times10^{-1}$，最优点（$10^{-6}$，误差 $4.23\times10^{-11}$）比它好
+        $1.3\times10^{10}$ 倍。V 形两段的斜率是 $-0.980$ 与 $1.993$（中心差分）、
+        $-0.997$ 与 $0.987$（单侧），拿一个端点定容差必翻车。
+  \item \textbf{最优 $\varepsilon$ 落在扫描端点上。} 把窗口整段挪到截断段
+        （$\varepsilon_{\min}=10^{-4}$）后，误差随 $\varepsilon$ 单调上升，
+        "最优"落在左端点——那是窗口边界不是谷底；此时该字段必须是 \texttt{null}。
+  \item \textbf{拿 $\varepsilon^\star$ 与 $u^{1/3}$ 的比值当"验证"。} 实测比值是
+        $0.208$（中心）与 $0.300$（单侧）：常数 $C$、$|g|$ 与对数网格（间隔 $4.2$ 倍）
+        一起把它推到 $0.2\sim0.3$。断言只能承诺"同量级"，写"相等"就是造假。
+  \item \textbf{"伴随往回走会发散"。} 实测它在 $p_2=0$ 处换向：
+        $p_2=-0.1$ 时 $19.98$、$0$ 时 $0.9988$、$+0.1$ 时 $0.0493$
+        （理论 $e^{-p_2T/2}$ 全程吻合到 $9.98\times10^{-3}$）。
+        只有正向流扩张的那一半参数区间才"发散"。
+  \item \textbf{"影响场在往回跑"（把扩散读成平移）。} 纯扩散下质心严格不动
+        （实测 $1.67\times10^{-16}$），长的是宽度（斜率比 $0.999748$）。
+        峰值位置不动、宽度变宽，这两件事在热力图上容易看反。
+  \item \textbf{把连续宽度律外推到触壁之后。} $\tau=T$ 时宽度比偏 $9.96\times10^{-3}$，
+        是干净窗口（$1.67\times10^{-4}$）的 $60$ 倍；被污染的行必须打掩码，
+        而不是把连续律继续画过去。
+  \item \textbf{PDE 伴随的"精度"不说是哪个口径。} 同一算例：内部节点 $2.000$ 阶、
+        含端点 $0.991$ 阶，端点层大 $67.19$ 倍。原因是 Dirichlet 的恒等行让
+        $M$ 不对称，伴随要解 $M^{\mathsf T}$（$M_{0,1}=0$ 而 $M_{1,0}=-\theta r$）。
+  \item \textbf{"负面对照随便挑个算例就行"。} 错转置在观测居中时梯度只差
+        $1.64\times10^{-11}$（看不出问题）、场差 $2.29\times10^{-6}$；
+        观测贴边（$x=0.9$、$r=2$）才升到 $1.64\times10^{-5}$ 与 $5.20\times10^{-2}$。
+        判据必须落在能显形的那一侧。
+  \item \textbf{"最灵敏的参数"用原始梯度排。} 同一个点上原始梯度
+        $(-1.811,-3.183,-0.794)$ 指向阻尼，弹性 $(-6.073,-1.067,-0.133)$ 指向刚度：
+        两个排序给出不同的"最值钱参数"。先声明量纲，再谈排序。
+  \item \textbf{把占位值当真值画。} 对数轴上的 $0$、非有限的误差、\texttt{null} 的最优
+        $\varepsilon$，都必须有掩码、地板与文字说明三件套；
+        否则图上"少一段"会被读成"一直是那个值"。
+\end{enumerate}

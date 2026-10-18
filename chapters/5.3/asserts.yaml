@@ -1,0 +1,102 @@
+# 5.3 章断言清单（真源：`tests/5.3/` 下的三个文件）
+#
+# 本章的分工：
+#   * **A 类（主）**——解析对拍与"边界"。离散伴随与中心差分、与离散闭式、与连续闭式的
+#     三重对照；连续/离散伴随重合的**线性边界**与非线性的阶；V 形曲线两段的幂律、
+#     实测最优 eps 与端点拒答；影响场的宽度律、质心守恒与触壁掩码；热方程伴随的
+#     正确/错转置；"伴随往回走会放大"在 p2=0 处的换向；以及帧与 numcore 的逐位一致。
+#   * **C 类（辅）**——代价与收敛率。k=2/8/32 的正演次数比（严格 2k）与伴随次数的
+#     k 无关性；PDE 伴随在内部节点（2 阶）与含端点（1 阶）两种口径下的实测阶。
+#
+# 这里**故意**登记了几条"负面结论"，它们和正面结论一样重要：
+#   * 错转置的 PDE 伴随在观测居中时几乎看不出来（梯度差 1.6e-11），
+#     只有观测贴边才涨到 1.6e-5（场差 5.2e-2）；
+#   * eps 越小越准**不成立**：eps=1e-16 的误差是最优点的 1.3e10 倍；
+#   * 实测最优 eps 与 u^(1/3) 的比值只有 0.208（中心）/ 0.300（单侧），
+#     断言只能承诺同量级；
+#   * "伴随往回走会发散"只在 p2<0 的一半参数区间成立（p2=0 处比值 0.9988）；
+#   * 连续宽度律外推到触壁之后偏差涨 60 倍（1.7e-4 -> 9.96e-3）；
+#   * 同一算例的 PDE 伴随"精度"取决于是内部口径还是含端点口径（2.000 对 0.991）；
+#   * 原始梯度与绩效弹性给出**不同的**"最灵敏参数"（下标 1 对下标 0）。
+chapter: "5.3"
+title: 伴随方法与灵敏度分析
+required_kinds: [A, C]
+
+min_counts:
+  A: 15
+  C: 2
+
+tests:
+  # ---- 离散伴随：正确性、V 形曲线、连续/离散边界、检查点与代价（tests/5.3/test_adjoint_gradients.py）----
+  - name: test_discrete_adjoint_matches_finite_difference_and_loses_it_at_big_eps
+    kind: A
+    what: Duffing 两个工作点上 eps=1e-6 时相对误差 4.23e-11 / 1.09e-10（< 1e-9），eps=0.1 时 3.15e-1 / 4.57e-1（> 1e-2）；标量模型上离散伴随与离散闭式差 6.98e-14，与连续闭式的间隙 4.34e-10 -> 1.70e-12（步长比 16.09、15.91）
+    theory: 离散伴随是 J_h 的精确梯度；与连续梯度的差是 O(h^p)（标量模型 p=4）；容差 1e-9 由"大步长下同一比较会掉到 1e-1"决定
+  - name: test_gradient_check_v_curve_has_both_branches_and_measured_optimum
+    kind: A
+    what: 中心差分左段（舍入）斜率 -0.980、右段（截断）1.993，eps*=1.000e-6、谷底误差 4.23e-11、与 u^(1/3)=4.806e-6 比值 0.208；单侧差分 -0.997 / 0.987，eps*=3.162e-9、与 u^(1/2)=1.054e-8 比值 0.300；eps=1e-16 处误差 5.69e-1（比谷底差 1.3e10 倍）
+    theory: 截断 ~ eps^p、舍入 ~ u/eps，最优 eps ~ u^(1/(p+1))；对数网格间隔 4.2 倍，最优只能定位到同量级
+  - name: test_continuous_vs_discrete_adjoint_split_by_case
+    kind: A
+    what: 线性模型（f=Ay+Bp，k=2/8/32）上连续与离散伴随相对差 1.11e-16 / 3.33e-16 / 3.33e-16（< 1e-12）；非线性 Duffing 上按格式阶分开：RK4 4.159（N=64-512）、Heun 2.002（N=128-1024）、Euler 0.998（N=2048-16384）
+    theory: 常雅可比时两者解同一组方程（重合到舍入）；非线性时差 O(h^p)，p 是表的阶；窗口内残留 O(h^(p+1)) 项使局部阶系统性偏高，容差取 ±0.25
+  - name: test_checkpointed_adjoint_is_identical_and_trades_storage_for_recompute
+    kind: A
+    what: N=256 存储 3590->674（0.188 倍）、重算 1.998 倍；N=1024 存储 14342->2370（0.165 倍）、重算 2.000 倍；两个 N 上检查点梯度与全存梯度的相对差都是 0（逐位相同）
+    theory: 分块检查点（block=sqrt(N)）把 O(N) 存储换成 O(sqrt(N)) 存储 + 约 2 倍重算，且不改梯度
+  - name: test_adjoint_cost_is_independent_of_parameter_count
+    kind: C
+    what: k=2/8/32 时有限差分与伴随的正演次数比恰为 4/16/64（=2k）；伴随一侧的 385 次残差求值、768 次 Jacobian 求值、1 次正演在三个 k 上逐位相同；检查点浮点数 < 全存浮点数
+    theory: 伴随一次求解给出全部 k 个偏导（反向模式），有限差分要 2k 次正演；"与 k 无关"不等于"免存储"
+  - name: test_loglog_slope_refuses_to_report_without_a_power_law
+    kind: A
+    what: 完美幂律 y=3x^2 上斜率 2.000000000000（误差 < 1e-12）；含一个 0 时剔除后剩 4 点给 0.1982；全 NaN / 只剩一点 / 掩码后只剩一点都返回 None
+    theory: 剔除非正与非有限点后有效点 >= 2 才给斜率；V 形曲线两端点数不足时斜率必须是 None 而不是"最后两点连线"
+
+  # ---- 灵敏度方向、影响场、PDE 伴随与放大率（tests/5.3/test_sensitivity.py）----
+  - name: test_sensitivity_direction_angle_and_elasticity_ranking
+    kind: A
+    what: 伴随方向与中心差分方向夹角 8.538e-7 度、梯度相对误差 4.23e-11；原始梯度 (-1.811,-3.183,-0.794) 第 1 个分量最大，弹性 (-6.073,-1.067,-0.133) 第 0 个分量最大（两种排序不同）
+    theory: 最速上升方向是 g/|g|；跨参数比较必须用无量纲弹性 (dJ/dp_j)(p_j/J)，否则"哪个参数最值钱"会得出不同答案
+  - name: test_gradient_field_arrows_match_fd_and_ridge_sits_at_lowest_damping
+    kind: A
+    what: 9 个箭头子网格上逐点相对误差最大 1.41e-10、中位 5.80e-11（< 1e-6 / 1e-9）；同一网格换 eps=0.1 的粗差分后最大 6.88e-1（> 1e-3）；目标函数最大值 1.0188 出现在最小阻尼 p2=0.030
+    theory: 参数平面上的伴随梯度逐点等于差分梯度（eps 取在谷底）；共振脊在小阻尼一侧；容差的有效性由"粗 eps 下同一比较会失效"证明
+  - name: test_heat_adjoint_matches_fd_and_wrong_transpose_shows_up_only_near_wall
+    kind: A
+    what: 观测居中（x=0.5, r=0.04）时正确实现与差分差 4.17e-12，错转置梯度差只有 1.64e-11、场差 2.29e-6；观测贴边（x=0.9, r=2.00）时正确实现 6.74e-14、错转置升到 1.64e-5（梯度）与 5.20e-2（场）
+    theory: Dirichlet 的恒等行让 M 不对称，伴随必须解 M^T；错转置的错集中在边界层，判据必须落在能显形的算例上
+  - name: test_influence_width_law_center_conservation_and_wall_mask
+    kind: A
+    what: 宽度平方斜率比 0.999748（实测 0.099975 / 理论 0.100000）；质心最大漂移 1.67e-16；干净窗口内宽度比偏差 <= 1.67e-4；tau=T 处偏差 9.96e-3（0.14851 对 0.15000），是干净窗口的 60 倍；61 行里 32 行标为触壁
+    theory: 纯扩散下 Var(tau)=sigma_0^2+2*alpha*tau 且质心守恒；Dirichlet 壁吸收影响场后宽度律失效，被污染的行必须打掩码
+  - name: test_heat_adjoint_dt_order_interior_second_order_and_boundary_first_order
+    kind: C
+    what: 内部节点误差 3.76e-5 -> 1.47e-7（拟合阶 2.000）；含端点误差 3.09e-4 -> 1.98e-5（拟合阶 0.991）；端点层相对大小 67.19 倍
+    theory: theta=1/2 在内部是二阶；转置后的 Dirichlet 端点行带来 O(r)=O(dt) 偏差把含端点口径压到一阶——两个口径差一个整阶，必须分开报
+  - name: test_adjoint_growth_ratio_flips_sign_at_zero_damping
+    kind: A
+    what: p2=-0.10/ -0.05 / 0 / +0.05 / +0.10 时 |mu(0)|/|mu(T)| = 19.984 / 4.479 / 0.9988 / 0.2217 / 0.0493，理论 exp(-p2*T/2) = 20.086 / 4.482 / 1.0000 / 0.2231 / 0.0498，最大相对差 9.98e-3
+    theory: 转置不改变奇异值，伴随反向递推的放大率就是正向压缩率的倒数 exp(-p2*T/2)；它在 p2=0 处换向，"往回走发散"只对一半参数区间成立
+  - name: test_heat_forward_matches_chapter_41_theta_step
+    kind: A
+    what: 本章 theta 格式与 4.1 的 theta_step 逐步最大偏差 9.71e-17；源项幅度梯度 0.0077102 / 0.0077102 与中心差分相对误差 1.54e-12（差分 4 次正演）
+    theory: 伴随的转置关系针对具体实现：正演必须与 4.1 同口径，否则对拍的是另一个问题
+
+  # ---- 帧级呈现纪律（tests/5.3/test_frames.py）----
+  - name: test_all_frames_finite_and_packable_at_corners
+    kind: A
+    what: 四个可视化在参数端点 x 时间端点共 77 帧：数组全有限、meta 无 NaN、pack_frame 的 JSON 里 NaN/Infinity 计数 0
+    theory: 帧在参数与时间端点全组合下都必须可打包（scrub 的最后一帧最容易越界）
+  - name: test_frame_meta_matches_direct_numcore_computation
+    kind: A
+    what: 四帧各挑 2-3 个关键数字与 numcore 同参数重算逐位相同：梯度场 max_rel_error=4.150502e-10、影响场 width_ratio_clean_max=1.671154e-4 与 semidiscrete=1.677665e-6、梯度检验 eps*=1.000e-6 与斜率 -0.9742/1.9966、播放 growth=0.246764 与间隙 1.281e-5
+    theory: 帧只是 numcore 结果的搬运工，同参数下的数字必须逐位一致（图上的数不是手抄的）
+  - name: test_endpoint_optimum_is_reported_as_null_with_interior_flag_false
+    kind: A
+    what: eps_min=1e-4（窗口整体在截断段）时 central 与 forward 的 eps_opt_* 都是 None、*_interior 都是 False，而 error_best_central 仍有值；默认窗口 eps*=1.00e-6 且 interior=true
+    theory: 最优 eps 落在扫描端点只说明窗口没盖住 V 形，此时没有"最优"可言，必须报 null 而不是端点值
+  - name: test_placeholder_triplet_and_required_aux_present
+    kind: A
+    what: 四个可视化的 requiredAux 指向的数组都存在（rel_error_log10 / width_error / error_central+error_forward / sensitivity_residual）；每个 *_valid 掩码都有同名数据数组且掩码里含 0；每帧都有 strings 说明
+    theory: 占位三件套（占位值 + 掩码 + 文字说明）缺一不可；必备对照量（error/residual）必须在帧里
