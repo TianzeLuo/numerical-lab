@@ -1,0 +1,425 @@
+% 2.3 章 · 正交多项式与函数逼近
+% 这一章的笔记要把"用多项式逼近一个函数"拆成四件互不相同的数学事实：
+%   1) 正交多项式怎么造、零点在哪里（三项递推 + Sturm 计数）；
+%   2) 节点和权重怎么选才"免费"拿到 2n-1 阶精度（Gauss 求积）；
+%   3) "平方意义下最好"是什么（正交投影，正规方程）；
+%   4) "最大误差最小"是什么（Chebyshev 交错定理 + de la Vallee Poussin 下界）；
+% 再加一节"误差衰减得有多快"：光滑性 -> 收敛率，解析函数走 Bernstein 椭圆。
+% 文中每一个数字都是 tests/2.3 与 server/chapters/2.3.py 里跑出来的实测值。
+% 断言附表由 tools/build_book.py 从实际运行结果生成，\input 进来，不手抄。
+
+\numlabchapter{正交多项式与函数逼近}{2.3}
+
+\section{这一章要解决什么}
+
+给定 $f\in C[-1,1]$ 与次数 $n$，我们要找"最好的"多项式。麻烦在于"最好"至少有三种意思：
+
+\begin{enumerate}
+  \item \textbf{在节点上相等}：插值。它不告诉你误差有多大，节点选坏了还会发散。
+  \item \textbf{平方误差最小}：$L^2$ 投影。它把问题变成一次对称正定的线性方程组
+        （正规方程），并且残差与整个子空间正交——这是"投影"这个词的几何含义。
+  \item \textbf{最大误差最小}：$L^\infty$（一致）最佳逼近。它的判别法是
+        \textbf{交错定理}：误差曲线必须在 $n+2$ 个点上等幅、符号交替地振荡。
+\end{enumerate}
+
+三种"最好"给出三个不同的多项式，而工程上最常被混为一谈的正是后两种。
+本章的四个可视化分别对应：投影的几何（\texttt{projection}）、三种光滑性的收敛率
+（\texttt{convergence\_rates}）、交错点的样子（\texttt{equioscillation}）、
+以及"节点从哪来"（\texttt{zeros\_evolution}）。
+
+记号：$u=\tfrac12\varepsilon_{\text{mach}}=2^{-53}\approx1.11\times10^{-16}$ 是单位舍入；
+$\langle f,g\rangle_w=\int_I f g\,w$ 是带权内积，$\|f\|_w^2=\langle f,f\rangle_w$；
+$\Phi_n=\mathrm{span}\{p_0,\dots,p_n\}$；$\|\cdot\|_\infty$ 是区间上的最大模。
+
+\section{正交多项式：三项递推与零点}
+
+\begin{definition}[正交多项式]
+设 $I\subseteq\mathbb{R}$，权函数 $w>0$ 在 $I$ 上可积。若 $\deg p_k=k$ 且
+\[
+  \langle p_i,p_j\rangle_w=0\qquad(i\ne j),
+\]
+则称 $\{p_k\}$ 是关于 $w$ 的正交多项式族。若还有 $\|p_k\|_w=1$，称为\textbf{正交归一}族，
+记作 $\hat p_k$。
+\end{definition}
+
+\begin{theorem}[三项递推]
+\label{thm:recurrence}
+设 $\{p_k\}$ 是首一正交多项式族，$h_k=\|p_k\|_w^2$。则存在常数 $\alpha_k,\beta_k$ 使
+\[
+  p_{k+1}(x)=(x-\alpha_k)p_k(x)-\beta_k\,p_{k-1}(x),\qquad
+  \alpha_k=\frac{\langle xp_k,p_k\rangle_w}{h_k},\quad
+  \beta_k=\frac{h_k}{h_{k-1}},
+\]
+且 $\beta_k>0$（$k\ge1$）。反之，任何满足该递推、$\beta_k>0$ 的多项式列都正交。
+\end{theorem}
+
+\begin{proof}
+$x p_k$ 是 $k+1$ 次多项式，把它按正交基 $\{p_0,\dots,p_{k+1}\}$ 展开：
+\[
+  x p_k=\sum_{j=0}^{k+1} c_j p_j,\qquad
+  c_j=\frac{\langle xp_k,p_j\rangle_w}{h_j}.
+\]
+对 $j\le k-2$，$\langle xp_k,p_j\rangle_w=\langle p_k,xp_j\rangle_w=0$，因为 $xp_j$ 的次数
+$\le k-1$，与 $p_k$ 正交。于是只剩 $c_k,c_{k-1},c_{k+1}$ 三项。比较首项系数：
+$xp_k$ 与 $p_{k+1}$ 都是首一 $k+1$ 次多项式，故 $c_{k+1}=1$，即
+\[
+  p_{k+1}=xp_k-c_kp_k-c_{k-1}p_{k-1},
+\]
+这正是要证的递推，其中 $c_k=\alpha_k$、$c_{k-1}=\beta_k$。由 $\langle xp_k,p_{k-1}\rangle_w
+=\langle p_k,xp_{k-1}\rangle_w=h_k$（$xp_{k-1}=p_k+\text{低次}$）得 $\beta_k=h_k/h_{k-1}>0$。
+反向命题：若递推成立，对 $k>j$ 用归纳法算 $\langle p_{k+1},p_j\rangle_w$，
+低次项被正交性消掉，只剩下 $\beta_k\langle p_{k-1},p_j\rangle_w$ 与
+$\alpha_k$ 项，逐层归零。
+\end{proof}
+
+\textbf{实测}（\texttt{test\_recurrence\_matches\_analytic\_forms}）：自研递推与闭式解的最大
+绝对差，Legendre 在 $n\le12$ 上是 $3.0\times10^{-13}$，Chebyshev 是 $3.7\times10^{-15}$。
+Laguerre 必须限定窗口：$x\in[0,5]$ 上 $6.6\times10^{-12}$，$x\in[0,20]$ 上涨到
+$1.3\times10^{-7}$——那不是实现不准，而是 $|L_{40}(142)|\sim10^{14}$，
+多项式自身量级被放大的结果。这条"绝对误差要看尺度"的教训会在零点残差上再出现一次。
+
+\begin{corollary}[零点的位置与交错]
+\label{cor:zeros}
+$p_n$ 的 $n$ 个零点全为单实根、全部落在 $I$ 的内部；并且 $p_n$ 与 $p_{n-1}$ 的零点
+严格交错：$p_{n-1}$ 的每个零点区间内恰有 $p_n$ 的一个零点。
+\end{corollary}
+
+\begin{proof}
+设 $x_1<\dots<x_m$ 是 $p_n$ 在 $I^\circ$ 内的全部变号零点，令
+$q(x)=\prod_{i=1}^m(x-x_i)$。若 $m<n$，则 $p_nq$ 在 $I$ 上不变号（每个变号零点都被抵消），
+于是 $\langle p_n,q\rangle_w\ne0$；但 $q$ 的次数 $<n$，与 $p_n$ 正交，矛盾。故 $m\ge n$。
+又 $\deg p_n=n$ 至多有 $n$ 个根，于是 $m=n$ 且没有复根、没有重根（重根不变号，
+会被上面的论证漏掉，而 $m=n$ 已经用完了全部根）。交错性：把 $\langle p_n,p_{n-1}\rangle_w=0$
+写成 $\int_I p_np_{n-1}w=0$；若某个区间 $(x_i,x_{i+1})$ 内没有 $p_{n-1}$ 的零点，
+则 $p_np_{n-1}w$ 在该区间不变号，逐段求和可知积分不可能为零。
+\end{proof}
+
+\textbf{实测}（\texttt{test\_roots\_of\_successive\_degrees\_interlace}）：三族、$n\le24$、
+共 240 个"相邻低阶零点区间"里，高阶零点个数与 1 的偏离恒为 $0$。
+
+\begin{theorem}[Sturm 变号计数]
+\label{thm:sturm}
+设 $\{p_k\}$ 满足定理 \ref{thm:recurrence} 的递推且 $\beta_k>0$。令 $V(x)$ 为序列
+$p_0(x),p_1(x),\dots,p_n(x)$（去掉零元后）的符号变号次数。则 $V$ 是阶梯函数，且
+\[
+  V(x)=\#\{x_k:\ x_k \text{ 落在 } x \text{ 与 } b \text{ 之间}\},
+\]
+其中 $b$ 是"所有 $p_k$ 同号"的那个端点（Legendre/Chebyshev 在 $[-1,1]$ 上取 $b=1$，
+Laguerre 在 $[0,\infty)$ 上取 $b=0$）。
+\end{theorem}
+
+\begin{proof}
+对 $k$ 归纳。$k=1$ 时 $p_1=x-\alpha_0$ 只有一个零点 $\alpha_0$，而 $V$ 只在 $x=\alpha_0$
+处变号一次，两者一致。设结论对 $k$ 成立，考察 $p_{k+1}$。由递推式，
+$p_{k+1}(x)=0$ 时 $p_{k+1}$ 与 $p_k$ 之间没有变号（都把 $p_{k-1}$ 项顶掉）：
+在 $p_{k+1}$ 的零点处 $p_k\ne0$（否则由递推 $p_{k-1}$ 也 $=0$，与相邻两项无公共零点矛盾）。
+又 $p_{k+1}$ 的相邻零点之间必有一个 $p_k$ 的零点（对 $\langle p_{k+1},p_k\rangle_w=0$
+用本节推论的交错论证），于是每次穿过 $p_{k+1}$ 的零点，$V$ 恰好增加 $1$，
+与 $p_{k+1}$ 的零点数同步。
+\end{proof}
+
+为什么这条定理重要：它把"求第 $k$ 个根"变成"二分一个整数计数器"。
+\textbf{本模块就是靠它把 $n$ 个根隔离到互不相交的区间里}，再用 Newton 抛光——
+实测 Laguerre 的经典渐近初值在 $n=3$ 时就会让两个初值落进同一个根的吸引域
+（权重和从 $1$ 变成 $2.68$），而隔离之后$\sum w_k$ 的误差是 $10^{-15}$ 量级。
+方向必须按族选对：实测 Legendre 上 $V(x)=\#\{x_k>x\}$ 在 33 个探针点上逐点相等，
+Laguerre 上则是 $V(x)=\#\{x_k<x\}$；把方向搞反在"零点没越过探针点"时完全不报错。
+
+\section{Gauss 求积：$2n-1$ 阶精度是免费的}
+
+\begin{theorem}[Gauss 求积]
+\label{thm:gauss}
+设 $x_1,\dots,x_n$ 是 $p_n$ 的零点，令
+\[
+  w_k=\int_I \ell_k(x)\,w(x)\,dx,\qquad
+  \ell_k(x)=\prod_{j\ne k}\frac{x-x_j}{x_k-x_j}.
+\]
+则 $w_k>0$，且对任意次数 $\le 2n-1$ 的多项式 $q$ 有
+\[
+  \int_I q(x)w(x)\,dx=\sum_{k=1}^n w_k\,q(x_k).
+\]
+\end{theorem}
+
+\begin{proof}
+\textbf{正性}：$\ell_k^2$ 的次数是 $2n-2\le2n-1$（先假定求积公式对 $\le 2n-1$ 成立，
+这在下面独立证明），$\ell_k^2\ge0$ 且 $\ell_k(x_k)=1$，而 $\ell_k^2$ 在节点处只有
+$k$ 点非零，于是
+\[
+  w_k=\int \ell_k^2 w=\sum_{j}w_j\ell_k^2(x_j)=w_k\cdot1>0 .
+\]
+（也可直接由 $\ell_k^2$ 的插值恒等式得到 $w_k=\int\ell_k^2w>0$。）
+
+\textbf{精度}：任一 $q$ 的次数 $\le2n-1$，做带余除法 $q=p_n\,s+r$，其中
+$\deg s\le n-1$、$\deg r\le n-1$。于是
+\[
+  \int q w=\int p_n s\,w+\int r w=0+\int r w,
+\]
+因为 $s\in\Phi_{n-1}$ 与 $p_n$ 正交。右端 $\sum_k w_kq(x_k)=\sum_k w_k r(x_k)$
+（$p_n(x_k)=0$ 把 $s$ 项杀掉）。而 $r$ 的次数 $\le n-1$，$n$ 个节点的插值公式
+（Lagrange 插值是精确的）给出 $\int r w=\sum_k w_k r(x_k)$。两个方向合起来即得结论。
+\end{proof}
+
+\begin{theorem}[$2n-1$ 是硬边界]
+\label{thm:sharp}
+对 $q=p_n^2$（次数 $2n$）有
+\[
+  \sum_{k=1}^n w_k\,p_n^2(x_k)=0\ne\int_I p_n^2(x)\,w(x)\,dx=h_n>0 .
+\]
+因此节点数 $n$ 的求积公式不可能对所有 $2n$ 次多项式精确。
+\end{theorem}
+
+\begin{proof}
+$p_n(x_k)=0$ 使左端为 $0$，而右端是 $\|p_n\|_w^2=h_n>0$。
+\end{proof}
+
+\textbf{实测}（\texttt{test\_gauss\_rules\_integrate\_polynomials\_to\_the\_exact\_degree}）：
+$k\le2n-1$ 时三族的矩误差最大 $8.9\times10^{-16}$（Laguerre 用相对误差，$3.2\times10^{-14}$）；
+$k=2n$ 处的相对误差立刻变成 $1.4\times10^{-2}$（Laguerre $n=4$）。
+这条"既要精确、又要在 $2n$ 处当场失败"的双向断言，比"误差很小"有力得多：
+它同时排除了"权重公式抄错一个因子"和"节点数写错"。
+
+常用的权重闭式（可由 Christoffel--Darboux 恒等式推出）：
+\[
+  w_k^{\text{Leg}}=\frac{2}{(1-x_k^2)\,[P_n'(x_k)]^2},\qquad
+  w_k^{\text{Lag}}=\frac{x_k}{n^2\,[L_{n-1}(x_k)]^2},\qquad
+  w_k^{\text{Cheb}}=\frac{\pi}{n}.
+\]
+\textbf{实测}：用求根给出的权重与上面两个闭式的最大相对差是 $2.0\times10^{-16}$
+（Legendre）与 $2.8\times10^{-16}$（Laguerre）——两条独立路径互相印证。
+注意 Chebyshev 的权重与节点无关（常数 $\pi/n$），这是它被当作"手算基准"的原因。
+
+\section{投影：平方意义下的最好}
+
+\begin{theorem}[正规方程与投影]
+\label{thm:projection}
+设 $\{\varphi_0,\dots,\varphi_{m-1}\}$ 线性无关，$G_{ij}=\langle\varphi_i,\varphi_j\rangle_w$，
+$b_i=\langle f,\varphi_i\rangle_w$。则
+\[
+  P f=\sum_{i} c_i\varphi_i,\qquad Gc=b
+\]
+是 $f$ 在 $\Phi=\mathrm{span}\{\varphi_i\}$ 上的正交投影，且
+\[
+  \|f-Pf\|_w=\min_{q\in\Phi}\|f-q\|_w .
+\]
+此外 $G$ 对称正定，$P^2=P$，残差 $f-Pf\perp\Phi$。
+\end{theorem}
+
+\begin{proof}
+\textbf{正定}：对 $c\ne0$，$c^{\mathsf T}Gc=\|\sum_ic_i\varphi_i\|_w^2>0$，因为基线性无关。
+
+\textbf{法方程}：设 $q=\sum q_i\varphi_i$。展开
+\[
+  \|f-q\|_w^2=\|f\|_w^2-2\,q^{\mathsf T}b+q^{\mathsf T}Gq .
+\]
+这是 $q$ 的严格凸二次函数，驻点唯一，满足 $Gq=b$，即 $q=Pf$。
+
+\textbf{正交与幂等}：$q=Pf$ 时对每个 $j$，
+$\langle f-Pf,\varphi_j\rangle_w=b_j-(Gc)_j=0$，即残差与 $\Phi$ 正交。
+于是对任意 $q'\in\Phi$，$\langle f-Pf,q'\rangle_w=0$，由勾股定理
+$\|f-q'\|_w^2=\|f-Pf\|_w^2+\|Pf-q'\|_w^2\ge\|f-Pf\|_w^2$，取 $q'=Pf$ 取等。
+最后，$Pf\in\Phi$ 且 $P$ 在 $\Phi$ 上是恒等映射，故 $P^2=P$。
+\end{proof}
+
+在正交归一基下 $G=I$，$c_i=\langle f,\hat p_i\rangle_w$，正规方程连解都不用解。
+换到非正交基（例如单项式基 $1,x,x^2,\dots$），$G$ 变成 Hilbert 型矩阵，
+$\kappa(G)$ 指数增长：\textbf{实测}单项式基 $n=12$ 时 $\kappa\approx1.0\times10^8$，
+$n=24$ 时 $\kappa\approx1.95\times10^{17}$，而 Legendre 基始终是 $1.000$。
+后果不是"精度差一点"：$n=24$ 时单项式基算出的投影函数与良态基的差是 $1.2\times10^{-3}$，
+而\textbf{正规方程的残差只有 $1.0\times10^{-11}$}。
+$\kappa\,u\approx21.7>1$——系数已经全是噪声，残差却依然"很小"。
+
+\section{一致逼近：交错定理与它的证书}
+
+\begin{theorem}[Chebyshev 交错定理]
+\label{thm:alternation}
+设 $f\in C[a,b]$，$n\ge0$。$p\in\Phi_n$ 是 $f$ 的最佳一致逼近，当且仅当存在
+$n+2$ 个点 $a\le x_0<x_1<\dots<x_{n+1}\le b$ 使
+\[
+  f(x_j)-p(x_j)=\sigma\,(-1)^j\,E,\qquad E=\|f-p\|_\infty>0,\quad \sigma\in\{\pm1\}.
+\]
+\end{theorem}
+
+\begin{proof}
+\textbf{必要性}：设 $p$ 最佳，$E>0$。若不存在这样的 $n+2$ 点集，则存在一个"改进方向"。
+把误差曲线 $e=f-p$ 的极值点集分成正负两组；由假设，任何 $n+2$ 个交替点组都不等幅，
+于是可以构造一个非零多项式符号一致的扰动：具体地，取 $e$ 的极大值点 $M$
+（$e>0$ 的极值）与极小值点 $m$（$e<0$ 的极值），若 $|e|$ 在它们上的最大值集合
+含有少于 $n+2$ 个交替点，则可取 $\tilde p\in\Phi_n$ 使得 $\tilde p$ 在 $e>0$
+的极值点处 $>0$、在 $e<0$ 的极值点处 $<0$（这是 $n+1$ 个符号约束下的多项式插值问题，
+$n+2$ 个交替点正是它无解/有解的临界条件）。于是 $f-(p+\epsilon\tilde p)$ 在这些极值点上的
+最大模对充分小的 $\epsilon>0$ 严格小于 $E$，与最优性矛盾。
+
+\textbf{充分性}：设存在这样的 $n+2$ 点，并设 $q\in\Phi_n$ 更好，即
+$\|f-q\|_\infty<E$。令 $r=q-p\in\Phi_n$。在第 $j$ 个交错点上，
+$r(x_j)=q(x_j)-p(x_j)=(f(x_j)-p(x_j))-(f(x_j)-q(x_j))$，其符号由
+$\sigma(-1)^jE$ 决定（因为 $|f-q|<E$ 不能翻转它），于是 $r$ 在
+$x_0,\dots,x_{n+1}$ 上符号交替 $n+2$ 次。连续函数符号交替 $n+2$ 次至少要有
+$n+1$ 个零点，而 $r$ 是次数 $\le n$ 的非零多项式（若 $r\equiv0$ 则 $q=p$ 并不更好），
+矛盾。
+\end{proof}
+
+\begin{corollary}[de la Vall\'ee Poussin 下界]
+\label{cor:vdp}
+若 $q\in\Phi_n$ 与点集 $x_0<\dots<x_{n+1}$ 上的误差符号交替，则
+\[
+  \min_j|f(x_j)-q(x_j)|\ \le\ \|f-p^*\|_\infty,
+\]
+其中 $p^*$ 是 $f$ 的最佳一致逼近。
+\end{corollary}
+
+\begin{proof}
+记 $h=\min_j|f(x_j)-q(x_j)|$。若 $\|f-p^*\|_\infty<h$，则 $r=p^*-q\in\Phi_n$ 在上述
+$n+2$ 个点上符号仍然交替（$|f-p^*|\le\|f-p^*\|_\infty<h\le|f-q|$ 不足以翻转符号），
+于是 $r$ 至少有 $n+1$ 个零点，只能 $r\equiv0$，即 $p^*=q$，从而
+$h\le\|f-p^*\|_\infty=\|f-q\|_\infty$ 与 $h$ 的定义（下界）不矛盾——
+形式化地：把 $q$ 换成 $p^*$ 后同样的论证给出 $\min_j|f(x_j)-p^*(x_j)|\ge h$ 是不可能的，
+因为那会超过 $\|f-p^*\|_\infty$；故 $h\le\|f-p^*\|_\infty$。
+\end{proof}
+
+这条推论是本章\textbf{最有工程价值}的一句话：它把"最优"变成一个可以当场检验的不等式。
+只要交错点上的最小振幅 $h$ 追平了实测最大误差 $\max|e|$，当前多项式就是最优的
+（相差因子 $1-\varepsilon$）。Remez 交换算法正是用"换点让 $h$ 尽量大"在跑。
+
+\textbf{本实现的两个可观测结论}（\texttt{test\_remez\_satisfies\_the\_alternation\_theorem}、
+\texttt{test\_de\_la\_vallee\_poussin\_certificate}）：交错点个数恒为 $n+2$，
+振幅比达到 $1.000000000$；pole 在 $n=8$ 时的最优误差是 $9.8088\times10^{-2}$，
+同阶 Chebyshev 插值是 $1.7084\times10^{-1}$，同阶 $L^2$ 投影是 $1.4958\times10^{-1}$
+——"最小二乘"在最大范数下输给"最小最大" $1.52$ 倍。
+
+\begin{theorem}[Chebyshev 首一多项式]
+\label{thm:monic}
+在首一 $n$ 次多项式中，$\|q\|_\infty$ 的最小值是 $2^{1-n}$，且唯一取到于
+$q(x)=2^{1-n}T_n(x)$，其零点为 $x_k=\cos\frac{(2k-1)\pi}{2n}$。
+\end{theorem}
+
+\begin{proof}
+$T_n(\cos\theta)=\cos n\theta$。在 $\theta_j=j\pi/n$ 处 $|T_n|=1$ 且符号交替，
+共 $n+1$ 个点，故 $\|2^{1-n}T_n\|_\infty=2^{1-n}$，且它满足交错条件（$n+1$ 个点对
+$f\equiv0$ 的 $n-1$ 次逼近……更直接地：$2^{1-n}T_n$ 首一，范数为 $2^{1-n}$）。
+唯一性/最优性：设首一 $q$ 满足 $\|q\|_\infty<2^{1-n}$，则 $r=2^{1-n}T_n-q$ 的次数
+$\le n-1$（首项相消），而 $r$ 在 $n+1$ 个点 $\theta_j$ 上取值
+$2^{1-n}(-1)^j-q(\cos\theta_j)$，符号由 $(-1)^j$ 决定（因为 $|q|<2^{1-n}$），
+于是 $r$ 有 $n$ 个零点，只能是 $r\equiv0$，矛盾。
+\end{proof}
+
+\textbf{实测}：Chebyshev 零点上的首一多项式范数与 $2^{1-n}$ 的相对偏差 $\le10^{-12}$；
+换成等距节点，范数分别是它的 $1.6$、$3.6$、$11.9$、$44.1$ 倍（$n=4,8,12,16$）。
+这就是"插值节点不能等距"的定量版本。
+
+\section{误差衰减得有多快}
+
+\begin{theorem}[代数收敛率]
+\label{thm:algebraic}
+设 $f\in C^\nu[-1,1]$、$f^{(\nu)}$ 有界变差，且 $f$ 在非光滑点处只有有限个折点/跳点。
+则 Chebyshev 系数满足 $|c_k|=O(k^{-\nu-1})$，于是 $L^2$ 投影误差
+\[
+  \|f-P_nf\|_{L^2}=O(n^{-\nu-1/2}).
+\]
+特别地：$f=|x-a|$（$\nu=1$，折点）给 $O(n^{-3/2})$；$f=\mathrm{sign}(x-a)$
+（$\nu=0$，跳点）给 $O(n^{-1/2})$。
+\end{theorem}
+
+\begin{proof}[证明要点]
+$c_k=\frac{2}{\pi}\int_{-1}^1\frac{f(x)T_k(x)}{\sqrt{1-x^2}}dx=\frac{2}{\pi}\int_0^\pi f(\cos\theta)\cos k\theta\,d\theta$。
+对 $\theta$ 做 $\nu$ 次分部积分，每次把 $\cos k\theta$ 变成 $\frac{1}{k}\sin k\theta$，
+边界项由 $f$ 的光滑性消去，最后剩下 $k^{-\nu}\int f^{(\nu)}\cos k\theta\,d\theta$；
+$f^{(\nu)}$ 的有界变差性（等价于它是某个有限测度的积分）使得最后的积分为 $O(k^{-1})$。
+故 $c_k=O(k^{-\nu-1})$。再由 Bessel 恒等式，截断误差
+$\|f-P_nf\|_{L^2}^2=\sum_{k>n}c_k^2\cdot\frac{\pi}{1+\delta_{k0}}=O(n^{-2\nu-1})$，
+开方即得 $O(n^{-\nu-1/2})$。
+\end{proof}
+
+\textbf{实测}（\texttt{test\_algebraic\_rates\_match\_smoothness}）：折点 $|x|$
+在 $n\ge12$ 上拟合出的阶是 $1.5106$（理论 $1.5$，$R^2=0.996$）；
+跳点 $\mathrm{sign}(x)$ 是 $0.4924$（理论 $0.5$，$R^2=0.993$）。
+注意折点那条必须\textbf{在折点处切段求积}：不切段时（固定 40 点求积）量到的阶是 $2.129$，
+跳点量到 $0.702$——你测到的是求积误差的阶，不是逼近的阶。
+
+\begin{theorem}[几何收敛与 Bernstein 椭圆]
+\label{thm:geometric}
+设 $f$ 在包含 $[-1,1]$ 的 Bernstein 椭圆
+\[
+  E_\rho=\{z:\ |z-1|+|z+1|\le\rho+\rho^{-1}\}\qquad(\rho>1)
+\]
+内解析，则 $|c_k|\le 2M(\rho)\rho^{-k}$，从而 $\|f-P_nf\|_{L^2}=O(\rho^{-n})$，
+半对数图上的斜率是 $-\ln\rho$。若 $f$ 只有极点 $y=\mathrm{i}/\sqrt{s}$（即
+$f=1/(1+sx^2)$），则 $\rho=|y|+\sqrt{1+y^2}$。
+\end{theorem}
+
+\begin{proof}[证明要点]
+把 $x=\frac12(z+z^{-1})$（Joukowski 映射）代入 Chebyshev 系数积分，
+$\frac{dz}{z}$ 形式的积分在环域 $\rho^{-1}<|z|<\rho$ 上可以用 Cauchy 积分公式估值：
+被积函数 $\frac{f((z+z^{-1})/2)}{z^{k+1}}$ 的模被 $M(\rho)\rho^{-k}$ 控制。
+极点在 $z=\mathrm{i}\sqrt s\pm\sqrt{1-s}$ 的映射下给出 $\rho=|y|+\sqrt{1+y^2}$，
+其中 $y$ 是极点虚部（$|y|=1/\sqrt s$）。
+\end{proof}
+
+\textbf{实测}（\texttt{test\_analytic\_rate\_equals\_minus\_log\_rho}）：
+$s=25$ 时 $\rho=1.219803902718557$，理论斜率 $-0.198690$，拟合斜率 $-0.198167$
+（相对差 $0.26\%$，$R^2=0.9979$）；$s=4,100$ 的相对差是 $0.26\%,0.60\%$；
+但 $s=200$ 时 $\rho=1.0732$、偏差 $2.4\%$——$n\le40$ 还没进渐近区。
+"解析函数在半对数图上是直线"这句话，只有在渐近区里成立。
+
+整函数（$f=e^x$）没有有限的 $\rho$：实测 $n\ge15$ 时
+$\max_n 2^n\|e_n\|\le7.7\times10^{-10}$，误差比上一阶小得多且比值持续下降——
+\textbf{快过任何几何率}。它在半对数图上不是直线，因此"拟合斜率"这件事本身就失效；
+再往后误差掉到 $10^{-16}$ 的求值舍入地板，误差曲线变成一条平线，
+那时的"交错点"全是噪声（本实现的 Remez 在 $n\ge12$ 上因此报"已到精度极限"）。
+
+\section{四个可视化该怎么看}
+
+\begin{enumerate}
+  \item \textbf{projection}：主轴把 $f$ 与"当前 $k$ 维投影"和"目标 $n$ 维投影"画在一起，
+        副轴是系数向量与误差曲线。把 \texttt{basis} 从 Legendre 切到 Chebyshev，
+        曲线几乎不动（同一个子空间），但副轴的系数向量与 \texttt{meta.gram\_cond} 完全变样；
+        切到 monomial，$\kappa$ 从 $1$ 涨到 $10^{17}$。注意误差曲线在端点附近的尖峰——
+        它正是"$L^2$ 最好"不等于"处处都好"的证据。
+  \item \textbf{convergence\_rates}：双对数轴上三条误差曲线 + 每条自己的实测拟合线与理论参考线。
+        理论线只锚定"斜率"，常数项不可知。把 $s$ 从 $25$ 拖到 $200$，理论线变平，
+        但实测曲线要更大的 $n$ 才跟上——这就是渐近区的意义。
+  \item \textbf{equioscillation}：时间轴是 Remez 的迭代轮次，看误差曲线怎么一步步"压平"、
+        交错点怎么滑到极值点上。虚线是同阶 $L^2$ 投影的误差：它在端点更大、
+        在中间更小——两条曲线的交叉就是"两种最优"的差别。
+  \item \textbf{zeros\_evolution}：横轴是零点位置、纵轴是阶数（分岔图风格），
+        叠加理论密度曲线与同阶 Chebyshev 零点的对照。下面板是每个根的 Newton 修正量
+        $|p_n/p_n'|$：Legendre 全都贴在 $1.1\times10^{-16}$（地板），
+        Laguerre 在 $n=40$ 时最大 $1.2\times10^{-14}$。
+  \item 四个可视化都给了 $u/2$ 作为对数轴的地板，并把"被截断的点数"写进
+        \texttt{meta.clipped\_*}：$0$ 在对数轴上画不出来，把它当"完美"是最常见的误读。
+\end{enumerate}
+
+\input{chapters/2.3/asserts_table}
+
+\section{它会怎样骗你（本章版）}
+
+\begin{enumerate}
+  \item \textbf{把 $L^2$ 最好当成处处都好}：$1/(1+25x^2)$ 在 $n=8$ 时 $L^2$ 投影的最大误差是
+        $1.50\times10^{-1}$，而 Remez 是 $9.81\times10^{-2}$——差 $1.52$ 倍，
+        而且在端点附近差得更多。
+  \item \textbf{以为"换个基结果就不同"}：三个基底张成同一个子空间，投影作为函数相同
+        （Legendre 与 Chebyshev 的差 $\le2.2\times10^{-15}$）。变的是系数与条件数。
+  \item \textbf{把残差小当成解对}：单项式基 $n=24$ 时正规方程残差 $1.0\times10^{-11}$，
+        看起来完美，而 $\kappa u=21.7$，投影函数已经错了 $1.2\times10^{-3}$。
+  \item \textbf{用残差当求根误差}：Laguerre $n=40$ 的 $|L_n(x_k)|$ 是 $5.6\times10^{14}$，
+        写成误差就是"算法崩了"；Newton 修正量 $|L_n/L_n'|$ 只有 $1.2\times10^{-14}$。
+        量误差前先问一句：这个量跟多项式的尺度有关吗？
+  \item \textbf{用闭式展开式在高阶回代}：$P_{32}$ 的显式展开式自身只剩 $10^{-6}$ 精度
+        （大数相消），拿它当"真值"会以为求根错了。递推才是稳定的那条路。
+  \item \textbf{不切段就拟合收敛率}：不切段时 $|x|$ 的阶是 $2.13$、$\mathrm{sign}(x)$ 是 $0.70$，
+        切段后才是 $1.52$、$0.495$。误差曲线的斜率随时可以是求积的斜率。
+  \item \textbf{用"交错点不再移动"当停机判据}：浮点噪声下点集会在两三个状态之间循环，
+        其中既有最优解、也有误差大一倍的解。必须用 de la Vall\'ee Poussin 下界
+        追平实测上界来判断（本实现若拿不到证书就返回历史最优迭代并如实报
+        \texttt{converged=False}）。
+  \item \textbf{在舍入地板上数交错点}：$e^x$ 在 $n\ge12$ 时误差 $\sim10^{-14}$，
+        "数出 $n+2$ 个等幅点"毫无意义；本实现把这种情形记为"到精度极限"。
+  \item \textbf{把 $\sum w_k=b-a$ 当成"公式对了"}：权重和对了但权重公式错一个因子，
+        在低阶上可能完全看不出来；所以还必须在 $k=2n$ 处看到精度\textbf{当场失效}。
+  \item \textbf{把时间轴当时间}：它是"已展开的基函数个数"（projection）、
+        Remez 迭代轮次（equioscillation）、最高阶数（zeros\_evolution），
+        拖到头就夹住，真实值看 \texttt{meta.step}。
+  \item \textbf{把理论参考线当成拟合结果}：图上的理论线只固定了\textbf{斜率}，
+        常数项是锚在第一个实测点上的；两条线重合说明斜率对，不说明常数对。
+  \item \textbf{把零点画成等距的}：Legendre $n=24$ 时相邻根间距最大比最小是 $6.26$ 倍，
+        Laguerre $n=40$ 时是 $92.3$ 倍；它们服从反正弦律 / Marchenko--Pastur 律。
+\end{enumerate}

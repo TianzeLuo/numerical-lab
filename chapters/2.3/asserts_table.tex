@@ -1,0 +1,77 @@
+% 本文件由 tools/build_book.py 从 dist/reports/assertions.json 生成，请勿手改。
+\begin{longtable}{@{}p{0.06\textwidth}p{0.32\textwidth}p{0.22\textwidth}p{0.16\textwidth}@{}}
+\caption{章节 2.3 数值断言（生成时间 2026-10-18T14:18:49-0400）}\\
+\toprule
+类别 & 断言 & 理论值 & 实测值 \\
+\midrule
+\endfirsthead
+\toprule
+类别 & 断言 & 理论值 & 实测值 \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+
+A & max|$\langle$残差, $\varphi$\_\allowbreak{}k$\rangle$|(三函数 $\times$ n=4,8,12) & 0(\allowbreak{}正交) & 5.51e-16 \checkmark \\
+A & 逐项明细 & - & pole(\allowbreak{}n=\allowbreak{}4):3.3e-17，pole(\allowbreak{}n=\allowbreak{}8):3.1e-17，pole(\allowbreak{}n=\allowbreak{}12):9.3e-17，cusp(\allowbreak{}n=\allowbreak{}4):2.0e-16，cusp(\allowbreak{}n=\allowbreak{}8):1.6e-16，cusp(\allowbreak{}n=\allowbreak{}12):1.5e-16，entire(\allowbreak{}n=\allowbreak{}4):5.5e-16，entire(\allowbreak{}n=\allowbreak{}8):2.0e-16，entire(\allowbreak{}n=\allowbreak{}12):1.5e-16 \checkmark \\
+A & $\|$P$^2$$-$P$\|$$\infty$ 与 5 次多项式的投影误差(n=6,7) & $\le$ 1e-13(\allowbreak{}两者) & 幂等缺陷 2.22e-16，多项式还原误差 4.00e-15 \checkmark \\
+A & Clenshaw vs 直接求和 / 基变换 vs 直接展开 & $\le$ 1e-13 & 2.22e-15 与 3.33e-16 \checkmark \\
+A & $\|$首一多项式$\|$$\infty$ / 2\textasciicircum{}(1$-$n) $-$ 1(Chebyshev 节点) & 0(\allowbreak{}取到理论最小) & 最大相对偏差 1.69e-14 \checkmark \\
+A & 等距节点范数 / Chebyshev 节点范数(n=4,8,12,16) & > 1 且随 n 增长 & 1.6，3.6，11.9，44.1 \checkmark \\
+A & 交错点个数 = n+2 且振幅比 $\to$ 1 & n+2 个点、\allowbreak{}比值 $\le$ 1+1e-6 & 最大比值 1.000000000；全部满足 =\allowbreak{} True \checkmark \\
+A & 逐例明细 & - & pole(\allowbreak{}n=\allowbreak{}4):6点/\allowbreak{}比值1.000000000/\allowbreak{}收敛；pole(\allowbreak{}n=\allowbreak{}8):10点/\allowbreak{}比值1.000000000/\allowbreak{}收敛；pole(\allowbreak{}n=\allowbreak{}12):14点/\allowbreak{}比值1.000000000/\allowbreak{}收敛；pole(\allowbreak{}n=\allowbreak{}16):18点/\allowbreak{}比值1.000000000/\allowbreak{}收敛；cusp(\allowbreak{}n=\allowbreak{}4):6点/\allowbreak{}比值1.000000000/\allowbreak{}收敛；cusp(\allowbreak{}n=\allowbreak{}8):10点/\allowbreak{}比值1.000000000/\allowbreak{}收敛；cusp(\allowbreak{}n=\allowbreak{}12):14点/\allowbreak{}比值1.000000000/\allowbreak{}收敛；cusp(\allowbreak{}n=\allowbreak{}16):18点/\allowbreak{}比值1.000000000/\allowbreak{}收敛；entire(\allowbreak{}n=\allowbreak{}8):10点/\allowbreak{}比值1.000000080 \checkmark \\
+A & max|e| $-$ min|e|(交错集)(Remez 结果) & $\le$ 1e-6$\cdot$max|e|(\allowbreak{}证书成立) & 最大间隙 3.37e-12 \checkmark \\
+A & 同一函数：Chebyshev 插值的 L$\infty$ 误差 / Remez 的 L$\infty$ 误差 & > 1(\allowbreak{}非最优多项式的下界与上界对不上) & 1.708356e-01 /\allowbreak{} 9.808814e-02 =\allowbreak{} 1.7417 \checkmark \\
+A & 逐例明细 & - & pole(\allowbreak{}n=\allowbreak{}4):h=\allowbreak{}2.171584e-01,\allowbreak{}max=\allowbreak{}2.171584e-01；pole(\allowbreak{}n=\allowbreak{}8):h=\allowbreak{}9.808814e-02,\allowbreak{}max=\allowbreak{}9.808814e-02；pole(\allowbreak{}n=\allowbreak{}12):h=\allowbreak{}4.430538e-02,\allowbreak{}max=\allowbreak{}4.430538e-02；cusp(\allowbreak{}n=\allowbreak{}4):h=\allowbreak{}6.762090e-02,\allowbreak{}max=\allowbreak{}6.762090e-02；cusp(\allowbreak{}n=\allowbreak{}8):h=\allowbreak{}3.468973e-02,\allowbreak{}max=\allowbreak{}3.468973e-02；cusp(\allowbreak{}n=\allowbreak{}12):h=\allowbreak{}2.324733e-02,\allowbreak{}max=\allowbreak{}2.324733e-02 \checkmark \\
+A & 尖点 |x| 的 L$^2$ 收敛阶(n$\ge$12) & 1.5 & 1.51106 \checkmark \\
+A & 跳点 sign(x) 的 L$^2$ 收敛阶 & 0.5 & 0.490501 \checkmark \\
+A & 两条曲线的拟合常数 C 与 R$^2$ & err $\approx$ C$\cdot$n\textasciicircum{}(\allowbreak{}$-$$\alpha$) & cusp C=\allowbreak{}0.676(\allowbreak{}R$^2$=\allowbreak{}0.992324)，jump C=\allowbreak{}1.098(\allowbreak{}R$^2$=\allowbreak{}0.990905) \checkmark \\
+A & 半对数斜率 vs $-$ln$\rho$(s=4, $\rho$=1.618034) & 0.481212 & -0.479979(\allowbreak{}R$^2$=\allowbreak{}0.997921) \checkmark \\
+A & 半对数斜率 vs $-$ln$\rho$(s=25, $\rho$=1.219804) & 0.198690 & -0.198167(\allowbreak{}R$^2$=\allowbreak{}0.997920) \checkmark \\
+A & 半对数斜率 vs $-$ln$\rho$(s=100, $\rho$=1.104988) & 0.099834 & -0.099234(\allowbreak{}R$^2$=\allowbreak{}0.997819) \checkmark \\
+A & s=200($\rho$=1.073)时的同一比较 & 偏差变大(\allowbreak{}n$\le$40 还没进渐近区) & -0.068974 vs -0.070652(\allowbreak{}2.38\%) \checkmark \\
+A & 拟合明细 & - & s=\allowbreak{}4:-0.479979$\approx$-0.481212(\allowbreak{}0.26\%)；s=\allowbreak{}25:-0.198167$\approx$-0.198690(\allowbreak{}0.26\%)；s=\allowbreak{}100:-0.099234$\approx$-0.099834(\allowbreak{}0.60\%) \checkmark \\
+A & max $\rho$\textasciicircum{}n$\cdot$$\|$e\_\allowbreak{}n$\|$(n$\ge$15) & $\to$ 0(\allowbreak{}对每个 $\rho$>1) & $\rho$=\allowbreak{}1.5:4.68e-12，$\rho$=\allowbreak{}2.0:2.63e-09，$\rho$=\allowbreak{}3.0:1.96e-05 \checkmark \\
+A & exp(x) 的相邻两点之比 e\_\allowbreak{}\{n+1\}/e\_\allowbreak{}n(只取 e>1e-12 的窗口) & 随 n 严格变小(\allowbreak{}超几何收敛) & n=\allowbreak{}2$\to$3:0.165，n=\allowbreak{}3$\to$4:0.124，n=\allowbreak{}4$\to$5:0.100，n=\allowbreak{}5$\to$6:0.083，n=\allowbreak{}6$\to$7:0.071，n=\allowbreak{}7$\to$8:0.062，n=\allowbreak{}8$\to$9:0.055，n=\allowbreak{}9$\to$10:0.050，n=\allowbreak{}10$\to$11:0.045 \checkmark \\
+A & Remez / Chebyshev 插值 与 Remez / L$^2$ 投影 & < 1(\allowbreak{}两者) & 最大比 0.9286 与 0.6569 \checkmark \\
+A & 逐例(Remez < cheb < (或) l2) & - & pole(\allowbreak{}n=\allowbreak{}4):2.172e-01 < cheb 4.020e-01 < l2 3.306e-01；pole(\allowbreak{}n=\allowbreak{}8):9.809e-02 < cheb 1.708e-01 < l2 1.496e-01；pole(\allowbreak{}n=\allowbreak{}12):4.431e-02 < cheb 6.922e-02 < l2 6.762e-02；cusp(\allowbreak{}n=\allowbreak{}4):6.762e-02 < cheb 1.232e-01 < l2 1.172e-01；cusp(\allowbreak{}n=\allowbreak{}8):3.469e-02 < cheb 6.697e-02 < l2 6.729e-02；cusp(\allowbreak{}n=\allowbreak{}12):2.325e-02 < cheb 4.613e-02 < l2 4.725e-02；entire(\allowbreak{}n=\allowbreak{}4):5.467e-04 < cheb 6.397e-04 < l2 1.207e-03；entire(\allowbreak{}n=\allowbreak{}8):1.106e-08 < cheb 1.219e-08 < l2 3.136e-08；entire(\allowbreak{}n=\allowbreak{}12):4.041e-14 < cheb 4.352e-14 < l2 1.323e-13 \checkmark \\
+B & $\kappa$(G) 随 n 的增长(单项式，n=12$\to$24) & 指数增长(\allowbreak{}实测 1e8 $\to$ 2e17) & 9.96e+07 $\to$ 1.95e+17(\allowbreak{}$\times$2.0e+09)；Legendre n=\allowbreak{}24 的 $\kappa$=\allowbreak{}1.000 \checkmark \\
+B & n=24：单项式基投影与良态基投影的函数差 / 正规方程残差 & 函数差 \textasciitilde{} $\kappa$u $\gg$ 残差 & 1.17e-03 vs 1.04e-11 \checkmark \\
+B & |投影\_\allowbreak{}Legendre $-$ 投影\_\allowbreak{}Chebyshev| 与 |投影\_\allowbreak{}Legendre $-$ 投影\_\allowbreak{}单项式| & 前者 $\le$1e-13(\allowbreak{}同一子空间)，后者随 $\kappa$ 增大 & 最大 |L$-$C|=\allowbreak{}2.15e-15(\allowbreak{}n$\le$24)；n=\allowbreak{}24 的 |L$-$M|=\allowbreak{}1.17e-03 \checkmark \\
+B & 逐阶明细 & - & n=\allowbreak{}12:|L$-$C|=\allowbreak{}4.4e-16,\allowbreak{}|L$-$M|=\allowbreak{}4.7e-11；n=\allowbreak{}20:|L$-$C|=\allowbreak{}5.6e-16,\allowbreak{}|L$-$M|=\allowbreak{}9.1e-06；n=\allowbreak{}24:|L$-$C|=\allowbreak{}2.2e-15,\allowbreak{}|L$-$M|=\allowbreak{}1.2e-03 \checkmark \\
+B & 不切段时的实测斜率与理论斜率之差 / 切段后的斜率 & 切段后 |$\alpha$$-$$\nu$$-$1/\allowbreak{}2| $\le$ 0.05；不切段时偏差 $\ge$ 0.15 & 不切段最大偏差 0.629；cusp:不切段 $\alpha$=\allowbreak{}2.129，切段 $\alpha$=\allowbreak{}1.518；jump:不切段 $\alpha$=\allowbreak{}0.702，切段 $\alpha$=\allowbreak{}0.495 \checkmark \\
+B & 实测斜率 vs smoothness\_\allowbreak{}table & $\alpha$ 差 $\le$0.1，斜率差 $\le$1\% & cusp:实测 1.511 vs 表 1.5；jump:实测 0.491 vs 表 0.5；pole:实测 -0.197876 vs 表 -0.198690 \checkmark \\
+B & 跳点 n=6：converged / 返回的 max|e| / 历史最优 & converged=\allowbreak{}False 且 max|e| =\allowbreak{} min(\allowbreak{}历史) & converged=\allowbreak{}False，max|e|=\allowbreak{}1.000e+00，历史最优=\allowbreak{}1.000e+00 \checkmark \\
+B & 同一函数：L$^2$ 投影误差仍在按 n\textasciicircum{}($-$1/2) 下降 & 单调下降 & 5.303e-01，3.867e-01，2.777e-01，2.279e-01 \checkmark \\
+B & 帧契约检查(4 个 viz，含时间轴有效性) & requiredAux 齐备、\allowbreak{}数组全有限、\allowbreak{}meta 只放有限标量、\allowbreak{}scrub 帧随时间变化 & projection: 8 数组，meta 12 项；convergence\_rates: 11 数组，meta 18 项；equioscillation: 9 数组，meta 16 项；zeros\_evolution: 9 数组，meta 14 项 \checkmark \\
+A & 递推 vs 闭式(n$\le$12 / n$\le$16) & $\le$ 1e-11(\allowbreak{}Legendre)、\allowbreak{}$\le$ 1e-13(\allowbreak{}Chebyshev)、\allowbreak{}$\le$ 1e-8(\allowbreak{}Laguerre,\allowbreak{} x$\le$10) & Legendre 3.01e-13，Chebyshev 6.08e-15，Laguerre 6.24e-10 \checkmark \\
+A & Laguerre 递推误差的窗口依赖(x 上限 5/10/20) & 绝对误差随 x 上限增长(\allowbreak{}|L\_n| 自身量级被放大) & 9.56e-12 /\allowbreak{} 6.24e-10 /\allowbreak{} 1.25e-07 \checkmark \\
+A & 闭式 vs SciPy(n$\le$12) & $\le$ 1e-12 & Legendre 1.51e-13，Chebyshev 3.55e-15 \checkmark \\
+A & max|$\langle$p\_\allowbreak{}i,p\_\allowbreak{}j$\rangle$\_\allowbreak{}w $-$ $\delta$\_\allowbreak{}ij| & $\le$ 1e-13(\allowbreak{}舍入量级) & 7.59e-14(\allowbreak{}legendre(\allowbreak{}n$\le$6)=\allowbreak{}1.8e-15，legendre(\allowbreak{}n$\le$12)=\allowbreak{}2.3e-15，legendre(\allowbreak{}n$\le$20)=\allowbreak{}1.7e-15，chebyshev(\allowbreak{}n$\le$6)=\allowbreak{}7.5e-16，chebyshev(\allowbreak{}n$\le$12)=\allowbreak{}1.7e-15，chebyshev(\allowbreak{}n$\le$20)=\allowbreak{}2.4e-15，laguerre(\allowbreak{}n$\le$6)=\allowbreak{}1.9e-15，laguerre(\allowbreak{}n$\le$12)=\allowbreak{}7.6e-14，laguerre(\allowbreak{}n$\le$20)=\allowbreak{}4.0e-14) \checkmark \\
+A & Gram 矩阵非对角元(legendre, n$\le$10) & $\approx$ 0 & 5.72e-16(\allowbreak{}对角元偏离 1 的最大值 4.44e-16) \checkmark \\
+A & k$\le$2n$-$1 的最大矩误差 / k=2n 处的误差 & 前者 $\le$ 1e-13，后者 $\ge$ 1e-10 & 精确段 3.16e-14，失效点最小值 7.20e-10 \checkmark \\
+A & 逐族明细(精确段/失效点) & 2n$-$1 是硬边界 & legendre(\allowbreak{}n=\allowbreak{}4):4.4e-16/\allowbreak{}1.2e-02，chebyshev(\allowbreak{}n=\allowbreak{}4):1.1e-16/\allowbreak{}2.5e-02，laguerre(\allowbreak{}n=\allowbreak{}4):8.9e-16/\allowbreak{}1.4e-02，legendre(\allowbreak{}n=\allowbreak{}8):8.9e-16/\allowbreak{}4.7e-05，chebyshev(\allowbreak{}n=\allowbreak{}8):2.2e-16/\allowbreak{}9.6e-05，laguerre(\allowbreak{}n=\allowbreak{}8):3.4e-15/\allowbreak{}7.8e-05，legendre(\allowbreak{}n=\allowbreak{}16):4.4e-16/\allowbreak{}7.2e-10，chebyshev(\allowbreak{}n=\allowbreak{}16):6.1e-16/\allowbreak{}1.5e-09，laguerre(\allowbreak{}n=\allowbreak{}16):3.2e-14/\allowbreak{}1.7e-09 \checkmark \\
+A & |$\Sigma$w $-$ (b$-$a)|(n$\le$64，三族) & $\le$ 1e-12 & 3.33e-13；最小权重 2.09e-101 > 0 \checkmark \\
+A & 逐族明细 & Chebyshev 的权重是常数 $\pi$/\allowbreak{}n(\allowbreak{}精确) & legendre(\allowbreak{}n=\allowbreak{}4):4.4e-16，chebyshev(\allowbreak{}n=\allowbreak{}4):0.0e+00，laguerre(\allowbreak{}n=\allowbreak{}4):8.9e-16，legendre(\allowbreak{}n=\allowbreak{}16):4.4e-16，chebyshev(\allowbreak{}n=\allowbreak{}16):0.0e+00，laguerre(\allowbreak{}n=\allowbreak{}16):3.2e-14，legendre(\allowbreak{}n=\allowbreak{}32):8.9e-16，chebyshev(\allowbreak{}n=\allowbreak{}32):0.0e+00，laguerre(\allowbreak{}n=\allowbreak{}32):2.4e-14，legendre(\allowbreak{}n=\allowbreak{}64):4.4e-16，chebyshev(\allowbreak{}n=\allowbreak{}64):0.0e+00，laguerre(\allowbreak{}n=\allowbreak{}64):3.3e-13 \checkmark \\
+A & family\_\allowbreak{}norm vs 闭式 / vs 数值积分 & $\le$ 1e-12 & 闭式差 0.00e+00，数值积分差 4.44e-16 \checkmark \\
+A & 前几项范数 & 2/\allowbreak{}(\allowbreak{}2k+1)、\allowbreak{}$\pi$/\allowbreak{}$\pi$2、\allowbreak{}1 & legendre(\allowbreak{}k=\allowbreak{}0):2.000000$\approx$2.000000，legendre(\allowbreak{}k=\allowbreak{}1):0.666667$\approx$0.666667，legendre(\allowbreak{}k=\allowbreak{}2):0.400000$\approx$0.400000，chebyshev(\allowbreak{}k=\allowbreak{}0):3.141593$\approx$3.141593，chebyshev(\allowbreak{}k=\allowbreak{}1):1.570796$\approx$1.570796，chebyshev(\allowbreak{}k=\allowbreak{}2):1.570796$\approx$1.570796，laguerre(\allowbreak{}k=\allowbreak{}0):1.000000$\approx$1.000000，laguerre(\allowbreak{}k=\allowbreak{}1):1.000000$\approx$1.000000，laguerre(\allowbreak{}k=\allowbreak{}2):1.000000$\approx$1.000000 \checkmark \\
+A & max|V $-$ 正确方向的零点个数|(探针避开零点) & 0(\allowbreak{}精确相等) & 0(\allowbreak{}共核对 369 个探针点) \checkmark \\
+A & 把方向搞反时的最大偏差 & > 0(\allowbreak{}方向必须按族的归一化端点选) & 12 \checkmark \\
+A & Gram--Schmidt vs 解析 Legendre(Gauss--Legendre 测度，200 点) & $\le$ 1e-12 & 5.46e-14；GS 自报缺陷 4.44e-16 \checkmark \\
+A & 换成反正弦测度后 GS 得到的其实是 Chebyshev 族 & $\le$ 1e-12(\allowbreak{}同一个算法，测度变了族就变了) & 1.89e-15 \checkmark \\
+A & 零点处 |T\_\allowbreak{}n| / 极点处 ||T\_\allowbreak{}n|$-$1| & 0 与 0(\allowbreak{}闭式) & 1.23e-14 与 0.00e+00 \checkmark \\
+A & 极点处符号严格交替(n=4,8,16,32) & 符号逐个交替 & [True,\allowbreak{} True,\allowbreak{} True,\allowbreak{} True] \checkmark \\
+B & 根数/升序/收敛(三族，n$\le$32) & 根数 =\allowbreak{} n，间距 > 0，全部收敛 & 全部满足 =\allowbreak{} True；最慢单根迭代次数 4 \checkmark \\
+B & 各族的逐根最大迭代次数 & $\le$ 60 & legendre:maxIter=\allowbreak{}4，chebyshev:maxIter=\allowbreak{}1，laguerre:maxIter=\allowbreak{}2 \checkmark \\
+B & Laguerre：残差 / 根误差(n$\le$40) & 残差 $\gg$ 根误差(\allowbreak{}两者相差 $\ge$1e25) & 残差 5.63e+14，根误差 1.20e-14，比值 4.70e+28 \checkmark \\
+B & 逐阶明细 & n 越大残差越大 & n=\allowbreak{}8:res=\allowbreak{}7.3e-12,\allowbreak{}err=\allowbreak{}1.1e-15，n=\allowbreak{}16:res=\allowbreak{}1.9e-05,\allowbreak{}err=\allowbreak{}3.0e-15，n=\allowbreak{}32:res=\allowbreak{}3.4e+07,\allowbreak{}err=\allowbreak{}6.8e-15，n=\allowbreak{}40:res=\allowbreak{}5.6e+14,\allowbreak{}err=\allowbreak{}1.2e-14 \checkmark \\
+B & 每两个相邻低阶零点之间的高阶零点个数 $-$ 1 & 0(\allowbreak{}严格交错) & 最大偏离 0(\allowbreak{}共核对 132 个区间) \checkmark \\
+B & 零点在正交区间内 + 零点处的 |p\_\allowbreak{}n|(递推回代) & 区间内 + |p\_n| $\le$ 1e-11 & 区间检查 =\allowbreak{} True；Legendre/\allowbreak{}Chebyshev 残差 1.35e-14 \checkmark \\
+B & 同一个零点用闭式展开式回代得到的残差 & $\gg$ 1e-11(\allowbreak{}闭式自身的大数相消，不是求根不准) & 2.28e-06(\allowbreak{}n=\allowbreak{}32 的 Legendre) \checkmark \\
+B & 权重与闭式公式的相对差(Legendre \& Laguerre，n$\le$32) & $\le$ 1e-12 & 2.02e-16 \checkmark \\
+B & Legendre 权重逐阶明细 & - & n=\allowbreak{}4:1.7e-16，n=\allowbreak{}8:1.5e-16，n=\allowbreak{}16:1.5e-16，n=\allowbreak{}32:1.4e-16 \checkmark \\
+B & quadrature() 与 $\Sigma$w$\cdot$f 的相对差 / 权函数全正 & 0 与 True & 0.00e+00 与 True \checkmark \\
+B & Laguerre 权函数积分 $\int$e\textasciicircum{}\{$-$x\}dx & 1 & 0.9999999999999850 \checkmark \\
+B & 精确矩 vs 求积(k=6，三族) & $\le$ 1.00000e-13 & $5.684\times 10^{-15}$ \checkmark \\
+B & G 的对称性/对角/非对角偏离 & $\le$ 1e-13 & 非对称 1.1e-16，对角偏离 1.8e-15，非对角 1.4e-15 \checkmark \\
+\end{longtable}

@@ -1,0 +1,154 @@
+# 2.3 章断言清单（真源：`tests/2.3/` 下的两个文件）
+#
+# 这一章把"逼近有多好"拆成三件互相独立的事：
+#   **正交多项式造得对不对**（递推/正交性/零点/Gauss 精度，A 类）、
+#   **"最优"有没有证书**（交错定理 + de la Vallée Poussin 下界，A 类）、
+#   **收敛率是不是真的**（Bernstein 椭圆、n^(−ν−1/2)、整函数超几何，A 类）。
+# B 类守的是"量的选择会骗人"：条件数、求积切段、残差 vs 根误差、误差地板、
+# 以及四个可视化的帧契约（requiredAux / meta 标量 / 时间轴真的在动）。
+#
+# 本章不声明 C 类断言：这里没有需要二分定位的临界阈值（阈值型结论在 3.2/3.3 章）。
+chapter: "2.3"
+title: 正交多项式与函数逼近
+required_kinds: [A, B]
+
+min_counts:
+  A: 38
+  B: 20
+
+tests:
+  # ------------------------------------------------------------------ #
+  # tests/2.3/test_orthopoly.py
+  # ------------------------------------------------------------------ #
+  - name: test_recurrence_matches_analytic_forms
+    kind: A
+    what: 'Legendre/Chebyshev/Laguerre 的三项递推与闭式解的逐点最大差，以及 Laguerre 的窗口依赖'
+    theory: '递推与闭式只差舍入；Laguerre 的绝对误差随 x 上限增大（|L_n| 自身量级被放大）'
+  - name: test_analytic_forms_match_reference_special_functions
+    kind: A
+    what: '自研闭式与参照层（scipy eval_legendre / eval_chebyt）的最大绝对差，n≤12'
+    theory: '两条独立实现路径必须在舍入量级一致'
+  - name: test_orthonormality_defect_stays_at_roundoff
+    kind: A
+    what: '三族 n_max=6/12/20 的 max|⟨p_i,p_j⟩_w−δ_ij| 与 Gram 矩阵非对角元'
+    theory: '正交归一基是"正交坐标系"，缺陷必须是舍入量级'
+  - name: test_gauss_rules_integrate_polynomials_to_the_exact_degree
+    kind: A
+    what: 'k≤2n−1 的矩误差（Laguerre 用相对误差）与 k=2n 处的失效值'
+    theory: 'Gauss 求积的代数精度**恰好**是 2n−1，第 2n 阶矩必须当场失败'
+  - name: test_gauss_weights_sum_to_the_interval_measure
+    kind: A
+    what: '三族 n≤64 的 |Σw−(b−a)| 与最小权重（必须为正）'
+    theory: '权重和 = 区间长度；权重的正性是这个求积公式成立的前提'
+  - name: test_family_norms_match_theory
+    kind: A
+    what: 'family_norm 与闭式（2/(2k+1)、π/π2、1）以及数值积分的差'
+    theory: '归一化常数决定正交归一基与 Gauss 权重公式里的系数'
+  - name: test_sturm_count_matches_the_root_count_side
+    kind: A
+    what: '三族 n=4/8/12 上 Sturm 变号数与零点个数的逐点核对（含方向搞反的对照）'
+    theory: 'V(x) = x 与"所有 p_k 同号的端点"之间的零点个数（Legendre 取 x=1，Laguerre 取 x=0）'
+  - name: test_gram_schmidt_reproduces_orthonormal_polynomials
+    kind: A
+    what: '单项式基 Gram–Schmidt 与解析 Legendre 的最大差，以及换成反正弦测度后得到 Chebyshev 族'
+    theory: '离散内积的**测度**决定正交族；Gauss–Legendre 测度≈Lebesgue'
+  - name: test_chebyshev_nodes_are_closed_form_and_equioscillate
+    kind: A
+    what: '零点处 |T_n|、极点处 ||T_n|−1| 以及极点符号是否逐个交替'
+    theory: 'T_n(cos θ)=cos(nθ)：零点与极点是闭式，极点上等幅振荡'
+  - name: test_newton_finds_all_roots_without_duplicates
+    kind: B
+    what: '三族 n≤32 的根数、严格升序、收敛标志与逐根最大迭代次数'
+    theory: '正交多项式的 n 个零点互异；Sturm 夹逼保证"一个初值对应一个根"'
+  - name: test_laguerre_huge_residual_but_roundoff_root_error
+    kind: B
+    what: 'Laguerre n≤40 的 max|L_n(x_k)| 与 Newton 修正量 |L_n/L_n''|，以及两者之比'
+    theory: '残差是尺度相关的量，根误差不是；用残差当误差会得出"算法崩了"的错误结论'
+  - name: test_roots_of_successive_degrees_interlace
+    kind: B
+    what: '相邻阶零点之间的高阶零点个数（应恒为 1），三族 n≤24'
+    theory: '正交多项式族的零点严格交错（Sturm 分离定理）'
+  - name: test_roots_lie_inside_the_orthogonality_interval
+    kind: B
+    what: '零点是否落在正交区间内、零点处 |p_n| 的递推回代残差，以及闭式回代残差的对照'
+    theory: '零点全在正交区间内部；闭式展开式在 n=32 时自身只剩 ~1e-6 精度（大数相消）'
+  - name: test_gauss_weights_match_their_closed_forms
+    kind: B
+    what: 'Legendre 的 2/((1−x²)P_n''²) 与 Laguerre 的 x/(n²L_{n−1}²) 和求根给出的权重的相对差'
+    theory: '权重闭式与求根是两条独立路径，必须互相印证'
+  - name: test_quadrature_helper_and_weight_shapes
+    kind: B
+    what: 'quadrature() 与 Σw·f 的逐位一致、权函数全正、∫e^{−x}dx=1、精确矩与求积的差'
+    theory: '求积 API 的正确性 + 权函数的形状是正测度'
+  - name: test_gram_matrix_is_symmetric_and_diagonal
+    kind: B
+    what: '正交归一基下 G 的对称性、对角元偏离 1、非对角元的最大值'
+    theory: 'G = I（正交归一基的定义）'
+
+  # ------------------------------------------------------------------ #
+  # tests/2.3/test_approx.py
+  # ------------------------------------------------------------------ #
+  - name: test_residual_is_orthogonal_to_the_basis
+    kind: A
+    what: '三函数的 max|⟨f−P_n f, φ_k⟩|（n=4/8/12）'
+    theory: '投影的几何定义：残差与整个子空间正交（真值 0，量到的是舍入）'
+  - name: test_projection_is_idempotent_and_exact_on_polynomials
+    kind: A
+    what: '‖P²−P‖∞ 与 5 次多项式用 n=6,7 项投影的还原误差'
+    theory: '投影是幂等算子；次数够时多项式被精确还原'
+  - name: test_clenshaw_matches_direct_chebyshev_sum
+    kind: A
+    what: 'Clenshaw 与直接求和的最大差、Chebyshev→单项式基变换与直接展开的差'
+    theory: '两种求值路径必须在舍入量级一致'
+  - name: test_chebyshev_nodes_minimize_the_monic_polynomial
+    kind: A
+    what: 'Chebyshev 零点上首一多项式范数与 2^(1−n) 的相对偏差，以及等距节点的倍数'
+    theory: 'Chebyshev 零点使首一多项式的 L∞ 范数最小（=2^(1−n)），等距节点随 n 迅速变差'
+  - name: test_remez_satisfies_the_alternation_theorem
+    kind: A
+    what: 'pole/cusp/entire 上交错点个数、振幅比、符号交替与收敛标志（n=4..16）'
+    theory: 'Chebyshev 交错定理：最佳一致逼近 ⟺ n+2 个等幅交错点'
+  - name: test_de_la_vallee_poussin_certificate
+    kind: A
+    what: 'Remez 结果上 max|e|−min|e|(交错集) 的间隙，以及 Chebyshev 插值的 L∞ 误差之比'
+    theory: '下界追平上界 ⇔ 最优；非最优多项式没有这个性质'
+  - name: test_algebraic_rates_match_smoothness
+    kind: A
+    what: '|x| 与 sign(x) 的 L² 误差拟合阶（n≤32，折点切段求积）'
+    theory: 'Jackson 型估计：ν 阶光滑 ⇒ O(n^(−ν−1/2))，即 3/2 与 1/2'
+  - name: test_analytic_rate_equals_minus_log_rho
+    kind: A
+    what: 's=4/25/100/200 时半对数拟合斜率与 −lnρ 的相对差'
+    theory: 'Bernstein 椭圆：解析 ⇒ 几何收敛，斜率 = −lnρ；ρ→1 时渐近区更远'
+  - name: test_entire_function_beats_every_geometric_rate
+    kind: A
+    what: 'max ρ^n‖e_n‖（n≥15，ρ=1.5/2/3）与相邻误差比值的单调性'
+    theory: '整函数没有有限 ρ：误差快过任何几何率，半对数图上不是直线'
+  - name: test_remez_beats_chebyshev_interpolation_and_l2_projection
+    kind: A
+    what: 'Remez/Chebyshev 插值、Remez/L² 投影的 L∞ 误差比（pole/cusp/entire，n=4/8/12）'
+    theory: '最小最大 ≠ 最小二乘；Remez 必须同时压住两条常见替代路径'
+  - name: test_gram_conditioning_explains_the_monomial_breakdown
+    kind: B
+    what: '三基底的 κ(G) 增长、单项式基 n=24 时投影函数的偏差与正规方程残差'
+    theory: '正规方程相对误差 ~u·κ(G)；κu>1 时系数不可信而残差仍小'
+  - name: test_projection_is_basis_independent_when_well_conditioned
+    kind: B
+    what: 'Legendre/Chebyshev/单项式三种基下投影函数的逐点差（n=12/20/24）'
+    theory: '同一子空间的投影作为函数相同，差别只在系数与条件数'
+  - name: test_missing_breakpoints_corrupt_the_measured_rate
+    kind: B
+    what: '固定 40 点求积、不切段与切段时 |x|、sign(x) 的拟合斜率'
+    theory: '不切段时量到的是求积误差的斜率（2.13 / 0.70），切段后回到 1.52 / 0.495'
+  - name: test_smoothness_table_matches_measured_rates
+    kind: B
+    what: 'smoothness_table 里的 α 与 rate 同实测拟合值的差'
+    theory: '分类表是数据，必须与实测一致'
+  - name: test_remez_reports_non_convergence_honestly
+    kind: B
+    what: '跳点 n=6 的 converged 标志、返回的 max|e| 与历史最优的关系，以及同函数 L² 误差的单调性'
+    theory: '交错结构在跳点处会被破坏；实现必须如实报 False 并返回历史最优迭代'
+  - name: test_all_chapter_frames_are_well_formed
+    kind: B
+    what: '四个 viz 默认参数的帧：requiredAux 齐备、数组全有限、meta 只放有限标量、scrub 帧随时间变化'
+    theory: 'PROTOCOLS §1 的帧契约 + 时间轴必须真的接上（结构性地比较，不看某一个数组）'
