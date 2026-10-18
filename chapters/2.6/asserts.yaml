@@ -1,0 +1,150 @@
+# 2.6 章断言清单（真源：`tests/2.6/test_wavelet_core.py`、`test_mra_and_denoise.py`、
+# `test_chapter_frames.py`）
+#
+# 分工：
+#   * test_wavelet_core.py     —— 滤波器定义式（正交性 / 归一化 / 完美重构条件 / 消失矩）/
+#                                 DWT 与显式滤波器组矩阵对拍 / 三种边界延拓的 Parseval 与
+#                                 正交性 / 临界采样的负对照 / MRA 恒等式 / 阈值算子性质 /
+#                                 MAD 噪声估计 / SWT 平移等变与框架算子；
+#   * test_mra_and_denoise.py  —— 消失矩的双向证据与标度律 / 偏差-方差分解与最优点 /
+#                                 软硬阈值对照 / STFT 固定分辨率的正反两面 / 尺度盒；
+#   * test_chapter_frames.py   —— 四个可视化帧的 requiredAux、有限性、manifest 自洽、
+#                                 meta 与 numcore 的同源性（含地板/掩码三件套的一致性）。
+#
+# A 类（解析对拍）：滤波器定义式、显式矩阵、Haar 闭式解、Parseval、临界采样负对照、
+#                   消失矩（被抹平侧贴 u、未抹平侧按 (2^j/n)^N 标度）、MSE=bias^2+var、
+#                   通用阈值与最优阈值的位置关系、STFT 峰值定位的半格界。
+# B 类（不变量）：有限性、记账（系数个数 / 冗余度 / 能量占比）、单调性、地板与掩码一致性、
+#                 帧 meta 可复现。
+#
+# 本章不声明 C 类断言：小波这一层没有"随 n 收敛到某值"的率需要二分判定——
+# 消失矩的阶数是用**标度律比值**（2^N、n^N）直接对拍的，比拼阈值更硬。
+chapter: "2.6"
+title: 小波与多分辨分析
+required_kinds: [A, B]
+
+min_counts:
+  A: 24
+  B: 800
+
+tests:
+  - name: test_daubechies_filters_satisfy_defining_properties
+    kind: A
+    what: haar..db8 八族的四个定义式：最坏正交性缺陷 2.22e-16、归一化 1.57e-16、完美重构条件 4.42e-15（512 点扫频）、m<N 消失矩 8.87e-17；反向一侧 m=N 的相对缺陷 haar 1.0、db2 4.2e-1、db4 8.5e-2、db8 1.8e-3
+    theory: 系数表的正确性只能由定义式判定；只说「m<N 时≈0」没有上界，必须同时给出 m=N 时的非零读数
+  - name: test_periodic_dwt_matrix_is_orthogonal_but_symmetric_is_not
+    kind: A
+    what: periodic 模式下 n=64、J=1/2/4 的两个方向正交性缺陷 ≤64u 且系数个数恰为 n；zero 模式 M^T M=I 而 M M^T-I 的范数 1.0（冗余系数 n_ext-n 个）；symmetric 模式 M^T M-I 的范数 1.0
+    theory: 三种边界延拓的代数身份不同——这就是「能量守恒要写清是哪个能量」的根据
+  - name: test_dwt_matches_explicit_filter_bank_and_haar_closed_form
+    kind: A
+    what: n=16/32/64 × 三种模式，递归 DWT 与逐项累加的显式滤波器组最大相对差 1.89e-16（容差 64·n·u）；Haar 闭式 a_k=(x_2k+x_2k+1)/sqrt2、d_k=(x_2k-x_2k+1)/sqrt2 逐位误差 4.44e-16/3.33e-16
+    theory: 第二条独立路径（显式下标矩阵）能把「自洽但下标错」的实现抓出来
+  - name: test_perfect_reconstruction_error_and_the_critical_sampling_control
+    kind: A
+    what: 3 种模式 × 4 个小波 × J∈{1,2,3,4,6,8}（n=256）的往返误差最大 1.12e-15（≤4·J·u）；负对照：把每层裁到临界采样后误差跳到 1.379（O(1)）
+    theory: 「完美重构」是到机器精度；裁剪后不是「精度变差」，而是换了一个变换
+  - name: test_parseval_energy_by_boundary_mode
+    kind: A
+    what: periodic/zero 的能量比 = 1（偏差 ≤8·n·u，实测 ≤2.22e-16）；symmetric 的 50 个实现均值 1.12802，理论冗余度 n_ext/n = 288/256 = 1.125（容差 0.02），单次实现散布 ±1%
+    theory: 分母是原信号而不是延拓信号；symmetric 复制样本，系数能量必然多出来
+  - name: test_boundary_pollution_is_local_but_grows_with_level
+    kind: A
+    what: 同一条信号两种口径（延拓 vs 纯周期环绕）：各层受污染系数个数 3/5/6/6（≤8 个），影响区样本数 6→20→48→96，最大偏差 0.053/0.221/0.766/3.480（随层递增且 65 倍于第 1 层）
+    theory: 污染是局部的，但每个系数代表 2^j 个样本，所以「边界」吃掉的信号长度按 2^j 增长
+  - name: test_mra_bands_sum_to_the_signal
+    kind: B
+    what: 三种模式 × 三个小波：各带之和=x（≤9.48e-16）、逐层累加末行=x（≤9.48e-16）、只留最粗近似的误差（0.690..1.003）大于加一层细节后的误差
+    theory: x = x_J + sum_j w_j 是多分辨分析在代码里的样子，必须逐位成立
+  - name: test_threshold_operators_are_shrinkage
+    kind: B
+    what: 软阈值 1-Lipschitz（最大斜率 0.02 的差分上界为 1）、|c|≤λ 时为 0、大系数收缩 λ；硬阈值大系数逐位保留（偏差 0）但在 |c|=λ 处输入差 2e-9 而输出差 0.7；|soft|≤|hard| 逐点成立
+    theory: 无偏（硬）与连续（软）不可兼得——后面的偏差-方差曲线就是这句话的数值版本
+  - name: test_mad_sigma_estimator_is_nearly_unbiased_with_spread
+    kind: B
+    what: 200 个实现：MAD 相对偏差 +1.41%（周期模式均值 0.2994）；相对标准差 10.7% 落在 9%±35% 内；细节系数方差 0.0889 vs σ^2=0.09（-1.1%）
+    theory: 正交小波把白噪声原样搬到系数域；MAD 的稳健性代价就是它的 9% 散布
+  - name: test_swt_is_shift_invariant_while_dwt_is_not
+    kind: A
+    what: SWT 平移一格后系数变化恰好 0.0（J=1..4），DWT 的相对变化 2.01/8.39/36.2/51.2（J=1..4, chirp）；SWT 往返误差 ≤64·J·u
+    theory: 「平稳」= 平移等变，可执行判据是「变化恰好 0」，而不是「看起来差不多」
+  - name: test_swt_energy_follows_the_frame_symbol_not_a_constant
+    kind: A
+    what: 纯音（5/256）J=1..4 的能量比与框架符号预测一致到 1e-10（J=4 时 15.999986）；白噪声 J=3 的比值 3.971 对上符号平均 4.006（容差 0.06），而同一 J 的纯音比值是 8.0
+    theory: S(ω)=2+Σ_iΠ_k|H(2^{k-1}ω)|^2 不是常数，所以「J+1 是框架界」这句话在递归 a trous 上是错的
+  - name: test_coefficient_counting_bookkeeping
+    kind: B
+    what: db8 下 n=256：periodic n_ext=256/冗余 1、zero 与 symmetric J≤4 时 288/1.125、J=6 时 384/1.5；系数总数逐位等于 n_ext；四类非法输入（periodic 不整除、层数过大、未知小波、未知模式）都抛 ValueError
+    theory: 冗余度是「能量比为什么会变」的记账本；非法输入必须当场报错而不是静默补零
+  - name: test_filter_response_identities
+    kind: B
+    what: haar/db4/db8 上 ||G(ω)|-|H(ω+π)|| ≤6.91e-15、||H|^2+|G|^2-2| ≤6.22e-15（257 点扫频）
+    theory: QMF 关系与完美重构条件的频域版本，与 perfect_reconstruction_defect 互为独立路径
+  - name: test_vanishing_moments_kill_polynomials_two_sided
+    kind: A
+    what: k<N 时逐层（J=1..4）内部比值 ≤1e-15（db4 的 0..3 次实测 0.42u..0.84u）；k=N 时 J=1 的读数 haar 3.92e-3、db2 5.34e-5、db4 3.41e-8、db8 1.96e-13（都 ≥100u），且第 2 层/第 1 层之比按 2^N（db2 4.08、db4 17.1、db8 320）增长、n 从 64 到 256 按 n^N 衰减 282 倍
+    theory: 双向证据：被抹平的一侧要与 n 和层数无关地贴 u，未抹平的一侧必须精确按 Taylor 第 N 项的标度律走——这比任何单一阈值都硬
+  - name: test_polynomial_annihilation_holds_at_every_level
+    kind: B
+    what: haar/db4/db8 的 k=N-1 在 J=1..4 每层都 ≤1.6e-16；k=N 的逐层读数均 ≥100u（db8 J=4 的内部系数个数为 0——该层没有可测样本，如实报出）；同一条多项式上边界比值 ≥1e-2（db4/k=3 实测 1.4e-1 量级）而内部是 u 级
+    theory: 内部/边界必须分开量：零延拓把多项式截断成跳变，只看 max|d| 会得出「消失矩失效」的反结论
+  - name: test_bias_variance_decomposition_and_monotonicity
+    kind: A
+    what: 48 个实现、33 点阈值栅格：MSE-(bias^2+var) ≤2.78e-17；软阈值的 bias^2 单调不减、var 单调不增（各违反 0 处）；硬阈值的 bias^2 有 2 处下降段
+    theory: 「此消彼长」在软阈值上是逐点成立的，在硬阈值上只是趋势——算子不同，结论的强度不同
+  - name: test_optimal_threshold_versus_universal_threshold
+    kind: A
+    what: bumps、σ=0.3、db4、J=4、软阈值：最优 λ*=0.281（MSE 0.04733）< 不去噪 0.08963 < 通用阈值 0.999 处的 0.12994（比不去噪还差 45%），λ* 只有通用阈值的 1/3.6
+    theory: 通用阈值保证的是「几乎不留噪声」，不是「最小 MSE」；图上必须把两个位置都标出来
+  - name: test_soft_versus_hard_at_the_same_noise
+    kind: B
+    what: 同一噪声实现、λ=0.3 时软 0.0412 < 硬 0.0922（硬阈值比不去噪 0.0896 还差）；各自最优点上软 0.04733 < 硬 0.05379，但硬的最优 λ=0.765 是软的 2.72 倍
+    theory: 「看起来更平滑」不是判据；两个算子要在同一噪声、同一 λ 下比，也要在各自最优点上比
+  - name: test_zero_threshold_is_identity_and_sigma_estimation_chain
+    kind: B
+    what: λ=0 时去噪结果与原信号逐位相同（≤64·J·u，实测 4.44e-16..1.11e-15）；通用阈值随 sigma_hat 线性缩放且比值=sigma_hat/σ；单次 MAD 读数偏差 6.7%（<30%）；最粗近似在阈值化后原样保留；负 λ 与非法规程都抛 ValueError
+    theory: 阈值曲线的零点锚必须精确，否则整条 MSE 曲线都在跟一个错的基线比
+  - name: test_stft_peak_localization_and_its_low_frequency_failure
+    kind: A
+    what: 37/256 的纯音：w=16/32/64 的峰值定位误差 0.0195/0.0117/0.0039（都 ≤1/(2w)=0.0313/0.0156/0.0078 且单调下降）；反面：5/256 的纯音在 w=32 时峰落到 DC 格，误差 0.0195 > 半格 0.0156
+    theory: 固定窗长在高频处满足半格界、在低频处直接失效——分辨率这个词在这里最会骗人
+  - name: test_scale_time_boxes_have_nearly_constant_area
+    kind: B
+    what: db4 各层时间支撑 8/15/29/57 个样本、带宽 1/2..1/16，分辨率元面积 0.015625→0.013916（极差 1.123）；STFT 的窗宽与带宽都是常数（30 与 2/32）
+    theory: 小波的时间-带宽乘积近似守恒、STFT 的两个方向被同时钉死——两种分辨率元的形状完全相反
+  - name: test_test_signals_are_deterministic_and_wavelets_round_trip_on_them
+    kind: B
+    what: 六个基准信号两次调用逐位相同、全部有限；haar/db4/db8 的 DWT 与 SWT 往返都 ≤1e-13；取值范围最大 6.0（blocks）
+    theory: 图上画的信号必须是确定性的，否则「这一帧」的数字无法复现
+  - name: test_detail_scale_ratio_bookkeeping
+    kind: B
+    what: bumps 的各层细节/近似量级比 ≤10；第 4 层用同层近似做分母比用原信号做分母大 1.02 倍（尺度效应确实存在但不是主导）；非法层号与负次数都抛 ValueError
+    theory: 分母选错会把 2^{-j/2} 的尺度衰减读成「这层没信息」
+  - name: test_every_frame_is_finite_and_declares_its_aux
+    kind: B
+    what: 四个 viz × 时间端点：requiredAux 全部命中、所有数组无 NaN/Inf（含 1e-18 地板）、meta 只含 number/bool/null 且全部有限
+    theory: 帧契约的最低要求；t=0 是「只留最粗近似」，最容易出现除零或负数
+  - name: test_manifest_declares_the_chapter_contract
+    kind: B
+    what: 4 个 viz、id 不重复、dataSource=backend、pitfalls ≥60 字且有 theory、每个轴显式声明 autoscaled 且尺度合法、time.mode=none 的帧不得声明 tMax/dt/fps、enum 默认值在 options 内、critical 值落在参数区间内且有 criticalNote
+    theory: 前端直接读这些字段；缺一个它就会自己猜，图会随参数抖
+  - name: test_decomp_tree_meta_matches_numcore
+    kind: B
+    what: pr_error=idwt 路径、mra_error=逐带求和路径（1.78e-15，两条路径不是同一个数）、n_ext=288、冗余 1.125、coeff_count 与 coefficient_lengths 逐位相同、energy_share 与 level_energies 逐位相同、boundary_share 复算一致、t=tMax 时 stage_error=1.78e-15
+    theory: 图上「回到原信号」必须能在 meta 里被验证；两条重构路径的误差要分开报
+  - name: test_time_scale_map_meta_matches_numcore
+    kind: B
+    what: SWT 能量比与 numcore 复算一致（chirp/J=4 实测 4.05 量级）、框架符号平均一致、冗余度=J+1、尺度图行数=J+1 且每行等长 n、STFT 频率/时间格数与 stft_map 逐位相同、往返误差一致
+    theory: 能量比不是常数这件事必须由「实测值 + 符号预测」两个数一起支撑
+  - name: test_denoise_threshold_meta_matches_numcore
+    kind: B
+    what: noisy-clean 的标准差恰为 σ=0.3；sigma_hat 与 MAD 复算一致；通用阈值 0.999066；denoised 数组与 numcore 逐位相同；meta.mse=单次实现 0.038894；曲线（λ 栅格/mse/bias^2/var）与同种子重算逐点相同；λ*=0.278475、MSE*=0.0468315；bias^2+var=mse 到 64u
+    theory: 单次实现的读数与蒙特卡洛曲线的读数不是同一个数，帧里必须分别报（前者有实现噪声、后者有栅格误差）
+  - name: test_vanishing_moments_meta_matches_numcore
+    kind: B
+    what: u 参考线=2^-53；killed 标志、interior_max/boundary_max、逐层量级比、边界污染幅度与影响区都与 numcore 复算一致；interior_valid=1 的点等于实测值、=0 的点实测严格为 0 且画出的是 1e-18 地板；次数扫描轴=0..N+2
+    theory: 把 0 画成地板值时，掩码/占位/字符串说明三者必须自洽——否则就是图里偷偷改数
+  - name: test_frames_stay_consistent_under_parameter_changes
+    kind: B
+    what: 三种模式 × haar/db8 × 三个信号（n=128、J=2）共 18 组：pr_error/n_ext/末段误差全部与 numcore 一致；换到 db8/J=2/窗长 16 的时间-尺度帧能量比仍一致；haar 对常数项严格为 0 且恰好 1 个地板点
+    theory: 只在默认参数下算对不算对——边界模式是本章唯一改变能量记账的参数

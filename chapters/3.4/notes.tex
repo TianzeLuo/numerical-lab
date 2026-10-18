@@ -1,0 +1,309 @@
+% 3.4 章 · 边值问题与谱方法
+% 这一章的两条主线：
+%   1) 打靶法把边值问题变成初值问题，代价是一个叫"灵敏度"的放大因子；
+%   2) 谱方法用 N+1 个 Chebyshev 节点换指数收敛，代价是一个稠密、条件数按 N^2 长的微分矩阵。
+% 两条主线的共同点是：**失效的位置由舍入决定，不由截断决定**。
+% 断言附表由 tools/build_book.py 从实际运行结果生成，\input 进来，不手抄。
+
+\numlabchapter{边值问题与谱方法}{3.4}
+
+\section{这一章要解决什么}
+
+两点边值问题
+\begin{equation}
+  u''+p(x)u'+q(x)u=r(x),\qquad x\in[a,b],
+  \label{eq:bvp}
+\end{equation}
+配上一端一个边界条件（本章用 Dirichlet $u=g$ 与 Neumann $u'=g$）。它和初值问题
+有一个本质差别：\textbf{条件给在两端，而积分只能从一端走}。这一个差别生出两条完全不同的路线：
+
+\begin{enumerate}
+  \item \textbf{打靶法}：猜一个左端斜率 $s=u'(a)$，把问题当初始问题积分到 $b$，
+        解标量方程 $F(s)=u(b;s)-\beta=0$。它把边值问题压成一个根，
+        代价是"猜错的 $s$ 会在右端被放大"。
+  \item \textbf{离散化}（有限差分 / 谱配置 / tau）：把 $u$ 换成 $N+1$ 个未知数，
+        连同边界条件一起解一个线性（或线性化后的）方程组。它没有放大问题，
+        代价是矩阵的条件数与规模。
+\end{enumerate}
+
+本章要用实测数字把三件事说清楚：打靶法\textbf{什么时候不能用了}、有限差分的阶
+\textbf{由谁决定}、以及谱方法的"指数收敛"\textbf{在哪里停下}。
+记号：$u=\tfrac12\varepsilon_{\text{mach}}=2^{-53}\approx1.11\times10^{-16}$；
+$L=b-a$；所有"实测"数字都来自 \texttt{tests/3.4/} 的断言报告。
+
+\section{打靶法：灵敏度是唯一的判据，但不是充分的判据}
+
+\begin{definition}[打靶灵敏度]
+设 $u(x;s)$ 是初值问题 $u(a)=\alpha$、$u'(a)=s$ 的解。定义
+\begin{equation}
+  S:=\left|\frac{\partial u(b;s)}{\partial s}\right|.
+  \label{eq:sens}
+\end{equation}
+$S$ 就是"左端斜率的误差传到右端时被放大多少倍"。
+\end{definition}
+
+\begin{theorem}[变分方程给出 $S$，不必做差分]
+\label{thm:variational}
+令 $y=(u,u')^{\mathsf T}$，$J(x)=\partial f/\partial y$。则 $z=\partial y/\partial s$ 满足
+\begin{equation}
+  z'=J(x,u(x))z,\qquad z(a)=(0,1)^{\mathsf T},
+  \label{eq:variational}
+\end{equation}
+且 $\partial u(b)/\partial s=z_1(b)$。
+\end{theorem}
+\begin{proof}
+对 $s$ 求导并与 $y'=f(x,y)$ 交换次序即得 \eqref{eq:variational}。
+\end{proof}
+
+\begin{remark}[实测：$u''=k^2u$、$u(a)=0$ 的闭式就是 $\sinh(kL)/k$]
+\label{rem:sens-closed}
+该方程的通解是 $Ae^{kx}+Be^{-kx}$，$u(a)=0$ 给出 $A=-Be^{-2ka}$，
+于是 $u(b;s)=\frac{s}{k}\sinh(kL)$，即 $S=\sinh(kL)/k$。
+本章用变分方程积分出的 $S$ 与之对拍：$kL\le20$ 时相对偏差 $\le1.6\times10^{-9}$，
+$kL=40$ 时 $5.3\times10^{-8}$（$S$ 自己已经 $2.9\times10^{15}$，变分方程在积一个 $e^{40}$ 的增长模态）。
+\end{remark}
+
+\begin{theorem}[线性问题 Newton 一步，非线性问题二次收敛]
+线性问题里 $F(s)=u(b;s)-\beta$ 对 $s$ 是\textbf{仿射}的，故 Newton 一次到；
+非线性问题里 $F''\ne0$，残差按 $|F_{k+1}|\le C|F_k|^2$ 下降。
+\end{theorem}
+\begin{proof}
+线性：$u(b;s)=u_0+s\,z_1(b)$ 是 $s$ 的一次函数。非线性：标准 Newton 二次收敛。
+\end{proof}
+
+\begin{remark}[实测：仿射一步、Bratu 二次]
+\texttt{smooth}、\texttt{neumann}、\texttt{layer} 三个线性算例都在 2 次函数求值内收敛
+（1 步 Newton + 1 次确认）。Bratu（$u''=1.5u^2$、$u=4/(1+x)^2$）的残差史是
+$2.7\times10^{1}\to8.5\to1.9\to1.8\times10^{-1}\to2.1\times10^{-3}\to3.0\times10^{-7}\to7.3\times10^{-13}$，
+7 步到 $10^{-12}$，误差 $2.4\times10^{-11}$。
+\end{remark}
+
+\begin{theorem}[衰减模态的失效是舍入，不是截断]
+\label{thm:decay-fail}
+考虑 $u''=k^2u$、$u(0)=1$、$u(L)=0$，精确解 $u=\sinh(k(L-x))/\sinh(kL)$。
+它由两个指数模态 $e^{\pm kx}$ 相减得到，而 $e^{kL}$ 远大于解本身，
+于是相对误差被放大 $e^{kL}$ 倍：
+\begin{equation}
+  \text{err}\sim C\,u\,\varepsilon_{\text{mach}}e^{kL}.
+  \label{eq:decay-err}
+\end{equation}
+这个放大与步长 $h$ 无关——它不是离散误差。
+\end{theorem}
+\begin{proof}[证明思路]
+把初始斜率写成 $s=s^*+\delta$。$u(b;s)$ 对 $s$ 的灵敏度是 $S=\sinh(kL)/k$
+（定理 \ref{thm:variational} 与注 \ref{rem:sens-closed}），
+而 $u(b;s^*)=0$，所以右端的偏差是 $S\delta$；为把它压到 $u$ 的量级，
+$\delta$ 必须小到 $u/S$，这已经低于 $s^*$ 本身的可分辨精度 $u\,|s^*|$
+（因为 $|s^*|=k\coth(kL)\to k$ 而 $S/k=e^{kL}/(2kL)\cdot2kL$ 量级）。
+两者之比 $e^{kL}$ 就是丢掉的有效位数。
+\end{proof}
+
+\begin{remark}[实测：同一个 $S$，两种命运]
+$k=20$、$L=2$（$kL=40$）时，增长算例 \texttt{layer}（$u(0)=0,u(L)=1$）与
+衰减算例 \texttt{decay} 的实测灵敏度\textbf{完全相同}（$5.885\times10^{15}$），
+误差却是 $4.8\times10^{-10}$ 与 $1.7\times10^{1}$，差 10 个量级。
+把精确斜率喂进去、步长从 $h=8\times10^{-3}$ 缩到 $2.5\times10^{-4}$，
+衰减算例的误差仍在 $0.6\sim26$ 之间不下降：\eqref{eq:decay-err} 是舍入放大，不是截断。
+\end{remark}
+
+\begin{remark}[实测：失效长度的二分阈值]
+取判据"打靶误差 $>0.5$"，对 $k=20$ 二分实测 $L^*=1.8750$，
+而舍入估计 $\ln(1/u)/k=1.8373$（用 $u=\varepsilon_{\text{mach}}/2$），
+相对差 $2\%$。误差随 $kL$ 的增长也实测为指数律：半对数斜率 $0.89$（理论 1），
+$R^2=0.955$。
+\end{remark}
+
+\section{有限差分：整体阶由边界格式决定}
+
+\begin{theorem}[内部二阶中心差商 + 边界行]
+在等距网格 $x_i=a+ih$ 上取
+\begin{equation}
+  \frac{u_{i+1}-2u_i+u_{i-1}}{h^2}+p_i\frac{u_{i+1}-u_{i-1}}{2h}+q_iu_i=r_i,
+  \qquad i=1,\dots,n-1,
+  \label{eq:fd}
+\end{equation}
+两端各补一行边界条件。截断误差是 $O(h^2)$。
+\end{theorem}
+
+\begin{theorem}[边界差商的阶会拖住整体阶]
+\label{thm:bc-order}
+若 Neumann 边界用一阶单侧差商 $\frac{u_n-u_{n-1}}{h}=g$，则\textbf{整体}误差是 $O(h)$，
+即使内部是二阶；用二阶单侧差商则整体回到 $O(h^2)$。
+误差不局限在边界附近：一阶边界下"掐掉两端 $25\%$ 再统计"得到的阶仍是 $1.00$。
+\end{theorem}
+\begin{proof}[证明思路]
+把边界行的截断误差 $\tau_b=O(h)$ 看成右端的一个扰动。
+差分算子 $A$ 的逆的范数是 $O(h^{-2})=O(n^2)$ 量级（实测 $\kappa_\infty\sim n^2$），
+但扰动只作用在一行上，Green 函数的影响是 $O(h)$ 且沿整个区间铺开，
+于是它进入解的量级是 $O(h)$，与内部截断同阶竞争。
+\end{proof}
+
+\begin{remark}[实测：0.9983 与 1.9756]
+混合边界算例（$u=\sin(\pi x/2)$，$u(0)=0$、$u'(1)=0$）：
+一阶边界格式在 $n=32..512$ 上整体阶 $0.9983$、内部阶 $0.9981$；
+二阶边界格式在 $n=128..1024$ 上整体阶 $1.9756$、内部阶 $1.9780$。
+\textbf{报阶必须写窗口}：同一批二阶数据在 $n=16..128$ 上只有 $1.86$。
+\end{remark}
+
+\begin{remark}[边界残差的两个口径]
+一阶边界格式、$n=64$ 时，"格式自己那一行"的残差是 $3.3\times10^{-15}$，
+而把数值解当真函数看、边界条件的真实违反量是 $1.93\times10^{-2}$——差 12 个量级。
+前者恒为舍入级（解就是照那一行解出来的），后者才是精度的证据。
+同理，线性系统的残差与解的误差无关：$n=32$ 时残差 $8.7\times10^{-14}$、误差 $1.57\times10^{-4}$，
+比值 $1.8\times10^{9}$。
+\end{remark}
+
+\section{谱方法：Chebyshev 节点、微分矩阵与两条收敛路线}
+
+\begin{definition}[Chebyshev--Lobatto 节点]
+$x_j=\cos(j\pi/N)$，$j=0,\dots,N$（降序，含两端）。
+它是 $\theta$ 均匀网格的余弦投影，密度 $\rho(x)=N/(\pi\sqrt{1-x^2})$。
+\end{definition}
+
+\begin{theorem}[配置微分矩阵]
+\label{thm:dmatrix}
+矩阵 $D_N$ 的非对角元为
+\begin{equation}
+  D_{ij}=\frac{c_i}{c_j}\frac{(-1)^{i+j}}{x_i-x_j},\qquad c_0=c_N=2,\ c_k=1,
+  \label{eq:dmatrix}
+\end{equation}
+对角元取 $D_{ii}=-\sum_{j\ne i}D_{ij}$。于是 $D_N\mathbf{1}=0$（零空间是常数）、
+$\|D_N\|_\infty=N^2$、$D_{00}=(2N^2+1)/6$。
+\end{theorem}
+\begin{proof}[证明思路]
+\eqref{eq:dmatrix} 由 Lagrange 插值多项式的导数在节点上取值得到；
+行和为零是因为常数函数的导数恒为 $0$；$\|D_N\|_\infty=N^2$ 是已知的精确等式
+（本章逐位复核过：$N=4..64$ 全部吻合）。
+\end{proof}
+
+\begin{remark}[实测：$\|D_N\|_\infty=N^2$ 逐位吻合，$D_{00}=(2N^2+1)/6$ 到 $10^{-13}$]
+$N=8$：$\|D_N\|_\infty=64.00$、$D_{00}=21.5$；$N=16$：$256.00$、$85.5$；
+$N=64$：$4096.00$、$1365.17$。$\|D_N^2\|_\infty\approx N^4/3$（$N=32$ 实测 $3.49\times10^{5}$）。
+\end{remark}
+
+\begin{theorem}[指数收敛与代数收敛]
+\label{thm:conv}
+若 $u$ 在含 $[a,b]$ 的带形区域内解析，则 Chebyshev 插值（从而配置解）误差按
+$e^{-\lambda N}$ 衰减；若 $u$ 只有 $C^s$ 光滑度，则按 $N^{-s}$ 衰减，
+而\textbf{插值}误差是 $N^{-(s+1)}$：微分吃掉一阶。
+\end{theorem}
+
+\begin{remark}[实测：斜率、地板、以及撞上地板的 $N$]
+解析算例 \texttt{smooth}（$u=e^x\sin\pi x$）在 $N=8..18$ 上拟合半对数斜率 $-2.27$
+（每节点约 $0.99$ 位，$R^2=0.998$），地板 $7.55\times10^{-15}$，
+$N\ge18$ 起不再下降，最小误差出现在 $N=24$，$N=64$ 时回到 $9.3\times10^{-14}$。
+非解析算例：$|x|^3$ 的配置解率 $1.99$、插值率 $3.00$；$|x|^5$ 是 $4.02$ 与 $5.01$。
+两者都只有幂律——判别指数/幂律不能只看 $R^2$（\texttt{tanh} $k=3$ 的窗口里两种模型都拟合得不错），
+要看误差比 $\mathrm{err}(N)/\mathrm{err}(N+2)$：指数收敛的比值整体上抬（实测 $39\to76\to197$），
+幂律收敛的比值压向常数（实测 $1.56\to1.14$）。
+\end{remark}
+
+\begin{remark}[实测：舍入地板是 $N^4u$]
+把\textbf{精确解}插值后做二阶谱微分，残差在 $N=20/24/32$ 上是
+$6.8\times10^{-12}/2.1\times10^{-11}/1.1\times10^{-10}$，
+而同一批节点上的插值误差只有 $3.3\times10^{-15}$；$N^4u$ 给出
+$5.5\times10^{-12}/1.2\times10^{-11}/3.6\times10^{-11}$。
+配置法内点残差则恒在舍入级（$N=8$ 时 $1.7\times10^{-13}$），
+而节点\textbf{之间}的连续残差是 $0.38$——比解误差 $1.8\times10^{-4}$ 还大 3 个量级。
+\end{remark}
+
+\begin{theorem}[tau 法与配置法的差别在边界行]
+配置法在节点上逐点满足 ODE（$N-1$ 个内点），再加两行边界；
+tau 法在系数空间满足前 $N-1$ 个方程，再补两行边界。
+两者给出同一个多项式，但对 Neumann 边界的写法不同（本章的 tau 只实现两端 Dirichlet）。
+\end{theorem}
+\begin{proof}[证明思路]
+配置方程 $D_N^2u+\operatorname{diag}(q)u=r$ 与系数空间方程在多项式空间上等价，
+差别只在被丢弃的方程与边界行的组合方式。
+\end{proof}
+
+\begin{remark}[实测：两条路线互差 $9.7\times10^{-15}$]
+$N=20$ 时配置解误差 $8.5\times10^{-15}$、tau 解 $6.9\times10^{-15}$，两者之差 $9.7\times10^{-15}$；
+条件数同量级（$1.6\times10^{4}$ 与 $2.6\times10^{4}$），矩阵密度 $0.91$ 与 $0.37$。
+\end{remark}
+
+\begin{remark}[区间映射的伸缩因子]
+$D_N$ 是参考区间 $[-1,1]$ 上的矩阵。问题在 $[a,b]$ 上时
+$\mathrm{d}/\mathrm{d}x=s\,\mathrm{d}/\mathrm{d}\xi$、
+$\mathrm{d}^2/\mathrm{d}x^2=s^2\,\mathrm{d}^2/\mathrm{d}\xi^2$，$s=2/(b-a)$。
+$[0,1]$ 上忘记 $s$ 会解出偏差 $O(1)$ 的东西（实测 $>0.5$）。
+识别"这是不是 Lobatto 网格"也必须允许平移缩放，否则会把 $[0,1]$ 上的谱网格
+当成普通网格，边界残差当场量出 $\pi/2$ 这种荒唐数字。
+\end{remark}
+
+\section{四个可视化该怎么看}
+
+\begin{enumerate}
+  \item \texttt{shooting\_\allowbreak{}scan}（招牌）：一族初始斜率的轨迹
+        $u(x;s_k)$，$s_k=s_{\text{ref}}\bigl(1+\text{span}(2k/(m-1)-1)\bigr)$。
+        时间轴是斜率序号 $j$。副轴是对数坐标下的打靶残差 $|F(s_k)|$。
+        选 \texttt{decay} 时看的是"参考斜率附近的微小扰动在右端被放大成 $10^3$ 量级"，
+        选 \texttt{layer} 时同一族轨迹规规矩矩——两次点击就能看见定理 \ref{thm:decay-fail}。
+  \item \texttt{convergence\_\allowbreak{}rate}：有限差分与谱配置的误差并排。
+        左轴半对数（指数收敛是直线）、右轴双对数（幂律是直线），
+        两条\textbf{实测}拟合线叠加在数据上，地板线单独画，插值误差作为负对照。
+        把 \texttt{bc\_\allowbreak{}order} 从 $2$ 切到 $1$，差分那条曲线整体抬高一个阶。
+  \item \texttt{node\_\allowbreak{}clustering}：节点位置、间距、解析密度，
+        以及"节点上插值误差恒为 $0$、节点之间才是误差"的那条曲线。
+        参数 $N$ 拖大，看间距比按 $0.6366N$ 长、配置解误差与插值误差的差距保持一阶。
+  \item \texttt{diff\_\allowbreak{}matrix\_\allowbreak{}structure}：$\log_{10}|D_N|$ 热力图、
+        行和残差（应恒为 $0$，零空间是常数）与奇异值谱。
+        注意 $\sigma_{\min}\sim10^{-17}$ 是零空间噪声，有意义的是挖掉零空间后的
+        $\kappa^+$（$N=8..64$ 实测 $35.1\to1988$，指数 $1.95$）；
+        而配置矩阵 $\kappa_\infty(L)$ 从 $5.5\times10^{2}$（$N=8$）长到 $2.8\times10^{9}$（$N=256$）。
+\end{enumerate}
+
+\section{本章的算法路线（P2/P3 合规说明）}
+
+\begin{itemize}
+  \item 全部线性系统走自研 \texttt{numcore.linalg.lu} 的
+        \texttt{lu\_decompose}/\texttt{solve\_lu}（部分主元），
+        奇异值走自研 Jacobi SVD；\texttt{numpy.linalg} 一次都没用；
+  \item 拟合不用 \texttt{numpy.polyfit}：半对数/双对数的最小二乘直线是自写的
+        \texttt{\_line\_fit} 与 $R^2$，窗口写进每条断言的 \texttt{theory}/\texttt{detail}；
+  \item 打靶的变分方程与主方程共用 \texttt{numcore.ode.rk} 的 \texttt{rk\_step}，
+        不做数值差分；Newton 的收敛判据用\textbf{相对步长}；
+  \item "失效长度"这类阈值一律二分实测（\texttt{find\_threshold}），
+        理论值只用来对账；
+  \item 每一条"指数收敛"的结论都带\textbf{实测斜率 + 舍入地板 + 撞上地板的 $N$}，
+        每一条"阶"的结论都带\textbf{拟合窗口}。
+\end{itemize}
+
+\input{chapters/3.4/asserts_table}
+
+\section{它会怎样骗你（本章版）}
+
+\begin{enumerate}
+  \item \textbf{把灵敏度当充分判据}：同一个 $S=5.885\times10^{15}$，
+        增长模态误差 $4.8\times10^{-10}$、衰减模态 $1.7\times10^{1}$。
+  \item \textbf{把衰减模态的失效当成"步长不够小"}：$h$ 缩小 32 倍误差不降，
+        因为它是舍入放大（\eqref{eq:decay-err}）。
+  \item \textbf{把打靶残差小当解准}：$|F|$ 的可分辨下限是 $u\cdot S$，
+        $kL=20$ 时 $|F|$ 停在 $8.2\times10^{-10}$ 而解误差同量级。
+  \item \textbf{拿"再打一枪"当解析真值}：参考斜率与 Newton 解共享同一套舍入，是循环论证。
+  \item \textbf{Jacobian 取步末状态}：二次收敛会悄悄退化成线性收敛
+        （残差每步只降 $1.3\times10^{-3}$ 倍），只有把残差史打出来才看得见。
+  \item \textbf{用内部阶代表整体阶}：一阶边界格式下内部阶也是 $1.00$，
+        误差会铺满整个区间。
+  \item \textbf{报"边界残差 $10^{-13}$"}：那是格式自己那一行的残差；
+        真实违反量在同一帧里是 $1.9\times10^{-2}$。
+  \item \textbf{用线性系统残差当精度}：残差 $8.7\times10^{-14}$ 时误差还有 $1.57\times10^{-4}$。
+  \item \textbf{报阶不写窗口}：同一批数据 $1.86$ 与 $1.98$ 都"对"。
+  \item \textbf{用绝对残差当 Newton 判据}：残差地板是 $u/h^2$ 量级，绝对判据会让迭代空转。
+  \item \textbf{只说"指数收敛"}：没有斜率、没有地板、没有撞地板的 $N$，
+        读者无法决定该取多大 $N$；而且地板之后继续加密\textbf{更差}。
+  \item \textbf{只看 $R^2$ 判别指数/幂律}：解析解的窗口里幂律也能拟合到 $R^2\approx0.98$；
+        要看误差比的走向。
+  \item \textbf{拿插值误差冒充配置解误差}：同一批节点上 $3.00$ 与 $1.99$（$|x|^3$），
+        差整整一阶。
+  \item \textbf{把节点上的 $0$ 当精度}：插值误差在节点上按定义就是 $0$。
+  \item \textbf{忘记区间映射}：$[0,1]$ 上漏掉 $s=2$ 会解出偏差 $O(1)$ 的结果；
+        识别 Lobatto 网格时也要允许平移缩放，否则边界残差量出 $\pi/2$。
+  \item \textbf{把 $D_N$ 直接拿去解方程组}：它稠密、奇异（$D_N\mathbf{1}=0$），
+        $\sigma_{\max}/\sigma_{\min}$ 给出 $10^{17}$ 的噪声；
+        配置矩阵的条件数按 $N^{4.4}$ 长，$N$ 的上限由它决定。
+  \item \textbf{在等距网格上做全局多项式插值}：$n=50$ 时连直线都插不准（误差 $1.5\times10^{-3}$），
+        $n=100$ 时是 $3.49$；搬有限差分解要用分段线性。
+  \item \textbf{把 tau 法当"另一个配置法"}：它的边界行写法不同，
+        在 Neumann 边界上直接套会写错。
+\end{enumerate}

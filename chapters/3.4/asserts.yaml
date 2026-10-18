@@ -1,0 +1,178 @@
+# 3.4 章断言清单（真源：`tests/3.4/test_shooting_fd.py`、`test_spectral.py`、`test_frames.py`）
+#
+# 这一章分三块测：
+#   * **打靶法**（test_shooting_fd.py 上半）：灵敏度与闭式 sinh(kL)/k 对拍、Newton 一步/二次收敛、
+#     增长与衰减模态在同一个 S 下的命运、加密步长救不回来——A 类；
+#     失效长度二分、误差随 kL 的指数律、拟合窗口纪律——C 类。
+#   * **有限差分**（test_shooting_fd.py 下半）：Dirichlet 的整体/内部二阶、Neumann 边界格式
+#     把整体阶从 2 拉到 1、离散残差与真实违反量的口径差、残差小误差大、三阶矩阵结构——A 类；
+#     条件数 ~ n^2——C 类。
+#   * **谱方法**（test_spectral.py）：变换往返、系数空间求导对拍、Clenshaw-Curtis 精确到 m=N、
+#     D 的结构（稠密/行和为零/D_00 闭式/||D||=N^2/||D^2||≈N^4/3）、节点残差与节点间残差、
+#     N^4u 舍入放大、配置法与 tau 法互差、边界残差口径、节点聚集几何、区间映射必须带伸缩因子——A 类；
+#     指数 vs 幂律的误差比判据、非解析降级一阶、地板与撞地板的 N、kappa+ 指数、陡峭解需要的 N——C 类。
+#   * **帧契约**（test_frames.py）：四个 viz 的角点 × 时间端点全部合法有限，
+#     并且 frame 里的数字与直接重算逐一对拍——A 类。
+#
+# 实测规模（最近一次 `pytest tests/3.4 -q`）：A 32 条、B 37 条、C 10 条，共 79 条。
+# 下面的 min_counts 留了余量：断言内部的记录条数会因为多对拍一个算例而增减，
+# 余量避免"算法没坏、清单先红"。B 类不列入 required_kinds（本章要求 A + C），
+# 但 assert_leq/assert_order 顺手登记的 B 类记录一并保留——它们是同一批实测值的对照。
+chapter: "3.4"
+title: 边值问题与谱方法
+required_kinds: [A, C]
+
+min_counts:
+  A: 28
+  B: 30
+  C: 8
+
+tests:
+  # ---------------------------------------------------------------- 打靶法
+  - name: test_shooting_sensitivity_matches_closed_form
+    kind: A
+    what: "变分方程积分出的灵敏度 S 与闭式 sinh(kL)/k 对拍：kL<=20 时相对偏差 1.6e-9 以内，kL=40 时 5.3e-8（此时 S 已 2.9e15）；放大位数 log10(S) 与理论一致"
+    theory: "u''=k^2u, u(a)=0 的通解给出 S=sinh(kL)/k；变分方程 z'=Jz, z(a)=(0,1) 是 S 的独立路线"
+  - name: test_linear_shooting_converges_in_one_newton_step
+    kind: A
+    what: "smooth/neumann/layer 三个线性算例都在 2 次函数求值内收敛，|F| 到 1e-13 量级；F 对 s 的仿射性由两点插值验证"
+    theory: "线性两点边值问题的右端匹配量 u(b;s) 是 s 的一次函数，Newton 一步到位"
+  - name: test_nonlinear_shooting_newton_is_quadratic
+    kind: A
+    what: "Bratu（u''=1.5u^2, u=4/(1+x)^2）残差史 2.7e1 -> 8.5 -> 1.9 -> 1.8e-1 -> 2.1e-3 -> 3.0e-7 -> 7.3e-13，7 步；相邻残差比满足 |F_{k+1}| <= 0.2|F_k|^2，实测误差 2.4e-11"
+    theory: "Newton 在单根附近二次收敛"
+  - name: test_growing_and_decaying_layer_modes_differ_at_equal_sensitivity
+    kind: A
+    what: "k=20, L=2 时 layer 与 decay 的实测灵敏度完全相同（5.885e15），误差却是 4.8e-10 与 1.7e1，差 10 个量级"
+    theory: "增长模态的真解是指数大的那支，相减不丢位数；衰减模态要在两个大数相减里抠出指数小的量"
+  - name: test_decaying_mode_failure_is_roundoff_not_truncation
+    kind: A
+    what: "衰减算例喂精确斜率、步长从 8e-3 缩到 2.5e-4（32 倍），最小误差仍 >0.1 且不随 h 单调下降；同一段上增长算例的误差在 1e-9 量级"
+    theory: "误差 ~ eps*e^{kL} 是舍入放大，与步长无关（截断误差才会随 h 下降）"
+  - name: test_fd_dirichlet_is_second_order_globally_and_interiorly
+    kind: A
+    what: "smooth 算例 Dirichlet 边界的整体阶与内部阶（n=32..512）实测 1.98 以上，且内部阶与整体阶之差 <0.05"
+    theory: "内部中心差商二阶 + 二阶边界 => 整体二阶；误差在内部与边界附近同阶"
+  - name: test_fd_neumann_bc_order_controls_the_global_order
+    kind: A
+    what: "混合边界算例：一阶边界格式整体 0.9983、内部 0.9981（n=32..512）；二阶边界格式整体 1.9756、内部 1.9780（n=128..1024）"
+    theory: "整体阶 = min(内部阶, 边界格式阶)；一阶边界的 O(h) 误差会铺满整个区间"
+  - name: test_bc_residual_discrete_versus_true
+    kind: A
+    what: "一阶边界格式 n=64：离散边界行残差 3.3e-15，而真实边界违反量 1.93e-2，两者差 12 个量级；二阶格式下真实违反量降到 1.4e-9"
+    theory: "离散残差是「格式自己那一行」的残差（解就是照它解出来的），真实违反量才是精度证据"
+  - name: test_fd_residual_small_but_error_large
+    kind: A
+    what: "neumann 算例 n=32（bc_order=2）：线性系统残差 8.7e-14，解误差 1.57e-4，比值 1.8e9"
+    theory: "残差衡量「线性系统解得准不准」，误差由截断与条件数决定，两者可以差很多个量级"
+  - name: test_fd_matrix_structure_and_cost
+    kind: A
+    what: "三对角：每行非零元 3 个（n=64）、矩阵密度 ~3/n、构造与 LU 求解的浮点量级比与 n 同量级"
+    theory: "二阶中心差商 + 单侧边界只产生三对角结构"
+  - name: test_three_routes_agree_on_nonlinear_problem
+    kind: A
+    what: "Bratu 上打靶/有限差分(n=320)/谱配置(N=32)三条路线互差 <=1e-5，各自误差 2.4e-11 / 4.7e-6 / 1.1e-15"
+    theory: "同一个边值问题的三种独立离散必须收敛到同一个解（互相对拍，不以某个实现为真值）"
+  - name: test_fd_newton_residual_floor_is_eps_over_h2
+    kind: A
+    what: "非线性有限差分 Newton 的残差地板随 n 变化符合 eps*||A|| ~ eps/h^2：n=40 时 2.4e-12、n=80 时 1.4e-12 量级；相对步长判据下迭代次数 <=6"
+    theory: "差分算子的残差地板是 eps*||A||~eps/h^2，绝对残差判据会让 Newton 在噪声里空转"
+  # ---------------------------------------------------------------- 谱方法
+  - name: test_chebyshev_transform_roundtrip_and_nodes
+    kind: A
+    what: "节点 x_j=cos(j pi/N) 与闭式逐位吻合；变换往返最大误差 4.4e-16；系数到值的 Clenshaw 求和与直接求和一致"
+    theory: "Chebyshev-Lobatto 节点与 DCT-I 型变换的互逆性"
+  - name: test_coefficient_derivatives_match_diff_matrix
+    kind: A
+    what: "系数空间求导（a^(1)_j 递推）给出的导数值与 D_N 作用在节点值上的结果相对差 <=1e-12；二阶同理到 1e-11"
+    theory: "谱微分在节点值与系数两种表示下必须一致"
+  - name: test_clenshaw_curtis_is_exact_for_polynomials
+    kind: A
+    what: "Clenshaw-Curtis 求积对次数 <=N 的多项式精确：m=N 时误差 5.7e-14 以内；m=N+2 时退到 1.9e-2（对照）"
+    theory: "N+1 个节点的插值型求积至少对 N 次多项式精确"
+  - name: test_diff_matrix_structure
+    kind: A
+    what: "D 稠密（密度 >0.98）、行和残差 <=1e-10、D_00 与 (2N^2+1)/6 相对差 <=1e-13、||D||_inf=N^2 相对差 <=1e-12、||D^2||_inf 与 N^4/3 差 <=2%"
+    theory: "D_N 的对角元由行和为零反解（D_00=(2N^2+1)/6），零空间是常数向量，||D_N||_inf=N^2 是精确等式"
+  - name: test_collocation_residual_at_nodes_versus_between
+    kind: A
+    what: "N=8 时内点残差 1.7e-13（舍入级），而节点之间的连续残差 0.38，是解误差 1.8e-4 的 2000 倍"
+    theory: "配置法只要求在节点上满足方程；残差不是误差，节点间残差可以远大于误差"
+  - name: test_spectral_differentiation_amplifies_roundoff_like_N4
+    kind: A
+    what: "精确解插值后做二阶谱微分，残差 N=20/24/32 为 6.8e-12/2.1e-11/1.1e-10，与 N^4*u 预测 5.5e-12/1.2e-11/3.6e-11 同量级；插值误差本身只有 3.3e-15"
+    theory: "||D^2||_inf~N^4/3 把舍入放大 N^4 倍"
+  - name: test_collocation_and_tau_agree
+    kind: A
+    what: "N=20 时配置解与 tau 解之差 9.7e-15，两者误差 8.5e-15 与 6.9e-15；条件数同量级（1.6e4 与 2.6e4）、密度 0.91 与 0.37"
+    theory: "配置法与 tau 法在多项式空间上等价，差别只在边界行与被丢弃的方程"
+  - name: test_spectral_bc_residual_is_at_solution_error_level
+    kind: A
+    what: "smooth 与 neumann 算例的谱边界残差 <=1e-11（与解误差同量级），且明显低于有限差分的真实边界违反量"
+    theory: "谱配置把边界条件当两行方程解出来，边界残差应在舍入级"
+  - name: test_node_clustering_geometry
+    kind: A
+    what: "间距比 /N 从 N=8 的 0.629 单调趋于 2/pi=0.63662；密度比 rho(0.9)/rho(0)=2.294 与 1/sqrt(0.19) 差 1e-12"
+    theory: "rho(x)=N/(pi sqrt(1-x^2))；最大/最小间距比 ~ (2/pi)N"
+  - name: test_interval_mapping_is_required
+    kind: A
+    what: "[0,1] 上的谱配置漏掉伸缩因子 s=2 时解偏差 >0.5；补上后误差回到 1e-14"
+    theory: "参考区间 [-1,1] 上的 D_N 必须带 s=2/(b-a) 映射，二阶导带 s^2"
+  # ---------------------------------------------------------------- 帧契约
+  - name: test_frames_are_valid_everywhere
+    kind: A
+    what: "四个 viz 在默认参数 + 每个参数 min/max + 每个 enum 选项、时间轴两端共 100 帧以上全部通过 build_frame 校验：数组全有限、meta 全是有限标量、requiredAux 齐备、口径字符串非空"
+    theory: "帧契约（规则 3 的 requiredAux、meta 只放 number/bool/null、header 禁 NaN）"
+  - name: test_shooting_frame_numbers_match_direct_computation
+    kind: A
+    what: "viz1 帧内灵敏度与直接重算相对差 <=1e-12、与闭式 sinh(kL)/k 相对差 <=1e-6；参考斜率与直接重算相对差 <=1e-12"
+    theory: "帧只是搬运工，meta 里的每个数都必须能重算出来"
+  - name: test_convergence_frame_numbers_match_direct_computation
+    kind: A
+    what: "viz2 帧内地板与直接重算相对差 <=1e-12、半对数斜率与 R^2 绝对差 <=1e-9，且拟合窗口写进了 strings"
+    theory: "指数收敛的三件套（斜率、地板、窗口）必须一起进帧"
+  - name: test_node_clustering_frame_numbers_match
+    kind: A
+    what: "viz3 帧内聚集比、密度比与直接重算相对差 <=1e-12；abs3 的插值峰值 1e-6 以上且配置解误差不小于插值峰值"
+    theory: "节点聚集的几何量与「配置解比插值差一阶」都要在帧里对得上"
+  - name: test_diff_matrix_frame_numbers_match
+    kind: A
+    what: "viz4 帧内 ||D||_inf 与 N^2 相对差 <=1e-12、D_00 与 (2N^2+1)/6 相对差 <=1e-13、kappa+ 与直接重算一致；且 0.98 的帧里 kappa_naive>1e12 而 kappa+<1e4"
+    theory: "朴素条件数被零空间噪声支配，只有挖掉零空间的 kappa+ 有意义"
+  # ---------------------------------------------------------------- C 类阈值
+  - name: test_shooting_failure_length_matches_roundoff_estimate
+    kind: C
+    what: "对 k=20 二分实测「打靶误差首次超过 0.5」的区间长度 1.8750，与舍入估计 ln(1/u)/k=1.8373 相对差 2%"
+    theory: "衰减模态失效长度 L* ~ ln(1/u)/k（误差 ~ eps*e^{kL} 到 O(1) 的位置）"
+  - name: test_shooting_error_grows_exponentially_in_kL
+    kind: C
+    what: "同一算例扫 kL，误差的半对数斜率拟合 0.89（理论 1），R^2=0.955"
+    theory: "误差 ~ e^{kL} 的指数律"
+  - name: test_fd_order_depends_on_fit_window
+    kind: C
+    what: "同一批 bc_order=2 数据：n=16..128 拟合 1.86（<1.93 的判据成立），n=256..1024 拟合 >1.95；两个窗口的结论都实测出来"
+    theory: "前渐近区的阶偏低，报阶必须写窗口"
+  - name: test_fd_matrix_condition_grows_like_n_squared
+    kind: C
+    what: "差分矩阵 kappa_inf 从 n=32 的 1.02e4 长到 n=256 的 6.55e5，拟合指数 2（用 1/kappa 的幂律拟合）"
+    theory: "二阶差分算子条件数 ~ n^2"
+  - name: test_exponential_versus_algebraic_convergence
+    kind: C
+    what: "误差比判据：smooth 的 err(N)/err(N+2) 末次 196.7 > 首次 39.3 且最大/最小 >4；abs3 的比值单调下降且末次 <1.25"
+    theory: "指数收敛的误差比整体上抬，幂律收敛的比值压向常数；R^2 不足以判别"
+  - name: test_nonanalytic_degradation_one_order_worse_than_interpolation
+    kind: C
+    what: "|x|^3 的插值率 3.002 与配置解率 1.987 之差 1.015；|x|^5 是 5.012 与 4.023，差 0.989（判据 1+-0.15）"
+    theory: "微分吃掉一阶光滑度：配置解率 = 插值率 - 1"
+  - name: test_roundoff_floor_and_the_N_where_it_is_hit
+    kind: C
+    what: "smooth 的舍入地板实测 7.6e-15，撞上地板的 N 落在 [10,24]，N=32 后误差回升；最小误差出现在 N=24"
+    theory: "误差 e^{-lambda N} 与舍入 N^4u 的交点给出最优 N 与地板"
+  - name: test_diff_matrix_conditioning_growth
+    kind: C
+    what: "kappa+ 从 N=8 的 35.06 长到 N=64 的 1988，拟合指数 1.946（理论 2）；朴素 kappa 在 1e17 量级（零空间噪声）"
+    theory: "挖掉零空间后 kappa+ ~ N^2"
+  - name: test_steep_analytic_solution_needs_larger_N
+    kind: C
+    what: "tanh(kx) 到达指定精度所需 N 随 k 增长：k=3 需 48、k=6 需 96、k=10 超过 128；半对数斜率随 k 变平（-0.61/-0.24/-0.014）"
+    theory: "解析但陡峭的解仍指数收敛，收敛速率随奇点距离变近而变慢"

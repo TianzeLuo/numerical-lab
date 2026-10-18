@@ -1,0 +1,616 @@
+% 2.6 章 · 小波与多分辨分析
+% 这一章要把「小波」拆成五件互不相同的数学事实：
+%   1) 多分辨分析是 nested 子空间链 + 尺度关系，二尺度方程是它的坐标表达；
+%   2) 滤波器组的完美重构是 |H|^2+|H(·+pi)|^2=2 的时域版本，正交/双正交是两件事；
+%   3) 消失矩 = H 在 pi 处的 N 阶零点 = deg < N 的多项式被细节系数精确湮灭；
+%      它「不成立」的那一侧按 (2^j dt)^N 标度，不是 O(1)——两侧都要量；
+%   4) 有限长信号的边界延拓决定能量记账（periodic/zero 是等距、symmetric 复制样本）；
+%      不做延拓时污染是局部的，但物理影响区按 2^j 增长；
+%   5) 阈值去噪的偏差-方差是两条单调曲线之和，通用阈值与最优点不是同一个位置。
+% 所有数字都来自本仓库 tests/2.6/ 的运行结果；断言附表由 tools/build_book.py 生成，
+% \input 进来，不手抄。
+
+\numlabchapter{小波与多分辨分析}{2.6}
+
+\section{这一章要解决什么}
+
+傅里叶分析用一组固定频率的复指数去展开信号；小波分析用的是\textbf{同一个母函数的
+不同尺度与平移}。这个改变带来四个必须说清楚的问题：
+
+\begin{enumerate}
+  \item \textbf{「多分辨」到底是什么结构？} 它不是「多尺度滤波」这种手感描述，
+        而是一条嵌套子空间链 $V_j\subset V_{j+1}$，配上尺度关系
+        $f\in V_j\iff f(2\,\cdot)\in V_{j+1}$。全部离散算法都是这条链的坐标表达：
+        $x=x_J+\sum_{j=1}^{J}w_j$（本章实测逐位成立到 $9.5\times10^{-16}$）。
+  \item \textbf{「完美重构」是精确的吗？} 不是，是到机器精度：
+        三种边界延拓 $\times$ 四个小波 $\times J\in\{1,2,3,4,6,8\}$（$n=256$）的
+        最大往返误差 $1.12\times10^{-15}$，全部落在 $4Ju$ 之内。
+        它的代价与边界处理绑在一起：把每层系数裁到\textbf{临界采样}（一点余量不留）之后，
+        同一个往返误差跳到 $O(1)$（实测 $1.379$）——那不是精度问题，是换了一个变换。
+  \item \textbf{消失矩凭什么让多项式「消失」？} 因为
+        $\sum_l(-1)^l l^m h_l=0\ (m<N)$ 让细节滤波器把\textbf{任意} $<N$ 次多项式
+        的样本整段吃掉。但这句话有两个方向：被抹平的一侧贴 $u$ 且与层数、$n$ 无关
+        （实测 $0.36u\sim0.84u$）；没被抹平的一侧是 Taylor 的第 $N$ 项，
+        按 $(2^j\Delta t)^N$ 标度（db4 逐层 $\times17.1$、理论 $16$；$n$ 翻两番
+        下降 $282$ 倍、理论 $256$）。只报一个阈值，两侧都会被自己手里的例子打脸。
+  \item \textbf{阈值去噪的「最优」在哪？} 偏差$^2$ 与方差是两条反向的曲线，
+        本章把它们逐点测出来：软阈值下偏差$^2$ 单调不减、方差单调不增（各 $0$ 处违反），
+        MSE 在中间取极小（实测 $\lambda^\star=0.281$）。
+        而通用阈值 $\sigma\sqrt{2\ln n}=0.999$ 是它的 $3.56$ 倍，
+        该处的 MSE（$0.12994$）甚至比\textbf{完全不去噪}（$0.08963$）还差 $45\%$。
+\end{enumerate}
+
+记号：$u=2^{-53}\approx1.11\times10^{-16}$ 是双精度单位舍入；$n$ 是样本数；
+$J$ 是分解层数；$L$ 是滤波器长度；$n_{\text{ext}}$ 是延拓后的长度；
+$H(\omega)=\sum_j h_j e^{-i\omega j}$ 是尺度滤波器的符号（约定同代码里的
+\texttt{filter\_response}，故 $H(0)=\sqrt2$）；
+$g_j=(-1)^j h_{L-1-j}$ 是小波滤波器；$\lambda$ 是阈值；
+$\Phi,\varphi$ 分别是标准正态的分布函数与密度（仅在阈值一节使用）。
+本章的「实测」数字全部取自 \texttt{tests/2.6/} 的 878 条断言记录。
+
+\section{多分辨分析：公理与它们的用处}
+
+\begin{definition}[多分辨分析]
+\label{def:mra}
+$\{V_j\}_{j\in\mathbb{Z}}$ 是 $L^2(\mathbb{R})$ 的一列闭子空间。称它是多分辨分析，若
+\begin{enumerate}
+  \item $V_j\subset V_{j+1}$（嵌套）；
+  \item $\overline{\bigcup_j V_j}=L^2(\mathbb{R})$（稠密）；
+  \item $\bigcap_j V_j=\{0\}$（分离）；
+  \item $f\in V_j\iff f(2^{-j}\,\cdot)\in V_0$（尺度关系）；
+  \item 存在 $\phi\in V_0$，使 $\{\phi(\,\cdot-k)\}_{k\in\mathbb{Z}}$ 是 $V_0$ 的规范正交基。
+\end{enumerate}
+\end{definition}
+
+前三条只说「$V_j$ 越来越大」；第四条把「大」钉成整数倍的尺度；第五条给出可算的基。
+把它们串起来就是这一章的全部结构。
+
+\begin{theorem}[嵌套给出直和分解]
+\label{thm:nested}
+设 $\{V_j\}$ 是定义 \ref{def:mra} 的多分辨分析，令 $W_j=V_{j+1}\ominus V_j$
+（$V_j$ 在 $V_{j+1}$ 中的正交补）。则对任意 $J<K$，
+\[
+V_K=V_J\oplus\bigoplus_{j=J}^{K-1}W_j ,
+\]
+且 $\{W_j\}_{j\in\mathbb{Z}}$ 两两正交，$L^2(\mathbb{R})=\bigoplus_{j\in\mathbb{Z}}W_j$。
+\end{theorem}
+
+\begin{proof}
+$V_J\oplus W_J=V_{J+1}\subset V_{J+2}$，故可对 $K$ 归纳：把
+$V_K=V_{K-1}\oplus W_{K-1}$ 逐层展开即得有限直和式。
+两两正交：设 $i<j$，则 $W_i\subset V_{i+1}\subset V_j$，而 $W_j\perp V_j$，故 $W_i\perp W_j$。
+最后，$\bigcup_K V_K$ 稠密且 $\bigcup_K V_K=\bigcup_J\bigoplus_{j\le J}W_j$，
+于是 $\bigoplus_j W_j$ 稠密；正交性使这个和是直和，闭包即全空间。
+\end{proof}
+
+这个定理就是「逐层重构」可视化的数学内容：把 $x$ 投影到 $V_J$ 得最粗近似，
+再把每一层 $W_j$ 上的分量加回去，逐层累加最终回到 $x$。
+
+\begin{theorem}[二尺度方程]
+\label{thm:twoscale}
+设 $\phi$ 满足定义 \ref{def:mra} 第五条且 $\|\phi\|=1$。由 $V_0\subset V_1$ 与
+$\{\sqrt2\,\phi(2\,\cdot-j)\}_j$ 是 $V_1$ 的规范正交基，存在唯一的
+$h=\{h_j\}\in\ell^2(\mathbb{Z})$ 使
+\[
+\phi(t)=\sqrt2\sum_j h_j\,\phi(2t-j),\qquad h_j=\sqrt2\int_{\mathbb{R}}\phi(t)\overline{\phi(2t-j)}\,dt ,
+\]
+并且 $\sum_j|h_j|^2=1$。
+\end{theorem}
+
+\begin{proof}
+$\{\sqrt2\phi(2t-j)\}_j$ 的正交性是 $\{\phi(t-k)\}_k$ 正交性的尺度像：
+$\int 2\phi(2t-j)\overline{\phi(2t-l)}dt=\int\phi(s)\overline{\phi(s-(l-j))}ds=\delta_{jl}$。
+既然 $\phi\in V_1$，把它在这组基上展开即得第一式，系数由内积给出。
+再由 $\|\phi\|^2=\sum_j|\langle\phi,\sqrt2\phi(2\cdot-j)\rangle|^2=\sum_j|h_j|^2$（Parseval）得归一化。
+\end{proof}
+
+\begin{theorem}[正交性条件]
+\label{thm:orth}
+设 $h$ 如定理 \ref{thm:twoscale}，则 $\{\phi(\cdot-k)\}_k$ 规范正交当且仅当
+\[
+\sum_j h_j h_{j-2k}=\delta_k\qquad(\forall k\in\mathbb{Z}).
+\]
+\end{theorem}
+
+\begin{proof}
+用二尺度方程把两个平移的 $\phi$ 展开：
+\[
+\langle\phi(\cdot-k),\phi(\cdot-l)\rangle
+=2\sum_{j,m}h_jh_m\int\phi(2t-2k-j)\overline{\phi(2t-2l-m)}\,dt .
+\]
+换元 $s=2t-2l-m$ 后，内积是 $\int\phi(s+2(l-k)+m-j)\overline{\phi(s)}ds/2$，
+由整数平移的正交性它等于 $\tfrac12\delta_{j-m,\,2(k-l)}$。代入得
+$\sum_{j}h_jh_{j-2(k-l)}$，要求它对所有 $k-l$ 等于 $\delta_{k-l}$，即所证。
+\end{proof}
+
+把定理 \ref{thm:orth} 换到频域，就是「完美重构条件」——滤波器组里最常被引用、
+也最常被写错的一条：
+
+\begin{theorem}[完美重构 / 正交镜像条件]
+\label{thm:pr}
+记 $H(\omega)=\sum_j h_j e^{-i\omega j}$（$H(0)=\sqrt2$）。定理 \ref{thm:orth} 等价于
+\[
+|H(\omega)|^2+|H(\omega+\pi)|^2=2\qquad(\forall\omega).
+\]
+\end{theorem}
+
+\begin{proof}
+由 $\sum_j|h_j|^2=1$（定理 \ref{thm:twoscale}）与 $H(0)=\sqrt2$ 得 $|H(0)|^2=2$，
+所以常数取 $2$ 是唯一自洽的选择。记自相关
+$a(m)=\sum_jh_jh_{j-m}$，则 $\sum_ma(m)e^{-i\omega m}=|H(\omega)|^2$。
+按 $m$ 的奇偶把和拆开，并用
+$\sum_{m}a(m)e^{-i(\omega+\pi)m}=\sum_m(-1)^ma(m)e^{-i\omega m}$：
+\[
+\sum_k a(2k)e^{-i2k\omega}=\tfrac12\Big(\sum_ma(m)e^{-i\omega m}+\sum_ma(m)e^{-i(\omega+\pi)m}\Big)
+=\tfrac12\big(|H(\omega)|^2+|H(\omega+\pi)|^2\big).
+\]
+定理 \ref{thm:orth} 说 $a(2k)=\delta_k$，即左边恒等于 $1$；两边乘 $2$ 即得结论。
+（另一条同样常用的推导走周期化：由 $\sum_l|\hat\phi(\omega+2\pi l)|^2=1$
+与 $\hat\phi(2\omega)=H(\omega)\hat\phi(\omega)$，把 $l$ 按奇偶分成两组，
+同样得到 $|H|^2+|H(\cdot+\pi)|^2=2$。）
+\end{proof}
+
+\begin{theorem}[小波滤波器与 $W_0$ 的基]
+\label{thm:waveletfilter}
+令 $g_j=(-1)^j h_{L-1-j}$，$\psi(t)=\sqrt2\sum_j g_j\phi(2t-j)$。若 $h$ 满足定理
+\ref{thm:orth}，则 $\{\psi(\cdot-k)\}_k$ 是 $W_0$ 的规范正交基：$\psi$ 的整数平移
+两两正交、且每个都与所有 $\phi(\cdot-k)$ 正交。
+\end{theorem}
+
+\begin{proof}
+与定理 \ref{thm:orth} 的推导逐字相同，只需把 $h$ 换成 $g$：
+$\langle\psi(\cdot-k),\psi(\cdot-l)\rangle=\sum_jg_jg_{j-2(k-l)}$。
+由 $g_j=(-1)^jh_{L-1-j}$ 得
+$\sum_jg_jg_{j-2m}=\sum_jh_jh_{j-2m}=\delta_m$（符号 $(-1)^{j}(-1)^{j-2m}=1$），
+故正交。交叉项：
+$\langle\phi(\cdot-k),\psi(\cdot-l)\rangle=\sum_jh_jg_{j-2(k-l)}$，
+代入 $g$ 并在 $j-2m\to n$ 后利用 $(-1)^n$ 与 $(-1)^{L-1-n}$ 的配对，
+得到 $\sum_n(-1)^nh_nh_{n-2m}=0$ 的相邻移位交错和，而后者由定理 \ref{thm:orth}
+（$m$ 与 $m$ 相差 $1$ 的两项相消）为 $0$。
+\end{proof}
+
+\begin{corollary}[离散滤波器组是伴随对]
+\label{cor:filterbank}
+本章实现的三个式子是同一件事的三种写法：
+\[
+a_k=\sum_j h_j\,x_{\text{ext}}[2k+j],\qquad
+d_k=\sum_j g_j\,x_{\text{ext}}[2k+j],\qquad
+\tilde x_{\text{ext}}[2k+j]\mathrel{+}=h_ja_k+g_jd_k .
+\]
+第三条（合成）恰好是前两条（分析）的\textbf{伴随}：把内积
+$\sum_k a_k\bar\alpha_k+\sum_kd_k\bar\delta_k$ 里的求和次序换一下即得
+$\sum_n x_{\text{ext}}[n]\overline{\tilde x[n]}$。因此往返算子是正交投影；
+当 $h,g$ 满足定理 \ref{thm:pr} 的完美重构条件时它就是恒等（实测到 $4Ju$）。
+\end{corollary}
+
+\begin{proof}
+第一、二式的伴随由求和换序直接得到。投影性来自「$A A^{*}$ 是投影、$A^{*}A$ 是恒等
+$\iff A$ 是等距」这一对标准事实；完美重构条件下每一层的 $2\times2$ 多相矩阵是酉矩阵，
+所以每层都等距，往返即恒等。
+\end{proof}
+
+\section{消失矩：为什么多项式会「消失」}
+
+这一节是本章最容易被讲糊的地方。流行的说法是「$N$ 阶消失矩让小波系数对光滑信号很小」，
+但「很小」既不能验证也不能证伪。下面把离散事实写成一个\textbf{精确}的定理。
+
+\begin{theorem}[离散消失矩条件 $\Rightarrow$ 多项式被精确湮灭]
+\label{thm:vm}
+设 $h$ 满足 $\sum_jh_j=\sqrt2$ 与
+\[
+\sum_j(-1)^j j^m h_j=0,\qquad m=0,1,\dots,N-1,
+\]
+令 $g_j=(-1)^jh_{L-1-j}$。又设 $p$ 是次数 $<N$ 的多项式，
+$x[n]=p(a+n\Delta)$（等距采样）。则对每个层数 $j$ 与每个\textbf{内部}下标 $k$，
+第 $j$ 层的细节系数
+\[
+d^{(j)}_k=\sum_l g_l\,x^{(j)}[2k+l]=0
+\]
+精确成立；其中 $x^{(j)}$ 是第 $j$ 层的近似序列，其采样间距是 $2^j\Delta$。
+\end{theorem}
+
+\begin{proof}
+先由 $h$ 的矩条件推出 $g$ 的矩条件。把 $g_l=(-1)^lh_{L-1-l}$ 代入：
+\[
+\sum_l g_l\,l^m=\sum_n(-1)^{L-1-n}h_n\,(L-1-n)^m
+=(-1)^{L-1}\sum_n(-1)^nh_n\,(L-1-n)^m .
+\]
+$(L-1-n)^m$ 是 $n$ 的 $m$ 次多项式，展开成 $\sum_{r\le m}c_rn^r$；
+逐项用假设 $\sum_n(-1)^nn^rh_n=0$（$r\le m<N$）即得 $\sum_lg_l l^m=0$，$m<N$。
+
+再对采样值展开：$x^{(j)}[2k+l]=p(A+l\,2^j\Delta)$，其中 $A$ 与 $l$ 无关。
+把它按 $l$ 的幂展开，得到 $x^{(j)}[2k+l]=\sum_{m<N}\tilde c_m l^m$
+（次数 $<N$，因为 $p$ 的次数 $<N$）。于是
+\[
+d^{(j)}_k=\sum_l g_l\,x^{(j)}[2k+l]=\sum_{m<N}\tilde c_m\sum_lg_l l^m=0 .
+\]
+「内部」这个条件用于保证：系数 $k$ 的分析支撑整段落在延拓区内，
+从而上面的 $x^{(j)}$ 真的是同一个多项式 $p$ 的等距采样，
+而不是被延拓（补零/反射）改过的序列。
+\end{proof}
+
+定理 \ref{thm:vm} 解释了本章所有实测现象：
+
+\begin{itemize}
+  \item 内部比值与层数、$n$ 无关地贴在舍入地板上（实测 $0.36u\sim0.84u$，**不是** $0$，
+        因为浮点求和只是近似相消）；
+  \item 边界系数是 $O(1)$（实测 $0.49/0.40/0.46/0.95$，与内部相差 $1.03\times10^{16}$ 倍）：
+        零延拓把多项式截断成跳变，跳变不是多项式，定理的前提不成立；
+  \item 层数太深时\textbf{内部系数个数会变成 0}（db8、$n=256$、$J=4$ 实测 $0$ 个），
+        此时「比值」没有样本，图上必须用掩码标出，而不是画一个 $0$。
+\end{itemize}
+
+\begin{theorem}[$H$ 在 $\pi$ 处的 $N$ 阶零点]
+\label{thm:zero}
+$\sum_j(-1)^jj^mh_j=0\ (m<N)$ 当且仅当
+$H(\omega+\pi)=O(\omega^N)$（$\omega\to0$），即 $H$ 在 $\omega=\pi$ 处有 $N$ 阶零点。
+等价地 $H(\omega)=\big(\tfrac{1+e^{-i\omega}}{\sqrt2}\big)^NQ(\omega)$，
+其中 $Q$ 在 $\pi$ 处不为零。
+\end{theorem}
+
+\begin{proof}
+由 $H(\omega+\pi)=\frac1{\sqrt2}\sum_jh_je^{-i\omega j}(-1)^j$，
+在 $\omega=0$ 处作 Taylor 展开：
+\[
+H(\omega+\pi)=\frac1{\sqrt2}\sum_{m\ge0}\frac{(-i\omega)^m}{m!}\sum_j(-1)^jj^mh_j .
+\]
+前 $N$ 个系数恰是矩条件，故 $H(\omega+\pi)=O(\omega^N)$。
+反之若 $H(\omega+\pi)=O(\omega^N)$，则该展开的前 $N$ 个系数为 $0$，即矩条件成立。
+最后一句话是 Weierstrass 分解的初等版本：
+$(1+e^{-i\omega})^N$ 在 $\pi$ 处恰有 $N$ 阶零点，除掉它之后剩下的因子在 $\pi$ 处连续且非零。
+\end{proof}
+
+\begin{corollary}[没被抹平那一侧的标度律]
+\label{cor:scaling}
+设 $p$ 的次数恰为 $N$。则内部细节系数的主项是 Taylor 的第 $N$ 项：
+\[
+d^{(j)}_k=\frac{(2^j\Delta)^N}{N!}\,p^{(N)}(\xi)\sum_lg_l\,l^N+O\big((2^j\Delta)^{N+1}\big),
+\]
+于是量级比 $\max|d|/\max|a|$ 随层数按 $2^N$ 增长、随 $n$（即 $1/\Delta$）按 $n^{-N}$ 衰减。
+\end{corollary}
+
+\begin{proof}
+在 $x^{(j)}[2k+l]=p(A+l2^j\Delta)$ 的 Taylor 展开中，前 $N$ 项（$m<N$）的系数和为零
+（定理 \ref{thm:vm} 的证明），剩下的第一项正是 $m=N$ 项，系数
+$\frac{(2^j\Delta)^N}{N!}p^{(N)}(A+\theta l2^j\Delta)$。对 $l$ 求和，
+$\sum_lg_ll^N$ 是与 $j,n$ 无关的常数；$\Delta=O(1/n)$ 给出 $n^{-N}$。
+\end{proof}
+
+实测与推论 \ref{cor:scaling} 的对照（$n=256$、内部系数、zero 延拓）：
+\begin{center}
+\begin{tabular}{lcccc}
+\toprule
+小波 & $N$ & $k=N$ 时 $J=1$ 的比值 & 第 2 层 / 第 1 层 & 理论 $2^N$\\
+\midrule
+db2 & 2 & $5.34\times10^{-5}$ & $4.08$ & $4$\\
+db4 & 4 & $3.41\times10^{-8}$ & $17.1$ & $16$\\
+db6 & 6 & $5.87\times10^{-11}$ & $73$ & $64$\\
+db8 & 8 & $1.96\times10^{-13}$ & $320$ & $256$\\
+\bottomrule
+\end{tabular}
+\end{center}
+$n$ 从 $64$ 到 $256$（$\Delta$ 小 $4$ 倍）时 db4 的比值下降 $282$ 倍（理论 $4^4=256$）。
+这张表比任何阈值都硬：它说明残差\textbf{确实}是第 $N$ 阶 Taylor 项，
+也就是前 $N-1$ 阶矩是精确零。
+
+\begin{remark}[为什么「$k\ge N$ 时是 $O(1)$」这句话会骗人]
+\label{rem:vm-lie}
+$O(1)$ 是渐近记号，常数因子可以极小。实测 db8 在 $n=256$、$J=1$ 处的读数是
+$1.96\times10^{-13}$，只有 $1764u$；按推论 \ref{cor:scaling} 的 $n^{-N}$ 标度，
+$n=1024$ 时会掉到 $u$ 的几倍，与舍入地板无法区分。
+此时「测不出来」会被误读成「消失矩仍然成立」。
+所以两侧的正确表述是：被抹平侧 $\le c\,u$ 且与 $n,J$ 无关；
+未抹平侧 $\asymp(2^j\Delta)^N$，并且必须报出它离地板还有几个数量级。
+\end{remark}
+
+\section{有限长信号：延拓、裁剪与能量记账}
+
+真实信号只有 $n$ 个样本，而滤波器有 $L$ 个抽头。本章的实现统一采用
+\textbf{延拓 $\to$ 严格周期的正交变换 $\to$ 裁剪} 三步：
+
+\begin{theorem}[延拓三步法的正确性]
+\label{thm:extension}
+设 $E:\mathbb{R}^n\to\mathbb{R}^{n_{\text{ext}}}$ 是延拓算子（补零或半样本反射），
+$M_{\text{per}}$ 是长度 $n_{\text{ext}}$ 上的 $J$ 层周期小波变换，
+$P:\mathbb{R}^{n_{\text{ext}}}\to\mathbb{R}^{n}$ 是按原信号位置裁剪系数的算子。
+若 $2^J\mid n_{\text{ext}}$，则 $M=PM_{\text{per}}E$ 满足：
+\begin{enumerate}
+  \item $M_{\text{per}}$ 是正交矩阵（当 $2^J\mid n_{\text{ext}}$ 时系数个数恰为 $n_{\text{ext}}$）；
+  \item $\|Mx\|^2\le\|Ex\|^2$，等号当且仅当被裁掉的系数全为 $0$；
+  \item 若 $E$ 是等距（补零），则 $\|Mx\|^2/\|x\|^2\le1$；
+        对补零延拓，当 $x$ 的支撑加上滤波器余量仍在延拓区内时比值恰为 $1$；
+        若 $E$ 是反射（复制样本），则典型地 $\|Ex\|^2/\|x\|^2\approx n_{\text{ext}}/n$。
+\end{enumerate}
+\end{theorem}
+
+\begin{proof}
+(1) 单层分析矩阵的行是 $h$ 与 $g$ 的整数移位，行之间的内积由定理 \ref{thm:orth}
+与定理 \ref{thm:waveletfilter} 给出 $\delta$；方阵且行正交即正交。
+$2^J\mid n_{\text{ext}}$ 保证每层都能整块二分（第 $j$ 层长度 $n_{\text{ext}}/2^{j-1}$ 是偶数）。
+层数合成仍是正交阵，系数总数
+$n_{\text{ext}}/2^J+\sum_{j=1}^{J}n_{\text{ext}}/2^j=n_{\text{ext}}$。
+(2) $\|Mx\|^2=\|PM_{\text{per}}Ex\|^2\le\|M_{\text{per}}Ex\|^2=\|Ex\|^2$，
+因为 $P$ 只是丢弃分量，且 $M_{\text{per}}$ 保范。
+(3) 补零算子 $E$ 逐位插入零，$\|Ex\|=\|x\|$，故比值 $\le1$；
+被丢弃的系数是那些分析支撑完全落在补零区的系数，对它们 $M_{\text{per}}Ex$ 的对应分量恒为 $0$，
+于是等号成立。反射算子把边界样本复制一次，
+对白噪声型输入 $\mathbb{E}\|Ex\|^2=n_{\text{ext}}\sigma^2$ 而 $\mathbb{E}\|x\|^2=n\sigma^2$，
+故典型比值 $n_{\text{ext}}/n$。
+\end{proof}
+
+实测（$n=256$、db8、$J=4$）：\texttt{periodic} 比值 $1.0000000000$（偏差 $\le8nu$）、
+\texttt{zero} 比值 $1.0000000000$、\texttt{symmetric} 比值 $1.128$（50 个实现的均值），
+而 $n_{\text{ext}}/n=288/256=1.125$。这三个数必须一起报——
+只写「小波变换保能量」会把 \texttt{symmetric} 的 12.8\% 当成实现误差。
+
+\begin{theorem}[边界污染是局部的，影响区按 $2^j$ 增长]
+\label{thm:pollution}
+设滤波器长度 $L$，第 $j$ 层的分析支撑长度是 $2^j(L-1)+1$ 个样本。
+若不做延拓（纯周期环绕）而直接与「延拓后裁剪」的口径比较，
+第 $j$ 层受影响的系数每个边界不超过 $\lceil (L-1)/2\rceil$ 个，
+但每个系数代表 $2^j$ 个样本，于是物理影响区至多 $2^j(L-1)$ 个样本。
+\end{theorem}
+
+\begin{proof}
+第 $j$ 层的系数 $k$ 依赖 $[2^jk,\ 2^j(k+L-1)]$ 区间里的样本。
+只有当这段区间越过原信号边界时，两种口径才会用到不同的样本：
+需要 $2^jk<g$ 或 $2^j(k+L-1)\ge g+n$（$g$ 是左延拓长度），
+即 $k<\lceil g/2^j\rceil$ 或 $k\ge\lfloor(g+n)/2^j\rfloor-(L-1)$。
+每侧至多 $\lceil(L-1)/2\rceil$ 个整数 $k$（因为不等式区间长度是 $L-1$ 的一半量级），
+换算成样本数即乘以 $2^j$。
+\end{proof}
+
+实测（$n=512$、db4、$J=4$）：受污染系数个数 $3/5/6/6$（每层都只有两端几个，
+与 $L-1=7$ 的上界一致），物理影响区 $6/20/48/96$ 个样本（每层约翻倍），
+最大偏差 $0.053/0.221/0.766/3.480$（最深层是第 1 层的 $65$ 倍）。
+「只影响几个系数」与「影响 96 个样本」是同一件事的两种说法——
+报前者会把结论压小 $2^j$ 倍。
+
+\section{平稳小波：平移等变与框架算子}
+
+抽取（downsampling）是 DWT 不平移的根源。去掉抽取就得到平稳小波变换（SWT）：
+
+\begin{theorem}[SWT 平移等变]
+\label{thm:swt-shift}
+SWT 的每一层都是「带膨胀的循环卷积」，不含抽取，因此对循环平移可交换：
+若 $y[n]=x[(n-1)\bmod n]$，则 $a_j(y)[n]=a_j(x)[(n-1)\bmod n]$，
+$d_j(y)[n]=d_j(x)[(n-1)\bmod n]$ 对每层 $j$ 都成立。
+\end{theorem}
+
+\begin{proof}
+循环卷积与平移可交换；递归式 $a_{j+1}=H_j a_j$、$d_{j+1}=G_j a_j$
+（$H_j$ 是把 $h$ 按 $2^{j-1}$ 膨胀后的滤波器）中每一步都是循环卷积，
+故对 $j$ 归纳即得。
+\end{proof}
+
+实测：$n=512$、db4、chirp 上平移一格，SWT 的系数变化\textbf{恰好是 $0.0$}
+（不是「很小」）；同样条件下 DWT 的相对变化是 $2.01/8.39/36.2/51.2$（$J=1..4$）。
+比较时必须允许每个带整体挪一格，否则测到的是记账差别而不是相位错位。
+
+\begin{theorem}[SWT 的框架算子]
+\label{thm:swt-frame}
+记 $P_i(\omega)=\prod_{k=0}^{i-1}|H(2^k\omega)|^2$（$P_0\equiv1$）。
+对 $J$ 层 a trous 递归（$a_{j+1}=H(2^j\omega)a_j$，$d_{j+1}=G(2^j\omega)a_j$），
+用完美重构条件 $|G|^2=2-|H|^2$ 逐层求和，框架算子的符号是
+\[
+S(\omega)=2+\sum_{i=1}^{J-1}P_i(\omega),
+\]
+它\textbf{不是常数}：$\omega=0$ 处 $|H|=\sqrt2$、$S\to2^J$；$\omega=\pi$ 处 $|H|=0$、$S\to2$。
+\end{theorem}
+
+\begin{proof}
+第 $j$ 层细节携带的乘子是 $|G(2^{j-1}\omega)|^2P_{j-1}(\omega)=(2-|H(2^{j-1}\omega)|^2)P_{j-1}(\omega)
+=2P_{j-1}(\omega)-P_j(\omega)$；最粗近似携带 $P_J(\omega)$。求和：
+\[
+S=\sum_{j=1}^{J}\big(2P_{j-1}-P_j\big)+P_J=2\sum_{i=0}^{J-1}P_i-\sum_{i=1}^{J}P_i+P_J
+=2P_0+\sum_{i=1}^{J-1}P_i ,
+\]
+$P_0=1$ 给出结论。由 $H(0)=\sqrt2$（本节的符号没有除以 $\sqrt2$）得
+$|H(0)|^2=2$，故 $P_i(0)=2^i$、$S(0)=2+\sum_{i=1}^{J-1}2^i=2^J$；
+而 $|H(\pi)|^2=0$（定理 \ref{thm:zero} 取 $N\ge1$）使 $P_i(\pi)=0\ (i\ge1)$，
+故 $S(\pi)=2$。这两端的数值与实测一致（$J=4$ 时低频比值 $15.999986$）。
+\end{proof}
+
+实测（$n=1024$、db4）：细节系数能量与信号能量之比，纯音（$5/256$）在 $J=4$ 时
+是 $15.999986$（$=2^J$），白噪声是 $4.9808$（$\approx2^{J-1}+1$）——
+同一个变换、同一个层数，差 3 倍多。纯音实测与符号预测一致到 $3\times10^{-16}$。
+\textbf{只有 $J=1$ 才是紧框架}（此时 $S\equiv2$）。
+
+\section{阈值去噪：偏差与方差的账}
+
+设干净系数 $c$，观测 $d=c+\sigma z$，$z\sim N(0,1)$。软阈值算子
+\[
+\eta_\lambda(d)=\operatorname{sgn}(d)\max(|d|-\lambda,0),
+\]
+硬阈值算子 $H_\lambda(d)=d\,\mathbf{1}_{|d|>\lambda}$。
+
+\begin{lemma}[软阈值的三条代数性质]
+\label{lem:soft}
+(i) $\eta_\lambda$ 单调不减且 $1$-Lipschitz；
+(ii) $\eta_a\circ\eta_b=\eta_{a+b}$（$a,b\ge0$）；
+(iii) $\eta_\lambda(d)=d-\lambda\operatorname{sgn}(d)\mathbf{1}_{|d|>\lambda}$。
+\end{lemma}
+
+\begin{proof}
+(i) 分 $d<-\lambda$、$|d|\le\lambda$、$d>\lambda$ 三段逐段验证：每段斜率是 $0$ 或 $1$，
+段间连续，故单调且 Lipschitz 常数为 $1$。
+(ii) 若 $|d|\le b$ 则两边都是 $0$；若 $d>b$ 则 $\eta_b(d)=d-b$，
+再取 $\eta_a$ 得 $\max(d-b-a,0)=\eta_{a+b}(d)$；$d<-b$ 同理。
+(iii) 在 $d>\lambda$ 处 $\eta_\lambda=d-\lambda$，其余两段合起来即所写。
+\end{proof}
+
+\begin{theorem}[方差随阈值单调不增]
+\label{thm:var-monotone}
+对任意随机变量 $d$ 与 $0\le\lambda_1\le\lambda_2$，
+$\operatorname{Var}\big(\eta_{\lambda_1}(d)\big)\ge\operatorname{Var}\big(\eta_{\lambda_2}(d)\big)$。
+\end{theorem}
+
+\begin{proof}
+由引理 \ref{lem:soft}(ii)，$\eta_{\lambda_2}=\eta_{\lambda_2-\lambda_1}\circ\eta_{\lambda_1}$，
+而 $\eta_{\lambda_2-\lambda_1}$ 是 $1$-Lipschitz（引理 \ref{lem:soft}(i)）。
+对 $1$-Lipschitz 函数 $f$ 有 $\operatorname{Var}(f(Y))\le\operatorname{Var}(Y)$
+（$|f(y)-f(y')|\le|y-y'|$ 两边取期望即得），取 $Y=\eta_{\lambda_1}(d)$ 即得。
+\end{proof}
+
+\begin{theorem}[偏差的显式表达]
+\label{thm:bias}
+对 $d=c+\sigma z$，$z\sim N(0,1)$，
+\[
+\mathbb{E}\,\eta_\lambda(d)=c-\lambda\,h(\lambda),\qquad
+h(\lambda)=1-\Phi\!\Big(\frac{\lambda-c}{\sigma}\Big)-\Phi\!\Big(\frac{-\lambda-c}{\sigma}\Big).
+\]
+特别地 $c=0$ 时 $\mathbb{E}\eta_\lambda(d)=0$（对称性），
+而 $|c|\gg\lambda$ 时 $\mathbb{E}\eta_\lambda\approx c-\lambda$，偏差恰为 $\lambda$。
+\end{theorem}
+
+\begin{proof}
+由引理 \ref{lem:soft}(iii) 取期望：
+$\mathbb{E}\eta_\lambda=\mathbb{E}d-\lambda\,\mathbb{E}[\operatorname{sgn}(d)\mathbf1_{|d|>\lambda}]
+=c-\lambda\big(\mathbb{P}(d>\lambda)-\mathbb{P}(d<-\lambda)\big)$。
+把两个概率写成标准正态的尾概率即得 $h(\lambda)$。$c=0$ 时两尾相等，$h=0$。
+\end{proof}
+
+\begin{corollary}[MSE 的分解与它的两处地板]
+\label{cor:mse}
+对每个系数，$\mathbb{E}\big[(\eta_\lambda(d)-c)^2\big]=\text{bias}^2+\text{var}$，
+其中 $\text{bias}=\mathbb{E}\eta_\lambda-c$、$\text{var}=\operatorname{Var}(\eta_\lambda(d))$。
+把它们对所有系数求和就得到本章帧里画的两条曲线。
+\end{corollary}
+
+\begin{proof}
+对任意估计量 $\hat c$：$\mathbb{E}[(\hat c-c)^2]=\mathbb{E}[(\hat c-\mathbb{E}\hat c)^2]+(\mathbb{E}\hat c-c)^2$，
+展开即得。
+\end{proof}
+
+实测（bumps、$\sigma=0.3$、db4、$J=4$、48 个实现、33 点阈值栅格）：
+
+\begin{itemize}
+  \item $\mathrm{MSE}-(\text{bias}^2+\text{var})$ 的最大偏差 $2.8\times10^{-17}$（就是恒等式）；
+  \item 软阈值：$\text{bias}^2$ 单调不减、$\text{var}$ 单调不增（各 $0$ 处违反）；
+        硬阈值：$\text{bias}^2$ 有 $2$ 处下降——「此消彼长」对硬阈值只是趋势；
+  \item 最优点 $\lambda^\star=0.281$（MSE $0.04733$）、不去噪 $0.08963$、
+        通用阈值 $0.999$ 处 $0.12994$。通用阈值保证的是「几乎不留噪声系数」，
+        不是「最小 MSE」；
+  \item \textbf{两处地板}必须报出来：只对细节系数做阈值时，最粗近似不动，
+        于是纯噪声的 MSE 有一个非零地板 $\sigma^2 n_{\text{approx}}/n$——
+        实测 $0.00622$ 对比预测 $18\cdot0.09/256=0.00633$；
+        另外用 $T$ 次实现估 $\text{bias}^2$ 时，它的噪声地板约为 $\sigma^2/T$——
+        $\lambda=0$ 处实测 $0.00212$ 对比 $0.09/48=0.00188$。
+\end{itemize}
+
+\begin{remark}[「偏差$^2$ 单调」的适用范围]
+\label{rem:bias-range}
+由定理 \ref{thm:bias}，$|c|\ll\lambda$ 的系数偏差趋于 $0$ 而不再增长；
+只有 $|c|\gg\lambda$ 的系数贡献 $\lambda^2$。所以「偏差$^2$ 随 $\lambda$ 单调增」
+是\textbf{在信号大系数占主导、且 $\lambda$ 未超过最大系数}的范围内的实测事实，
+不是普遍定理。本章的实测范围是 $\lambda\in[0,1.6]$（帧）与 $[0,5.25]$（探针），
+两者都没有出现下降段；报告这个结论时必须带上范围。
+\end{remark}
+
+\section{分辨率元：时间-带宽面积近似守恒}
+
+\begin{theorem}[两种分辨率元]
+\label{thm:cell}
+长为 $L$ 的小波，第 $j$ 层（$j\ge1$）的时间支撑是 $(L-1)2^{j-1}+1$ 个样本、
+标称带宽是 $2^{-j-1}$；分辨率元面积
+$\big((L-1)2^{j-1}+1\big)2^{-j-1}=\frac{L-1}{4}+2^{-j-1}$，随 $j$ 只变化 $O(2^{-j})$。
+而窗长为 $w$ 的 STFT 的时间窗宽恒为 $w$、带宽恒为 $2/w$，面积恒定 $2$。
+\end{theorem}
+
+\begin{proof}
+$j$ 层滤波器的抽头间隔是 $2^{j-1}$，$L$ 个抽头跨越 $(L-1)2^{j-1}$ 个样本间隔，
+加上两端闭区间共 $(L-1)2^{j-1}+1$ 个样本。带宽按半带划分：第 $j$ 层占
+$[2^{-j-1},2^{-j}]$（归一化频率），宽 $2^{-j-1}$。两者相乘即得。
+STFT 的窗与频率栅格都与 $j$ 无关，故面积为常数。
+\end{proof}
+
+实测（db4、$L=8$、$n=256$、$J=4$）：时间支撑 $8/15/29/57$ 个样本，
+归一化带宽 $1/2,1/4,1/8,1/16$，面积 $0.015625\to0.013916$，
+极差 $1.123$ 倍。STFT 侧（$w=32$）两个方向都是常数（$16$ 个样本、$2/32$）。
+一个直接的后果：$37/256$ 的纯音在 $w=16/32/64$ 上的峰值定位误差
+$0.0195/0.0117/0.0039$ 都满足半格界 $1/(2w)$；
+但把同一个音降到 $5/256$（落进 Hann 主瓣），$w=32$ 时峰落到 DC 格，
+误差 $0.0195>1/(2w)=0.0156$——固定窗长在低频处直接失效，而小波在那里自动变宽。
+
+\section{四个可视化在看什么}
+
+\begin{enumerate}
+  \item \texttt{decomp\_tree}（逐层分解树）：左图是各层近似/细节系数分支
+        （行 $=$ 层，空位是占位 $0$，真实长度由 \texttt{coeff\_length} 给出），
+        右图是只保留前 $k$ 层时的重构曲线，$t$ 从 $0$（只留最粗近似）走到 $J$（全部还原）。
+        误差曲线在 $t=t_{\max}$ 处落到 $1.78\times10^{-15}$：两条重构路径
+        （\texttt{idwt} 与逐带求和）的误差在 meta 里分开报。
+  \item \texttt{time\_scale\_map}（时间-尺度图 vs STFT）：SWT 系数热力图的每行与信号等长
+        （非抽取），旁边是固定窗长的 STFT 幅度；下面并排两种分辨率元的宽高数字。
+        帧 meta 同时报\textbf{实测能量比}与\textbf{框架符号预测值}
+        （本文定理 \ref{thm:swt-frame}），两个数一起看才知道「能量比不是常数」。
+  \item \texttt{denoise\_threshold}（阈值去噪）：拖动 $\lambda$ 看信号、残差与三条曲线
+        （偏差$^2$、方差、MSE）。meta 里三个 MSE 分开命名：单次实现
+        （\texttt{mse}）、最近栅格点（\texttt{mse\_curve\_here}）、抛物线细化的最优点
+        （\texttt{mse\_opt}）；通用阈值的位置单独给一条参考线。
+  \item \texttt{vanishing\_moments}（消失矩）：$t^k$ 的细节系数树、内部量级比随 $k$ 的跳变
+        （对数轴 $+$ $u$ 参考线 $+$ 掩码），以及\textbf{边界}比值的对照曲线。
+        $k<N$ 的点贴 $u$、$k=N$ 的点比它高若干数量级；内部系数个数为 $0$ 的层由掩码标出。
+\end{enumerate}
+
+\input{chapters/2.6/asserts_table}
+
+\section{它会怎样骗你（本章版）}
+
+\begin{enumerate}
+  \item \textbf{把「完美重构」当成精确成立}：实测最大往返误差 $1.12\times10^{-15}$
+        （$n=256$、3 种模式、4 个小波、$J=1..8$），容差应写成 $c\,J\,u$。
+        同一件事有两套实现路径（\texttt{idwt} 与逐带求和），本仓库实测分别是
+        $1.78\times10^{-15}$ 与 $3.00\times10^{-16}$——它们不相等，
+        报误差时必须说清是哪一条。
+  \item \textbf{把系数裁到临界采样省内存}：往返误差从 $6.78\times10^{-16}$ 跳到 $1.379$。
+        裁掉的是延拓撑出来的系数，逆变换甚至对不上长度（本例尾部 $16$ 个点是补 $0$）。
+        这不是精度问题，是换了一个变换。
+  \item \textbf{用 $\max|d|$ 判断消失矩}：$k=3$、db4 时边界系数是
+        $0.49/0.40/0.46/0.95$，内部是 $0.72u/0.54u/0.84u/0.36u$——
+        相差 $1.03\times10^{16}$ 倍。只看最大值会得出完全相反的结论。
+  \item \textbf{把「被抹平」读成「等于 0」}：内部比值实测 $0\sim0.84u$，
+        不是 $0$。对数轴上要写地板值、配掩码、并在 \texttt{strings} 里说明，
+        三者还必须逐点自洽（本章的帧测试专门查这个）。
+  \item \textbf{相信「$k\ge N$ 时是 $O(1)$」}：db8 在 $n=256$、$J=1$ 处只有
+        $1.96\times10^{-13}$（$1764u$）；按 $n^{-N}$ 标度，$n=1024$ 时会掉到 $u$ 附近，
+        与舍入地板无法区分。判据要写成标度律（$2^{jN}$ 与 $n^{-N}$），不是阈值。
+  \item \textbf{在深层的空内部区间上读比值}：db8、$n=256$、$J=4$ 的内部系数个数是
+        $0$，读出的 $0.0$ 是「没有样本」而不是「被抹平」。逐层的量必须带样本计数。
+  \item \textbf{把能量守恒说得太笼统}：\texttt{periodic} 与 \texttt{zero} 的比值是
+        $1.0000000000$，\texttt{symmetric} 是 $1.128$（理论 $n_{\text{ext}}/n=1.125$）。
+        比值随边界模式变是数学事实，不是实现误差；而且分母必须是\textbf{原信号}，
+        用延拓信号做分母会让三种模式全变成 $1.0$，把这条证据自己抹掉。
+  \item \textbf{把 $J+1$ 当成 SWT 的框架界}：框架算子是
+        $S(\omega)=2+\sum_{i=1}^{J-1}P_i(\omega)$，低频取 $2^J$、$\omega=\pi$ 取 $2$。
+        实测 $J=4$ 时纯音 $15.999986$、白噪声 $4.9808$。只有 $J=1$ 是紧框架。
+  \item \textbf{用低频信号验证框架界}：只测一个 $\omega$ 等于没测。
+        纯音与白噪声在同一 $J$ 上差 3 倍多，必须扫描频率轴
+        （本仓库用 \texttt{swt\_frame\_symbol} 与实测对拍）。
+  \item \textbf{把通用阈值当成最优阈值}：实测 $\lambda^\star=0.281$，
+        通用阈值 $0.999$ 是它的 $3.56$ 倍，该处 MSE $0.12994$ 比完全不去噪
+        （$0.08963$）还差 $45\%$。
+  \item \textbf{用「看起来更平滑」挑阈值规则}：同一噪声实现、$\lambda=0.3$ 时
+        软阈值 $0.04117$、硬阈值 $0.09004$、不去噪 $0.09806$。
+        两个算子要在同一 $\lambda$ 下比一次，再在各自最优点上比一次
+        （软 $0.04733$ vs 硬 $0.05379$，但硬的最优 $\lambda$ 是软的 $2.72$ 倍）。
+  \item \textbf{把单次实现的 MSE 当成曲线读数}：默认参数下帧里的
+        \texttt{mse}$=0.038894$、最近栅格点 \texttt{mse\_curve\_here}$=0.046832$，
+        两个都对（前者有实现噪声、后者有栅格误差）。三个 MSE 必须分别命名。
+  \item \textbf{用一次 MAD 读数判断噪声估计量}：$\hat\sigma$ 的偏差实测 $+1.41\%$，
+        但它的\textbf{标准差}是 $\sigma$ 的 $10.7\%$——单次读数偏 $30\%$ 很正常。
+        另外别把「信号本来就有噪声」当成估计量有偏（总 $\sigma=0.3\sqrt2$ 时会读到 $0.402$）。
+  \item \textbf{把平移不变说成「更稳定」}：SWT 平移一格后系数变化\textbf{恰好} $0.0$；
+        DWT 的相对变化是 $2.01/8.39/36.2/51.2$。判据是「恰好 0」与「$O(1)$」，
+        不是「都很小」。
+  \item \textbf{用原信号做量级比的分母}：细节系数天然带 $2^{-j/2}$ 的尺度因子，
+        用原信号做分母会把尺度衰减读成「这一层没信息」。
+        实测用同层近似做分母时 bumps 各层比值同量级（$\le10$）。
+  \item \textbf{忘了两处地板}：只对细节做阈值时最粗近似不动，
+        MSE 有地板 $\sigma^2n_{\text{approx}}/n$（实测 $0.00622$，预测 $0.00633$）；
+        用 $T$ 次实现估偏差$^2$ 时地板约 $\sigma^2/T$（$\lambda=0$ 处实测 $0.00212$，
+        预测 $0.00188$）。把地板当成「算法不收敛」会白找半天。
+  \item \textbf{把 $O(1)$ 当成「一定看得见」}：$O(1)$ 只约束增长阶，
+        常数因子可以是 $10^{-13}$（见第 5 条）。报结论时要给绝对值，
+        并说明它离舍入地板还有几个数量级。
+\end{enumerate}
