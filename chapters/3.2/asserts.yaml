@@ -1,0 +1,147 @@
+# 3.2 章断言清单（真源：`tests/3.2/test_stability.py` 与 `tests/3.2/test_implicit.py`）
+#
+# 这一章分两半测：
+#   * **稳定域**（上半）：R(z) 的系数与闭式、边界 |R|=1、A/L/A(α)-稳定、Dahlquist 障碍——A 类；
+#     阈值型结论（BDF 在第几阶失去 A-稳定性、角度收缩加速比、稳定域面积单调）——C 类；
+#   * **代价**（下半）：Newton 迭代与自研 LU 的对拍、收敛阶、步长天花板、刚性问题上的
+#     显式爆炸/隐式有界——A 类；刚性比阈值与"容差—代价交叉点"两条二分实测——C 类。
+#
+# 实测规模（最近一次 `pytest tests/3.2 -q`）：A 27 条、B 16 条、C 9 条，共 52 条，全部通过。
+# 下面的 min_counts 留了一点余量：断言内部的记录条数偶尔会因为多对拍一个方法而增减，
+# 余量避免"算法没坏、清单先红"。B 类不列入 required_kinds（本章的要求是 A + C），
+# 但 assert_leq/assert_order 这些 helper 顺手登记的 B 类记录一并保留，它们是同一批实测值的对照。
+chapter: "3.2"
+title: 稳定性与刚性方程
+required_kinds: [A, C]
+
+min_counts:
+  A: 25
+  B: 14
+  C: 8
+
+tests:
+  # ------------------------------------------------------------------ 稳定域
+  - name: test_rk4_stability_polynomial_is_truncated_exponential
+    kind: A
+    what: 由 Butcher 表算出的 bᵀAʲ⁻¹e 与 1/j! 逐项相等（差 0），R(z) 在 11 个复点上与截断指数相对差 8.4e-17
+    theory: 4 级 4 阶显式 RK 的稳定多项式 = 截断指数 1+z+z²/2+z³/6+z⁴/24
+  - name: test_rational_stability_functions_match_closed_forms
+    kind: A
+    what: 隐式 Euler 1/(1−z)、梯形 (1+z/2)/(1−z/2)、BDF1、BDF2 1/(2−√(1+2z)) 与代码逐点对拍（最大 4.4e-16）；梯形法 z=2 处的极点给出 +∞
+    theory: 有理稳定函数的闭式；极点处 |R|=∞ 是有意义的极限值
+  - name: test_durand_kerner_matches_closed_form_bdf2
+    kind: A
+    what: 自写 Durand–Kerner 的最大根模与 BDF2 闭式根相对差 7.2e-15；迭代 48 次与 240 次完全一致；z=1.5 附近 |R|=2e6（方法自身的极点）
+    theory: BDF2 的根 r=(2±√(1+2z))/(3−2z)，最大根模 = |1/(2−√(1+2z))|
+  - name: test_modulus_second_route_agrees
+    kind: A
+    what: 6 个方法（含 BDF-5）的 |R| 在两条独立路径上的最大差 5.6e-17，且极点位置判定一致
+    theory: 稳定模的两条计算路径必须给出同一个数（互为交叉验证）
+  - name: test_boundary_lies_on_unit_modulus_circle
+    kind: A
+    what: 9 个方法的边界回代残差 max‖R(z_θ)|−1|=2.0e-15；前向 Euler 与 |z+1|=1 圆的偏差 4.4e-16、隐式 Euler 与 |z−1|=1 的偏差、梯形法边界的实部、BDF1 与隐式 Euler 的重合度
+    theory: 边界定义就是 |R(z)|=1；四条已知几何边界（圆/圆/虚轴/重合）
+  - name: test_negative_real_axis_endpoints
+    kind: A
+    what: 前向 Euler 端点 −2.000000000000000（与理论差 0）、RK4 端点与独立二分求得的三次根 −2.785293563405282 差 6.7e-16；Taylor 族 p=2..6 的端点回代 |R|=1 差 8.9e-16
+    theory: 负实轴端点 = R(x)=1 的负根；RK4 的是 x³+4x²+12x+24=0 的实根
+  - name: test_rk4_imaginary_axis_crossing_is_two_sqrt_two
+    kind: A
+    what: 二分求得 RK4 在虚轴上的第一次穿越 2.828427124746（与 2√2 差 4.4e-16）；[0,2√2] 上 |R(iy)|≤1（最大超出 4.4e-16）；越过 1e-3 后 |R|=1.0025>1
+    theory: RK4 的稳定域与虚轴交于 ±2√2 i，故 hω<2√2
+  - name: test_a_stability_classification
+    kind: A
+    what: 8 个方法的 A-稳定性分类（显式全假、隐式 Euler/梯形/BDF1/BDF2 全真）；独立判据 max|R(iy)|=1 对隐式 Euler 与梯形法成立（差 0）
+    theory: A-稳定 ⟺ 稳定域含整个左半平面；显式 RK 的多项式 R 沿负实轴无界 ⟹ 必不 A-稳定
+  - name: test_l_stability_and_trapezoidal_failure
+    kind: A
+    what: z=−1e14 处隐式 Euler 1.0e-14、BDF2 7.07e-08（→0），梯形法 1.000000000000（→1）
+    theory: L-稳定 = A-稳定 + z→−∞ 时放大因子→0；梯形法 A-稳定但不 L-稳定
+  - name: test_dahlquist_second_barrier
+    kind: A
+    what: BDF 家族里 A-稳定的阶集合实测为 (1, 2)，角度序列 90/90/86.03/73.35/51.84/17.84 单调收缩
+    theory: Dahlquist 第二障碍：A-稳定的线性多步法阶 ≤ 2
+  - name: test_bdf_angles_match_theory
+    kind: A
+    what: k=1..6 实测角 90.0000/90.0000/86.0324/73.3517/51.8398/17.8398 与理论值最大偏差 2.37e-3 度（理论只报两位小数）
+    theory: BDF-k 的 A(α) 角 = 90, 90, 86.03, 73.35, 51.84, 17.84 度
+
+  # ------------------------------------------------------------------ 代价
+  - name: test_newton_converges_in_one_iteration_for_linear_problem
+    kind: A
+    what: 隐性 Euler 在 h=0.1（50 倍显式天花板）上 10 步 → 10 次 Newton 迭代、10 次 LU，归一化残余 5.7e-15
+    theory: 线性问题 Newton 一步到位；每步一个线性系统 = 一次 LU
+  - name: test_newton_backtracking_rescues_a_diverging_iteration
+    kind: A
+    what: f(z)=z³−3z²−2 从 z=−1 出发：未阻尼 25 步不收敛（残余 3.35e2），阻尼 7 步收敛到 z=3.195823345446、回溯 4 次、残余 3.55e-15
+    theory: 残差回溯（步长减半）把冲过头的 Newton 步拉回收敛域
+  - name: test_newton_reports_singular_jacobian_instead_of_crashing
+    kind: A
+    what: f(z)=z³−1 在 z=0（f′=0）处返回 singular=True、converged=False，不抛异常
+    theory: Jacobi 奇异是一种要报告的状态，而不是崩溃
+  - name: test_lu_solve_path_matches_amplification_recursion
+    kind: A
+    what: Newton+自研 LU 走出来的解与标量差分方程递推逐点比较，三种隐式方法的最大差 1.7e-16（各 100 步 / 100 次 LU）
+    theory: 两条独立路径（解方程 vs 递推）必须给出同一条数值解
+  - name: test_implicit_methods_show_their_theoretical_orders
+    kind: A
+    what: 隐式 Euler 0.9869、梯形法 2.0004、BDF2 1.9862（k=7..12 窗口；粗窗口只有 1.88）
+    theory: 一阶 / 二阶 / 二阶；BDF2 的启动步把误差常数抬高，需更细窗口才进渐近区
+  - name: test_explicit_step_ceiling_matches_theory
+    kind: A
+    what: 二分实测天花板 forward_euler 2.000e-3 与 RK4 2.785294e-3 与理论相对差 0；隐式方法返回 inf；一个周期内 forward_euler 需 3142 步
+    theory: h* = c/|λ|（Euler c=2、RK4 c=2.785293…），隐式方法无天花板
+  - name: test_step_ceiling_is_where_the_explicit_solution_really_blows_up
+    kind: A
+    what: 一维扩散 n=20（|λ|max≈1764，h*=1.1338e-3）：0.999h* 增长 1.0000、1.02h* 增长 6.74e2、1.10h* 在 194 步内 |y|>1e12
+    theory: 天花板的**实测位置**就是显式解从有界转为放大的地方
+  - name: test_implicit_is_unconditionally_stable_on_a_stiff_system
+    kind: A
+    what: 同一个刚性系统上 h=20h*（23 步、23 次 LU）最大模比 1.000000，Newton 残余 5.0e-15
+    theory: A-稳定 ⟹ 任意步长有界
+  - name: test_bdf2_startup_step_shows_up_when_the_fast_mode_is_excited
+    kind: A
+    what: 解带 e^{−λt} 边界层、hλ=3 时：显式启动首步 −1.000000（精确值 1.049783），隐式启动首步 1.249994；整段最大误差 2.0498 vs 0.2002（比 10.2）
+    theory: 启动步的稳定域决定快模态是被放大还是被收缩（|1+λh|=2 vs |1/(1+λh)|=1/4）
+  - name: test_nonlinear_stiff_problem_needs_newton_and_keeps_order_one
+    kind: A
+    what: 非线性刚性算例（精确解仍是 cos t）每步平均 2.39 次 Newton 迭代，实测阶 0.9939
+    theory: 非线性 ⟹ 每步多于一次迭代；隐式 Euler 一阶
+  - name: test_cost_ladder_is_a_real_measurement
+    kind: A
+    what: 代价梯 8 级真积分：误差比 4.198→4.000（趋于 4）、函数求值比 2.000±0.021
+    theory: 二阶方法 h 减半 ⟹ 误差 ×1/4、步数 ×2 ⟹ 求值 ×2
+  - name: test_all_chapter_frames_are_well_formed
+    kind: A
+    what: 5 个 viz × 2 个时间端点过服务端 build_frame(strict=True) + pack/unpack 往返：requiredAux 齐备、meta 全有限标量、数组数一致（单帧最大 299 KB）
+    theory: 帧契约（规则 3 的 requiredAux、meta 只放标量、header 禁 NaN）
+  - name: test_frame_corners_have_no_undocumented_nonfinite_values
+    kind: B
+    what: 默认参数 + 每个参数的 min/max + 每个 enum 的首尾选项共 71 帧（含时间轴两端）全部通过「没有未解释的非有限值」体检：±Inf 一律换成 pole_fill=1e6 并配 *_pole 掩码（实测 3 帧命中极点：stability_region 的 bdf2 在 z=1.5、stability_surface 的 bdf/order=2 在 z=1.5）、NaN 只出现在 label 注明「NaN 分隔」的 wedge_x/wedge_y 里、meta 全为有限标量、每帧都带 strings.nonfinite_policy
+    theory: 帧构建期不许发 RuntimeWarning（帧会被缓存/编码）；极点处的 |R|=+∞ 必须显式换成占位值 + 掩码，而不是留 Inf/NaN
+
+  # ------------------------------------------------------------------ C 类阈值
+  - name: test_bdf_a_stability_order_threshold
+    kind: C
+    what: 二分实测"角度 ≥ 90° 的最大阶"落在 k∈[2.5, 2.5]，取整为 2；角度序列 90/90/86.03/73.35/51.84/17.84
+    theory: A-稳定的 BDF 最大阶 = 2
+  - name: test_bdf_angle_shrinkage_is_measured
+    kind: C
+    what: 首次跌幅 3.9676°（理论 3.97°）与末次跌幅 34.0000°，加速比 8.57
+    theory: 角度随阶数加速收缩（不是线性收缩）
+  - name: test_explicit_region_area_grows_with_order
+    kind: C
+    what: 边界围成的面积 Euler 3.141588（=π，相对差 1.6e-6）、Heun 5.869794、RK4 12.224314
+    theory: 显式稳定域面积随阶数严格增大；Euler 的域是单位圆
+  - name: test_trapezoidal_region_is_left_half_plane
+    kind: C
+    what: 左半平面 5 条射线（1°..89.9°）上 r∈[1e-3,1e6]，|R| 超出 1 的最大量 +0.000e+00（各射线 max 均为 0.999996…）
+    theory: 梯形法的稳定域恰是开左半平面
+  - name: test_stiffness_ratio_threshold_for_explicit_step_budget
+    kind: C
+    what: 谓词"forward_euler 走完 2π 不超过 1e4 步"的二分阈值 3183.0988640803844（理论 3183.098861837907，相对差 7.4e-10），30 次二分
+    theory: r* = 2·预算/t_end = 3183.10
+  - name: test_cost_crossover_tolerance_matches_ladder_prediction
+    kind: C
+    what: 二分实测代价交叉容差 3.137e-9，与代价梯二阶拟合（p=2.0077, C=8.61e-5）外推的 3.283e-9 同量级（比 0.96）
+    theory: tol* ≈ C·(T/n_exp)^p —— 两条独立路线给出同一个交叉点

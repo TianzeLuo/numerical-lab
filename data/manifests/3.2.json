@@ -1,0 +1,417 @@
+{
+  "chapter": "3.2",
+  "part": "III",
+  "summary": "线性测试方程 y'=λy 把「一个方法稳不稳」压缩成复平面上的一个区域；把 λh 拖出这个区域，数值解真的会炸。刚性问题的全部戏剧性就在「解很平缓、步长却由 λ_max 决定」这一句话里。",
+  "title": "稳定性与刚性方程",
+  "vizzes": [
+    {
+      "axes": [
+        {
+          "autoscaled": false,
+          "id": "main",
+          "title": "复平面 z = λh（固定窗口，域外不裁剪）",
+          "ylabel": "Im z"
+        },
+        {
+          "autoscaled": true,
+          "id": "aux",
+          "scale": "log",
+          "title": "|R(λh)|（右轴）与数值解误差（左轴对数）",
+          "ylabel": "|R| 与误差"
+        }
+      ],
+      "dataSource": "backend",
+      "description": "复平面上固定坐标画出当前方法的绝对稳定域边界 |R(z)|=1（精确参数化），灰蓝热力图是 |R(z)|。橙点/橙线是当前 λh 与整条 h 扫描射线；时间轴就是 log10 h：向右拖 h 变大，射线上的 λh 点向外走，一旦穿出边界，主图右侧那条**真算出来的解曲线**立刻开始发散。副轴同时给 |R(λh)| 与数值解的误差。",
+      "id": "stability_region",
+      "params": [
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": "rk4",
+          "label": "方法",
+          "name": "method",
+          "options": [
+            "forward_euler",
+            "rk4",
+            "implicit_euler",
+            "trapezoidal",
+            "bdf2"
+          ],
+          "type": "enum"
+        },
+        {
+          "critical": [
+            0.0
+          ],
+          "criticalNote": "Re λ = 0 是「真解本身既不衰减也不增长」的分界：越过它以后真解在增长，数值解的上升不再等于方法不稳定——判据要分开看。",
+          "default": -6.0,
+          "label": "λ 的实部",
+          "max": 10.0,
+          "min": -60.0,
+          "name": "lam_re",
+          "step": 0.5,
+          "type": "float"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": 12.0,
+          "label": "λ 的虚部",
+          "max": 40.0,
+          "min": -40.0,
+          "name": "lam_im",
+          "step": 0.5,
+          "type": "float"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": 4.0,
+          "label": "积分到 t",
+          "max": 10.0,
+          "min": 1.0,
+          "name": "t_end",
+          "step": 0.5,
+          "type": "float"
+        }
+      ],
+      "pitfalls": "第一，这张图**故意固定坐标**（Re∈[−8,4]、Im∈[−6,6]）：改成自适应，显式方法那个有界的稳定域和隐式方法那个无限大的稳定域就会被画成差不多大小，「谁更稳」当场消失。第二，λh 落在域外**不等于**数值解一定错：λ 的实部为正时真解本身在增长，曲线上升是事实而非算法故障；判据是 |R|>1 与误差两条一起看。第三，热力图的网格分辨率会漏掉细窄的稳定域（BDF 的高阶域像一条细带），所以边界线是**精确参数化**画出来的，不是从网格上爬出来的等高线。",
+      "requiredAux": [
+        "error"
+      ],
+      "theory": [
+        "绝对稳定域 S = {z ∈ C : |R(z)| ≤ 1}；z = λh 落在 S 内则该模态在数值上不放大",
+        "显式 RK 的 R(z) = 1 + Σ_{j≥1}(bᵀA^{j−1}e)zʲ 由 Butcher 表算出；隐式 Euler 是 1/(1−z)，梯形法是 (1+z/2)/(1−z/2)",
+        "|R(z)| = 1 的边界对多步法就是 z(θ) = ρ(e^{iθ})/σ(e^{iθ})（本章直接参数化，不用等值线追踪）"
+      ],
+      "time": {
+        "dt": 0.05,
+        "label": "log10 h（步长扫描）",
+        "mode": "scrub",
+        "tMax": 4.0
+      },
+      "title": "稳定域交互图：λh 落点与解的真实发散"
+    },
+    {
+      "axes": [
+        {
+          "autoscaled": false,
+          "id": "main",
+          "title": "解曲线（固定纵轴 ±2）与两种方法的步点",
+          "ylabel": "y(t)"
+        },
+        {
+          "autoscaled": true,
+          "id": "aux",
+          "scale": "log",
+          "title": "显式方法误差 |y_num − cos t| 与步长比",
+          "ylabel": "误差 / 步长"
+        }
+      ],
+      "dataSource": "backend",
+      "description": "解 y' = −λ(y − cos t) − sin t 的精确解是 cos t（快模态系数恰好为 0），平缓得不能再平缓；可显式方法只能走 h ≤ c/λ，副轴的误差曲线就是它的代价。主图画精确解、显式解与隐式解三条曲线，并用密集/稀疏的步点标出两者各自的步长；时间轴是真实时间 t。",
+      "id": "stiff_dilemma",
+      "params": [
+        {
+          "critical": [
+            3183.0
+          ],
+          "criticalNote": "临界值来自「评估预算」：t_end = 2π 上要 10^4 次函数求值，显式方法每步至少一次求值，于是 r ≤ 2·10^4/(2π) ≈ 3183。越过它，显式方法在同样的预算下连一个周期都走不完（副轴的步数/求值次数会把这件事摆出来）。",
+          "default": 1000.0,
+          "label": "刚性比 λ_max/λ_min",
+          "max": 1000000.0,
+          "min": 20.0,
+          "name": "stiffness_ratio",
+          "step": 20.0,
+          "type": "float"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": "forward_euler",
+          "label": "显式方法",
+          "name": "explicit_method",
+          "options": [
+            "forward_euler",
+            "rk4"
+          ],
+          "type": "enum"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": "trapezoidal",
+          "label": "隐式方法",
+          "name": "implicit_method",
+          "options": [
+            "implicit_euler",
+            "trapezoidal",
+            "bdf2"
+          ],
+          "type": "enum"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": 100,
+          "label": "隐式步数（一个周期内）",
+          "max": 400,
+          "min": 20,
+          "name": "implicit_steps",
+          "type": "int"
+        }
+      ],
+      "pitfalls": "最大的骗局是「看起来还行」：显式方法在前几十步里误差只有 1e-3 量级，曲线也贴着 cos t，直到某一步突然整体抬起来——那是快模态被 |R|>1 放大到了 O(1)。所以判断「能不能走」要看**步数/求值次数**，不能看「当前误差还挺小」。第二个坑是把刚性比当成「解有多陡」：本例的解永远平缓（|y''|≤1），刚性说的是**解里存在一个极快衰减的模态**，它未必在解上看得见——把初始条件改一点点（y(0)=1+c₀），那个 O(1/λ) 宽的边界层就会露出来。第三个坑是把 λ 增大当成「更难算」：λ 只改步长天花板，解的形态一个字都没变。",
+      "requiredAux": [
+        "error"
+      ],
+      "theory": [
+        "显式方法在负实轴上的步长天花板 h ≤ c/|λ|：forward Euler 的 c = 2，RK4 的 c = 2.785293…（x³+4x²+12x+24=0 的实根）",
+        "刚性比 r = λ_max/λ_min：稳定性限制步长 ~ c/λ_max，精度限制步长 ~ O(1)（由解的光滑尺度决定）",
+        "总代价 = 步数 × 每步代价：隐式每步要解线性系统（Newton + LU），但步数可以少几个数量级"
+      ],
+      "time": {
+        "dt": 0.062831853,
+        "label": "时间 t（一个周期）",
+        "mode": "scrub",
+        "tMax": 6.2831853
+      },
+      "title": "刚性困境：解那么平缓，步长却被 λ_max 掐住"
+    },
+    {
+      "axes": [
+        {
+          "autoscaled": false,
+          "id": "main",
+          "title": "|R(z)|（固定窗口）与 |R|=1 等高线",
+          "ylabel": "Im z"
+        },
+        {
+          "autoscaled": true,
+          "id": "aux",
+          "scale": "log",
+          "title": "边界残差 ||R|−1|（实线）与双路径之差（虚线）",
+          "ylabel": "残差"
+        }
+      ],
+      "dataSource": "backend",
+      "description": "复平面网格上的 |R(z)| 直接作为二维数组给前端上色（灰蓝=衰减、暖色=放大），并叠加精确参数化的 |R(z)|=1 边界。参数是方法与阶数：BDF 拖到 k≥3 会看到稳定域从「整个左半平面」缩成一条贴着实轴的窄带。副轴给边界的自洽残差||R(z_θ)|−1|（应该是 1e-15 量级）与两条独立计算路径之差。",
+      "id": "stability_surface",
+      "params": [
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": "bdf",
+          "label": "方法族",
+          "name": "method",
+          "options": [
+            "forward_euler",
+            "explicit_taylor",
+            "rk4",
+            "implicit_euler",
+            "trapezoidal",
+            "bdf"
+          ],
+          "type": "enum"
+        },
+        {
+          "critical": [
+            3.0
+          ],
+          "criticalNote": "Dahlquist 第二障碍：A-稳定的线性多步法阶数 ≤ 2，所以 BDF 在 k=3 处第一次失去 A-稳定性（稳定角从 90° 掉到 86.03°）。",
+          "default": 2,
+          "label": "阶数 k（BDF 与显式 Taylor 族使用）",
+          "max": 6,
+          "min": 1,
+          "name": "order",
+          "type": "int"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": 6.0,
+          "label": "窗口半宽",
+          "max": 10.0,
+          "min": 2.0,
+          "name": "half_width",
+          "step": 0.5,
+          "type": "float"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": 101,
+          "label": "网格点数（每边）",
+          "max": 161,
+          "min": 31,
+          "name": "grid_n",
+          "type": "int"
+        }
+      ],
+      "pitfalls": "上色用的是 |R| 本身，于是「整片暖色」未必代表算法坏了——z 在右半平面时真解本来就在涨。另一条更隐蔽：网格分辨率决定了细窄稳定域的可见性，BDF-6 的域在窗口里只剩一条带，31×31 的网格会直接把它抹掉；所以等高线给的是**精确参数化**的边界，热力图只负责给颜色。第三，色标的上限会截断：|R| 在窗口角上可以到 1e4，固定 vmin/vmax 会让「域外发散」看上去只是「稍微偏红」，读数字（副轴）才算数。",
+      "requiredAux": [
+        "error",
+        "residual"
+      ],
+      "theory": [
+        "|R(z)| 的等值线 |R|=c 与稳定域 S={|R|≤1}：单步法直接用 R，多步法用根轨迹的最大根模",
+        "多步法的边界 z(θ)=ρ(e^{iθ})/σ(e^{iθ}) 与根轨迹 {r : ρ(r)−zσ(r)=0, |r|=1} 是同一件事的两面",
+        "阶数与稳定域的关系：p 级 p 阶显式 RK 的 R 是截断指数 R_p(z)=Σ_{j≤p}zʲ/j!，阶越高域越大但有界；隐式方法可以无界"
+      ],
+      "time": {
+        "label": "t",
+        "mode": "none"
+      },
+      "title": "|R(z)| 模曲面与 |R|=1 等高线"
+    },
+    {
+      "axes": [
+        {
+          "autoscaled": false,
+          "id": "main",
+          "title": "解曲线（固定纵轴 ±2）",
+          "ylabel": "y(t)"
+        },
+        {
+          "autoscaled": true,
+          "id": "aux",
+          "scale": "log",
+          "title": "显式/隐式误差（对数）与代价柱状（各族独立刻度）",
+          "ylabel": "误差 / 次数"
+        }
+      ],
+      "dataSource": "backend",
+      "description": "同一个刚性受迫问题上跑两种方法：主轴画解曲线（固定纵轴，溢出显式标记），副轴（对数）画两者的误差；下方四根柱子给出「到目前为止」的步数、函数求值次数、LU 分解次数与 Newton 迭代次数。时间轴是真实时间 t：拖着它走，柱子和误差一起长大，看得见隐式方法每步更贵、总账却便宜。",
+      "id": "explicit_vs_implicit",
+      "params": [
+        {
+          "beyond": "below",
+          "critical": [
+            1e-06
+          ],
+          "criticalNote": "这个数值不是普适临界值，而是「演示尺度」：容差小到 1e-6 以后，隐式方法的精度受限步长会缩到与显式方法的稳定受限步长同量级，两条代价曲线在图上交叉——这正是「什么时候该用隐式」的转折点。",
+          "default": 1e-05,
+          "label": "误差容差（决定隐式步长）",
+          "max": 0.01,
+          "min": 1e-09,
+          "name": "tol",
+          "step": 1e-06,
+          "type": "float"
+        },
+        {
+          "critical": [
+            3183.0
+          ],
+          "criticalNote": "与 stiff_dilemma 同一把尺子：显式步数 ≈ r·t_end/c，r 越大步数线性爆炸。",
+          "default": 1000.0,
+          "label": "刚性比 λ_max/λ_min",
+          "max": 100000.0,
+          "min": 20.0,
+          "name": "stiffness_ratio",
+          "step": 20.0,
+          "type": "float"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": "forward_euler",
+          "label": "显式方法",
+          "name": "explicit_method",
+          "options": [
+            "forward_euler",
+            "rk4"
+          ],
+          "type": "enum"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": "trapezoidal",
+          "label": "隐式方法",
+          "name": "implicit_method",
+          "options": [
+            "implicit_euler",
+            "trapezoidal",
+            "bdf2"
+          ],
+          "type": "enum"
+        }
+      ],
+      "pitfalls": "「隐式更贵」只对**每一步**成立：每步一次 LU（O(m³)）+ 若干次 Newton 迭代，单步代价可能是显式的几十倍；但刚性比一上来，显式步数可以多出三四个数量级，总账立刻反转。反过来「隐式更快」也不普适：容差很松、问题不刚性时，隐式那几十倍的单步代价收不回来。第二，误差曲线只画到**当前** t：显式方法在爆炸前误差一直很小，「看起来更准」是假象。第三，柱子的刻度分组是独立的（步数 vs 求值次数差一个量级），不看轴就会得出「两边差不多」的结论。",
+      "requiredAux": [
+        "error"
+      ],
+      "theory": [
+        "每步代价：显式 ≈ 1 次函数求值（RK4 是 4 次）；隐式 ≈ Newton 迭代数 × (函数求值 + LU)",
+        "总代价 = 步数 × 每步代价；刚性比越大，显式的步数优势越明显地被稳定性限制吃掉",
+        "精度受限步长 h_acc 与稳定受限步长 h_stab = c/|λ|：谁小谁说话，交叉点就是「该换方法」的地方"
+      ],
+      "time": {
+        "dt": 0.062831853,
+        "label": "时间 t（一个周期）",
+        "mode": "scrub",
+        "tMax": 6.2831853
+      },
+      "title": "显式 vs 隐式：步长 / 误差 / 计算量三向对比"
+    },
+    {
+      "axes": [
+        {
+          "autoscaled": false,
+          "id": "main",
+          "title": "稳定域边界家族与 A(α) 楔形（固定窗口）",
+          "ylabel": "Im z"
+        },
+        {
+          "autoscaled": true,
+          "id": "aux",
+          "scale": "log",
+          "title": "测试射线上的超界量 max(0,|R|−1) 与各阶实测角",
+          "ylabel": "超界量 / 角度"
+        }
+      ],
+      "dataSource": "backend",
+      "description": "把 BDF-k（k=1…6）的稳定域边界画在一起（浅色家族），当前 k 高亮。青色楔形是以负实轴为轴、半角为 α 的区域；时间轴就是测试角 α：向右拖，楔形张到边界就说明 α 已经超过该阶的 A(α) 角。副轴给测试射线上的 |R| 超界量 max(0,|R|−1)（对数），以及各阶实测角的对照柱。",
+      "id": "bdf_angle",
+      "params": [
+        {
+          "critical": [
+            3.0
+          ],
+          "criticalNote": "k ≥ 3 不再是 A-稳定（Dahlquist 第二障碍：A-稳定的线性多步法阶 ≤ 2）。k ≥ 7 更彻底——BDF-k 零稳定 ⟺ k ≤ 6，第 7 阶连收敛性都没有，所以本图只到 6。",
+          "default": 3,
+          "label": "BDF 阶数 k",
+          "max": 6,
+          "min": 1,
+          "name": "k",
+          "type": "int"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": true,
+          "label": "显示 k=1…6 全家族",
+          "name": "show_family",
+          "type": "bool"
+        }
+      ],
+      "pitfalls": "第一，A(α) 角是**含**在稳定域里的最大楔形，不是「边界在左半平面的角度」：BDF-2 的边界整条都在右半闭平面，角度是 90°（A-稳定）；BDF-3 只探进去一点点，角度就掉到 86.03°——用眼睛比「探进去多少」会严重高估。第二，α 拖到 90° 时楔形等于整个左半平面，此时「射线没有超界」并不说明方法 A-稳定，因为 A-稳定要求的是**整个**左半平面（连续统），不是一条射线。第三，k=1 与 k=2 的边界看起来很不一样（一个是圆、一个是外凸环），但两者都 A-稳定——稳定域的形状与「稳不稳」不是一回事。",
+      "requiredAux": [
+        "error",
+        "residual"
+      ],
+      "theory": [
+        "A(α)-稳定：楔形 |arg(−z)| ≤ α 整体含于稳定域；A-稳定就是 α = 90° 的特例",
+        "BDF-k 的 A(α) 角理论值：90°, 90°, 86.03°, 73.35°, 51.84°, 17.84°（k=1…6）",
+        "Dahlquist 第二障碍：A-稳定的线性多步法阶 ≤ 2；BDF-k 零稳定 ⟺ k ≤ 6"
+      ],
+      "time": {
+        "dt": 1.0,
+        "label": "测试角 α（度）",
+        "mode": "scrub",
+        "tMax": 90.0
+      },
+      "title": "BDF 的 A(α)-稳定角：阶数越高，楔形越窄"
+    }
+  ]
+}

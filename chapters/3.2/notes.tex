@@ -1,0 +1,374 @@
+% 3.2 章 · 稳定性与刚性方程
+% 这一章只回答两个问题，且必须分开回答：
+%   1) 步长能取多大才**不发散**（稳定域，只与方法的 R(z) 有关）；
+%   2) 步长该取多小才**够准**（精度，只与解的尺度有关）。
+% 刚性问题的全部戏剧性来自这两条限制的分离：解很平缓（精度许可大步长），
+% 却有一个极快衰减的模态（稳定性只许小步长）。
+% 断言附表由 tools/build_book.py 从实际运行结果生成，\input 进来，不手抄。
+
+\numlabchapter{稳定性与刚性方程}{3.2}
+
+\section{这一章要解决什么}
+
+取线性测试方程
+\begin{equation}
+  y'=\lambda y,\qquad \operatorname{Re}\lambda<0,
+  \label{eq:test}
+\end{equation}
+它的精确解以 $e^{\operatorname{Re}\lambda\, t}$ 衰减，永不增长。那么一个数值方法
+把它算成什么，就是"绝对稳定性"的全部内容：
+
+\begin{enumerate}
+  \item 把 $z=\lambda h$ 看作复平面上的一个点。若数值解满足 $|y_n|\le|y_0|$，
+        就称 $z$ 落在该方法的\textbf{绝对稳定域} $S$ 内。
+  \item $S$ 的形状只取决于方法本身（显式的稳定域有界、隐式的可能无界），
+        与解无关，与精度也无关。
+  \item \textbf{刚性}就是：$S$ 有界而 $\lambda$ 很大，于是 $h$ 被 $1/|\lambda|$ 掐死；
+        而此时解本身可能光滑得可笑（本章算例的精确解就是 $\cos t$）。
+\end{enumerate}
+
+本章把这两件事彻底分开：上半章只看 $S$（$R(z)$ 的系数、边界、$A$-稳定、
+$A(\alpha)$-稳定），下半章才算代价（Newton 迭代、LU、步数、函数求值次数）。
+记号：$u=\tfrac12\varepsilon_{\text{mach}}=2^{-53}\approx1.11\times10^{-16}$；
+$z=\lambda h$；所有"实测"数字都来自 \texttt{tests/3.2/} 的断言报告。
+
+\section{稳定函数：把方法压成一个 $R(z)$}
+
+\begin{definition}[稳定函数]
+对单步法，把 $y'=\lambda y$ 的一步写成 $y_{n+1}=R(z)y_n$（$z=\lambda h$），
+$R$ 称为该方法的稳定函数；其绝对稳定域为
+$S=\{z\in\mathbb{C}:|R(z)|\le1\}$。
+\end{definition}
+
+\begin{theorem}[显式 RK 的稳定函数由 Butcher 表唯一决定]
+\label{thm:rk-R}
+设 $s$ 级显式 RK 的系数为 $A=(a_{ij})$（严格下三角）、$b$、$c=A\mathbf{1}$。
+把它作用在 \eqref{eq:test} 上，则
+\begin{equation}
+  R(z)=1+\sum_{j\ge1}\bigl(b^{\mathsf T}A^{\,j-1}\mathbf{1}\bigr)z^{\,j}.
+  \label{eq:rkR}
+\end{equation}
+特别地，$R$ 是一个次数不超过 $s$ 的多项式，且 $R(0)=1$。
+\end{theorem}
+
+\begin{proof}
+把 $y'=\lambda y$ 代入显式 RK 的级公式，记 $Y=(Y_1,\dots,Y_s)^{\mathsf T}$ 为各级取值：
+\[
+  Y_i=y_n+zh\sum_{j<i}a_{ij}Y_j
+  \quad\Longrightarrow\quad
+  Y=y_n\mathbf{1}+zAY ,
+\]
+即 $(I-zA)Y=y_n\mathbf{1}$。因为 $A$ 严格下三角，$A^s=0$（幂零），所以
+$(I-zA)^{-1}=\sum_{j=0}^{s-1}z^{\,j}A^{\,j}$ 是一个\textbf{有限}和。于是
+$Y=y_n\sum_{j\ge0}z^{\,j}A^{\,j}\mathbf{1}$，代回
+$y_{n+1}=y_n+zb^{\mathsf T}Y$ 得
+\[
+  R(z)=1+zb^{\mathsf T}\Bigl(\sum_{j\ge0}z^{\,j}A^{\,j}\Bigr)\mathbf{1}
+      =1+\sum_{j\ge1}\bigl(b^{\mathsf T}A^{\,j-1}\mathbf{1}\bigr)z^{\,j}.
+\]
+$\deg R\le s$ 且 $R(0)=1$ 由 $j\ge1$ 直接看出。
+\end{proof}
+
+\begin{remark}[实测：RK4 的系数就是 $1/j!$]
+经典 RK4 的表代入 \eqref{eq:rkR} 得到 $(1,1,\tfrac12,\tfrac16,\tfrac1{24})$，
+与截断指数 $\sum_{j\le4}z^{\,j}/j!$ 逐项相等（实测最大偏差 $0$，见断言
+\texttt{test\_rk4\_stability\_polynomial\_is\_truncated\_exponential}）。
+"$p$ 级 $p$ 阶"的显式 RK 之所以 $R$ 是截断指数，正是因为阶条件
+$b^{\mathsf T}A^{\,j-1}\mathbf{1}=1/j!$（$j\le p$）。
+\end{remark}
+
+\begin{theorem}[前向 Euler：稳定域是圆盘，于是 $h\le2/|\lambda|$]
+\label{thm:euler-disk}
+前向 Euler 的稳定函数是 $R(z)=1+z$，故
+$S=\{z:|z+1|\le1\}$——以 $-1$ 为心、半径为 $1$ 的闭圆盘。
+若 $\lambda<0$ 为实数，则 $z=\lambda h$ 落在实轴上，稳定性条件化为
+$h\le2/|\lambda|$。
+\end{theorem}
+
+\begin{proof}
+$y_{n+1}=y_n+h\lambda y_n=(1+z)y_n$，故 $R(z)=1+z$，
+$|R(z)|\le1\iff|z+1|\le1$。取 $z=\lambda h<0$：$|1+\lambda h|\le1\iff-1\le1+\lambda h\le1
+\iff-2\le\lambda h\le0\iff h\le2/|\lambda|$。
+\end{proof}
+
+\begin{remark}
+这条 $2/|\lambda|$ 是\textbf{刚性}两字的来源：$\lambda$ 增大十倍，步长上限就缩小十倍，
+而解的形态一个字都没变。实测（\texttt{test\_explicit\_step\_ceiling\_matches\_theory}）：
+$\lambda=-1000$ 时二分得到的实测天花板是 $2.000000000000000\times10^{-3}$，
+与 $2/|\lambda|$ 的相对差为 $0$。
+\end{remark}
+
+\begin{theorem}[RK4 的实轴稳定区间由三次方程给出]
+\label{thm:rk4-real}
+经典 RK4 的稳定函数为 $R_4(z)=1+z+\tfrac{z^2}{2}+\tfrac{z^3}{6}+\tfrac{z^4}{24}$。
+它在负实轴上的稳定区间是 $[x_*,0]$，其中 $x_*$ 是
+\begin{equation}
+  x^3+4x^2+12x+24=0
+  \label{eq:cubic}
+\end{equation}
+的唯一实根，$x_*=-2.785293563405\ldots$。
+\end{theorem}
+
+\begin{proof}
+先看 $R_4(x)=1$ 的根。直接计算
+\[
+  R_4(x)-1=x\Bigl(1+\frac x2+\frac{x^2}6+\frac{x^3}{24}\Bigr)
+            =\frac{x}{24}\bigl(x^3+4x^2+12x+24\bigr).
+\]
+三次多项式 $q(x)=x^3+4x^2+12x+24$ 的导数是 $3x^2+8x+12$，其判别式
+$64-144<0$，故 $q'>0$ 恒成立，$q$ 严格递增，$q$ 有且只有一个实根 $x_*$。
+数值上 $q(-2.79)<0<q(-2.78)$，二分得 $x_*=-2.785293563405282$（实测与独立二分
+之差 $6.7\times10^{-16}$）。因为 $q$ 递增，$x\in(x_*,0)$ 时 $q(x)>0$ 而 $x<0$，
+故 $R_4(x)<1$。
+
+再看另一端 $R_4(x)=-1$。这等价于
+\[
+  x^4+4x^3+12x^2+24x+48\ge0 .
+\]
+把这个四次式配方两次：
+\[
+  x^4+4x^3+12x^2+24x+48
+  =\bigl(x^2+2x\bigr)^2+8x^2+24x+48
+  =\bigl(x^2+2x\bigr)^2+8\Bigl(x+\frac32\Bigr)^2+30>0,
+\]
+它对一切实数 $x$ 严格为正。于是 $R_4(x)>-1$ 恒成立，特别在 $[x_*,0]$ 上
+$-1<R_4(x)\le1$，即 $|R_4|\le1$；而 $x<x_*$ 时 $q(x)<0$、$x<0$ 给出 $R_4(x)>1$，
+越界。故稳定区间恰为 $[x_*,0]$，$h\le|x_*|/|\lambda|$。
+\end{proof}
+
+\begin{remark}[实轴与虚轴要分开看]
+同一份 $R_4$ 在虚轴上的第一次穿越是 $2\sqrt2=2.828427124746190$
+（实测二分得到 $2.828427124746$，差 $4.4\times10^{-16}$）。
+所以"RK4 的步长上限"必须说清是沿哪个方向：实轴 $2.7853$、虚轴 $2.8284$，
+两者都不是 $2$——把 Euler 的 $2/|\lambda|$ 套到 RK4 上会低估约 $40\%$。
+\end{remark}
+
+\section{隐式方法：无界稳定域与 $A$-稳定}
+
+\begin{definition}[$A$-稳定与 $L$-稳定]
+若方法的绝对稳定域包含整个闭左半平面 $\{z:\operatorname{Re}z\le0\}$，称它
+\textbf{$A$-稳定}；若还满足 $\lim_{z\to-\infty}|R(z)|=0$，称它 \textbf{$L$-稳定}。
+\end{definition}
+
+\begin{theorem}[隐式 Euler 与梯形法的 $A$-稳定性]
+隐式 Euler 有 $R(z)=\dfrac1{1-z}$；梯形法有 $R(z)=\dfrac{1+z/2}{1-z/2}$。
+两者都 $A$-稳定；前者 $L$-稳定，后者不 $L$-稳定。
+\end{theorem}
+
+\begin{proof}
+\emph{隐式 Euler}：$\operatorname{Re}z\le0$ 时 $|1-z|\ge1$，故 $|R(z)|\le1$；
+且 $z\to-\infty$ 时 $|R(z)|=|1-z|^{-1}\to0$，所以既 $A$-稳定又 $L$-稳定。
+
+\emph{梯形法}：设 $w=z/2$，则
+\[
+  |1+w|^2-|1-w|^2=4\operatorname{Re}w=2\operatorname{Re}z\le0
+  \quad\Longrightarrow\quad |R(z)|=\frac{|1+w|}{|1-w|}\le1,
+\]
+即 $A$-稳定。但沿负实轴 $z\to-\infty$ 时 $R(z)\to-1$，
+故 $|R(z)|\to1\ne0$，不 $L$-稳定。
+\end{proof}
+
+\begin{remark}[不 $L$-稳定的代价]
+刚性极限下梯形法的放大因子是 $-1$：快模态不衰减，只是每一步翻一次符号。
+实测 $z=-10^{14}$ 处：隐式 Euler $1.0\times10^{-14}$、BDF2 $7.07\times10^{-8}$（都趋于 $0$），
+梯形法 $1.000000000000$（恰好是 $1$）。
+\end{remark}
+
+\begin{theorem}[BDF2 是 $A$-稳定的，且能算出角度]
+\label{thm:bdf2}
+BDF2 的稳定域边界参数化为
+\begin{equation}
+  z(\theta)=\frac{\rho(e^{i\theta})}{\sigma(e^{i\theta})}
+          =\frac32-2e^{-i\theta}+\frac12e^{-2i\theta},\qquad\theta\in[0,2\pi),
+  \label{eq:bdf2-boundary}
+\end{equation}
+它的实部是
+\begin{equation}
+  \operatorname{Re}z(\theta)=(1-\cos\theta)^2\ge0 .
+  \label{eq:bdf2-real}
+\end{equation}
+因此边界只在 $\theta=0$ 处碰到原点，其余部分严格落在右半平面，稳定域包含整个开左半平面：
+BDF2 是 $A$-稳定的。
+\end{theorem}
+
+\begin{proof}
+BDF2 用于 $y'=\lambda y$ 时是
+$\tfrac32y_{n+1}-2y_n+\tfrac12y_{n-1}=z\,y_{n+1}$，
+其特征多项式为 $\rho(r)-z\sigma(r)$，其中
+$\rho(r)=\tfrac32r^2-2r+\tfrac12$、$\sigma(r)=r^2$。
+边界 $|r|=1$ 上取 $r=e^{i\theta}$，直接得到 \eqref{eq:bdf2-boundary}。
+
+算实部：记 $c=\cos\theta$，则
+\[
+  \operatorname{Re}z(\theta)=\frac32-2c+\frac12\cos2\theta
+  =\frac32-2c+\frac12(2c^2-1)=c^2-2c+1=(1-c)^2\ge0 .
+\]
+等式仅在 $\theta=0$（即 $z=0$）成立。该边界曲线有界闭，故它围出一个有界区域；
+$z=0$ 在曲线上，而曲线上其余点全在右半平面，于是左半平面整体落在"曲线外部"
+那一侧，即稳定域内。故 BDF2 $A$-稳定。
+\end{proof}
+
+\begin{corollary}[实测 $A(\alpha)$ 角]
+\eqref{eq:bdf2-real} 说明 BDF2 的边界不进入左半平面，$A(\alpha)$ 角为 $90^\circ$；
+BDF3 的边界 $\operatorname{Re}z(\theta)$ 会在 $\theta\approx\pm0.069$ 附近取到负值，
+角度掉到 $86.0324^\circ$。实测序列（$k=1,\dots,6$）：
+$90.0000,90.0000,86.0324,73.3517,51.8398,17.8398$ 度，
+与理论值 $90,90,86.03,73.35,51.84,17.84$ 的最大偏差 $2.37\times10^{-3}$ 度——
+这个偏差正好是理论值只报两位小数的舍入，不是算法误差。
+\end{corollary}
+
+\begin{theorem}[Dahlquist 第二障碍（本章只用它的结论）]
+\label{thm:dahlquist}
+$A$-稳定的线性多步法阶数不超过 $2$。
+因此 BDF 家族里只有 $k=1,2$ 是 $A$-稳定的；$k\ge3$ 退化地 $A(\alpha)$-稳定，
+$k\ge7$ 连零稳定都不成立（故本章只画到 $k=6$）。
+\end{theorem}
+
+\begin{proof}[证明思路]
+$A$-稳定的线性多步法其稳定域要含整个左半平面，这条限制与"阶条件"直接冲突：
+对 $k$ 阶方法，边界 $z(\theta)=\rho/\sigma$ 在 $\theta\to\pi$ 附近必然伸进左半平面，
+除非 $k\le2$。严格的证明走"阶条件的系数恒等式 + 边界函数的符号"，
+本章不重复；本章给出的\textbf{实测}证据是三条：
+（i）$A$-稳定的 BDF 阶集合实测为 $(1,2)$；
+（ii）角度序列 $90,90,86.03,73.35,51.84,17.84$ 单调收缩，
+第一次跌幅 $3.9676^\circ$、最后一次 $34.0000^\circ$，加速比 $8.57$；
+（iii）显式 RK 的 $R$ 是多项式，沿负实轴无界，所以\textbf{任何}显式方法都不可能 $A$-稳定
+（这条是定理 \ref{thm:rk-R} 的直接推论，与阶数无关）。
+\end{proof}
+
+\section{刚性与两条步长限制}
+
+\begin{theorem}[稳定性限制与精度限制的分离]
+\label{thm:two-limits}
+考虑刚性受迫问题
+\begin{equation}
+  y'=-\lambda\,(y-\cos t)-\sin t,\qquad \lambda\gg1,\quad y(0)=1,
+  \label{eq:stiff-cos}
+\end{equation}
+它的精确解是 $y(t)=\cos t$（快模态 $e^{-\lambda t}$ 的系数恰好为 $0$）。
+对前向 Euler：
+\begin{enumerate}
+  \item \textbf{精度限制}：局部截断误差为 $\tfrac{h^2}2|y''|=\tfrac{h^2}2|\cos t|$，
+        要在 $[0,T]$ 上达到容差 $\mathrm{TOL}$，需要
+        $h\lesssim h_{\text{acc}}:=\sqrt{2\,\mathrm{TOL}/T}$，\textbf{与 $\lambda$ 无关}；
+  \item \textbf{稳定性限制}：$h\le h_{\text{stab}}:=2/\lambda$，
+        \textbf{与精度要求无关}。
+\end{enumerate}
+当 $\lambda>2/h_{\text{acc}}$ 时 $h_{\text{stab}}<h_{\text{acc}}$，
+步长由稳定性单独决定。
+\end{theorem}
+
+\begin{proof}
+精确解 $y=\cos t$ 代入 \eqref{eq:stiff-cos}：右端为 $-\lambda(\cos t-\cos t)-\sin t=-\sin t$，
+而 $\frac{d}{dt}\cos t=-\sin t$，故它确实是解；初值 $y(0)=1=\cos0$ 定出快模态系数为 $0$。
+
+前向 Euler 的局部截断误差是 $\frac{h^2}{2}y''(\xi)=\frac{h^2}{2}\cos\xi$；
+误差在 $[0,T]$ 上的累积量级为 $T\cdot\frac{h^2}{2}\max|y''|$（常数 $1$），
+令其不超过 $\mathrm{TOL}$ 即得 $h^2\lesssim 2\mathrm{TOL}/T$，与 $\lambda$ 无关。
+稳定性限制来自定理 \ref{thm:euler-disk}：$h\le2/\lambda$。
+两条限制谁小谁说话；解出交叉点即 $\lambda>2/h_{\text{acc}}$。
+\end{proof}
+
+\begin{remark}[实测：一个周期 $2\pi$、$10^4$ 次函数求值]
+\eqref{eq:stiff-cos} 上取 $T=2\pi$、步数预算 $10^4$，稳定性限制给出
+$r\le 2\cdot10^4/(2\pi)\approx3183.1$；二分实测的刚性比阈值是
+$3183.0988640803844$，与理论 $3183.098861837907$ 的相对差 $7.4\times10^{-10}$。
+$\lambda=1000$ 时前向 Euler 需要 $3142$ 步、$3142$ 次求值；
+梯形法用 $h=0.0628$（$31$ 倍于显式天花板）只要 $101$ 步、$302$ 次求值加 $100$ 次 LU，
+整段误差 $3.29\times10^{-10}$ 比显式的 $1.33\times10^{-6}$ 还小三个量级。
+"隐式每步更贵、总账更便宜"说的就是这件事。
+\end{remark}
+
+\begin{remark}[精度受限步长是实测出来的]
+对每个 $h_k=(T-0)/2^k$ 真跑一遍积分、量出整段最大误差，就得到\textbf{代价梯}：
+误差按 $h^2$ 缩（实测比值 $4.198\to4.000$，趋于 $4$），函数求值次数按 $2$ 倍长
+（实测比值 $2.000\pm0.021$）。容差与代价的交叉点用二分实测为
+$\mathrm{tol}^*=3.137\times10^{-9}$，而把代价梯拟合成
+$\mathrm{err}\approx C h^p$（实测 $p=2.0077$、$C=8.61\times10^{-5}$）后
+外推的预测值是 $3.283\times10^{-9}$：两条独立路线在同量级上互相印证。
+\end{remark}
+
+\section{五个可视化该怎么看}
+
+\begin{enumerate}
+  \item \texttt{stability\_\allowbreak{}region}（招牌）：复平面固定窗口
+        $\operatorname{Re}\in[-8,4]$、$\operatorname{Im}\in[-6,6]$。
+        灰蓝热力图是 $|R(z)|$，白线是 $|R(z)|=1$ 的\textbf{精确参数化}边界。
+        时间轴是 $\log_{10}h$：橙点 $z=\lambda h$ 沿 $\lambda$ 方向往外走，
+        一旦越过边界，右侧那条真算出来的解曲线立刻开始发散。
+        要看的是"橙点出界"与"曲线抬头"这两件事\textbf{同时}发生。
+  \item \texttt{stiff\_\allowbreak{}dilemma}：解是 $\cos t$（曲率 $|y''|\le1$），
+        但显式步点密得连成一片、隐式步点稀疏可数。副轴同时给误差与步长比。
+  \item \texttt{stability\_\allowbreak{}surface}：$|R(z)|$ 的二维数组直接上色，
+        叠加同一条精确边界；参数里把 \texttt{order} 从 $2$ 拖到 $6$，
+        看 BDF 的稳定域从"整个左半平面"缩成贴着实轴的窄带。
+        副轴的边界残差 $\bigl||R(z_\theta)|-1\bigr|$ 应当贴在 $10^{-15}$ 量级。
+  \item \texttt{explicit\_\allowbreak{}vs\_\allowbreak{}implicit}：时间轴是真实时间，
+        四根柱子（步数/函数求值/LU/Newton）随 $t$ 长大。
+        副轴还画了"代价—容差"曲线：显式那是一条水平线（与容差无关！），
+        隐式那条斜着上升，交点就是该换方法的容差。
+  \item \texttt{bdf\_\allowbreak{}angle}：时间轴是\textbf{测试角} $\alpha$（度）。
+        青色楔形是以负实轴为轴、半角 $\alpha$ 的区域；拖到超过该阶的 $A(\alpha)$ 角，
+        副轴的超界量 $\max(0,|R|-1)$ 就从地板跳到正值。
+        注意 $k=1$ 与 $k=2$ 的边界形状完全不同（一个圆、一个外凸环），
+        但两者都是 $90^\circ$。
+\end{enumerate}
+
+\section{本章的算法路线（P2/P3 合规说明）}
+
+所有结论都由自研代码算出，没有调用任何现成的数值线性代数或特征值例程：
+
+\begin{itemize}
+  \item 显式 RK 的 $R(z)$ 系数由 Butcher 表按 \eqref{eq:rkR} 手算（矩阵乘 + 幂零和），
+        不查表；
+  \item 多步法的最大根模用自写的 \textbf{Durand--Kerner} 迭代（确定性初值：
+        以 $1+\max|c_j|$ 为半径的等分布点），不使用 \texttt{numpy.roots}；
+        与 BDF2 的闭式根对拍，相对差 $7.2\times10^{-15}$；
+  \item 稳定域边界用参数化 $z(\theta)=\rho/\sigma$ 直接给出，
+        多项式情形用极坐标二分（$|R|=1$ 的第一次穿越），不追踪等值线；
+  \item 隐式方法的每一步线性系统一律走 \texttt{numcore.linalg.lu} 的
+        \texttt{lu\_decompose}/\texttt{solve\_lu}（自研 LU，部分主元），
+        Newton 迭代本身也是自写的，带残差回溯；
+  \item 所有"阈值"结论都用二分实测（\texttt{find\_threshold}），
+        理论值只用来对账，不当实测值抄。
+\end{itemize}
+
+\input{chapters/3.2/asserts_table}
+
+\section{它会怎样骗你（本章版）}
+
+\begin{enumerate}
+  \item \textbf{把"$z$ 在稳定域外"读成"数值解错了"}：$\operatorname{Re}\lambda>0$ 时
+        真解本来就在增长。判据是 $|R|>1$ \textbf{和}误差两条一起看。
+  \item \textbf{用自适应坐标画稳定域}：显式那个有界的域与隐式那个无界的域会被画得差不多大，
+        "谁更稳"当场消失。本章的复平面窗口是硬编码的。
+  \item \textbf{把网格等高线当成边界}：BDF-6 的稳定域在窗口里只剩一条窄带，
+        $31\times31$ 的网格会直接把它抹掉。边界必须参数化给出，热力图只负责给颜色。
+  \item \textbf{把绝对残差当收敛判据}：解衰减到 $10^{-11}$ 量级时，
+        $\|F\|\le10^{-11}$ 会在\textbf{一次迭代都不做}的情况下宣布收敛，
+        而那个残差已经是当前解的 $50\%$。这是本章真踩到的坑，
+        Newton 判据因此改成相对形式（残差除以解的量级）。
+  \item \textbf{$h$ 恰好取到天花板}：$h=2/|\lambda|$ 时放大因子是 $-1$，
+        误差以 $(-1)^n$ 的形式累积，长期行为并不安全；工程上要留安全系数。
+  \item \textbf{把"刚性比"当成"解有多陡"}：本章算例的解永远平缓（$|y''|\le1$），
+        刚性说的是解里\textbf{存在}一个极快衰减的模态，它未必在解上看得见。
+        把初值改成 $y(0)=1+c_0$（$c_0\ne0$），$O(1/\lambda)$ 宽的边界层立刻现形。
+  \item \textbf{用一个坏启动步毁掉整个多步法}：解带 $e^{-\lambda t}$ 边界层、
+        $h\lambda=3$ 时，显式 Euler 启动的第一步给出 $-1.000000$（精确值 $1.049783$），
+        隐式启动给出 $1.249994$；整段最大误差 $2.0498$ 对 $0.2002$，差 $10.2$ 倍。
+        它不会"炸"（BDF2 随后把快模态压住了），坏的是精度。
+  \item \textbf{把启动步的污染当成"阶数不对"}：BDF2 带一阶启动步时，
+        粗窗口（$h=1/8\ldots1/64$）量到的阶只有 $1.88$，细窗口才有 $1.986$。
+        测阶之前先确认自己在渐近区。
+  \item \textbf{把端点误差当成"这条解有多准"}：本例的误差随解振荡，
+        端点误差在相邻两级步长之间能跳四个数量级；本章一律用\textbf{整段最大误差}。
+  \item \textbf{把时间轴当时间}：\texttt{stability\_\allowbreak{}region} 的时间轴是
+        $\log_{10}h$、\texttt{bdf\_\allowbreak{}angle} 是测试角（度）、
+        \texttt{stability\_\allowbreak{}surface} 干脆没有时间轴。
+        每帧的 \texttt{meta} 都给出当前参数与步数/角度，拖到头就夹住，不是卡住。
+  \item \textbf{把"柱子差不多高"当结论}：代价柱的步数与函数求值次数差一个量级
+        （显式 $3142$ 步 / $3142$ 次求值，隐式 $101$ 步 / $302$ 次求值 $+100$ 次 LU），
+        分组刻度不看轴就会读反。
+  \item \textbf{把 $A$-稳定当成"小步长也不振铃"}：梯形法 $A$-稳定但 $|R(\infty)|=1$，
+        刚性模态只会翻符号不衰减；要压住它得选 $L$-稳定的方法（隐式 Euler、BDF2）。
+\end{enumerate}

@@ -1,0 +1,67 @@
+% 本文件由 tools/build_book.py 从 dist/reports/assertions.json 生成，请勿手改。
+\begin{longtable}{@{}p{0.06\textwidth}p{0.32\textwidth}p{0.22\textwidth}p{0.16\textwidth}@{}}
+\caption{章节 3.2 数值断言（生成时间 2026-10-18T14:56:22-0400）}\\
+\toprule
+类别 & 断言 & 理论值 & 实测值 \\
+\midrule
+\endfirsthead
+\toprule
+类别 & 断言 & 理论值 & 实测值 \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+
+A & 线性隐式步的 Newton 迭代数与 LU 次数 & 每步 1 次迭代、\allowbreak{}1 次 LU(\allowbreak{}线性问题 Newton 一步到位) & 10 步 $\to$ 迭代 10 次、\allowbreak{}LU 10 次，最大残余 5.687e-15，整段误差 4.938e-05 \checkmark \\
+A & 阻尼 vs 未阻尼的 Newton & 整步冲过头时回溯能把残差单调压下去；未阻尼会来回震荡 & 未阻尼：25 步未收敛(\allowbreak{}残余 3.352e+02)；阻尼：7 步收敛，回溯 4 次，残余 3.553e-15，根 3.195823345446 \checkmark \\
+A & 奇异 Jacobi 的处理 & z=\allowbreak{}0 处 f'(\allowbreak{}z)=\allowbreak{}0：必须报 singular=\allowbreak{}True/\allowbreak{}converged=\allowbreak{}False，不许抛异常 & singular=\allowbreak{}True，converged=\allowbreak{}False，迭代 1 次，残余 1.000e+00 \checkmark \\
+B & LU 路径 vs 放大因子递推 & $\le$ 1.00000e-11 & $1.665\times 10^{-16}$ \checkmark \\
+A & 隐式 LU 路径与闭式递推的最大差 & 0(\allowbreak{}两条独立路径：Newton+LU 解方程 vs 标量差分方程递推) & 最大 1.665e-16；implicit\_euler:1.11e-16(\allowbreak{}100步/\allowbreak{}100次LU); trapezoidal:1.11e-16(\allowbreak{}100步/\allowbreak{}100次LU); bdf2:1.67e-16(\allowbreak{}100步/\allowbreak{}100次LU) \checkmark \\
+A & 隐式 Euler的实测收敛阶 & 1 & 0.986945 \checkmark \\
+A & 梯形法的实测收敛阶 & 2 & 2.0004 \checkmark \\
+A & BDF2的实测收敛阶 & 2 & 1.98625 \checkmark \\
+A & 三个隐式方法的实测阶 & 隐式 Euler 1、\allowbreak{}梯形 2、\allowbreak{}BDF2 2 & 隐式 Euler:0.9869(\allowbreak{}k=\allowbreak{}3..8)；梯形法:2.0004(\allowbreak{}k=\allowbreak{}3..8)；BDF2:1.9862(\allowbreak{}k=\allowbreak{}7..12)；BDF2 在粗窗口 (\allowbreak{}3..8) 只能量到 1.8843(\allowbreak{}启动步抬高常数) \checkmark \\
+A & 显式/隐式步长天花板 & 2/\allowbreak{}|$\lambda$| 与 2.785293563405282/\allowbreak{}|$\lambda$|；隐式无界 & forward\_euler: 实测 2.000000000000000e-03 vs 理论 2.000000000000000e-03(\allowbreak{}相对差 0.0e+00)；rk4: 实测 2.785293563405282e-03 vs 理论 2.785293563405282e-03(\allowbreak{}相对差 0.0e+00)；隐式 inf；一个周期内显式需 3142 步(\allowbreak{}理论 3142) \checkmark \\
+A & 跨过天花板的显式解行为(一维扩散 n=20) & |$\lambda$|max$\approx$4(\allowbreak{}n+1)$^2$=\allowbreak{}1764，h*=\allowbreak{}2/\allowbreak{}|$\lambda$|$\approx$1.1338e-3；h>h* 必有模态被放大 & h*=\allowbreak{}1.1338e-3：0.999h* 增长 1.0000(\allowbreak{}442 步)、\allowbreak{}1.02h* 增长 6.741e+02(\allowbreak{}433 步)、\allowbreak{}1.10h* 爆炸=\allowbreak{}True(\allowbreak{}194 步内 |y|>1e12) \checkmark \\
+A & 隐式 Euler 在 20 倍显式天花板上 & A-稳定 $\implies$ 任意 h 有界；扩散矩阵的精确解单调衰减(\allowbreak{}A 负定) & h=\allowbreak{}2.2676e-02=\allowbreak{}20$\times$h*(\allowbreak{}23 步，23 次 LU)，最大模比 1.000000，Newton 最大残余 5.03e-15 \checkmark \\
+A & BDF2 两种启动步(快模态被激发，h$\lambda$=3) & |1+$\lambda$h|=\allowbreak{}2>1：显式启动把快模态反向放大；隐式启动 |1/\allowbreak{}(\allowbreak{}1+$\lambda$h)|=\allowbreak{}1/\allowbreak{}4 是收缩的 & 精确首步 1.049783；显式启动首步 -1.000000(\allowbreak{}过冲到负值)，隐式启动首步 1.249994；整段最大误差 显式 2.049783 vs 隐式 0.200212(\allowbreak{}比 10.24) \checkmark \\
+A & 非线性刚性算例的实测阶 & 1 & 0.993898 \checkmark \\
+A & 非线性算例的 Newton 迭代数与阶 & 非线性 $\implies$ 每步 > 1 次迭代；隐式 Euler 一阶 & 每步平均迭代 2.3937 次(\allowbreak{}各步长 2.875,\allowbreak{} 2.750,\allowbreak{} 2.344,\allowbreak{} 2.000,\allowbreak{} 2.000)，实测阶 0.9939 \checkmark \\
+A & 代价梯的误差比与求值比 & 二阶方法：h 减半 $\implies$ 误差 $\times$1/\allowbreak{}4；步数 $\times$2 $\implies$ 求值 $\times$2 & 误差比 [4.198 4.047 4.013 4.005 4.001 4.    4.   ]，求值比 [2.    2.    2.021 1.99  1.995 1.995 2.001]，最粗一级 h=\allowbreak{}0.7854 误差 5.484e-05(\allowbreak{}24 次求值) \checkmark \\
+C & 显式方法的刚性比预算阈值 & 3183.1 & 3183.1 \checkmark \\
+C & 阈值两侧的步数 & r* =\allowbreak{} 2$\cdot$预算/\allowbreak{}t\_end =\allowbreak{} 3183.10 & r* $\approx$ 3183.10(\allowbreak{}区间 [3183.10,\allowbreak{} 3183.10]，30 次二分)；r=\allowbreak{}1000 时 3142 步，r=\allowbreak{}10000 时 31416 步 \checkmark \\
+C & 代价交叉容差：二分实测 vs 二阶拟合预测 & err$\approx$C$\cdot$h\textasciicircum{}p(\allowbreak{}p=\allowbreak{}2.0077，C=\allowbreak{}8.612e-05)$\implies$ tol*$\approx$C$\cdot$(\allowbreak{}T/\allowbreak{}n\_exp)\textasciicircum{}p =\allowbreak{} 3.283e-10 & 二分实测 tol* =\allowbreak{} 3.137e-09(\allowbreak{}log10 $\in$ [-8.503,\allowbreak{} -8.503]，30 次二分)；隐式 h=\allowbreak{}6.1359e-03，显式 3142 步 $\times$ 1 次求值 \checkmark \\
+A & 5 个 viz $\times$ 2 个时间端点的帧体检 & requiredAux 齐备、\allowbreak{}meta 只放有限标量、\allowbreak{}帧可编码可解码 & stability\_region@0: 22 数组 /\allowbreak{} 228622 字节 /\allowbreak{} meta 33 项；stability\_region@4: 22 数组 /\allowbreak{} 228509 字节 /\allowbreak{} meta 33 项；stiff\_dilemma@0: 18 数组 /\allowbreak{} 126407 字节 /\allowbreak{} meta 27 项；stiff\_dilemma@6.28319: 18 数组 /\allowbreak{} 126419 字节 /\allowbreak{} meta 27 项；stability\_surface@0: 14 数组 /\allowbreak{} 299202 字节 /\allowbreak{} meta 28 项；stability\_surface@0: 14 数组 /\allowbreak{} 299202 字节 /\allowbreak{} meta 28 项；explicit\_vs\_implicit@0: 21 数组 /\allowbreak{} 6431 字节 /\allowbreak{} meta 37 项；explicit\_vs\_implicit@6.28319: 21 数组 /\allowbreak{} 132969 字节 /\allowbreak{} meta 37 项；bdf\_angle@0: 16 数组 /\allowbreak{} 55477 字节 /\allowbreak{} meta 22 项；bdf\_angle@90: 16 数组 /\allowbreak{} 55476 字节 /\allowbreak{} meta 22 项 \checkmark \\
+B & 参数角点上的帧卫生(数组/meta 全有限 + 极点掩码) & 帧里一个非有限值都不许有：极点用占位值 + 掩码，折线不用 NaN 分隔，meta 有限 & 71 帧全部通过；其中 3 帧命中极点并带掩码(\allowbreak{}例：stability\_region \{'method': 'bdf2',\allowbreak{} 'lam\_re': -6.0,\allowbreak{} 'lam\_im': 12.0,\allowbreak{} 't\_end': 4.0\} t=\allowbreak{}0: n\_pole\_cells=\allowbreak{}1，掩码 ['abs\_R\_pole',\allowbreak{} 'abs\_R\_ray\_pole']；stability\_surface \{'method': 'bdf',\allowbreak{} 'order': 2,\allowbreak{} 'half\_width': 6.0,\allowbreak{} 'grid\_n': 161\} t=\allowbreak{}0: n\_pole\_cells=\allowbreak{}1，掩码 ['abs\_R\_pole',\allowbreak{} 'edge\_pole']) \checkmark \\
+B & RK4 稳定多项式系数 vs 1/j! & $\le$ 8.88178e-16 & 0 \checkmark \\
+B & RK4 R(z) 求值 vs 截断指数(相对) & $\le$ 7.10543e-15 & $8.401\times 10^{-17}$ \checkmark \\
+A & RK4 系数最大偏差 / 求值最大偏差 & 0 & 0.000e+00 /\allowbreak{} 8.401e-17 \checkmark \\
+B & 有理稳定函数 vs 闭式 & $\le$ 1.11022e-12 & $4.441\times 10^{-16}$ \checkmark \\
+A & 四个闭式对拍的最大偏差 & 0 & 隐式Euler 0.00e+00，梯形 0.00e+00，BDF1 0.00e+00，BDF2 4.44e-16；极点 |R(\allowbreak{}2)|=\allowbreak{}inf \checkmark \\
+B & DK 求根 vs 闭式(并检查迭代次数收敛) & $\le$ 1.00000e-12 & $7.238\times 10^{-15}$ \checkmark \\
+A & BDF2 最大根模：DK vs 闭式 / 迭代 48 vs 240 & 0 & 物理根(\allowbreak{}相对)7.238e-15 /\allowbreak{} 双根取最大(\allowbreak{}相对)7.238e-15 /\allowbreak{} 迭代差 0.000e+00 /\allowbreak{} 极点附近 |R|=\allowbreak{}2.000e+06 \checkmark \\
+B & 双路径 |R| 之差 & $\le$ 1.00000e-12 & $5.551\times 10^{-17}$ \checkmark \\
+A & 双路径最大差(极点位置另查) & 0；极点处两条路径都必须是 +$\infty$(\allowbreak{}梯形法 z=\allowbreak{}2) & 5.551e-17(\allowbreak{}forward\_euler1:0.0e+00,\allowbreak{} rk44:0.0e+00,\allowbreak{} implicit\_euler1:5.6e-17,\allowbreak{} trapezoidal2:0.0e+00(\allowbreak{}极点1),\allowbreak{} bdf2:0.0e+00,\allowbreak{} bdf5:0.0e+00)；极点判定一致=\allowbreak{}True \checkmark \\
+B & 边界 |R|=1 回代残差 & $\le$ 1.00000e-11 & $1.998\times 10^{-15}$ \checkmark \\
+B & 已知边界的几何对拍(圆 / 虚轴 / 重合) & $\le$ 0.001 & $4.376\times 10^{-12}$ \checkmark \\
+A & 边界回代残差与几何事实 & |R|=\allowbreak{}1；|z+1|=\allowbreak{}1；|z$-$1|=\allowbreak{}1；Re z=\allowbreak{}0 & 回代最大 2.00e-15(\allowbreak{}forward\_euler1:4.4e-16(\allowbreak{}1025点); heun2:8.9e-16(\allowbreak{}1025点); rk44:2.0e-15(\allowbreak{}1025点); implicit\_euler1:6.7e-16(\allowbreak{}1025点); trapezoidal2:4.4e-16(\allowbreak{}1025点); bdf1:6.7e-16(\allowbreak{}1025点); bdf2:5.6e-16(\allowbreak{}1025点); bdf3:5.6e-16(\allowbreak{}1025点); bdf4:8.9e-16(\allowbreak{}1025点))；几何最大 4.38e-12 \checkmark \\
+B & 实轴端点 vs 三次方程实根 & $\le$ 1.00000e-10 & $6.661\times 10^{-16}$ \checkmark \\
+B & Taylor 族端点处 |R|=1 & $\le$ 1.00000e-09 & $8.882\times 10^{-16}$ \checkmark \\
+A & 负实轴端点 & $-$2(\allowbreak{}Euler)；三次根 $-$2.785293563405282(\allowbreak{}RK4) & Euler -2.000000000000000(\allowbreak{}差 0.0e+00)，RK4 -2.785293563405282(\allowbreak{}与独立二分之差 0.0e+00)，|R| 回代差 6.7e-16；Taylor p=\allowbreak{}2..6 端点 [-2.0,\allowbreak{} -2.5127,\allowbreak{} -2.7853,\allowbreak{} -3.217,\allowbreak{} -3.5534](\allowbreak{}回代差 8.9e-16) \checkmark \\
+B & [0,2$\surd$2] 上 |R(iy)|$\le$1 & $\le$ 1.00000e-09 & $4.441\times 10^{-16}$ \checkmark \\
+B & RK4 虚轴第一次穿越 = 2$\surd$2 & $\le$ 1.00000e-09 & $4.441\times 10^{-16}$ \checkmark \\
+A & RK4 虚轴穿越点 & 2$\surd$2 =\allowbreak{} 2.828427124746(\allowbreak{}|R(\allowbreak{}iy)|=\allowbreak{}1 的第一个正根) & 二分得到 2.828427124746(\allowbreak{}差 4.44e-16)；区间内最大超出 +4.44e-16；越过 1e-3 后 |R|=\allowbreak{}1.002516774 \checkmark \\
+B & A-稳定单步法的虚轴最大模 = 1 & $\le$ 1.00000e-09 & 0 \checkmark \\
+A & A-稳定性分类(含虚轴独立判据) & 隐式 Euler/\allowbreak{}梯形/\allowbreak{}BDF1/\allowbreak{}BDF2 为真，显式方法为假；隐式与梯形 max|R(\allowbreak{}iy)|=\allowbreak{}1 & forward\_euler:A=\allowbreak{}False；midpoint:A=\allowbreak{}False；heun:A=\allowbreak{}False；rk4:A=\allowbreak{}False；explicit\_taylor:A=\allowbreak{}False；implicit\_euler1:A=\allowbreak{}True,\allowbreak{}角=\allowbreak{}90.0000；trapezoidal2:A=\allowbreak{}True,\allowbreak{}角=\allowbreak{}90.0000；bdf1:A=\allowbreak{}True,\allowbreak{}角=\allowbreak{}90.0000；bdf2:A=\allowbreak{}True,\allowbreak{}角=\allowbreak{}90.0000；implicit\_euler1=\allowbreak{}1.000000000000，trapezoidal2=\allowbreak{}1.000000000000 \checkmark \\
+A & z=$-$1e14 处的放大因子 & 隐式 Euler 与 BDF2 $\to$ 0；梯形 $\to$ 1(\allowbreak{}A-稳定但非 L-稳定) & 隐式 Euler 1.000e-14，BDF2 7.071e-08，梯形 1.000000000000 \checkmark \\
+A & BDF 的 A-稳定阶集合 & (\allowbreak{}1,\allowbreak{} 2) & (\allowbreak{}1,\allowbreak{} 2)；证据：\{'max\_a\_stable\_bdf\_order': 2,\allowbreak{} 'a\_stable\_bdf\_orders': (\allowbreak{}1,\allowbreak{} 2),\allowbreak{} 'angle\_k1': 90.0,\allowbreak{} 'angle\_k3': 86.03236686026861,\allowbreak{} 'angle\_k6': 17.83977779240062,\allowbreak{} 'angles\_monotone': True,\allowbreak{} 'explicit\_rk\_a\_stable': False\} \checkmark \\
+B & BDF 稳定角 vs 理论(理论值只有两位小数) & $\le$ 0.003 & 0.00236686 \checkmark \\
+A & BDF 稳定角实测 vs 理论 & 90,\allowbreak{} 90,\allowbreak{} 86.03,\allowbreak{} 73.35,\allowbreak{} 51.84,\allowbreak{} 17.84 & 最大偏差 2.37e-03 度；k=\allowbreak{}1:90.0000/\allowbreak{}90.00(\allowbreak{}A=\allowbreak{}True); k=\allowbreak{}2:90.0000/\allowbreak{}90.00(\allowbreak{}A=\allowbreak{}True); k=\allowbreak{}3:86.0324/\allowbreak{}86.03(\allowbreak{}A=\allowbreak{}False); k=\allowbreak{}4:73.3517/\allowbreak{}73.35(\allowbreak{}A=\allowbreak{}False); k=\allowbreak{}5:51.8398/\allowbreak{}51.84(\allowbreak{}A=\allowbreak{}False); k=\allowbreak{}6:17.8398/\allowbreak{}17.84(\allowbreak{}A=\allowbreak{}False) \checkmark \\
+C & BDF 保持 A-稳定的最大阶 & 2 & 2 \checkmark \\
+C & 角度随 k 的收缩 & k=\allowbreak{}1,\allowbreak{}2 为 90$^\circ$，k=\allowbreak{}3 掉到 86.03$^\circ$ & 阈值落在 k$\in$[2.5000,\allowbreak{}2.5000]，取整后 2；角度序列 90.0000,\allowbreak{} 90.0000,\allowbreak{} 86.0324,\allowbreak{} 73.3517,\allowbreak{} 51.8398,\allowbreak{} 17.8398 \checkmark \\
+C & k=2$\to$3 的角度跌幅 & 3.97 & 3.96763 \checkmark \\
+C & 角度跌幅序列与加速比 & 第一次跌 3.968$^\circ$，最后一次跌 34.0$^\circ$，加幅 > 5 倍 & 跌幅 [-0.     3.968 12.681 21.512 34.   ]，首跌 3.9676$^\circ$，末跌 34.0000$^\circ$，比 8.57 \checkmark \\
+C & 显式稳定域面积 & Euler 的域是圆心 $-$1、\allowbreak{}半径 1 的圆，面积 $\pi$=\allowbreak{}3.14159$\dots$；Heun 更大；RK4 最大 & Euler 3.141588(\allowbreak{}圆面积 $\pi$=\allowbreak{}3.141593)，Heun 5.869794，RK4 12.224314 \checkmark \\
+B & 梯形法在左半平面 |R|$\le$1 & $\le$ 1.00000e-12 & 0 \checkmark \\
+C & 梯形法左半平面射线的 |R| 上确界 & 1(\allowbreak{}A-稳定) & 超出 1 的最大量 +0.000e+00；1$^\circ$:max=\allowbreak{}0.999996000617; 15$^\circ$:max=\allowbreak{}0.999996136304; 45$^\circ$:max=\allowbreak{}0.999997171577; 75$^\circ$:max=\allowbreak{}0.999998964724; 89.9$^\circ$:max=\allowbreak{}0.999999993019 \checkmark \\
+\end{longtable}
