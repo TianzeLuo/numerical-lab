@@ -16,8 +16,8 @@
 
 | 规则 | 内容 | 强制方式 |
 |---|---|---|
-| **P1** | `import scipy` / `from scipy ...` **只允许**出现在 `numcore/reference/` 下的文件 | AST 静态检查 |
-| **P2** | `numcore/`（`reference/` 除外）MUST NOT 使用 `numpy.linalg.*`、`numpy.fft.*` | AST 静态检查（属性链） |
+| **P1** | `import scipy` / `from scipy ...` **只允许**出现在 `numcore/reference/` 下的文件（**全仓库**，含 `tests/`、`tools/`、`server/`） | AST 静态检查 |
+| **P2** | `numpy.linalg.*`、`numpy.fft.*`、`numpy.random` 亦**只允许**出现在 `numcore/reference/`（全仓库）；`numcore/` 其余部分连"借用现成求解器"的入口都不存在 | AST 静态检查（属性链） |
 | **P3** | `numcore/`（`reference/` 除外）MUST NOT 使用 `numpy.polyfit / polyval / interp / trapezoid / trapz / gradient / convolve / correlate / corrcoef / cov / histogram / histogram2d / bincount / diff / ediff1d / roots / lstsq / solve / inv / det / eig / eigvals / svd / qr / cholesky / norm / cond / matrix_rank / pinv / expm / kron / tensordot` 等"成品算法" | AST 静态检查（属性白名单见 `tools/check_policy.py`） |
 | **P4** | `numcore/` MUST NOT 直接使用 `numpy.random`；随机数一律经 `numcore.utils.rng(seed)` 取用（集中确定性 + 可复现） | AST 静态检查 |
 | **P5** | `numcore/` MUST NOT import `matplotlib / pandas / sympy / mpmath / sklearn / numba`（`reference/` 可有 sympy、mpmath，用于精确解与高精度对拍） | AST 静态检查 |
