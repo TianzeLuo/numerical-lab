@@ -148,7 +148,6 @@ def _run(nx: int, scheme: str, r: float, n_steps: int, bc: str, initial_key: str
 #: nx=101、r=0.05 除外，那里顶部特征值挤在一起，估计量只能到 1e-4——如实写进 radius_note）。
 _GROWTH_MAX_ITER = 3000
 _GROWTH_RTOL = 1.0e-9
-_GROWTH_SEED = 20261018
 
 
 @functools.lru_cache(maxsize=256)
@@ -166,13 +165,15 @@ def _growth(nx: int, scheme: str, r: float, bc: str) -> float:
     theta = heat.scheme_theta(scheme, None)
     dx = 1.0 / nx
     dt = r * dx * dx  # 定常系数下 alpha=1，r = dt/dx^2
-    rng = np.random.default_rng(_GROWTH_SEED)
-    x = rng.standard_normal(nx)
-    x /= np.linalg.norm(x)
+    # 起始向量取**确定性**的非对称剖面（不用随机数：P4 禁止在这里直接抽随机，
+    # 而且确定性起点让"同参数同结果"这件事本身可断言）。它必须与主特征向量有非零投影。
+    k = np.arange(nx)
+    x = 1.0 + 0.3 * np.sin(2.0 * np.pi * (k + 0.5) / nx) + 0.1 * np.cos(4.0 * np.pi * (k + 0.5) / nx)
+    x = x / float(np.sqrt(np.dot(x, x)))
     lam = 1.0
     for _ in range(_GROWTH_MAX_ITER):
         y = heat.theta_step(x, r=r, theta=theta, dx=dx, dt=dt, bc=bc)
-        ny = float(np.linalg.norm(y))
+        ny = float(np.sqrt(np.dot(y, y)))
         if ny == 0.0:
             return 0.0
         x = y / ny
