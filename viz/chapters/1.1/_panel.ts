@@ -241,7 +241,7 @@ export function avoidTextOverlap(layers: TextSpec[], rect: readonly [number, num
   }
   if (dropped > 0) {
     kept.push(
-      text(rect[0], rect[1], `窄画布：${dropped} 行说明未显示（完整口径见 960×600）`, {
+      text(rect[0], rect[1], `文本放不下：另有 ${dropped} 行未显示（完整口径见章节笔记与角标）`, {
         role: "note",
         size: 11,
         color: "#718096",

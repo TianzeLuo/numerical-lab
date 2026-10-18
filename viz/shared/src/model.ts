@@ -695,7 +695,7 @@ export function resolveTextOverlaps(
   }
   if (dropped > 0 && rect[1] >= 20) {
     kept.push(
-      text(rect[0], 8, `窄画布：${dropped} 行说明未显示（完整口径见 960×600 默认画布）`, {
+      text(rect[0], 8, `文本放不下：另有 ${dropped} 行未显示（完整口径见章节笔记与角标）`, {
         role: "note",
         size: 11,
         color: "#718096",
