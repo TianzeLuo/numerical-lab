@@ -1,0 +1,166 @@
+% 本文件由 tools/build_book.py 从 dist/reports/assertions.json 生成，请勿手改。
+\begin{longtable}{@{}p{0.06\textwidth}p{0.32\textwidth}p{0.22\textwidth}p{0.16\textwidth}@{}}
+\caption{章节 4.4 数值断言（生成时间 2026-10-18T18:11:54-0400）}\\
+\toprule
+类别 & 断言 & 理论值 & 实测值 \\
+\midrule
+\endfirsthead
+\toprule
+类别 & 断言 & 理论值 & 实测值 \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+
+A & P1 光滑解：L2 阶 = 2 & 2 & 1.99567 \checkmark \\
+A & P1 光滑解：能量阶 = 1 & 1 & 0.9967 \checkmark \\
+A & P1 光滑解：L2 阶与能量阶之差 $\ge$ 0.8 & $\ge$ 0.8 & 0.99897 \checkmark \\
+A & P2 光滑解：L2 阶 = 3 & 3 & 2.99703 \checkmark \\
+A & P2 光滑解：能量阶 = 2 & 2 & 1.99717 \checkmark \\
+A & P2 光滑解：L2 阶与能量阶之差 $\ge$ 0.8 & $\ge$ 0.8 & 0.999857 \checkmark \\
+B & 界面算例能量阶 = 1/2 & 0.5 & 0.529302 \checkmark \\
+B & 界面算例 L2 阶 = 1 & 1 & 0.995665 \checkmark \\
+A & 界面算例的 L2 阶不是 3/2(差 $\ge$ 0.4) & |slope $-$ 1.5| $\ge$ 0.4 & 0.504335 \checkmark \\
+A & 界面位置取无理数 1/$\pi$ 时同一条阶梯的拟合阶会被污染 & 偏离 0.5 至少 0.02 & 0.101824 \checkmark \\
+A & 梁的 H\textasciicircum{}2 半范阶 = 2 & 2 & 2 \checkmark \\
+A & 梁的 L2 阶 = 4 & 4 & 3.99999 \checkmark \\
+B & 均布载荷最大挠度 = 5q/384(节点精确) & 0.0130208 & 0.0130208 \checkmark \\
+A & 梁的 L2 阶比能量阶高 2 & $\approx$2 & 1.99999 \checkmark \\
+B & 载荷在节点上：能量误差 $\le$1e-12 & $\le$ 1.00000e-12 & $5.702\times 10^{-15}$ \checkmark \\
+B & 载荷在单元内部：能量误差 $\ge$1e-2 & $\le$ 0.125 & 0.01 \checkmark \\
+B & 载荷在节点上：节点误差 $\le$1e-13 & $\le$ 1.00000e-13 & $4.441\times 10^{-16}$ \checkmark \\
+B & 载荷在单元内部：节点误差仍然 $\le$1e-13 & $\le$ 1.00000e-13 & $4.163\times 10^{-16}$ \checkmark \\
+A & 点载荷锯齿的峰谷比 $\ge$ 1e10 & $\ge$ 1e10 & $2.192\times 10^{13}$ \checkmark \\
+A & 梁：载荷在节点上 H\textasciicircum{}2 误差 $\le$1e-12 & $\le$ 1e-12 & $9.959\times 10^{-15}$ \checkmark \\
+A & 梁：载荷在单元内部 H\textasciicircum{}2 误差 $\ge$1e-4 & $\ge$ 1e-4 & 0.0011019 \checkmark \\
+A & Q1 四边形：能量阶 = 1 & 1 & 0.973734 \checkmark \\
+A & Q1 四边形：L2 阶 = 2 & 2 & 1.9557 \checkmark \\
+A & P1 三角形：能量阶 = 1 & 1 & 0.984853 \checkmark \\
+A & P1 三角形：L2 阶 = 2 & 2 & 1.96053 \checkmark \\
+A & 粗端未进渐近区：三角形 L2 拟合阶明显低于 2 & < 1.8 & 1.3083 \checkmark \\
+B & c=1 时 $\alpha$\_\allowbreak{}h = 1(形式就是范数) & 1 & 1 \checkmark \\
+B & c=1 时 M\_\allowbreak{}h = 1 & 1 & 1 \checkmark \\
+B & c=1 时 Cea 常数 = 1(界是锐的) & 1 & 1 \checkmark \\
+B & Galerkin 解在能量范数下不劣于插值 & $\le$ 1 & 0.999942 \checkmark \\
+A & c=0 时系数型解析界是无穷(min(a,c)=0) & 无穷大 & inf(\allowbreak{}min(\allowbreak{}a,\allowbreak{}c)=\allowbreak{}0) \checkmark \\
+A & 反差 1e4 时 Cea 界 $\ge$ 50(几乎不挑网格) & $\ge$ 50 & 100.46 \checkmark \\
+B & $\varepsilon$=1e-06：罚解偏差 = $\pi$$\cdot$$\varepsilon$ & $3.142\times 10^{-6}$ & $3.142\times 10^{-6}$ \checkmark \\
+B & $\varepsilon$=1e-06：罚矩阵仍然对称 & $\le$ 1.50993e-08 & 0 \checkmark \\
+B & $\varepsilon$=1e-07：罚解偏差 = $\pi$$\cdot$$\varepsilon$ & $3.142\times 10^{-7}$ & $3.142\times 10^{-7}$ \checkmark \\
+B & $\varepsilon$=1e-07：罚矩阵仍然对称 & $\le$ 1.50991e-07 & 0 \checkmark \\
+A & $\varepsilon$=1e-07：偏差与 $\varepsilon$ 成正比(逐十倍缩小) & $\approx$10 & 10 \checkmark \\
+B & $\varepsilon$=1e-08：罚解偏差 = $\pi$$\cdot$$\varepsilon$ & $3.142\times 10^{-8}$ & $3.142\times 10^{-8}$ \checkmark \\
+B & $\varepsilon$=1e-08：罚矩阵仍然对称 & $\le$ 1.50990e-06 & 0 \checkmark \\
+A & $\varepsilon$=1e-08：偏差与 $\varepsilon$ 成正比(逐十倍缩小) & $\approx$10 & 10 \checkmark \\
+A & $\varepsilon$=1e-8 时罚函数的条件数比消元法差 $\ge$ 1e5 倍 & $\ge$ 1e5 & $1.578\times 10^{6}$ \checkmark \\
+A & 光滑解：半对数(指数)拟合更优 & R\textasciicircum{}2\_exp > R\textasciicircum{}2\_log & 0.96696 \checkmark \\
+B & 光滑解 p=12 时误差 $\le$1e-9 & $\le$ 1.00000e-09 & $2.598\times 10^{-11}$ \checkmark \\
+A & 尖角解：双对数(代数)拟合更优 & R\textasciicircum{}2\_log > R\textasciicircum{}2\_exp & 0.929758 \checkmark \\
+B & 尖角解 p=12 时误差 $\ge$0.05(没有指数收敛) & $\le$ 0.592421 & 0.05 \checkmark \\
+B & 逐点 J 的 L2 误差随加密下降 & decreasing & 违反 0 处 \checkmark \\
+A & 冻结 J 的相对差随加密不降反升 & 末项 > 首项 & 0.49282 \checkmark \\
+B & P1 ne=8：装配矩阵对称 & $\le$ 1.27898e-13 & 0 \checkmark \\
+B & P1 ne=8：对称残差 $\le$1e-13 & $\le$ 1.00000e-13 & 0 \checkmark \\
+B & P1 ne=8：常向量在刚度阵的核里 & $\le$ 1.00000e-10 & $4.441\times 10^{-15}$ \checkmark \\
+B & P1 ne=8：二次型非负 & $\le$ 0 & 0 \checkmark \\
+B & P1 ne=8：二次型非负 & $\le$ 0 & 0 \checkmark \\
+B & P1 ne=8：二次型非负 & $\le$ 0 & 0 \checkmark \\
+B & P1 ne=8：二次型非负 & $\le$ 0 & 0 \checkmark \\
+B & P1 ne=8：Dirichlet 自由块严格正定 & Cholesky 成功且主元 > 0 & 1.14286 \checkmark \\
+B & P1 ne=16：装配矩阵对称 & $\le$ 4.83169e-13 & 0 \checkmark \\
+B & P1 ne=16：对称残差 $\le$1e-13 & $\le$ 1.00000e-13 & 0 \checkmark \\
+B & P1 ne=16：常向量在刚度阵的核里 & $\le$ 1.00000e-10 & $8.882\times 10^{-15}$ \checkmark \\
+B & P1 ne=16：二次型非负 & $\le$ 0 & 0 \checkmark \\
+B & P1 ne=16：二次型非负 & $\le$ 0 & 0 \checkmark \\
+B & P1 ne=16：二次型非负 & $\le$ 0 & 0 \checkmark \\
+B & P1 ne=16：二次型非负 & $\le$ 0 & 0 \checkmark \\
+B & P1 ne=16：Dirichlet 自由块严格正定 & Cholesky 成功且主元 > 0 & 1.06667 \checkmark \\
+B & P2 ne=8：装配矩阵对称 & $\le$ 6.44225e-13 & $3.553\times 10^{-15}$ \checkmark \\
+B & P2 ne=8：对称残差 $\le$1e-13 & $\le$ 1.00000e-13 & $3.553\times 10^{-15}$ \checkmark \\
+B & P2 ne=8：常向量在刚度阵的核里 & $\le$ 1.00000e-10 & $9.326\times 10^{-15}$ \checkmark \\
+B & P2 ne=8：二次型非负 & $\le$ 0 & 0 \checkmark \\
+B & P2 ne=8：二次型非负 & $\le$ 0 & 0 \checkmark \\
+B & P2 ne=8：二次型非负 & $\le$ 0 & 0 \checkmark \\
+B & P2 ne=8：二次型非负 & $\le$ 0 & 0 \checkmark \\
+B & P2 ne=8：Dirichlet 自由块严格正定 & Cholesky 成功且主元 > 0 & 1.24272 \checkmark \\
+B & P2 ne=16：装配矩阵对称 & $\le$ 2.50111e-12 & $7.105\times 10^{-15}$ \checkmark \\
+B & P2 ne=16：对称残差 $\le$1e-13 & $\le$ 1.00000e-13 & $7.105\times 10^{-15}$ \checkmark \\
+B & P2 ne=16：常向量在刚度阵的核里 & $\le$ 1.00000e-10 & $1.865\times 10^{-14}$ \checkmark \\
+B & P2 ne=16：二次型非负 & $\le$ 0 & 0 \checkmark \\
+B & P2 ne=16：二次型非负 & $\le$ 0 & 0 \checkmark \\
+B & P2 ne=16：二次型非负 & $\le$ 0 & 0 \checkmark \\
+B & P2 ne=16：二次型非负 & $\le$ 0 & 0 \checkmark \\
+B & P2 ne=16：Dirichlet 自由块严格正定 & Cholesky 成功且主元 > 0 & 1.10823 \checkmark \\
+B & half 路线与完整散射逐位相同 & $\le$ 0 & 0 \checkmark \\
+B & double 路线：对称残差 0，但矩阵差 16.0 & 对称残差 0 且 max|$\Delta$K| =\allowbreak{} 16 & 16 \checkmark \\
+B & double 路线的条件数反而更小(25.27 $\to$ 2.72) & $\kappa$\_bad < $\kappa$\_full & 2.71706 \checkmark \\
+B & double 路线的解与正确解的相对差 $\ge$5\%(实测 93.8\%) & $\ge$ 0.05 & 0.938144 \checkmark \\
+B & P1 ne=8：单元内反序给出同一个 K & $\le$ 1.00000e-14 & 0 \checkmark \\
+B & P1 ne=8：上三角镜像(half)给出同一个 K & $\le$ 1.00000e-14 & 0 \checkmark \\
+B & P1 ne=16：单元内反序给出同一个 K & $\le$ 1.00000e-14 & 0 \checkmark \\
+B & P1 ne=16：上三角镜像(half)给出同一个 K & $\le$ 1.00000e-14 & 0 \checkmark \\
+B & P2 ne=8：单元内反序给出同一个 K & $\le$ 1.00000e-14 & 0 \checkmark \\
+B & P2 ne=8：上三角镜像(half)给出同一个 K & $\le$ 1.00000e-14 & $3.553\times 10^{-15}$ \checkmark \\
+B & P2 ne=8：K 的不对称与单元矩阵的不对称是同一个数 & 两者相同(\allowbreak{}$\le$1e-14) & $3.553\times 10^{-15}$ \checkmark \\
+B & P2 ne=16：单元内反序给出同一个 K & $\le$ 1.00000e-14 & 0 \checkmark \\
+B & P2 ne=16：上三角镜像(half)给出同一个 K & $\le$ 1.00000e-14 & $7.105\times 10^{-15}$ \checkmark \\
+B & P2 ne=16：K 的不对称与单元矩阵的不对称是同一个数 & 两者相同(\allowbreak{}$\le$1e-14) & $7.105\times 10^{-15}$ \checkmark \\
+B & ne=2：单元数翻倍 & $\le$ 0 & 0 \checkmark \\
+B & ne=2：h 减半 & $\le$ 1.00000e-15 & 0 \checkmark \\
+B & ne=2：总长度守恒 & $\le$ 1.00000e-14 & 0 \checkmark \\
+B & ne=2：加密后单元首尾相接、覆盖全部顶点 & elems[k,\allowbreak{}1]=\allowbreak{}elems[k+1,\allowbreak{}0] 且首尾为 0..n$-$1 & 1 \checkmark \\
+B & ne=3：单元数翻倍 & $\le$ 0 & 0 \checkmark \\
+B & ne=3：h 减半 & $\le$ 1.00000e-15 & $5.551\times 10^{-17}$ \checkmark \\
+B & ne=3：总长度守恒 & $\le$ 1.00000e-14 & 0 \checkmark \\
+B & ne=3：加密后单元首尾相接、覆盖全部顶点 & elems[k,\allowbreak{}1]=\allowbreak{}elems[k+1,\allowbreak{}0] 且首尾为 0..n$-$1 & 1 \checkmark \\
+B & ne=8：单元数翻倍 & $\le$ 0 & 0 \checkmark \\
+B & ne=8：h 减半 & $\le$ 1.00000e-15 & 0 \checkmark \\
+B & ne=8：总长度守恒 & $\le$ 1.00000e-14 & 0 \checkmark \\
+B & ne=8：加密后单元首尾相接、覆盖全部顶点 & elems[k,\allowbreak{}1]=\allowbreak{}elems[k+1,\allowbreak{}0] 且首尾为 0..n$-$1 & 1 \checkmark \\
+B & ne=16：单元数翻倍 & $\le$ 0 & 0 \checkmark \\
+B & ne=16：h 减半 & $\le$ 1.00000e-15 & 0 \checkmark \\
+B & ne=16：总长度守恒 & $\le$ 1.00000e-14 & 0 \checkmark \\
+B & ne=16：加密后单元首尾相接、覆盖全部顶点 & elems[k,\allowbreak{}1]=\allowbreak{}elems[k+1,\allowbreak{}0] 且首尾为 0..n$-$1 & 1 \checkmark \\
+B & 标记加密：新增单元数 $\ge$ 被标记单元数(闭包只会多不会少) & $\le$ 0 & 0 \checkmark \\
+B & 标记加密：新增单元数 $\le$ 3$\times$被标记数(一层闭包的上界) & $\le$ 0 & 0 \checkmark \\
+B & 标记加密后仍然是协调网格(无悬挂节点) & 单元首尾相接且覆盖全部顶点 & 1 \checkmark \\
+B & $\theta$=0.2：被标记份额 $\ge$ $\theta$\textasciicircum{}2 & $\le$ 0.303498 & 0.04 \checkmark \\
+B & $\theta$=0.5：被标记份额 $\ge$ $\theta$\textasciicircum{}2 & $\le$ 0.534353 & 0.25 \checkmark \\
+B & $\theta$=0.9：被标记份额 $\ge$ $\theta$\textasciicircum{}2 & $\le$ 0.900384 & 0.81 \checkmark \\
+B & $\theta$=1：被标记份额 $\ge$ $\theta$\textasciicircum{}2 & $\le$ 1 & 1 \checkmark \\
+B & 标记份额随 $\theta$ 单调不减 & nondecreasing & 违反 0 处 \checkmark \\
+B & 自适应误差逐层下降 & decreasing & 违反 0 处 \checkmark \\
+B & 自由度逐层增加 & increasing & 违反 0 处 \checkmark \\
+B & 效率指数总量在 [1,4](是分布，不是一个常数) & 2 & 1.91685 \checkmark \\
+B & 同自由度下自适应误差 $\le$ 一致加密的一半 & $\le$ 0.5 & 0.249137 \checkmark \\
+B & ne=8：逐单元误差平方和开根 = 总能量误差(两条独立路径) & 0.251182 & 0.251182 \checkmark \\
+B & ne=16：逐单元误差平方和开根 = 总能量误差(两条独立路径) & 0.125833 & 0.125833 \checkmark \\
+B & $\surd$(u\_\allowbreak{}h\textasciicircum{}TK u\_\allowbreak{}h) = energy\_\allowbreak{}norm\_\allowbreak{}1d(u\_\allowbreak{}h)(装配矩阵 vs 逐点求积) & 2.21787 & 2.21787 \checkmark \\
+B & 光滑解：节点误差 $\le$1e-9(P1 在节点上精确) & $\le$ 1.00000e-09 & $9.770\times 10^{-15}$ \checkmark \\
+B & 光滑解：函数误差的能量范数 $\ge$1e-2(与节点无关) & $\le$ 0.125833 & 0.01 \checkmark \\
+B & 光滑解：$\surd$(e\textasciicircum{}TKe) 与能量误差差 $\ge$ 8 个数量级(节点向量不是误差函数) & $\ge$ 1e8 倍 & $5.923\times 10^{12}$ \checkmark \\
+B & L2 误差 $\le$ 能量误差(Poincare： || v ||  $\le$  || v' || ) & $\le$ 0.125833 & 0.0024865 \checkmark \\
+B & a=1,c=0 时能量范数就是 H\textasciicircum{}1 半范 & 0.125833 & 0.125833 \checkmark \\
+B & P1 单元在四阶问题上的刚度阵恒零(N''$\equiv$0) & 0.0 & 0 \checkmark \\
+B & 奇异系统：ok=False & $\le$ 0 & 0 \checkmark \\
+B & 奇异系统：fail\_\allowbreak{}reason 非空且解全有限 & ok=\allowbreak{}False 且无 NaN & 0 \checkmark \\
+B & spd\_\allowbreak{}solve 在奇异矩阵上保持有限输出 & ok=\allowbreak{}False 且 x 全有限 & 0 \checkmark \\
+B & 4 个可视化 $\times$ 参数角点 $\times$ t$\in$\{0,tMax\}：全部能构建、能编 .nlf、数组全有限、requiredAux 命中 & 0 个问题 & 0 \checkmark \\
+B & 装配动画：residual\_\allowbreak{}at\_\allowbreak{}floor 能由 residual 逐点复算(掩码 = 该点被抬到地板) & 掩码 =\allowbreak{} (\allowbreak{}residual $\le$ 地板) & 0 \checkmark \\
+B & 镜像 double：route\_\allowbreak{}defect 与 K\_\allowbreak{}route/K\_\allowbreak{}final 复算一致 & max|K\_route $-$ K\_final| & 16 \checkmark \\
+B & p-加密：条件数未测量的点被如实掩码(数组里是上限而不是 NaN) & 掩码点 =\allowbreak{} 1 且值 =\allowbreak{} 1e300 & $1.000\times 10^{300}$ \checkmark \\
+B & 扫载荷位置：scan\_\allowbreak{}at\_\allowbreak{}floor 能由 nodal\_\allowbreak{}error\_\allowbreak{}scan 逐点复算 & 掩码 =\allowbreak{} (\allowbreak{}节点误差 < 地板) & 0 \checkmark \\
+B & P1 解四阶梁：singular=True 且位移掩码全 1、位移恒 0(不写 NaN) & mask $\equiv$ 1 且 solution $\equiv$ 0 & 0 \checkmark \\
+B & 自适应：被判定为「比值无意义」的单元确实只是占位值，有意义的单元才是真的比值 & 掩码点上的比值 =\allowbreak{} 地板值(\allowbreak{}1e-12) & $1.000\times 10^{-12}$ \checkmark \\
+B & viz2：能量随 $\lambda$ 的二次律(meta.energy / mark\_\allowbreak{}energy = 0.8\textasciicircum{}2) & 0.64 & 0.64 \checkmark \\
+B & viz2：扫描曲线的峰谷比与 meta.scan\_\allowbreak{}peak\_\allowbreak{}to\_\allowbreak{}peak 一致(锯齿没有被打平) & 4.08316e+13 & $4.083\times 10^{13}$ \checkmark \\
+B & viz3：等自由度处 p 相对 h 的增益可由两条阶梯的数组复算 & 218784 & $2.188\times 10^{5}$ \checkmark \\
+B & viz3：h 阶梯用满全部自由度后仍差多少倍(h\_\allowbreak{}dof\_\allowbreak{}gap)与数组一致 & 27417.3 & 27417.3 \checkmark \\
+B & viz4：总效率指数 = $\surd$($\Sigma$$\eta$\textasciicircum{}2)/$\surd$($\Sigma$ || e || \textasciicircum{}2)(meta 与逐单元数组一致) & 1.67284 & 1.67284 \checkmark \\
+B & viz4：h\_\allowbreak{}ratio = max h / min h 与单元长度数组一致 & 64 & 64 \checkmark \\
+B & viz4：当前层的节点误差与 error\_\allowbreak{}now/error\_\allowbreak{}l2\_\allowbreak{}now 同量级(不是同一个量，但方向一致) & 节点误差 $\le$ 能量误差 & 0.00360579 \checkmark \\
+B & 装配动画 t=0：部分装配矩阵恒为 0(一个单元都还没装) & max|K\_partial| =\allowbreak{} 0 & 0 \checkmark \\
+B & hp 对照 t=0：误差阶梯与 t=tMax 完全相同(time.mode=none，t 不该改变任何东西) & 两条阶梯逐位相同 & 0 \checkmark \\
+B & 自适应 t=0：还是初始一致网格(h 全相等、无加密痕迹) & max h /\allowbreak{} min h =\allowbreak{} 1 & 1 \checkmark \\
+B & 4 个可视化各构建两次：数组逐位相同、meta 完全相同 & max|$\Delta$| =\allowbreak{} 0 & 0 \checkmark \\
+\end{longtable}

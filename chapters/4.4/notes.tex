@@ -1,0 +1,648 @@
+% 4.4 章 · 有限元方法
+% 一条主线：弱形式 a(u,v)=l(v) → Galerkin 正交性 → 先验界（Cea/插值）→ 后验指示子 eta_K。
+% 每个定理后面都给本章探针与断言里的**实测数字**，纸面结论与机器结论同源。
+% 断言附表由 tools/build_book.py 从实际运行结果生成，\input 进来，不手抄。
+
+\numlabchapter{有限元方法}{4.4}
+
+\section{这一章要解决什么}
+
+有限元方法做三件事：把微分方程写成\textbf{弱形式}、在有限维子空间里\textbf{解它}、然后\textbf{说清解离真解有多远}。三件事各有一个可以量出来的核心对象。第一，\textbf{弱形式有没有解}：Lax--Milgram（定理~\ref{thm:laxmilgram}）要求双线性形式有界且强制，在离散空间上这对常数就是广义特征值端点 $\alpha_h,M_h$（定理~\ref{thm:discrete}），而「用系数上下界套出来」的解析界在
+$c\equiv0$ 时直接是 $\infty$（式~\eqref{eq:coerce}）。第二，\textbf{Galerkin
+解最优吗}：正交性给出能量范数下的最佳逼近（定理~\ref{thm:galerkin}），Cea
+引理把它换成一般范数下的先验界（定理~\ref{thm:cea}），而阶由\textbf{正则性}决定——光滑解 $P_1$ 给 $L^2$ 阶 $2$、能量阶 $1$，界面解只有
+$H^{3/2-\epsilon}$，能量阶掉到 $1/2$（定理~\ref{thm:iface}）、$L^2$ 阶掉到
+$1$（定理~\ref{thm:aubin}）。第三，\textbf{误差在哪里}：先验估计指不出该加密哪个单元，残差型指示子
+\begin{equation}
+  \eta_K^2=h_K^2\|R_K\|_{L^2(K)}^2+\tfrac12\sum_{F\subset\partial K}h_F
+  \|\,[\![au_h']\!]_F\|^2,\qquad R_K=f+(au_h')'-cu_h
+  \label{eq:indicator}
+\end{equation}
+可靠且有效（定理~\ref{thm:indicator}），配上 Doerfler
+标记与闭包加密，能在尖角解上跑出几何收敛（定理~\ref{thm:dorfler}、\ref{thm:adapt}）。
+
+记号：$V=H^1_0(0,1)$，$\|v\|_{H^1}^2=\int_0^1(|v'|^2+v^2)$，$|v|_{H^1}=\|v'\|_{L^2}$，$a,\ell$
+见~\eqref{eq:weak}；$V_h\subset V$ 是分片多项式空间，$h_K$ 是单元直径，$I_hu\in V_h$
+是节点插值，$\|v\|_a=\sqrt{a(v,v)}$，$\theta\in(0,1)$ 是界面在单元内的相对位置。「能量范数」口径与实现一致：给了系数场时是
+$\sqrt{a(e,e)}$，两个系数场都缺省（$a\equiv1,c\equiv0$）时代码取完整 $H^1$ 范数
+$\sqrt{|e|_{H^1}^2+\|e\|_{L^2}^2}$——正是定理~\ref{thm:discrete}里那对广义特征值用的范数。所有「实测」数字来自 4.4
+章的探针与断言报告（\texttt{.cache/probe1.py} 到 \texttt{probe8.py}，口径与 \texttt{tests/4.4}
+相同），每条都写明算例、范数与网格。
+
+\section{弱形式、Lax--Milgram 与离散常数}
+
+设 $a,c\in L^\infty(0,1)$、载荷泛函 $\ell(v)=\int_0^1fv+\sum_jP_jv(x_j)$，\textbf{弱形式}是
+\begin{equation}
+  a(u,v)=\int_0^1\bigl(a(x)u'v'+c(x)uv\bigr)dx,\qquad u\in V:\quad a(u,v)=\ell(v)\ \ \forall
+  v\in V .
+  \label{eq:weak}
+\end{equation}
+
+\begin{theorem}[有界性与强制性]
+\label{thm:laxmilgram}
+设 $0<a_{\min}\le a\le a_{\max}$、$0\le c_{\min}\le c\le c_{\max}$。则
+$|a(v,w)|\le\max(a_{\max},c_{\max})\|v\|_{H^1}\|w\|_{H^1}$、$a(v,v)\ge\min(a_{\min},c_{\min})\|v\|_{H^1}^2$。特别地
+$c\equiv0$ 时系数型下界退化，但 $H^1_0$ 上的强制性仍成立：
+\begin{equation}
+  a(v,v)\ \ge\ \frac{a_{\min}}{1+C_P^2}\,\|v\|_{H^1}^2,\qquad C_P=\frac1\pi ,
+  \label{eq:coerce}
+\end{equation}
+且 $C_P$ 精确（$v=\sin\pi x$ 取等）。于是 $\ell\in V'$ 时弱形式有唯一解，且
+$\|u\|_{H^1}\le\|\ell\|_{V'}\big/\bigl(a_{\min}/(1+C_P^2)\bigr)$。
+\end{theorem}
+\begin{proof}
+有界性：由 Cauchy--Schwarz 与 $\mathbb R^2$ 中的内积不等式
+$|v|_{H^1}|w|_{H^1}+\|v\|_0\|w\|_0\le\|v\|_{H^1}\|w\|_{H^1}$。强制性：逐项放缩得
+$\min(a_{\min},c_{\min})(|v|_{H^1}^2+\|v\|_0^2)$。Poincare：把 $v\in H^1_0$ 展成正弦级数
+$v=\sum_kb_k\sqrt2\sin k\pi x$，则
+$\|v\|_0^2=\sum_kb_k^2$、$|v|_{H^1}^2=\pi^2\sum_kk^2b_k^2\ge\pi^2\|v\|_0^2$，故
+$\|v\|_{H^1}^2\le(1+\pi^{-2})|v|_{H^1}^2$，即 $|v|_{H^1}^2\ge\frac{\pi^2}{1+\pi^2}\|v\|_{H^1}^2$；乘
+$a_{\min}$ 得~\eqref{eq:coerce}。唯一性与稳定性：取 $v=u$，$\alpha\|u\|_{H^1}^2\le
+a(u,u)=\ell(u)\le\|\ell\|_{V'}\|u\|_{H^1}$。
+\end{proof}
+
+\textbf{本章实测}：\texttt{smooth}（$a=1$、$c=0$、$P_1$、$ne=8$）实测 $\alpha_h=0.9091$、$M_h=0.99855$，而解析界
+$\sqrt{\max(a,c)/\min(a,c)}=\infty$。$0.9091$ 与~\eqref{eq:coerce}的 $1/(1+\pi^{-2})=0.9080$ 差
+$0.1\%$：反解出离散 Poincare 常数 $C_h=\sqrt{1/0.9091-1}=0.3162$，略小于连续的 $1/\pi=0.3183$。$c=1$ 时双线性形式就是
+$H^1$ 内积，实测 $\alpha_h=M_h=1.0000000000$。
+
+\begin{theorem}[离散常数就是一对广义特征值]
+\label{thm:discrete}
+设 $B=K_1+M_1$（单位系数 $H^1$ 内积的矩阵）、$A=K_a+M_c$，边界条件已消元。则
+$\alpha_h=\min_{v_h\ne0}a(v_h,v_h)/\|v_h\|_{H^1}^2$、$M_h=\max(\cdot)$ 是 $Av=\lambda Bv$
+的最小、最大特征值，且 $\alpha_h\|v\|_{H^1}^2\le a(v,v)\le M_h\|v\|_{H^1}^2$ 对一切 $v\in V_h$。若
+$a\equiv1,c\equiv0$，则 $\alpha_h=1/(1+C_h^2)$，$C_h$ 是离散 Poincare 常数。
+\end{theorem}
+\begin{proof}
+$B$ 对称正定，作 Cholesky $B=LL^{\top}$，令 $y=L^{\top}v$、$C=L^{-1}AL^{-\top}$。由定理~\ref{thm:spd}的恒等式 $A$
+对称，故 $C$ 对称，Rayleigh 商 $v^{\top}Av/v^{\top}Bv=y^{\top}Cy/y^{\top}y$，其极值即 $C$ 的极值特征值，而 $Cy=\mu y$
+等价于 $Av=\mu Bv$。两不等式是极小极大定义的改写。$a\equiv1,c\equiv0$ 时 $R(v)=1/(1+\|v_h\|_0^2/|v_h|_{H^1}^2)$，最小值在
+$C_h^2$ 处取到。
+\end{proof}
+
+\section{Galerkin 正交性、最佳逼近与 Cea 引理}
+
+\begin{theorem}[正交性与能量范数下的最佳逼近]
+\label{thm:galerkin}
+设 $u,u_h$ 分别是~\eqref{eq:weak}在 $V$ 与 $V_h\subset V$ 上的解。则
+\begin{equation}
+  a(u-u_h,v_h)=0\ \ \forall v_h\in V_h,\qquad
+  \|u-v_h\|_a^2=\|u-u_h\|_a^2+\|u_h-v_h\|_a^2\ \ \forall v_h\in V_h ,
+  \label{eq:pythagoras}
+\end{equation}
+于是 $\|u-u_h\|_a=\min_{v_h\in V_h}\|u-v_h\|_a$，特别地 $\|u-u_h\|_a\le\|u-I_hu\|_a$。
+\end{theorem}
+\begin{proof}
+两式相减得正交性。记 $e=u-u_h$、$\delta=u_h-v_h$，则
+$u-v_h=e+\delta$，$\|u-v_h\|_a^2=\|e\|_a^2+2a(e,\delta)+\|\delta\|_a^2$，而 $\delta\in V_h$
+使交叉项为零。故 $\|u-u_h\|_a^2\le\|u-v_h\|_a^2$ 对一切 $v_h$ 成立；取 $v_h=u_h$ 得等号，即得下确界等式。
+\end{proof}
+
+\begin{corollary}[$a$ 为常数且 $c\equiv0$ 时 Galerkin 解就是插值]
+\label{cor:interp}
+此时 $u_h=I_hu$，$\|u-u_h\|_a=\|u-I_hu\|_a$ 精确成立。实测 \texttt{smooth}（$P_1$、$ne=8$）的比值
+$\|u-u_h\|_a/\|u-I_hu\|_a=1.000000$；$c=1$ 时是 $0.999942$（$\le1$ 是定理~\ref{thm:galerkin}的结论，严格小于说明
+Galerkin 解比插值更好）。
+\end{corollary}
+\begin{proof}
+定理~\ref{thm:nodal}给出节点值相等，而 $V_h$ 中函数由节点值唯一决定，故 $u_h=I_hu$。
+\end{proof}
+
+\begin{theorem}[Cea 引理]
+\label{thm:cea}
+在定理~\ref{thm:discrete}的记号下，对一切 $v_h\in V_h$ 有
+$\|u-u_h\|_a\le\sqrt{M_h/\alpha_h}\inf_{v_h}\|u-v_h\|_a$。
+\end{theorem}
+\begin{proof}
+第一步用定理~\ref{thm:galerkin}的勾股恒等式~\eqref{eq:pythagoras}：$\|u-u_h\|_a\le\inf_{v_h}\|u-v_h\|_a$（常数 $1$）。第二步换范数：对 $w\in V_h$ 有
+$\sqrt{\alpha_h}\|w\|_{H^1}\le\|w\|_a\le\sqrt{M_h}\|w\|_{H^1}$；取 $w=u-v_h$ 并对 $v_h$ 取下确界，得
+$\sqrt{M_h}\inf_{v_h}\|u-v_h\|_{H^1}\le\sqrt{M_h/\alpha_h}\inf_{v_h}\|u-v_h\|_a$。两步串起来即可。
+\end{proof}
+
+\textbf{本章实测}（$\alpha_h,M_h$ 由广义特征值算，效率比 $=\|u-u_h\|_a/\|u-I_hu\|_a$）：
+\begin{center}
+\begin{tabular}{lccccc}
+\toprule
+算例 & $\alpha_h$ & $M_h$ & Cea $\sqrt{M_h/\alpha_h}$ & 解析界 & 效率比 \\
+\midrule
+\texttt{smooth}, $c=0$, $P_1$ $ne=8$ & $0.9091$ & $0.99855$ & $1.0481$ & $\infty$ & $1.000000$
+\\
+\texttt{smooth}, $c=1$, $P_1$ $ne=8$ & $1.0000000000$ & $1.0000000000$ & $1.0000000000$ &
+$1.0000$ & $0.999942$ \\
+界面反差 $100$, $ne=16$ & $0.9905$ & $99.965$ & $10.046$ & $\infty$ & $0.224721$ \\
+界面反差 $100$ 加 $c=1$ & $1.0$ & $99.965$ & $9.9983$ & $10.0$ & $0.226198$ \\
+界面反差 $10^4$, $ne=16$ & $0.9905$ & $9996.5$ & $100.46$ & $\infty$ & $0.022806$ \\
+界面反差 $10^4$, $ne=64$ & $0.9892$ & $9999.8$ & $100.54$ & $\infty$ & $0.022285$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+两点：$c=0$ 时解析界是 $\infty$（$\alpha\ge\min(a,c)=0$）而离散常数有限——「界不存在」与「误差很大」是两件事；反差 $10^4$ 时界允许 $100$
+倍劣化，而真实效率比 $0.0228$——\textbf{界成立但没用}，因为 $\sqrt{M_h/\alpha_h}$ 量的是系数反差，不是误差大小。
+
+\section{一维 $P_1$ 的节点精确性}
+
+\begin{theorem}[通量平衡与节点精确性]
+\label{thm:nodal}
+设 $a$ 为常数、$c\equiv0$，$u,u_h$ 是弱形式在 $V$ 与 $P_1$ 空间 $V_h$ 上的解。则 $u_h(x_i)=u(x_i)$ 对网格的每个节点成立。
+\end{theorem}
+\begin{proof}
+只看内部节点 $x_i$，两侧单元 $K^\pm$ 长度 $h^\pm$，帽函数 $\varphi_i$ 满足
+$\varphi_i'=1/h^-$（$K^-$）、$-1/h^+$（$K^+$）。$u_h$ 在每个单元上是直线，故
+\begin{equation}
+  a(u_h,\varphi_i)=\frac{a}{h^-}\bigl(u_h(x_i)-u_h(x_{i-1})\bigr)
+  -\frac{a}{h^+}\bigl(u_h(x_{i+1})-u_h(x_i)\bigr).
+  \label{eq:flux-disc}
+\end{equation}
+对精确解，$a$ 是常数且 $H^1$ 函数绝对连续，故
+$a(u,\varphi_i)=\frac{a}{h^-}(u(x_i)-u(x_{i-1}))-\frac{a}{h^+}(u(x_{i+1})-u(x_i))$，这里只用了\textbf{望远镜恒等式}
+$\int_{x_{i-1}}^{x_i}u'=u(x_i)-u(x_{i-1})$：无论 $u$ 在单元内部有多少折点都成立。而
+$a(u,\varphi_i)=\ell(\varphi_i)$ 正是弱形式。因此节点值向量 $(u_h(x_i))$ 与 $(u(x_i))$ 满足同一个线性方程组；$c\equiv0$
+时消元后的刚度阵对称正定（定理~\ref{thm:spd}），解唯一，故相等。
+\end{proof}
+
+\begin{corollary}[点载荷：节点与单元内部的差别]
+\label{cor:point}
+对 $-u''=\delta(x-x_0)$（$P_1$、$ne=16$）：$x_0$ 在节点上时 $u\in V_h$，实测能量误差
+$5.707\times10^{-15}$（机器零）；$x_0$ 在单元内部时 $u\notin V_h$，实测能量误差
+$1.250\times10^{-1}$（$x_0=0.53125$）与 $7.870\times10^{-2}$（$x_0=0.51$）。两种情形的\textbf{节点误差都
+$\le4.4\times10^{-16}$}：误差全在单元内部。
+\end{corollary}
+\begin{proof}
+$x_0$ 是节点时 $u$ 分段线性且折点在节点上，故 $u\in V_h$，由唯一性 $u_h=u$。$x_0$ 在单元内部时 $u$ 在含 $x_0$ 的单元上不是直线，$u\notin
+V_h$，故 $u_h\ne u$，但定理~\ref{thm:nodal}的假设仍满足，节点值依旧精确。$x_0$ 在单元中点（$\theta=\frac12$）时两侧斜率
+$s_1=1-x_0$、$s_2=-x_0$，跳度 $s_1-s_2=1$，插值斜率是 $\frac12(s_1+s_2)$，故
+$|(u-I_hu)'|\equiv\frac12$，$H^1$ 半范部分是
+$\sqrt{h\cdot\frac14}=\frac18=1.250\times10^{-1}$，与实测相符（差在 $10^{-5}$ 量级，来自口径里多加的 $\|e\|_{L^2}$
+项）。
+\end{proof}
+
+\textbf{注意}：节点精确不是「解很准」。$x_0=0.5$ 与 $x_0=0.53125$ 的节点误差都是 $10^{-16}$，能量误差却差 $13$ 个数量级。另外假设「$a$
+为常数」不能丢：界面算例里 $a$ 两侧差 $100$ 倍，界面一旦落在单元\textbf{内部}，那个单元上 $\int_Ka u'\ne
+a\bigl(u(x_{i+1})-u(x_i)\bigr)$，通量平衡（式~\eqref{eq:flux-disc}）失效——这正是 $h^{1/2}$ 阶的来源。
+
+\section{装配矩阵的对称正定性}
+
+\begin{theorem}[二次型恒等式与正定性]
+\label{thm:spd}
+设 $K$ 由单元矩阵 $k^{(e)}_{ij}=\int_{K_e}(a\varphi_i'\varphi_j'+c\varphi_i\varphi_j)$ 散射累加而成。则对任意 $v$
+\begin{equation}
+  v^{\top}Kv=\sum_K\int_K\bigl(a|v_h'|^2+cv_h^2\bigr)dx,\qquad v_h=\sum_iv_i\varphi_i .
+  \label{eq:quadform}
+\end{equation}
+若 $a\ge a_{\min}>0$、$c\ge0$，则 $v^{\top}Kv\ge0$，等号成立当且仅当 $v_h$ 在 Dirichlet 消元后为零；于是 $K_{ff}$
+对称正定。
+\end{theorem}
+\begin{proof}
+把 $K_{ij}=\sum_ek^{(e)}_{ij}$
+代入并交换求和次序：$v^{\top}Kv=\sum_e\int_{K_e}\bigl(a(\sum_iv_i\varphi_i')^2+c(\sum_iv_i\varphi_i)^2\bigr)dx$，即~\eqref{eq:quadform}。非负性由每个单元上 $a|v_h'|^2+cv_h^2\ge0$（$a\ge a_{\min}>0$、$c\ge0$）直接得到。若为零，则每个单元上
+$v_h'=0$，即 $v_h$ 是常数；Dirichlet 自由度固定为零后常数只能是 $0$，故自由部分 $v=0$，$K_{ff}$ 正定。对称性来自被积函数
+$a\varphi_i'\varphi_j'$ 关于 $i,j$ 对称。
+\end{proof}
+
+\begin{lemma}[上三角镜像的 double 变体等于 $K+\operatorname{diag}(K)$]
+\label{lem:mirror}
+先只装上三角与对角线再置 $K\leftarrow K+K^{\top}$，若对角线不折半（惯犯 bug），结果恰好是 $K+\operatorname{diag}(K)$，故
+$\max_{ij}|K_{ij}-K^{\text{full}}_{ij}|=\max_iK_{ii}$。均匀 $P_1$
+网格（$ne=8$、$h=\frac18$、两端消元）上内部对角元是 $2/h$，于是 $K_{ff}\mapsto K_{ff}+16I$。实测：对称残差 $0.0$、Cholesky
+成功、$\lambda_{\min}$ 由 $1.217927$ 变成 $17.217927$（差恰好 $16$）、$\kappa_2$ 由 $25.274$ 降到
+$2.717$、$\max|K-K^{\text{full}}|=16.0$，解完全错。
+\end{lemma}
+\begin{proof}
+严格上三角 $(i,j),i<j$ 累加后镜像，$K_{ij}$ 与完整装配逐位相同；对角线收到 $\sum_ek^{(e)}_{ii}$ 且被镜像再加一次，故
+$K_{ii}=2K_{ii}^{\text{full}}$，即
+$K^{\text{double}}=K^{\text{full}}+\operatorname{diag}(K^{\text{full}})$。均匀网格每个内部节点属于两个单元、每个单元贡献
+$1/h$，故 $K_{ii}=2/h$；消元后剩下的全是内部节点，特征值整体平移
+$2/h=16$：$\lambda_{\max}=25.274\times1.217927=30.776$，新条件数
+$(30.776+16)/(1.217927+16)=46.776/17.218=2.717$，与实测一致。
+\end{proof}
+
+\textbf{本章实测}：$P_1$ 完整散射装配的 $\max|K-K^{\mathsf T}|$ 是\textbf{精确的
+$0.0$}（单元矩阵逐位对称、累加顺序一致），单元内反序累加也还是 $0.0$；$P_2$（$ne=8$）是 $3.553\times10^{-15}$、$ne=16$ 是
+$7.105\times10^{-15}$，来源\textbf{不是散射}而是单元矩阵自己：$\max|k^{(e)}-{k^{(e)}}^{\top}|$ 与这两个数完全相同（BLAS 在
+$(3,n_q)@(n_q,3)$ 上不保证逐位对称），对称化后回到 $0.0$。对照引理~\ref{lem:mirror}：对称残差 $0.0$、Cholesky
+成功、条件数更漂亮的矩阵可以是错的——\textbf{对称残差量的是浮点累加顺序，不是装配对不对}。
+
+\section{插值误差、Bramble--Hilbert 与收敛阶}
+
+\begin{lemma}[Bramble--Hilbert，一维]
+\label{lem:bh}
+设 $0\le k\le1\le s\le p+1$。对 $u\in H^s(0,1)$ 存在 $q\in P_p$ 使 $\|u-q\|_{H^k(0,1)}\le
+C_{s,k}|u|_{H^s(0,1)}$；在单元 $K=(x_a,x_b)$、$h=x_b-x_a$ 上
+\begin{equation}
+  \|u-q\|_{H^k(K)}\le C_{s,k}\,h^{\,s-k}|u|_{H^s(K)} .
+  \label{eq:bh}
+\end{equation}
+\end{lemma}
+\begin{proof}
+取 $q$ 为 $L^2$ 正交投影（先做参考区间），令 $W=\{u\in H^s:(u,q)_{L^2}=0\ \forall q\in P_p\}$。$|\cdot|_{H^s}$ 在
+$W$ 上是范数：若 $|u|_{H^s}=0$ 则 $u$ 是次数 $\le\lceil s\rceil-1\le p$ 的多项式，又正交于 $P_p$，故 $u=0$。若不成立，则存在
+$u_n\in W$ 使 $\|u_n\|_{H^k}=1$、$|u_n|_{H^s}\to0$；由 $k\le s$ 得 $\|u_n\|_{H^s}\le2$，一维 Rellich
+定理给出在 $H^k$ 中收敛的子列 $u_n\to u_*$，$W$ 闭故 $u_*\in W$，范数的弱下半连续性给出 $|u_*|_{H^s}=0$，于是 $u_*\in P_p\cap
+W=\{0\}$，与 $\|u_*\|_{H^k}=1$ 矛盾。仿射变换 $\hat u(\xi)=u(x_a+h\xi)$ 使 $j$ 阶导数的 $L^2$ 范数带因子
+$h^{\,j-1/2}$，把参考区间的估计搬回去即~\eqref{eq:bh}。
+\end{proof}
+
+\begin{theorem}[插值误差估计]
+\label{thm:interp}
+设 $u\in H^s(K)$、$1\le s\le p+1$。则 $\|u-I_hu\|_{H^1(K)}\le
+Ch_K^{\,s-1}|u|_{H^s(K)}$、$\|u-I_hu\|_{L^2(K)}\le Ch_K^{\,s}|u|_{H^s(K)}$。$p=1,s=2$ 时常数可写成
+$1/\sqrt3$ 与 $1/(4\sqrt3)$。
+\end{theorem}
+\begin{proof}
+先要节点插值在单元上的稳定性：$K=(0,h)$ 时 $|I_hv|_{H^1(K)}^2=\frac{(v(h)-v(0))^2}{h}\le|v|_{H^1(K)}^2$（用
+$v(h)-v(0)=\int_Kv'$），且由 $v(0)=\frac1h\int_0^h\bigl(v-\int_0^xv'\bigr)$ 与 Cauchy--Schwarz 得
+$\|I_hv\|_{H^1(K)}\le5\|v\|_{H^1(K)}$（$h\le1$）。因为 $I_hq=q$（$q\in P_p$），对任意 $q\in P_p$ 有
+$u-I_hu=(u-q)-I_h(u-q)$，三角不等式与稳定性给出 $\|u-I_hu\|_{H^1(K)}\le6\|u-q\|_{H^1(K)}$；对 $q$
+取下确界并用引理~\ref{lem:bh}（$k=1$）得第一个不等式，$k=0$ 给第二个。$p=1,s=2$ 的显式常数用 Green 函数：$e=u-I_hu$
+在单元两端为零、$e''=u''$，$e(x)=-\int_KG(x,y)u''(y)dy$；由 $\int_K|\partial_xG|^2\le h/3$ 得
+$|e|_{H^1(K)}\le\frac{h}{\sqrt3}|u|_{H^2}$，由 $\int_KG^2\le h^3/48$ 得
+$\|e\|_{L^2(K)}\le\frac{h^2}{4\sqrt3}|u|_{H^2}$。
+\end{proof}
+
+\textbf{本章实测}（误差用 $p+4$ 点 Gauss 求积，对 $h=1/ne$ 做双对数拟合）：$P_1$、$u=\sin\pi x$、$ne=4,8,16,32,64$ 上
+$L^2$ 误差是
+$3.928\times10^{-2},9.921\times10^{-3},2.487\times10^{-3},6.220\times10^{-4},1.555\times10^{-4}$，斜率
+$1.9957$（理论 $2=p+1$）；同一批解的 $H^1$ 半范斜率 $0.9967$、能量范数斜率 $0.9967$（理论 $1=p$；$a\equiv1,c=0$ 时能量范数就是 $H^1$ 半范，两个数必须逐位相同）。$P_2$ 上是 $2.9970$ 与
+$1.9972$（理论 $3$ 与 $2$）。$a\equiv1,c=0$ 时 $u_h=I_hu$ 精确成立（推论~\ref{cor:interp}），所以 $P_1$
+的能量误差就是插值误差，两条理论在这里是同一条。
+
+\section{界面算例：能量阶是 $O(h^{1/2})$}
+
+标准界面算例：$a=1$（$x<x_s$）、$a=100$（$x>x_s$）、$f=0$、$u(0)=0$、$u(1)=1$。真解
+\begin{equation}
+  u(x)=c_Lx\ (x<x_s),\quad u(x)=c_Lx_s+\frac{c_L}{100}(x-x_s)\ (x>x_s),\quad
+  c_L=\Bigl(x_s+\frac{1-x_s}{100}\Bigr)^{-1}
+  \label{eq:iface-exact}
+\end{equation}
+分段线性，在 $x_s$ 处 $C^0$ 不 $C^1$，即 $u\in H^{3/2-\epsilon}$。
+
+\begin{theorem}[能量误差的两个界]
+\label{thm:iface}
+设网格一致、界面在单元 $K_*=[x_a,x_b]$ 内部的相对位置 $\theta$ 与网格无关，$a$ 在 $K_*$ 两侧是 $a_1,a_2$，真解两侧斜率 $s_1,s_2$、跳度
+$J=|s_1-s_2|$。则
+\begin{equation}
+  \sqrt{h_{K_*}\theta(1-\theta)J^2\frac{a_1a_2}{\theta a_1+(1-\theta)a_2}}
+  \ \le\ \|u-u_h\|_a\ \le\
+  \sqrt{h_{K_*}\theta(1-\theta)J^2\bigl((1-\theta)a_1+\theta a_2\bigr)} .
+  \label{eq:iface-bounds}
+\end{equation}
+特别地固定 $\theta$ 时 $\|u-u_h\|_a\asymp h_{K_*}^{1/2}$，能量阶是 $1/2$ 而不是 $1$。
+\end{theorem}
+\begin{proof}
+\textbf{上界}：$K_*$ 以外的单元上 $u$ 是直线，$I_hu=u$，插值误差为零；在 $K_*$ 上
+$s_1-m=(1-\theta)(s_1-s_2)$、$s_2-m=-\theta(s_1-s_2)$（$m=\theta s_1+(1-\theta)s_2$），故
+$\int_{K_*}|(u-I_hu)'|^2=h_{K_*}\theta(1-\theta)(s_1-s_2)^2$；两块分别乘
+$a_1,a_2$，再用定理~\ref{thm:galerkin}的 $\|u-u_h\|_a\le\|u-I_hu\|_a$。\textbf{下界}：$u_h$ 在 $K_*$
+上是直线，斜率记 $m_h$，则 $\|u-u_h\|_a^2\ge\min_m\bigl[\theta
+h_{K_*}a_1(s_1-m)^2+(1-\theta)h_{K_*}a_2(s_2-m)^2\bigr]=h_{K_*}\theta(1-\theta)(s_1-s_2)^2\frac{a_1a_2}{\theta
+a_1+(1-\theta)a_2}$，开方即得。
+\end{proof}
+
+\textbf{本章实测}（$x_s=1/3$、反差 $100$、$ne=4^m$，此时
+$\theta\equiv1/3$；上下界是把~\eqref{eq:iface-exact}的参数代进~\eqref{eq:iface-bounds}得到的，
+逐点值由 \texttt{.cache/probe4.py} 复现，台账第 6 节给出同一批网格的全局拟合阶）：
+\begin{center}
+\begin{tabular}{lccccc}
+\toprule
+$ne$ & $4$ & $16$ & $64$ & $256$ & $1024$ \\
+\midrule
+下界 & $0.8385$ & $0.4192$ & $0.2096$ & $0.1048$ & $0.05240$ \\
+实测能量误差 & $0.9812$ & $0.4436$ & $0.2170$ & $0.1079$ & $0.05388$ \\
+上界 & $4.0018$ & $2.0009$ & $1.0005$ & $0.5002$ & $0.2501$ \\
+实测/下界 & $1.170$ & $1.058$ & $1.035$ & $1.030$ & $1.028$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+读法：实测永远夹在中间，且比值稳定在 $1.03$ 附近——Galerkin 解在界面单元上几乎最优；上下界只差常数、都正比于 $h^{1/2}$，所以「能量阶
+$1/2$」是结构性的。拟合出的斜率是 $0.5206$ 而不是 $0.5$：最粗的一档（$ne=4$）实测/下界是
+$1.170$，还没进平台，粗端把斜率抬高了——与二维三角形「四点全局拟合给 $-1.367$」是同一件事。
+
+\textbf{相位振荡}：$\theta$ 随网格变时阶会被污染。界面取无理数 $1/\pi$ 时同一算例的全局拟合变成能量 $0.3974$、$L^2$ $0.7748$，相邻层误差比
+$0.953,3.403,0.997,1.111,0.964,1.757,1.141$；固定 $ne=64$ 只挪 $\theta=0.1\to0.9$，能量误差从
+$1.2111\times10^{-1}$ 到
+$3.2828\times10^{-1}$，$\max/\min=2.71$。式~\eqref{eq:iface-bounds}解释了它：上界权重 $(1-\theta)a_1+\theta
+a_2$ 在 $\theta=0.1\to0.9$ 时从 $10.9$ 涨到 $90.1$。\textbf{要么固定 $\theta$，要么报包络}。
+
+\section{界面算例的 $L^2$ 阶为什么是 $1$ 而不是 $3/2$}
+
+\begin{theorem}[Aubin--Nitsche 与界面算例的 $L^2$ 阶]
+\label{thm:aubin}
+（i）设对偶问题 $a(v,\phi_g)=(g,v)$ 的解满足 $\|\phi_g\|_{H^{1+\beta}}\le
+C_\beta\|g\|_{L^2}$、$\beta\in(0,1]$，则 $\|u-u_h\|_{L^2}\le
+C'h^{\beta}\|u-u_h\|_a$。（ii）对~\eqref{eq:iface-exact}的界面解，对偶问题带同一个系数跳：通量 $a\phi_g'$ 连续而 $\phi_g'$
+在 $x_s$ 处跳（跳比就是系数比），故 $\phi_g\notin H^2$、只有 $H^{3/2-\epsilon}$ 正则性，即 $\beta=\frac12-\epsilon$。于是
+$\|u-u_h\|_{L^2}\le C_\epsilon h^{1/2-\epsilon}\|u-u_h\|_a\le C_\epsilon h^{1-\epsilon}$，即 $L^2$
+阶是 $1$（严格说是 $1-\epsilon$），不是 $3/2$。
+\end{theorem}
+\begin{proof}
+（i）$(g,u-u_h)=a(u-u_h,\phi_g)=a(u-u_h,\phi_g-\phi_{g,h})$，最后一步用了 $\phi_g-\phi_{g,h}\in V$ 与
+Galerkin 正交性。于是 $|(g,u-u_h)|\le M\|u-u_h\|_{H^1}\|\phi_g-\phi_{g,h}\|_{H^1}\le
+Ch^{\beta}\|u-u_h\|_a\|g\|_{L^2}$，对 $g$
+取上确界（$\|u-u_h\|_{L^2}=\sup_g(g,u-u_h)/\|g\|_{L^2}$）即得。（ii）$-(a\phi_g')'=g$ 说明通量绝对连续，但
+$\phi_g'=(a\phi_g')/a$ 在 $x_s$ 两侧差因子 $a_2/a_1=100$，只要通量非零就真的跳，故 $\phi_g\notin H^2$；界面问题的正则性理论给
+$\phi_g\in H^{3/2-\epsilon}$ 且 $\|\phi_g\|_{H^{3/2-\epsilon}}\le C_\epsilon\|g\|_{L^2}$（指数 $3/2$
+精确）。代入（i）并用定理~\ref{thm:iface}的 $\|u-u_h\|_a\le Ch^{1/2}$，得 $h^{1-\epsilon}$。
+\end{proof}
+
+\textbf{为什么朴素的 $3/2$ 是错的}：「能量阶 $1/2$ 再加对偶增益 $1$」里的那个 $1$ 是\textbf{光滑}问题的增益（$\beta=1$：对偶问题有 $H^2$
+正则性）。界面问题的对偶问题带着同一个系数跳，它的解与原问题是同一种奇异对象，增益只有 $1/2$。正确算法是：先量能量阶，再问对偶问题的正则性，两者相加——而不是把光滑情形的增益当常数搬。
+
+\textbf{本章实测}：$x_s=1/3$（$\theta\equiv1/3$）、$ne=4^m$ 上 $L^2$ 误差是
+$7.6652\times10^{-2},1.9460\times10^{-2},4.8795\times10^{-3},1.2207\times10^{-3},3.0523\times10^{-4}$，斜率
+$0.9970$，相邻比 $3.939,3.989,3.997,4.000$（每加密一次降 $4$ 倍，正是 $h^1$）；同一批解的能量范数斜率是
+$0.5206$。同一份解、同一批网格，只换范数就得到 $1$ 与 $1/2$ 两个阶：\textbf{不说范数，「收敛阶是几」这句话没有意义}。
+
+\section{后验残差指示子：可靠性与有效性}
+
+\begin{theorem}[残差表示、可靠性与有效性]
+\label{thm:indicator}
+设 $a$ 在单元内为常数、$c\ge0$，$e=u-u_h$，$\eta^2=\sum_K\eta_K^2$（$\eta_K$
+见~\eqref{eq:indicator}）。则（i）\textbf{残差表示} $a(e,v)=\sum_K\int_KR_Kv+\sum_FJ_Fv(x_F)$ 对一切 $v\in
+H^1_0$ 成立，且
+\begin{equation}
+  \|e\|_a\le\frac{2}{\pi\sqrt{a_{\min}}}\,\eta_{\text{res}},\qquad
+  \eta_{\text{res}}^2=\sum_Kh_K^2\|R_K\|_{L^2(K)}^2\le\eta^2 ;
+  \label{eq:reliable}
+\end{equation}
+（ii）\textbf{有效性}：在局部拟一致 $h_{K'}/h_K\le\gamma$ 下存在 $C=C(\gamma,a_{\max}/a_{\min})$ 使
+\begin{equation}
+  h_K\|R_K\|_{L^2(K)}\le C\bigl(\|e\|_{a,K}+\mathrm{osc}_K\bigr),\qquad
+  h_F^{1/2}|J_F|\le C\Bigl(\|e\|_{a,\omega_F}+\sum_{K\subset\omega_F}\mathrm{osc}_K\Bigr),
+  \label{eq:efficient}
+\end{equation}
+其中 $\mathrm{osc}_K=h_K^{1/2}\!\int_K|R_K-\bar R_K|+h_K\|R_K-\bar R_K\|_{L^2(K)}$ 是数据振荡；若 $R_K$
+在每个单元上是常数（界面算例 $f\equiv0,c\equiv0$、$u_h$ 线性时 $R_K\equiv0$），振荡项为零，$\eta$ 与 $\|e\|_a$ 等价。
+\end{theorem}
+\begin{proof}
+（i）残差表示：$a(e,v)=\ell(v)-a(u_h,v)$，对 $a(u_h,v)$ 逐单元分部积分，内部节点处左右单元的边界项合并成
+$\bigl(au_h'(x_F^+)-au_h'(x_F^-)\bigr)v(x_F)=J_Fv(x_F)$，两端因 $v\in H^1_0$ 消失。可靠性：取
+$w=e-I_he$（在每个节点为零），跳跃项全部消失，$a(e,w)=\sum_K\int_KR_Kw$；由 $I_he\in V_h$
+与正交性，$\|e\|_a^2=a(e,e)=a(e,w)\le\sum_K\|R_K\|\|w\|_{L^2(K)}$。$w$ 在单元两端为零，Poincare 给
+$\|w\|_{L^2(K)}\le\frac{h_K}{\pi}|w|_{H^1(K)}$；又
+$|w|_{H^1(K)}\le2|e|_{H^1(K)}$（稳定性，见定理~\ref{thm:interp}的证明）。合并得
+$\|e\|_a^2\le\frac2\pi\eta_{\text{res}}|e|_{H^1}\le\frac{2}{\pi\sqrt{a_{\min}}}\eta_{\text{res}}\|e\|_a$，约去
+$\|e\|_a$ 即~\eqref{eq:reliable}。（ii）单元残差：取泡函数 $b_K=\varphi_L\varphi_R$、$v=\bar R_Kb_K$（只在 $K$
+上非零、节点处为零），则 $a(e,v)=\int_KR_Kv$。用
+$|b_K|^2_{H^1(K)}=\frac1{3h_K}$、$\|b_K\|^2_{L^2(K)}=\frac{h_K}{30}$、$\int_Kb_K=\frac{h_K}6$、$|b_K|\le\frac14$
+得 $\bar R_K^2\frac{h_K}6\le|\bar R_K|\bigl(\frac14\int_K|R_K-\bar
+R_K|\bigr)+\sqrt{a_{\max}/(3h_K)}\,|\bar R_K|\,\|e\|_{a,K}$；除以 $|\bar R_K|$ 再乘 $h_K^{1/2}$，并用
+$h_K\|R_K\|_{L^2(K)}\le h_K^{3/2}|\bar R_K|+h_K\|R_K-\bar R_K\|$ 得第一个不等式。面跳跃：取面帽函数
+$b_F$（$b_F(x_F)=1$、支集 $\omega_F$、$|b_F|^2_{H^1(\omega_F)}\le2\gamma/h_F$），由残差表示
+$J_F=a(e,b_F)-\sum_{K\subset\omega_F}\int_KR_Kb_F$，于是 $|J_F|\le
+C\sqrt{a_{\max}/h_F}\|e\|_{a,\omega_F}+\sum_K\sqrt{h_K/3}\|R_K\|$，乘 $h_F^{1/2}$ 并用第一个不等式把
+$h_K\|R_K\|$ 换成误差与振荡即得第二个（每个单元至多属于两个 $\omega_F$，重叠有限）。
+\end{proof}
+
+\textbf{本章实测}（界面算例、$\theta=0.5$、初始 $n_{\text{dof}}=5$）：效率指数 $\eta/\|e\|_a$ 逐层是
+$1.92,1.42,1.72,1.28,1.68,1.25,1.67,1.24,1.67,1.24$——它\textbf{是分布而不是一个数}：同一层里最大单元占总 $\eta^2$ 的
+$50.0\%$，超过最大值一半的单元只有 $3$ 个。只报总量会同时掩盖「误差集中在哪」与「指示子在哪些单元上失准」。本算例 $f\equiv0$、$c\equiv0$、$u_h$ 线性，故
+$R_K\equiv0$ 精确成立，$\eta_K$ 完全是通量跳跃项、振荡为零，$1.24$ 到 $1.92$ 就是这个等价关系（式~\eqref{eq:efficient}）的常数。
+
+\section{边界条件与条件数：消元与罚函数}
+
+\begin{theorem}[消元的条件数有闭式，罚函数有偏差地板]
+\label{thm:bc}
+（i）$(0,1)$ 均分为 $n$ 段、$P_1$、两端 Dirichlet 消元时，$K_{ff}=\frac1h\operatorname{tridiag}(-1,2,-1)$
+的特征值是 $\mu_k=\frac2h(1-\cos\frac{k\pi}n)$（特征向量 $\sin\frac{k\pi j}n$），且
+\begin{equation}
+  \kappa_2(K_{ff})=\frac{1-\cos\frac{(n-1)\pi}n}{1-\cos\frac{\pi}n}
+  =\frac{1+\cos\frac{\pi}n}{1-\cos\frac{\pi}n}=\frac{4n^2}{\pi^2}\bigl(1+O(n^{-2})\bigr).
+  \label{eq:kappa}
+\end{equation}
+（ii）罚函数 $(K+\frac1\epsilon I_{\text{fixed}})u=F+\frac1\epsilon g$ 仍对称（对称残差
+$0.0$）、$\lambda_{\max}\ge1/\epsilon$；对 $P_1$、$u=\sin\pi x$、$u(0)=0$ 的算例
+\begin{equation}
+  u_h(0)=\frac{F_0-K_{01}u_1}{K_{00}+1/\epsilon}
+  =\epsilon\Bigl(F_0+\frac{u_1}h\Bigr)+O(\epsilon^2)=\pi\epsilon+O(\epsilon^2)+O(h^2),
+  \label{eq:penalty-bias}
+\end{equation}
+即罚解不精确满足边界条件，偏差是 $\pi\epsilon$，与 $h$ 无关。
+\end{theorem}
+\begin{proof}
+（i）把 $u_j=\sin\frac{k\pi j}n$（$j=0,\dots,n$，$u_0=u_n=0$）代入矩阵，第 $j$ 行是
+$\frac1h(2u_j-u_{j-1}-u_{j+1})$，由和差化积等于 $\frac2h(1-\cos\frac{k\pi}n)u_j$。$\cos$ 在 $(0,\pi)$
+递减，故最小取 $k=1$、最大取 $k=n-1$；$1-\cos\frac{(n-1)\pi}n=1+\cos\frac{\pi}n$，而
+$1-\cos\frac{\pi}n=\frac{\pi^2}{2n^2}+O(n^{-4})$，即~\eqref{eq:kappa}。（ii）对称性：加的是对角阵 $\frac1\epsilon I_{\text{fixed}}$，对角阵自身对称，两个对称矩阵之和仍对称。在固定自由度张成的子空间上
+$v^{\top}(K+\frac1\epsilon I)v\ge\frac1\epsilon\|v\|^2$，由 min--max 原理
+$\lambda_{\max}\ge1/\epsilon$。边界那一行是 $(K_{00}+\frac1\epsilon)u_0+K_{01}u_1=F_0$，均匀网格上
+$K_{00}=1/h$、$K_{01}=-1/h$，解出 $u_0=\epsilon(F_0+u_1/h)/(1+\epsilon/h)$；再由
+$F_0=\int_0^hf\varphi_0=\frac{\pi^3h^2}6+O(h^4)$、$u_1=\sin\pi h=\pi h-\frac{\pi^3h^3}6+O(h^5)$ 得
+$F_0+u_1/h=\pi+O(h^4)$，即~\eqref{eq:penalty-bias}。
+\end{proof}
+
+\textbf{本章实测}（\texttt{smooth}、$P_1$）：消元条件数 $103.09$（$ne=16$）、$414.35$（$32$）、$1659.4$（$64$），每次乘
+$4$；\eqref{eq:kappa}给 $103.09$、$414.35$、$1659.4$——四位全对。罚函数（$\epsilon=10^{-8}$）把它抬到
+$1.6264\times10^8,3.2449\times10^8,6.4859\times10^8$（比值
+$1.578\times10^6,7.831\times10^5,3.909\times10^5$，每加密一次减半），而罚解在边界上的偏差是
+$3.142\times10^{-8}$，三档\textbf{完全不变}，与 $\pi\epsilon$ 一致；罚法的对称残差是
+$0.0$——\textbf{对称性对这个决定完全不敏感}。于是罚函数给误差设了一个 $\approx\epsilon\pi$ 的地板：低于它再加密也没用。
+
+\section{Doerfler 标记与自适应收敛}
+
+\begin{theorem}[标记、闭包与自由度]
+\label{thm:dorfler}
+Doerfler 标记返回满足 $\sum_{K\in M}\eta_K^2\ge\theta\sum_K\eta_K^2$ 的最小集合 $M$（按 $\eta$
+从大到小累加、首次达标即停）。于是 $\theta=1$ 等价于全部标记，$\theta\le\eta_{\max}^2/\sum_K\eta_K^2$
+时只标记最大的一个。一维闭包加密的真实集合是 $M\cup N(M)$，且 $|M\cup
+N(M)|\le\min(N_{\text{elem}},3|M|)$、$n_{\text{elem}}^{\text{new}}=n_{\text{elem}}+|M\cup
+N(M)|$、$P_1$ 时 $n_{\text{dof}}=n_{\text{elem}}+1$。
+\end{theorem}
+\begin{proof}
+第一句是算法的直接改写：累加在首次达到 $\theta$ 时停止；$\theta=1$ 要求累加全部，$\theta$ 不超过最大单元占比时第一步就达标。一维单元至多两个邻居，故
+$|M\cup N(M)|\le3|M|$；每个被加密的单元一分为二、节点数加 $1$，故单元数增加 $|M\cup N(M)|$，而 $P_1$ 的自由度数是节点数。
+\end{proof}
+
+\textbf{本章实测}（界面算例、$\theta=0.5$）：自适应自由度是 $5,8,11,14,17,21,24,27,31,34$（每层约
+$+3$：一个标记加两个闭包邻居），一致加密是
+$5,9,17,33,65,129,257,513,1025,2049$。所以\textbf{同样自由度}的比较必须用加密后的真实自由度，不能用标记数。
+
+\begin{theorem}[自适应为什么每两级减半]
+\label{thm:adapt}
+在界面算例上 $\|u-u_h\|_a^2\asymp h_{K_*}\theta(1-\theta)\bigl((1-\theta)a_1+\theta
+a_2\bigr)J^2$（定理~\ref{thm:iface}）。一次二分把 $h_{K_*}$ 折半；$\theta<\frac12$ 时新相对位置是
+$2\theta$，$\theta>\frac12$ 时是 $2\theta-1$。从 $\theta=\frac13$ 出发，$\theta$ 在 $\frac13$ 与 $\frac23$
+之间交替，权重 $(1-\theta)a_1+\theta a_2$ 在这两点是 $34$ 与 $67$：于是相邻两层一个几乎不降（误差平方因子
+$\frac12\cdot\frac{67}{34}\approx0.985$）、下一个降一半（$\frac12\cdot\frac{34}{67}\approx0.254$），两级合起来误差恰好减半，即每级平均
+$2^{-1/2}$。一致加密在同一层数上给出相同的 $(h_{K_*},\theta)$ 序列、因而相同的误差，但每层把所有单元都分掉。
+\end{theorem}
+\begin{proof}
+误差由界面单元主导：定理~\ref{thm:iface}的上下界都正比于 $h_{K_*}\theta(1-\theta)\times$权重$\times J^2$，其余单元是低阶项。二分后
+$x_s=x_a+\theta h$ 落在 $[x_a,x_a+\frac h2]$（$\theta<\frac12$）或右半；落在左半时新长度 $\frac h2$、新相对位置
+$\frac{\theta h}{h/2}=2\theta$，落在右半时是 $2\theta-1$，于是
+$\frac13\to\frac23\to\frac13\to\cdots$。把两点代进权重 $(1-\theta)\cdot1+\theta\cdot100$ 得 $34$ 与
+$67$；$h$ 每层折半，故误差平方的逐层因子是 $0.985$ 与 $0.254$，开方是 $0.99$ 与 $0.50$，两级乘积 $\approx0.5$。
+\end{proof}
+
+\textbf{本章实测}：误差是
+$9.836\times10^{-1},9.450\times10^{-1},4.445\times10^{-1},4.244\times10^{-1},2.174\times10^{-1},2.072\times10^{-1},1.081\times10^{-1},1.030\times10^{-1},5.398\times10^{-2},5.144\times10^{-2}$，逐层比
+$0.961,0.470,0.955,0.512,0.953,0.522,0.953,0.524,0.953$ 正是「一个几乎不降、下一个减半」，两级比
+$0.452,0.449,0.489,0.488,0.497,0.497,0.499,0.499$ 收敛到 $0.5$。一致加密在同样层上给出\textbf{逐位相同}的误差（界面单元的
+$h$ 与 $\theta$ 序列相同），但自由度是 $5,9,17,\dots,2049$。按自由度在对数-对数坐标下插值比较，误差比是
+$1,0.992,0.597,0.758,0.489,0.473,0.249,0.239,0.127,0.125$——自适应用 $34$ 个自由度达到一致加密 $2049$
+个自由度的精度，比值 $0.125$（$8$ 倍）。最终网格 $33$ 个单元，$\min h=4.883\times10^{-4}$、$\max
+h=2.50\times10^{-1}$（比值 $512$），含界面的单元是 $[0.332031,0.332520]$（真值 $\frac13$）——网格自己找到了奇点。
+
+\section{p-加密：收敛速度取决于解的正则性}
+
+\begin{theorem}[解析解指数收敛，正则性不够时退化成代数]
+\label{thm:pversion}
+设 $V_p=P_p\cap H^1_0$ 是单元素 Chebyshev--Lobatto 空间，$u_h$ 是 Galerkin 解。（i）若 $u$ 在 $[0,1]$ 上解析、在
+Bernstein 椭圆 $E_\rho$（$\rho>1$）内有界 $M$，则 $\|u-u_h\|_a\le
+C\sqrt{a_{\max}/a_{\min}}\,p\,\rho^{-p}$，即 $\log\|u-u_h\|_a\le-p\log\rho+O(\log p)$。（ii）若只有
+$u\in H^{1+\sigma}$（$0<\sigma<1$），则 $\inf_{q\in P_p}\|u-q\|_{H^1}\le
+Cp^{-\sigma}\|u\|_{H^{1+\sigma}}$，故 $\|u-u_h\|_a=O(p^{-\sigma})$。对~\eqref{eq:iface-exact}的界面解
+$\sigma=\frac12-\epsilon$，理论保证只有 $p^{-1/2}$；指数收敛在这里完全不成立。
+\end{theorem}
+\begin{proof}
+（i）Chebyshev 系数 $a_k=\frac2\pi\int_0^\pi u(\cos\theta)\cos k\theta\,d\theta$，把路径形变到
+$E_\rho$（被积函数解析，积分不变）并用 $|u|\le M$ 得 $|a_k|\le2M\rho^{-k}$。取 $S_pu=\sum_{k\le p}a_kT_k\in P_p$，则
+$|u-S_pu|_{H^1}^2=\sum_{k>p}O(k^2\rho^{-2k})=O(p^2\rho^{-2p})$。由定理~\ref{thm:galerkin}（最佳逼近）与
+$\|u-u_h\|_a\le\|u-S_pu\|_a\le\sqrt{a_{\max}}\|u-S_pu\|_{H^1}$ 即得。（ii）这就是引理~\ref{lem:bh}在
+$k=1$、$s=1+\sigma$、$h=1$ 的特例：$\|u-q\|_{H^1}\le C_{s,1}|u|_{H^{1+\sigma}}$；指数是 $\sigma$
+而不是更高，因为逼近阶不能超过解的正则性。界面解分段线性、$u'$ 在界面处跳，故 $u\in H^{3/2-\epsilon}$、不属于 $H^{3/2}$，即
+$\sigma=\frac12-\epsilon$。
+\end{proof}
+
+\textbf{本章实测}（单元素 Chebyshev--Lobatto，$p=1,\dots,8,10,12$）：光滑解能量误差从 $2.33$ 掉到
+$2.60\times10^{-11}$，半对数拟合斜率 $-2.2934$、$R^2=0.970150$，双对数 $R^2=0.776853$；尖角解误差是
+$7.90,5.68,2.59,1.28,1.26,1.14,0.924,1.07,0.970,0.592$，半对数斜率 $-0.2071$、$R^2=0.759205$，双对数斜率
+$-1.0501$、$R^2=0.928222$。在同一个尖角解上双对数明显优于半对数（$0.928>0.759$），在光滑解上反过来（$0.970>0.777$）——数据自己会告诉你用哪张坐标纸。但
+$-1.0501$ 是拟合窗口内的\textbf{有效}指数：理论只保证 $p^{-1/2}$，而且这一列本身不单调（$p=7$ 是 $0.924$、$p=8$ 又回到
+$1.07$），因为界面相对位置与 Lobatto 节点的相位关系随 $p$ 变，与
+$h$-加密里的相位振荡同源。结论：\textbf{「谱收敛」是（方法，解的正则性）这一对的属性}。同自由度对照：$p=12$ 只有 $13$ 个自由度就到
+$2.60\times10^{-11}$，而 $h$-加密 $P_1$ 在 $n_{\text{dof}}=127$ 时还有 $1.57\times10^{-2}$（探针拟合
+$N^{-0.87}$，粗端同样没进渐近区）。
+
+\section{等参映射与 Jacobi：什么是变分犯罪}
+
+\begin{theorem}[等参映射与冻结 Jacobi 的偏差]
+\label{thm:iso}
+设参考单元到物理单元的映射 $x(\xi)$ 的 Jacobi 矩阵 $J=\partial x/\partial\xi$ 处处可逆。则
+\begin{equation}
+  \nabla_x\varphi=J^{-\top}\nabla_\xi\hat\varphi,\qquad
+  \int_Kg(x)\,dx=\int_{\hat K}g(x(\xi))\,|\det J(\xi)|\,d\xi .
+  \label{eq:iso}
+\end{equation}
+$Q_1$ 双线性四边形时 $\det J$ 关于 $(\xi,\eta)$ 双线性，故它在参考单元上的平均等于中心值：$\int_{\hat K}\det J=4\det
+J(0)$。把~\eqref{eq:iso}里的 $J(\xi),\det J(\xi)$ 换成中心值（冻结 Jacobi）得到的是\textbf{另一个}双线性形式，其偏差项
+$\int_K(\det J(\xi)-\det J(0))a\nabla u_h\cdot\nabla v_h\,d\xi$ 的相对大小是 $O(d)$（$d$ 是固定畸变幅度），不随
+$h\to0$ 消失。
+\end{theorem}
+\begin{proof}
+第一式是链式法则：$\nabla_\xi\hat\varphi=J^{\top}\nabla_x\varphi$，左乘 $J^{-\top}$。第二式是换元公式，$|\det J|$
+是体积伸缩因子。$\det J$ 的双线性性：双线性映射的 $\partial x/\partial\xi$ 只依赖 $\eta$、$\partial x/\partial\eta$ 只依赖
+$\xi$，故 $\det J$ 对每个变量线性；在 $[-1,1]^2$ 上双线性函数 $c_0+c_1\xi+c_2\eta+c_3\xi\eta$ 的积分是 $4c_0=4\det
+J(0)$（其余三项积分为零）。冻结规则因此把\emph{面积}算得精确，错的只是被积函数在单元内的分布：偏差是 $\det J$ 的振荡部分，其相对幅度由畸变 $d$ 决定而与 $h$
+无关。
+\end{proof}
+
+\textbf{本章实测}（二维制造解 bump、$\sigma=0.18$）：冻结 J 的 $L^2$ 相对差在 $d=0.08$ 时是
+$1.567\times10^{-2}$（$n=8$）→ $2.723\times10^{-2}$（$16$）→ $2.966\times10^{-2}$（$32$），不消失；$d=0.16$
+时是 $3.774\times10^{-2}\to1.212\times10^{-1}\to4.928\times10^{-1}$（能量相对差
+$3.6\times10^{-2}\to2.4\times10^{-1}\to2.7\times10^{-1}$）——越加密错得越多，因为加密修正不了一个错误的变分形式。畸变度量：$n=8,d=0.08$
+时 $\max\det J/\min\det J$ 的中位数 $1.262$、最大 $2.147$；$n=16,d=0.16$ 时最大 $109.17$、最小面积
+$7.94\times10^{-5}$（接近自交）。解\textbf{看起来仍然收敛}：畸变四边形 $L^2$ 比值 $3.43,3.90,3.97$、能量比值
+$1.87,1.98,1.99$；三角形 $3.42,3.83,3.96$ 与 $1.87,1.97,1.99$；无畸变 $Q_1$ 是 $3.80,3.96,3.99$ 与
+$1.94,1.99,2.00$。阶的陷阱也在这里：把 $n=4,8,16,32$ 四点放进同一个全局拟合，三角形 $P_1$ 的 $L^2$ 斜率会给出 $-1.367$（真值
+$2$，连符号都不对），取 $n\ge8$ 才是 $3.42,3.83,3.96$。
+
+\section{四阶问题：Hermite 三次梁单元}
+
+\begin{theorem}[梁的节点精确性与收敛阶]
+\label{thm:hermite}
+考虑简支梁 $-w''''=f$（$EI=1$、$w(0)=w(1)=w''(0)=w''(1)=0$），$V_h\subset H^2_0$ 是三次 Hermite 空间（每节点两个自由度
+$w_i,w_i'$），能量是 $H^2$ 半范。则（i）对任意 $f\in H^{-2}$ 有\textbf{节点位移精确} $w_h(x_i)=w(x_i)$；均布载荷 $q$
+时最大挠度就是 $5q/384$（实测
+$0.01302083$）。（ii）$|w-w_h|_{H^2}=O(h^2)$、$\|w-w_h\|_{L^2}=O(h^4)$。（iii）集中力在\textbf{节点}上时
+$w=G_i\in V_h$、$w_h=w$；在单元内部时 $w\notin V_h$，误差跳到 $O(h^{3/2})$ 量级。
+\end{theorem}
+\begin{proof}
+（i）记 $G_i$ 为点源在节点 $x_i$ 处的连续 Green 函数：$a(G_i,v)=v(x_i)$、$a(w,v)=\int w''v''$。$G_i$ 分段三次、在 $x_i$
+处 $C^2$、三阶导跳 $1$；四个边界条件加三个连续性条件加一个跳跃条件恰好定出八个系数，故 $G_i$ 是以 $x_i$ 为唯一节点的分段三次多项式，即 $G_i\in
+V_h$，从而它也是点载荷下的离散解。对一般 $f$，用对称性与两边的方程：$w_h(x_i)=a(w_h,G_i)=\langle
+f,G_i\rangle=a(w,G_i)=w(x_i)$。均布载荷时 $w(1/2)=5q/384$ 由直接积分得到，节点精确性把它原样搬到 $w_h$。（ii）$H^2$
+估计来自定理~\ref{thm:interp}（$p=3,s=4$）加最佳逼近；$L^2$ 估计来自定理~\ref{thm:aubin}：简支对偶问题有 $\|v\|_{H^4}\le
+C\|g\|_{L^2}$，增益 $h^1$，与 $H^2$ 的 $h^2$ 合起来是 $h^4$。（iii）节点上的点载荷解就是 $G_i\in
+V_h$；单元内部时唯一节点在单元内，$G\notin V_h$，与推论~\ref{cor:point}同理。
+\end{proof}
+
+\textbf{本章实测}（简支梁、均布 $q=1$、$ne=2,4,8,16,32$）：$H^2$ 误差
+$9.317\times10^{-3},2.329\times10^{-3},5.823\times10^{-4},1.456\times10^{-4},3.639\times10^{-5}$（比值
+$\approx4$，即阶 $2$）；$L^2$ 误差
+$1.038\times10^{-4},6.485\times10^{-6},4.053\times10^{-7},2.533\times10^{-8},1.583\times10^{-9}$（比值
+$\approx16$，即阶 $4$）；最大挠度 $0.01302083=5q/384$。集中力在节点 $x_0=0.5$（$ne=16$）时 $H^2$ 误差
+$9.959\times10^{-15}$（机器零）、节点误差 $8.0\times10^{-16}$；挪到单元内部 $x_0=0.53125$ 时跳到
+$1.102\times10^{-3}$——$11$ 个数量级。二阶问题同规律：落节点 $5.707\times10^{-15}$，落单元内部
+$7.870\times10^{-2}$（$x_0=0.51$）与 $1.250\times10^{-1}$（$x_0=0.53125$）。
+
+\begin{corollary}[用 $P_1$ 解梁：矩阵恒零，只能如实报奇异]
+\label{cor:p1beam}
+$P_1$ 基函数是直线，$\varphi_i''\equiv0$，故
+$k^{(e)}_{ij}=\int\varphi_i''\varphi_j''\equiv0$、整矩阵零、Cholesky 与 LU 都失败。
+\end{corollary}
+\begin{proof}
+直线的一阶导数是常数、二阶（弱）导数为零，故被积函数恒为零；散射装配得 $K=0$，奇异。四阶问题的能量是 $H^2$ 半范，而 $P_1\not\subset
+H^2$（导数在节点处跳），所以这不是「精度差」，是「问题没定义」。
+\end{proof}
+
+\textbf{本章实测}：把 $P_1$ 的梁刚度阵交给求解器，Cholesky 报奇异、LU 也出现零主元；帧里必须把状态标成奇异并说明原因，\textbf{不许写
+NaN}——「解不出来」本身是一个可显示、可解释的状态。
+
+\section{它会怎样骗你（本章版）}
+
+\begin{enumerate}
+  \item \textbf{不说范数就报收敛阶}：同一份 $P_1$ 解、同一批网格，$L^2$ 斜率 $1.9957$、能量范数斜率 $0.9967$；界面算例上 $L^2$ 是
+  $0.9970$、能量是 $0.5206$。（量法：把误差对 $h=1/ne$ 做双对数最小二乘。）
+  \item \textbf{把「对称残差为 $0$」当装配正确}：上三角镜像的 double 变体对称残差 $0.0$、Cholesky 成功、条件数从 $25.274$ 降到
+  $2.717$（看起来更良态），但 $\max|K-K^{\text{full}}|=16$、$\lambda_{\min}$ 从 $1.217927$ 变成
+  $17.217927$，解全错；原因可算：那个矩阵是 $K+\operatorname{diag}(K)$，特征值整体平移
+  $2/h=16$。（量法：同网格跑完整散射装配与两种镜像，比对称残差、特征值、条件数与矩阵差。）
+  \item \textbf{以为罚函数「更简单更对称」（定理~\ref{thm:bc}）}：$\epsilon=10^{-8}$ 时罚解边界偏差 $3.142\times10^{-8}=\pi\epsilon$，在
+  $ne=16,32,64$ 上完全不变；条件数从 $103.09$ 抬到 $1.6264\times10^{8}$（比值 $1.578\times10^{6}$），对称残差还是
+  $0.0$。（量法：同一份 $K,F$ 分别走消元与罚函数两条路。）
+  \item \textbf{把解析界当普适工具（定理~\ref{thm:laxmilgram}）}：$c=0$ 时
+  $\sqrt{\max(a,c)/\min(a,c)}=\infty$，而离散常数有限（$\alpha_h=0.9091$、$M_h=0.99855$），实测效率比
+  $1.000000$；反差 $10^4$ 时界前面的常数是 $100.46$（允许 $100$ 倍劣化），真实效率比只有 $0.0228$，$ne=64$ 时界是
+  $100.54$，一点没变好。（量法：$\sqrt{M_h/\alpha_h}$ 与 $\|u-u_h\|_a/\|u-I_hu\|_a$ 一起报。）
+  \item \textbf{把节点误差向量当成误差函数}：$a\equiv1,c=0$ 时一维 $P_1$ 在\textbf{节点上精确}，
+  \texttt{smooth}、$ne=16$ 实测节点误差 $2.24\times10^{-12}$（最粗一档 $ne=4$ 是 $5.9\times10^{-10}$），
+  但同一份解的能量误差是 $0.2512$、$L^2$ 误差 $9.92\times10^{-3}$——误差全在单元内部。
+  于是 $\sqrt{e^{\mathsf T}Ke}$ 这个看起来很标准的量给 $4.9\times10^{-12}$，
+  与真误差差 \textbf{11 个数量级}；只有当真解本身落在 $V_h$ 里（点载荷恰在节点上，真解分段线性）时
+  它才等于能量误差（实测 $9.9\times10^{-16}$ 对 $5.7\times10^{-15}$）。\textbf{量法}：
+  $\sqrt{\sum_K\|e\|_{a,K}^2}$ 逐单元求积（$p+4$ 点 Gauss），与总误差逐位一致（rel diff $0.0$）。
+  \item \textbf{用一条网格族拟合出的「阶」当真值}：$\theta=1/3$ 固定时能量阶 $0.5206$；界面取 $1/\pi$ 就变成 $0.3974$，相邻层误差比
+  $0.953,3.403,0.997,1.111,\dots$；固定 $ne=64$ 扫 $\theta=0.1\to0.9$，能量误差
+  $1.2111\times10^{-1}\to3.2828\times10^{-1}$，$\max/\min=2.71$。（量法：两族网格，或固定网格扫 $\theta$。）
+  \item \textbf{朴素期待界面算例 $L^2$ 阶是 $3/2$}：实测 $0.9970$。「能量阶 $1/2$ 加对偶增益 $1$」里的 $1$
+  是光滑问题的增益；界面问题的对偶问题带同一个系数跳、只有 $H^{3/2-\epsilon}$，增益只有 $1/2$。（量法：同一批网格上比两种范数的斜率。）
+  \item \textbf{以为「谱收敛」是方法的属性（定理~\ref{thm:pversion}）}：同一套 Lobatto 空间，光滑解半对数
+  $R^2=0.970150$（$2.33\to2.60\times10^{-11}$），尖角解双对数 $R^2=0.928222$ 反而更好（半对数只有 $0.759205$，有效斜率
+  $-0.2071$）。（量法：同空间、同求解路径，只换精确解，两种拟合各报 $R^2$。）
+  \item \textbf{不同自由度就宣称 $p$-加密更好}：$p=12$ 只有 $13$ 个自由度就到 $2.60\times10^{-11}$，而 $h$-加密 $P_1$ 在
+  $n_{\text{dof}}=127$ 时还有 $1.57\times10^{-2}$；但两者代价不同，必须固定自由度并说清比的是什么。（量法：两条曲线横轴都用真实
+  $n_{\text{dof}}$。）
+  \item \textbf{把粗端放进拟合窗口}：三角形 $P_1$ 的 $L^2$ 误差在 $n=4,8,16,32$ 上四点全局拟合给出 $-1.367$（真值
+  $2$，符号都不对）；取 $n\ge8$ 才是 $3.42,3.83,3.96$（每次翻倍降 $4$ 倍），能量是
+  $1.87,1.97,1.99$。（量法：同一批数据换窗口重拟合，并同时报每次加密的误差比值。）
+  \item \textbf{用网格质量指标替代误差指标（定理~\ref{thm:iso}）}：$n=16,d=0.16$ 时 $\max\det J/\min\det J=109.17$、最小面积
+  $7.94\times10^{-5}$（接近自交），解却「看起来收敛」（$L^2$ 比值 $3.43,3.90,3.97$）；但同网格上冻结 Jacobi，$L^2$ 相对差变成
+  $3.774\times10^{-2}\to1.212\times10^{-1}\to4.928\times10^{-1}$，不收敛。（量法：同网格跑
+  \texttt{freeze\_jacobian} 两条路，比相对差与 $\det J$ 比值。）
+  \item \textbf{以为「节点精确」就是「解准」（定理~\ref{thm:nodal}、\ref{thm:hermite}）}：点载荷落节点能量误差 $5.707\times10^{-15}$、落单元内部（$x_0=0.53125$）是
+  $1.250\times10^{-1}$，而两种情形节点误差都 $\le4.4\times10^{-16}$；梁更极端：$x_0=0.5$ 时
+  $9.959\times10^{-15}$、$x_0=0.53125$ 时 $1.102\times10^{-3}$。（量法：同网格扫载荷位置，节点误差与范数误差一起报。）
+  \item \textbf{用 $P_1$ 单元解四阶问题（推论~\ref{cor:p1beam}）}：$\varphi''\equiv0$ 使单元刚度阵恒零、整矩阵奇异，Cholesky 与 LU
+  都失败；帧里要如实标奇异并说明，不许写 NaN。（量法：对 $P_1$ 空间调用梁刚度阵，返回值恒零；再看求解器主元。）
+  \item \textbf{把后验指示子当成一个数}：效率指数逐层在 $1.24$ 到 $1.92$ 之间摆动，同一层里最大单元占总 $\eta^2$ 的
+  $50.0\%$、超过最大值一半的单元只有 $3$ 个。（量法：\texttt{efficiency\_stats} 给总量、分位数与 $\log\eta$ 对 $\log\|e\|_a$
+  的相关性。）
+  \item \textbf{把「标记了几个」当「加密了几个」}：一维闭包使真实加密集合是 $M\cup N(M)$、至多 $3|M|$；自适应自由度
+  $5,8,11,14,17,\dots$（每层约 $+3$），一致加密 $5,9,17,33,\dots$；最后自适应 $34$ 个自由度对一致加密 $2049$ 个，误差比
+  $0.125$。（量法：读两条历史的真实 $n_{\text{dof}}$ 与误差，对数-对数插值。）
+  \item \textbf{把装配动画的进度读成「非零元比例」}：对角线的最后贡献者最晚冻结，离对角线远的格子很早就定稿；装配一致性残差
+  $\max|K^{(k)}-K^{\text{full}}|$ 单调降到 $0$，而对 $P_1$ 的对称性残差整个过程恒为
+  $0.0$——后者是「看不见」，不是「没问题」。（量法：\texttt{entry\_done\_at} 与 \texttt{partial(k)} 的逐格差一起看。）
+\end{enumerate}
+
+\input{chapters/4.4/asserts_table}

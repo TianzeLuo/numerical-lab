@@ -1,0 +1,115 @@
+# 4.4 章断言清单（真源：tests/4.4/test_fem.py 与 tests/4.4/test_frames.py）
+#
+# 这一章分两半测：
+#   * 算法层（test_fem.py）：同一个解在**不同范数**下的阶（P1 光滑解 L2 是 2、能量是 1；
+#     界面算例是 1 与 1/2，不是教科书默认的 3/2）、四阶梁的 H^2/L2 阶与 5q/384 闭式、
+#     点载荷锯齿与节点精确、二维 Q1/P1 阶（含"粗端未进渐近区"的对照）、
+#     Lax–Milgram/Cea 常数（含 c=0 时解析界退化成无穷）、罚函数的 π·ε 偏差与条件数、
+#     p-加密对光滑解指数/对尖角解退化、冻结 Jacobi 的变分犯罪——A 类；
+#     装配 SPD 的三条独立证据、对称残差 0 不是合格证、装配顺序无关、加密协调性、
+#     Doerfler 份额、逐单元误差可加性、奇异系统的如实报告——B 类。
+#   * 帧层（test_frames.py）：角点有限性与 .nlf 编码、五个掩码逐点可复算、
+#     meta 与数组一致（route_defect、能量二次律、扫描峰谷比、等自由度增益、总效率指数）、
+#     t=0 的初始状态、纯函数性——B 类。
+#
+# 实测规模（最近一次 `NUMCORE_REPORT=/tmp/rep-4.4.json python3 -m pytest tests/4.4 -q`）：
+# 21 个测试函数、A 27 条 + B 124 条 = 151 条记录，全部通过。min_counts 留了余量：
+# 记录条数会随多加一条网格、多测一个 ε 而变，余量避免"算法没坏、清单先红"。
+chapter: "4.4"
+title: 有限元方法
+required_kinds: [A, B]
+
+min_counts:
+  A: 24
+  B: 112
+
+tests:
+  # ------------------------------------------------------------ 范数与阶（A）
+  - name: test_order_depends_on_the_norm
+    kind: A
+    what: 同一条网格阶梯（ne=4,8,16,32,64）、同一份光滑解，只换范数：L2 阶 1.99567、H1 半范阶 0.99670、能量阶 0.99670（a=1,c=0 时能量范数就是 H1 半范，两者必须逐位相同）；P2 上是 2.99703 与 1.99719；L2 与能量阶之差 0.99897 ≥ 0.8
+    theory: 误差按 (p+1,p) 分化，L2 拿 p+1、能量范数拿 p；不说范数的"收敛阶"没有内容
+  - name: test_interface_orders_are_one_half_and_one
+    kind: A
+    what: 界面固定在单元内相对位置 θ=1/3（xs=1/3、ne=4,16,64,256）：能量阶 0.52930、L2 阶 0.99567；L2 阶与朴素期待的 3/2 差 0.50434（≥0.4，证伪）；界面取无理数 1/π 时同一条阶梯的能量阶偏离 0.5 达 0.10182
+    theory: 系数跳变让对偶问题只有 H^{3/2} 正则性，Aubin–Nitsche 给 L2 是 O(h) 而不是 O(h^{3/2})；θ 随 h 变会给误差带上 O(1) 的相位因子（实测包络 max/min = 2.71）
+  - name: test_beam_orders_and_the_deflection_formula
+    kind: A
+    what: 简支梁（Hermite 三次元、均布载荷）：H^2 半范阶 2.00000、L2 阶 3.99999，两阶之差 1.99999；最大挠度从 ne=2 到 ne=32 都等于 5q/384=0.0130208（与解析值相对差 <1e-12）
+    theory: 四阶问题的能量范数是 H^2 半范（用 error_norms_1d 的 "energy" 是 H^1 半范，对梁不对）；Hermite 三次元在节点上精确
+  - name: test_point_load_sawtooth_and_nodal_exactness
+    kind: A
+    what: 一维点载荷 ne=16：载荷在节点上能量误差 5.70207e-15、落进单元内部（x0=0.53125）1.10476e-3，峰谷比 1.94e11；两种位置的节点误差都 ≤4.44e-16。梁（Hermite）同样：节点上 H^2 误差 ≤1e-12、单元内部 ≥1e-4
+    theory: 一维 Green 函数分段线性，载荷落在节点上时 P1/Hermite 解精确；"节点值准"与"解准"是两件事
+  - name: test_two_dimensional_orders_for_tri_and_quad
+    kind: A
+    what: 二维制造解：Q1 四边形（n=8,16,32）能量阶 0.97373、L2 阶 1.95570；P1 三角形（n=16,32,64）0.98485 与 1.96053；把三角形阶梯换成粗端 n=4,8,16 拟合，L2 阶掉到 1.367（明显低于 2）
+    theory: Q1/P1 的能量阶 1、L2 阶 2 都是**渐近**结论；粗端未进渐近区时全局拟合会给出荒唐值
+  - name: test_cea_constant_and_the_useless_analytic_bound
+    kind: A
+    what: c=1 时 α_h=M_h=1.0000000000、Cea 常数 1.000000（界是锐的）、Galerkin 效率比 0.999942 ≤ 1；c=0 时"系数型"解析界是无穷而离散 α_h=0.9091（由 Poincare 加网格给出）；反差 1e4 时 Cea 界 √(M_h/α_h)=100.46 ≥ 50，而真实效率比只有 0.022806（差 4400 倍）
+    theory: 离散强制常数=广义特征值端点，可测；界"成立"与界"有用"是两件事
+  - name: test_penalty_bias_scales_with_epsilon
+    kind: A
+    what: 罚函数加 Dirichlet：ε=1e-6/1e-7/1e-8 的罚解偏差分别 3.14159e-6 / 3.14159e-7 / 3.14159e-8（= π·ε，相对误差 <2%），逐十倍缩小（相邻比 10.000）；罚矩阵对称残差 0.0；κ(罚,ε=1e-8)=1.6264e8 是 κ(消元)=103.09 的 1.58e6 倍
+    theory: 罚法的偏差是 O(ε) 而不是 O(ε^2)，条件数是 O(1/ε)；对称性对这个决定完全不敏感
+  - name: test_p_version_is_spectral_only_for_smooth_solutions
+    kind: A
+    what: 单元素 Chebyshev–Lobatto、p=1..12：光滑解半对数（指数）拟合 R^2=0.96696 > 双对数 0.77748，p=12 时误差 2.5979e-11；尖角解反过来——双对数 R^2=0.92976 > 半对数 0.75921，p=12 时误差仍有 0.592
+    theory: 谱收敛是**解的光滑性**的性质，不是方法的性质；非光滑解上 p-加密退化成代数收敛
+  - name: test_frozen_jacobian_does_not_vanish
+    kind: A
+    what: 畸变网格 d=0.16 上逐点 Jacobi 的 L2 误差随加密下降（单调），而冻结 Jacobi（用单元中心 J）与它的相对差从 3.774e-2 涨到 4.928e-1（不收敛）
+    theory: 冻结 J 等于解另一个变分问题（变分犯罪），误差不会随 h→0 消失
+
+  # ------------------------------------------------------------ 离散不变量（B）
+  - name: test_assembled_matrix_is_symmetric_and_positive_definite
+    kind: B
+    what: P1/P2 × ne=8/16 共 4 组：对称残差 P1 恰好 0.0、P2 3.553e-15/7.105e-15（全部 ≤1e-13）；常向量落在核里（max|K·1| ≤4.44e-15）；8 个随机向量的二次型 v^TKv ≥ 0；Dirichlet 自由块 Cholesky 成功且 is_positive_definite=True
+    theory: SPD 是"装出来的"：v^TKv = Σ_K∫a|v'|^2 给出半正定，钉住边界后核里只剩 0，所以要用三条独立证据（对称残差、二次型、主元）分别验
+  - name: test_symmetry_defect_is_not_a_validity_certificate
+    kind: B
+    what: 上三角镜像 diagonal=half 与完整散射逐位相同（差 0.0）；diagonal=double（对角线整条放进上三角）对称残差 0.0、Cholesky 成功、条件数从 25.274 降到 2.717、λ_min 从 1.217927 变成 17.217927，但 max|K_bad−K_full|=16.0、解与正确解的相对差 93.8%
+    theory: 对称 + 正定 + Cholesky 成功，三件事同时成立也可能是错的矩阵；合格证必须来自装配本身（比较完整散射/能量泛函），不能来自矩阵的外观
+  - name: test_assembly_is_order_independent
+    kind: B
+    what: P1/P2 × ne=8/16：完整散射、单元内反序、上三角镜像（half）三条路线给出的 K 逐位相同（差 ≤1e-14）；P2 上 max|K−K^T| 与 max|ke−ke^T| 完全相等（3.553e-15），说明残差来自单元矩阵自己的乘法而不是散射顺序
+    theory: 装配是线性累加，顺序只影响舍入；"对称残差"这个指标钝到分不清对错
+  - name: test_refinement_invariants
+    kind: B
+    what: ne=2/3/8/16：一致加密后单元数翻倍、h 减半（差 0）、总长度守恒（差 0）、单元首尾相接且 n_node=n_elem+1；标记加密新增单元数 ≥ 被标记数、≤ 3×被标记数（多出来的是保证协调的一层闭包），闭合后仍然协调
+    theory: 协调网格的不变量（首尾相接 + 覆盖全部顶点）抓出过一个真 bug：加密时一个单元只登记一条连接，节点数涨了单元数没涨，后续代码静默读到不存在的单元
+  - name: test_dorfler_and_adaptive_invariants
+    kind: B
+    what: Doerfler 标记：θ=0.2/0.5/0.9/1.0 时被标记单元占总 η^2 的份额 ≥ θ^2（实测 0.04/0.25/0.81/1.0），且份额随 θ 单调不减；自适应历史（θ=0.5、levels=6）：误差逐层下降、自由度逐层增加、逐层效率指数总量 1.92/1.42/1.72/1.28/1.68/1.25/1.67（都在 [1,4]）；同自由度下自适应/一致的误差比最好 0.2491
+    theory: 标记规则由 θ^2 的份额定义；自适应误差必须单调、自由度的增长受标记数控制；效率指数是**分布**而不是常数
+  - name: test_error_norm_identities
+    kind: B
+    what: ne=8/16：逐单元真误差平方和开根与总能量误差逐位一致（0.251182/0.125833，rel diff 0.0）；√(u_h^TK u_h) 与 energy_norm_1d(u_h) 一致（2.21787，两条独立路径）；光滑解节点误差 9.77e-15 而函数能量误差 6.29e-2，√(e^TKe)=4.95e-12 与真误差差 11 个数量级；L2 误差 ≤ 能量误差；a=1,c=0 时能量范数就是 H1 半范
+    theory: 节点误差向量不是误差函数（a≡1,c=0 时 u_h=I_hu，误差全在单元内部）；真误差的可加性必须用与总误差相同的求积阶
+  - name: test_singular_system_is_reported_not_polluted
+    kind: B
+    what: P1 单元解四阶梁：p1_beam_stiffness_zero 返回精确 0.0，solve_1d 给出 ok=False、fail_reason 非空、解全有限（max|u|=0）；spd_solve 在 3×3 零矩阵上同样 ok=False 且 x 全有限
+    theory: 奇异系统必须如实报告而不是返回 NaN；帧层再把它换成 0 + singular_mask，前端不会看到 NaN 折线
+
+  # ------------------------------------------------------------ 帧级不变量（B）
+  - name: test_every_frame_corner_stays_finite_and_packs
+    kind: B
+    what: 4 个可视化 × 参数角点（默认 + 每个参数的 min/max/枚举两端）× t∈{0,tMax} 共 60+ 帧：全部能 build_frame(strict=True)、能编 .nlf（allow_nan=False）、数组与 meta 全有限、requiredAux 声明的名字全部命中
+    theory: 帧不许出现 NaN/Inf（前端会静默丢段）；注册规则 3 要求 requiredAux 里至少一个字面含 error/residual
+  - name: test_floor_and_mask_arrays_are_self_consistent
+    kind: B
+    what: residual_at_floor 能由 residual 逐点复算（掩码 = 该点被抬到地板，1/9 个点）；镜像 double 的 route_defect 与帧里 K_route/K_final 数组复算一致（16.0）；p-加密里未测量的条件数被掩码成上限 1e300 且数组全有限；scan_at_floor 与 nodal_error_scan 逐点一致；P1 解梁时 singular=True、位移掩码全 1 且位移恒 0；自适应里被判定"比值无意义"的单元填的确是占位值
+    theory: 五个掩码都必须能逐点复算，否则图上会出现"没人认领的曲线"；掩码点上的值必须是地板值而不是 NaN
+  - name: test_frame_meta_matches_the_arrays
+    kind: B
+    what: viz2：λ=0.8 时 meta.energy/mark_energy=0.64（二次律）、扫描峰谷比 4.08316e+13 与数组一致；viz3：等自由度（7 个自由度）处 p 相对 h 的增益 218784 可由两条阶梯复算，h 用满 63 个自由度后仍差 27417.3 倍；viz4：总效率指数 = √(Ση^2)/√(Σ || e || ^2)（1.672843）、h_ratio=64 与单元长度数组一致、节点误差 ≤ 能量误差
+    theory: meta 里的每个数字都必须能从帧里的数组复算出来；等自由度对照必须钉在同一个横坐标上，不能拿 p 的误差外推到 h 的末端自由度
+  - name: test_t0_frames_are_the_initial_state
+    kind: B
+    what: 装配动画 t=0：部分装配矩阵恒为 0（max|K_partial|=0，k_done=0）；hp 对照 t=0 与 t=tMax 的误差阶梯逐位相同（time.mode=none）；自适应 t=0 还是初始一致网格（h_ratio=1、单元数=n0）
+    theory: scrub 时间轴从 0 开始时帧必须给出"第一步都还没装"的状态；time.mode=none 的可视化不许被 t 影响
+  - name: test_frames_are_pure_functions_of_their_parameters
+    kind: B
+    what: 4 个可视化各构建两次：数组逐位相同（max|Δ|=0）、meta 完全相同
+    theory: numcore 无全局可变状态（P6），帧层同此；lru_cache 的键必须覆盖所有影响结果的参数，否则第二个帧会被第一个污染

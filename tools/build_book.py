@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import pathlib
 import re
 import shutil
@@ -178,6 +179,8 @@ def allow_wrap(s: str) -> str:
 
 
 def fmt(v: Any) -> str:
+    if not math.isfinite(v):  # inf/nan 会让 f-string 直接抛，整本书的附表都生成不了
+        return "+inf" if v > 0 else ("-inf" if v < 0 else "nan")
     if isinstance(v, bool):
         return "真" if v else "假"
     if isinstance(v, float):
