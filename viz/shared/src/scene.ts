@@ -611,10 +611,20 @@ export function badge(kind: BadgeKind, body: string, x = 8, y = 8): Badge {
 
 /** 规则 5 的标准数据来源徽标。 */
 export function sourceBadge(dataSource: string, extra = ""): Badge {
-  const label = dataSource.startsWith("backend+preview")
+  // `kind` **恒为 "source"**：这个函数画的是"数据从哪来"（规则 5），
+  // `validateScene` 也要求任何场景至少有一枚 `kind="source"` 的徽标。
+  // 早先它对 `backend+preview` 返回 `kind="preview"`，于是"纯预览"场景必然非法——
+  // 这是模型层的作者报上来的库内不一致。预览提示请用 `previewBadge()` 另挂一枚。
+  const preview = dataSource.startsWith("backend+preview");
+  const label = preview
     ? `数据：后端帧 + 前端近似预览${extra ? "（" + extra + "）" : ""}`
     : `数据：后端 .nlf 帧${extra ? "（" + extra + "）" : ""}`;
-  return { kind: dataSource.startsWith("backend+preview") ? "preview" : "source", text: label, x: 8, y: 8, color: "#2b6cb0" };
+  return { kind: "source", text: label, x: 8, y: 8, color: "#2b6cb0" };
+}
+
+/** 前端近似预览的徽标（与 `sourceBadge` 分开，`kind` 才有唯一含义）。 */
+export function previewBadge(extra = "", x = 8, y = 26): Badge {
+  return { kind: "preview", text: `预览：前端近似${extra ? "（" + extra + "）" : ""}`, x, y, color: "#b7791f" };
 }
 
 /** 规则 4 的自适应/固定坐标轴徽标。 */

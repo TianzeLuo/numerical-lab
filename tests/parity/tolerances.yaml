@@ -1,0 +1,70 @@
+# 对拍容差（PROTOCOLS §7）—— 判定口径：|python − ts| ≤ atol + rtol·|python|
+#
+# 为什么必须写在仓库里、且每个 case 都要给 reason：
+#   "容差 1e-12" 这种数字本身不携带信息，携带信息的是**它为什么不是更紧**。
+#   所以每一处覆盖都必须说清误差来源（求和顺序 / 三角查表 / 舍入地板 / 回读精度……），
+#   并尽量附上实测值。没有 reason 的覆盖会被 tools/parity.py 直接判为配置错误。
+#
+# 本仓库两侧都是 float64、同一套公式、同一求值顺序，因此误差来源只有三类：
+#   1. **逐字对齐的表达式**（含结合顺序）→ 可以做到逐位相同；容差只是跨平台余量
+#      （x86-64 上 numpy 的 SIMD 路径若做 FMA 收缩、不同 V8 版本的实现差异）；
+#   2. **超越函数**（sin/cos/exp/log）→ numpy 走 glibc、Node 走 V8 的 fdlibm 移植，
+#      同参数可差 1–2 ulp；
+#   3. **求和顺序** → numpy `np.sum` 是成对求和，TS 侧是朴素左折叠，n 个点差 ~n·eps。
+# 靠近零点的分量（如 v(0) = 0）相对差会自然放大，靠 atol 兜底，
+# 绝不靠"把 rtol 放大到能过"——那是把门禁做成了装饰。
+#
+# 实测（2026-10-18，Python 3.13.9 / numpy 2.3.5 / Node v24.21.0，见 dist/reports/parity.json）：
+#   heat_explicit_step         max|Δ| = 0             max_rel = 0
+#   heat_ftcs_run              max|Δ| = 0             max_rel = 0
+#   ftcs_amplification_modes   max|Δ| = 0             max_rel = 0
+#   oscillator_sample          max|Δ| = 4.44e-16      max_rel = 5.49e-16
+#   order_fit_powerlaw         max|Δ| = 1.78e-15      max_rel = 8.43e-15
+
+default:
+  rtol: 1e-12
+  atol: 1e-14
+  reason: >-
+    默认口径：两侧同为 float64 的同一算法，误差来源只有求和顺序与 1 ulp 级超越函数差异。
+    新 case 缺省先用它，但按纪律应当在加入 case 时补上专属 reason（tools/parity.py 会检查覆盖的 reason）。
+
+cases:
+  heat_explicit_step:
+    rtol: 1e-14
+    atol: 1e-16
+    reason: >-
+      实测逐位相同（max|Δ| = 0）：单步只有一次乘加，表达式与结合顺序逐字对齐。
+      不能取 0 是因为要留跨平台余量——numpy 若走上 FMA 收缩的 SIMD 路径，单步可差 1 ulp（≈2.2e-16），
+      1e-14 ≈ 45 ulp，既容得下这种差异，又能在"算法被改错"时立刻报警（那种错至少是 1e-3 量级）。
+  heat_ftcs_run:
+    rtol: 1e-13
+    atol: 1e-16
+    reason: >-
+      实测逐位相同（40 步累积后 max|Δ| 仍为 0）。不能更紧的理由是误差累积上界：
+      每步 1 ulp、40 步最坏 ≈ 9e-15（r = 0.4 的衰减算子 |1−4r sin²| < 1，误差只累积不放大），
+      1e-13 是它的 ~11 倍；再紧就会把"另一台机器上 1 ulp 的实现差异"误判成算法漂移。
+  ftcs_amplification_modes:
+    rtol: 1e-15
+    atol: 1e-16
+    reason: >-
+      三角查表差异：numpy 的向量化 sin 与 V8 的 Math.sin 是两套实现，同参数可差 1 ulp。
+      实测本例 8 个模态逐位相同（max|Δ| = 0），但 sin 的 ulp 差会经 sin² 翻倍、再乘 4r ≤ 1.2，
+      故留 1e-15（≈4.5 ulp）而不是 0；g 值域在 0.8–1.0，|g| 远离零点，atol 只作兜底。
+  oscillator_sample:
+    rtol: 1e-14
+    atol: 1e-15
+    reason: >-
+      超越函数差异：exp/cos/sin 分别来自 glibc 与 V8 的 fdlibm 移植，单点差 1–2 ulp，
+      再经 env·(a·cos + b·sin) 的乘加放大；实测 max|Δ| = 4.44e-16（≈2 ulp）、max_rel = 5.49e-16，
+      1e-14 留 ~20 倍余量。不能更紧是因为 V8 历史上换过 Math.exp 的实现，
+      跨版本 2–3 ulp 的差异属正常范围。零点分量（v(0) = 0，过阻尼支的 v ≈ 3e-16）由 atol 兜底：
+      那些点的相对差会放大到 O(1)，但绝对差只有 1e-17 量级，物理上无意义。
+  order_fit_powerlaw:
+    rtol: 1e-13
+    atol: 1e-14
+    reason: >-
+      两类误差叠加：(1) log 的 1 ulp 差异；(2) 求和顺序——numpy 的 np.sum 用成对求和，
+      TS 侧是朴素左折叠，n ≤ 14 时相对差可达 ~n·eps ≈ 3e-15。slope 是两笔和之比、误差部分抵消；
+      intercept/r2 直接由和构成，最敏感。实测 max|Δ| = 1.78e-15、max_rel = 8.43e-15，
+      1e-13 留 ~12 倍余量。含舍入地板的那一组（rounding_floor_head6）r2 会明显小于 1，
+      但两侧吃的是同一批 h/err，比值稳定——地板影响的是"拟合出多少"，不是"两侧差多少"。

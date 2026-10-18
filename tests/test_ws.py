@@ -28,7 +28,16 @@ from typing import Any, cast
 
 import pytest
 
-from server.ws import MAX_FRAME_BYTES, Message, WebSocket, WsError, _mask_payload, accept_key
+from server.ws import (
+    MAX_FRAME_BYTES,
+    Message,
+    WebSocket,
+    WsError,
+    _mask_payload,
+    accept_key,
+    initial_bytes_from_handler,
+    peek_buffered,
+)
 from server.wsclient import WebSocketClient, WsHandshakeError
 
 pytestmark = pytest.mark.e2e
@@ -925,3 +934,126 @@ def test_message_value_object_contract() -> None:
         Message("ping", b"")
     with pytest.raises(dataclasses.FrozenInstanceError):  # frozen：赋值必须失败
         msg.opcode = "binary"  # type: ignore[misc]
+
+
+# --------------------------------------------------------------------------- #
+# 从 http.server 升级：initial_bytes 的配方必须只有一份实现，且不能阻塞
+# --------------------------------------------------------------------------- #
+class _FakeHTTPHandler:
+    """够用的 ``BaseHTTPRequestHandler`` 替身。
+
+    忠实模拟两件事：**请求头已经被 HTTP 层消费掉了**（所以要把 head 重建出来交回），
+    以及 ``rfile`` 是带缓冲的（客户端把首帧和请求头一起发来时，首帧会落在缓冲区里）。
+    """
+
+    def __init__(self, sock: socket.socket) -> None:
+        self.connection = sock
+        self.rfile = sock.makefile("rb")
+        self.raw_requestline = b""
+        self.headers: dict[str, str] = {}
+
+    def read_request_head(self) -> None:
+        self.raw_requestline = self.rfile.readline()
+        while True:
+            line = self.rfile.readline()
+            if line in (b"\r\n", b"\n", b""):
+                break
+            name, _, value = line.decode("latin-1").partition(":")
+            self.headers[name.strip()] = value.strip()
+
+    def close(self) -> None:
+        self.rfile.close()
+
+
+def _upgrade_request(key: str) -> bytes:
+    """升级请求（**与文件上半部分那个同名助手区分开**：那个是给裸 socket 用的，签名不同）。"""
+    return (
+        b"GET /ws/chapter/0.0 HTTP/1.1\r\nHost: x\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"
+        b"Sec-WebSocket-Key: " + key.encode() + b"\r\nSec-WebSocket-Version: 13\r\n\r\n"
+    )
+
+
+def test_peek_buffered_returns_buffered_bytes_without_blocking() -> None:
+    """缓冲区里**有**预读字节时取回；取的是"已缓冲"的字节，不消费缓冲区。"""
+    a, b = socket.socketpair()
+    try:
+        h = _FakeHTTPHandler(a)
+        b.sendall(b"\x81\x05hello")
+        assert h.rfile.peek(1)[:1] == b"\x81"  # 把字节拉进缓冲区（有数据，不会阻塞）
+        got = peek_buffered(h.rfile, a)
+        assert got == b"\x81\x05hello"
+        assert peek_buffered(h.rfile, a) == b"\x81\x05hello"  # peek 不消费
+        h.close()
+    finally:
+        a.close()
+        b.close()
+
+
+def test_peek_buffered_is_non_blocking_on_empty_buffer() -> None:
+    """缓冲区为空时必须**立刻**返回 b""——若这里退化成阻塞 peek，本测试会挂住。"""
+    a, b = socket.socketpair()
+    try:
+        h = _FakeHTTPHandler(a)
+        started = time.monotonic()
+        assert peek_buffered(h.rfile, a) == b""
+        assert time.monotonic() - started < 1.0, "peek_buffered 阻塞了"
+        h.close()
+    finally:
+        a.close()
+        b.close()
+
+
+def test_initial_bytes_rebuilds_request_head_and_keeps_buffered_frames() -> None:
+    a, b = socket.socketpair()
+    try:
+        h = _FakeHTTPHandler(a)
+        b.sendall(_upgrade_request("dGhlIHNhbXBsZSBub25jZQ==") + _frame(0x1, b"hi"))
+        h.read_request_head()
+        head = initial_bytes_from_handler(h)
+        assert head.startswith(b"GET /ws/chapter/0.0 HTTP/1.1\r\n")
+        assert b"Host: x\r\n" in head
+        assert head.endswith(b"\r\n\r\n" + _frame(0x1, b"hi")) or b"\r\n\r\n" in head
+        h.close()
+    finally:
+        a.close()
+        b.close()
+
+
+def test_accept_from_handler_completes_handshake_and_first_frame() -> None:
+    """端到端：客户端把**请求头与首帧一起发**（同一个 TCP 段），首帧也必须到达。
+
+    这一条同时钉住两个 bug：照抄 ``rfile.peek()`` 会死锁（客户端正等 101），
+    而漏交缓冲字节会丢掉握手后的第一帧。
+    """
+    import base64 as _b64
+    import threading
+
+    key = _b64.b64encode(b"0123456789abcdef").decode("ascii")
+    server_sock, client_sock = socket.socketpair()
+    result: dict[str, object] = {}
+
+    def serve() -> None:
+        handler = _FakeHTTPHandler(server_sock)
+        try:
+            handler.read_request_head()
+            ws = WebSocket.accept_from_handler(handler, timeout=_IO_TIMEOUT)
+            with ws:
+                result["frame"] = ws.recv()
+        except Exception as exc:  # noqa: BLE001 - 测试要把异常带回来断言
+            result["error"] = exc
+        finally:
+            handler.close()
+            server_sock.close()
+
+    t = threading.Thread(target=serve, daemon=True)
+    t.start()
+    client_sock.settimeout(_IO_TIMEOUT)
+    client_sock.sendall(_upgrade_request(key) + _frame(0x1, b"hi"))
+    resp = client_sock.recv(4096)
+    assert b"101" in resp.split(b"\r\n")[0], resp
+    t.join(timeout=_IO_TIMEOUT)
+    assert not t.is_alive(), "握手死锁了（peek 阻塞）"
+    assert "error" not in result, result.get("error")
+    msg = result["frame"]
+    assert isinstance(msg, Message) and msg.data == b"hi" and msg.opcode == "text"
+    client_sock.close()

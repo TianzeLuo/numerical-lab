@@ -102,6 +102,7 @@ RULE_DOC = {
     "P8": "章节前端不得自造物理量（调用 shared/numeric 必须标注 preview-approx）",
     "P10": "numcore/server/viz 不得 import numcore.reference",
     "P12": "生成物文件必须带「由生成器产生」的头部声明",
+    "P13": "五件套完整性：开了一章就必须有 notes.tex / pitfalls.md(≥800字) / asserts.yaml",
 }
 
 _ALLOW_RE = re.compile(r"#\s*policy:\s*allow\s+(P\d+)\b(?P<reason>.*)$")
@@ -385,6 +386,97 @@ def iter_ts_files(root: pathlib.Path) -> Iterable[pathlib.Path]:
             yield p
 
 
+MIN_PITFALL_DOC_CHARS = 800
+"""``chapters/<id>/pitfalls.md`` 的最少字数（POLICY §2 第 5 项）。"""
+
+_THEOREM_RE = re.compile(r"\\begin\{theorem\}")
+
+
+def check_chapter_docs(root: pathlib.Path) -> list[Violation]:
+    """P13：章内文档五件套。
+
+    判定范围刻意是"**开了的**章"——目录 ``chapters/<id>/`` 存在（或
+    ``server/chapters/<id>.py`` 存在）就算开了。还没开的章不报违规，
+    否则 M0 阶段整仓库会一直红；但一旦开了，四份文档必须齐（模块本身由注册表检查）。
+    """
+    out: list[Violation] = []
+    started: set[str] = set()
+    chap_dir = root / "chapters"
+    if chap_dir.is_dir():
+        for d in sorted(chap_dir.iterdir()):
+            if d.is_dir() and not d.name.startswith((".", "_")):
+                started.add(d.name)
+    srv_dir = root / "server" / "chapters"
+    if srv_dir.is_dir():
+        for f in sorted(srv_dir.glob("*.py")):
+            if not f.name.startswith("_"):
+                started.add(f.stem)
+
+    for cid in sorted(started):
+        base = chap_dir / cid
+        notes = base / "notes.tex"
+        if not notes.exists():
+            out.append(
+                Violation(
+                    rule="P13",
+                    path=f"chapters/{cid}/notes.tex",
+                    line=1,
+                    message=f"章节 {cid} 缺推导笔记 notes.tex（POLICY §2 第 1 项）",
+                    snippet="",
+                    allowed_hint=RULE_DOC["P13"],
+                )
+            )
+        elif not _THEOREM_RE.search(notes.read_text(encoding="utf-8", errors="replace")):
+            out.append(
+                Violation(
+                    rule="P13",
+                    path=f"chapters/{cid}/notes.tex",
+                    line=1,
+                    message=f"章节 {cid} 的 notes.tex 里没有 \\begin{{theorem}}：关键定理必须给出完整证明",
+                    snippet="",
+                    allowed_hint=RULE_DOC["P13"],
+                )
+            )
+        pitfalls = base / "pitfalls.md"
+        if not pitfalls.exists():
+            out.append(
+                Violation(
+                    rule="P13",
+                    path=f"chapters/{cid}/pitfalls.md",
+                    line=1,
+                    message=f"章节 {cid} 缺防误导分析 pitfalls.md（POLICY §2 第 5 项）",
+                    snippet="",
+                    allowed_hint=RULE_DOC["P13"],
+                )
+            )
+        else:
+            n = len(pitfalls.read_text(encoding="utf-8", errors="replace").strip())
+            if n < MIN_PITFALL_DOC_CHARS:
+                out.append(
+                    Violation(
+                        rule="P13",
+                        path=f"chapters/{cid}/pitfalls.md",
+                        line=1,
+                        message=f"章节 {cid} 的 pitfalls.md 只有 {n} 字，少于 {MIN_PITFALL_DOC_CHARS} 字",
+                        snippet="",
+                        allowed_hint=RULE_DOC["P13"],
+                    )
+                )
+        decl = base / "asserts.yaml"
+        if not decl.exists():
+            out.append(
+                Violation(
+                    rule="P13",
+                    path=f"chapters/{cid}/asserts.yaml",
+                    line=1,
+                    message=f"章节 {cid} 缺断言声明 asserts.yaml（POLICY §2 第 4 项）",
+                    snippet="",
+                    allowed_hint=RULE_DOC["P13"],
+                )
+            )
+    return out
+
+
 def check_package_json(root: pathlib.Path) -> list[Violation]:
     """P7：``package.json`` 不得有运行期依赖，devDependencies 只允许白名单。"""
     pkg = root / "package.json"
@@ -459,6 +551,7 @@ def check(root: pathlib.Path) -> tuple[list[Violation], list[str]]:
         rel = _norm(str(p.relative_to(root)))
         violations.extend(scan_ts_source(p.read_text(encoding="utf-8", errors="replace"), path=rel))
     violations.extend(check_package_json(root))
+    violations.extend(check_chapter_docs(root))
     notes.append("P6 文件级豁免（测试基础设施）：" + ", ".join(P6_EXEMPT_FILES))
     registered = load_registered_allowlist(root)
     for rel, lineno, rule, reason in find_inline_allows(root):

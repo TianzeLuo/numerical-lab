@@ -20,7 +20,9 @@ from numcore.smoke import (
     ftcs_critical_r,
     ftcs_critical_r_limit,
     ftcs_growth,
+    ftcs_run,
     ftcs_stable,
+    ftcs_step,
     heat_exact_sine,
     heat_ftcs,
     heat_run_meta,
@@ -313,3 +315,51 @@ def test_fit_order_head_option_escapes_roundoff_floor() -> None:
     assert diag.floored, diag
     assert "head=" in diag.note()
     assert "tail= 保留的是细端" in diag.note()
+
+
+# --------------------------------------------------------------------------- #
+# 单步 API（ftcs_step / ftcs_run / heat_ftcs(n_steps=)）
+#
+# 这三个口子是给 G7 双实现对拍用的：TS 侧有同名同语义的 ftcsStep/ftcsRun。
+# 没有它们时，对拍只能靠 "t_end = n_steps·Δt" 反算步数——那是在依赖 ceil 的巧合。
+# --------------------------------------------------------------------------- #
+def test_ftcs_step_matches_heat_ftcs_single_step() -> None:
+    x = np.linspace(0.0, 1.0, 41)
+    u0 = initial_profile(x, "sine")
+    one = ftcs_step(u0, 0.4)
+    # heat_ftcs 走一步：t_end 取一个小于 Δt 的正数，ceil 保证只走一步
+    run = heat_ftcs(nx=41, r=0.4, t_end=1e-12)
+    assert run.n_steps == 1
+    assert np.array_equal(one, run.u)
+
+
+def test_ftcs_run_is_exactly_heat_ftcs_with_n_steps() -> None:
+    a = heat_ftcs(nx=41, r=0.4, t_end=0.05)
+    b = heat_ftcs(nx=41, r=0.4, n_steps=a.n_steps)
+    assert a.n_steps == b.n_steps
+    assert np.array_equal(a.u, b.u), "n_steps= 与 t_end= 两条路必须逐位相同（对拍基准靠它）"
+    x = np.linspace(0.0, 1.0, 41)
+    assert np.array_equal(ftcs_run(initial_profile(x, "sine"), 0.4, a.n_steps), a.u)
+
+
+def test_ftcs_run_zero_steps_copies_and_does_not_alias() -> None:
+    u0 = np.array([0.0, 1.0, 0.5, 0.0])
+    out = ftcs_run(u0, 0.4, 0)
+    assert np.array_equal(out, u0)
+    out[1] = 99.0
+    assert u0[1] == 1.0, "必须返回副本，不能和输入共享内存"
+
+
+def test_ftcs_step_applies_dirichlet_at_both_ends() -> None:
+    got = ftcs_step(np.array([0.7, 1.0, 1.0, 0.7]), 0.4)
+    assert got[0] == 0.0 and got[-1] == 0.0
+    # 内点：u_1 + r(u_2 - 2u_1 + u_0) = 1 + 0.4(1 - 2 + 0.7) = 0.88
+    assert abs(got[1] - 0.88) < 1e-15
+    assert abs(got[2] - 0.88) < 1e-15
+
+
+def test_ftcs_run_rejects_negative_steps() -> None:
+    with pytest.raises(ValueError, match="n_steps"):
+        ftcs_run(np.array([0.0, 1.0, 0.0]), 0.4, -1)
+    with pytest.raises(ValueError, match="n_steps"):
+        heat_ftcs(nx=11, r=0.4, n_steps=-3)

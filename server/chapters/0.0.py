@@ -187,9 +187,10 @@ def _oscillator_frame(params: Mapping[str, Any], t: float) -> Frame:
         t_span=float(t_max),
         energy_drift=float(np.max(np.abs(energy - e0)) / abs(e0)) if e0 != 0.0 else 0.0,
         residual_max=float(np.max(residual)) if residual.size else 0.0,
-        regime="underdamped" if zeta < 1.0 else ("critical" if abs(zeta - 1.0) < 1e-9 else "overdamped"),
     )
-    fr.set_strings(regime_note=_regime_note(zeta))
+    # 字符串一律进 strings：meta 只允许 number/bool/null（PROTOCOLS §1.1）
+    regime = "underdamped" if zeta < 1.0 else ("critical" if abs(zeta - 1.0) < 1e-9 else "overdamped")
+    fr.set_strings(regime=regime, regime_note=_regime_note(zeta))
     return fr
 
 

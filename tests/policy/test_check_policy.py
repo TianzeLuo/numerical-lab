@@ -17,9 +17,11 @@ import textwrap
 import pytest
 
 from tools.check_policy import (
+    MIN_PITFALL_DOC_CHARS,
     P6_EXEMPT_FILES,
     Violation,
     check,
+    check_chapter_docs,
     check_package_json,
     scan_source,
     scan_ts_source,
@@ -277,7 +279,67 @@ def test_registration_without_use_is_harmless(tmp_path: pathlib.Path) -> None:
 # --------------------------------------------------------------------------- #
 # 语法错误也要被抓住
 # --------------------------------------------------------------------------- #
-def test_syntax_error_is_reported() -> None:
+# --------------------------------------------------------------------------- #
+# P13：五件套完整性（"开了的章"必须有笔记/防误导/断言声明）
+# --------------------------------------------------------------------------- #
+def _start_chapter(tmp_path: pathlib.Path, cid: str = "1.1", *, notes: str | None = "\\begin{theorem}定理\\end{theorem}\n",
+                   pitfalls: str | None = "坑" * MIN_PITFALL_DOC_CHARS, asserts: str | None = "tests: []\n") -> pathlib.Path:
+    d = tmp_path / "chapters" / cid
+    d.mkdir(parents=True, exist_ok=True)
+    if notes is not None:
+        (d / "notes.tex").write_text(notes, encoding="utf-8")
+    if pitfalls is not None:
+        (d / "pitfalls.md").write_text(pitfalls, encoding="utf-8")
+    if asserts is not None:
+        (d / "asserts.yaml").write_text(asserts, encoding="utf-8")
+    return d
+
+
+def test_p13_clean_chapter_has_no_violation(tmp_path: pathlib.Path) -> None:
+    _start_chapter(tmp_path)
+    assert check_chapter_docs(tmp_path) == []
+
+
+def test_p13_unstarted_repo_is_clean(tmp_path: pathlib.Path) -> None:
+    """一章都没开时不该报违规（否则 M0 阶段整仓库一直红）。"""
+    assert check_chapter_docs(tmp_path) == []
+
+
+def test_p13_missing_documents_are_all_reported(tmp_path: pathlib.Path) -> None:
+    (tmp_path / "chapters" / "1.1").mkdir(parents=True)
+    got = {(v.rule, v.path) for v in check_chapter_docs(tmp_path)}
+    assert ("P13", "chapters/1.1/notes.tex") in got
+    assert ("P13", "chapters/1.1/pitfalls.md") in got
+    assert ("P13", "chapters/1.1/asserts.yaml") in got
+
+
+def test_p13_notes_without_theorem_is_reported(tmp_path: pathlib.Path) -> None:
+    _start_chapter(tmp_path, notes="只有文字，没有定理环境。\n")
+    problems = [v.message for v in check_chapter_docs(tmp_path)]
+    assert any("theorem" in m for m in problems)
+
+
+def test_p13_short_pitfalls_is_reported(tmp_path: pathlib.Path) -> None:
+    _start_chapter(tmp_path, pitfalls="太短了。")
+    problems = [v.message for v in check_chapter_docs(tmp_path)]
+    assert any(str(MIN_PITFALL_DOC_CHARS) in m for m in problems)
+
+
+def test_p13_pitfalls_exactly_at_limit_passes(tmp_path: pathlib.Path) -> None:
+    _start_chapter(tmp_path, pitfalls="坑" * MIN_PITFALL_DOC_CHARS)
+    assert check_chapter_docs(tmp_path) == []
+    _start_chapter(tmp_path, pitfalls="坑" * (MIN_PITFALL_DOC_CHARS - 1))
+    assert len(check_chapter_docs(tmp_path)) == 1
+
+
+def test_p13_server_module_alone_starts_the_chapter(tmp_path: pathlib.Path) -> None:
+    """只写了 server/chapters/1.1.py 也算"开了这一章"，四份文档同样要齐。"""
+    (tmp_path / "server" / "chapters").mkdir(parents=True)
+    (tmp_path / "server" / "chapters" / "1.1.py").write_text("MANIFEST = {}\n", encoding="utf-8")
+    assert len(check_chapter_docs(tmp_path)) == 3
+
+
+def test_p13_syntax_warning_is_reported() -> None:
     got = scan("def f(:\n    pass", "numcore/x.py")
     assert {v.rule for v in got} == {"SYNTAX"}
 

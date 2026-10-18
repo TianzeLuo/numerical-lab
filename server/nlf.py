@@ -162,8 +162,18 @@ class Frame:
         return self
 
     def set_meta(self, **kv: Any) -> "Frame":
-        """设置标量元数据（仅允许 JSON 标量，数组请用 :meth:`add`）。"""
+        """设置标量元数据：**只允许 number / bool / null**（PROTOCOLS §1.1）。
+
+        字符串请走 :meth:`set_strings`。这条限制是被 TS 解码器当场抓出来的：
+        Python 侧原本放行了字符串，于是 `0.0` 章把 "underdamped" 写进 meta，
+        `pytest` 全绿、`tsc` 全绿，直到前端真正解码那一帧才炸。
+        """
         for k, v in kv.items():
+            if isinstance(v, str):
+                raise NlfError(
+                    f"meta[{k!r}] 是字符串——字符串标量必须走 set_strings()/strings（PROTOCOLS §1.1："
+                    f"meta 只允许 number/bool/null）"
+                )
             if isinstance(v, (list, tuple, np.ndarray)):
                 raise NlfError(f"meta[{k!r}] 是数组——数组必须通过 add() 进入 arrays（PROTOCOLS §1.1）")
             if isinstance(v, (np.floating, np.integer, np.bool_)):
@@ -235,8 +245,10 @@ class Frame:
             if s.nbytes != s.size * s.itemsize:
                 raise NlfError(f"nbytes 与 shape/dtype 不符：{s.name!r}")
         for k, v in self.meta.items():
-            if isinstance(v, (list, tuple, np.ndarray, dict)):
-                raise NlfError(f"meta[{k!r}] 非标量")
+            if isinstance(v, str):
+                raise NlfError(f"meta[{k!r}] 是字符串——请改放进 strings（PROTOCOLS §1.1）")
+            if isinstance(v, (list, tuple, np.ndarray, dict)) or not isinstance(v, (int, float, bool, type(None))):
+                raise NlfError(f"meta[{k!r}] 不是 number/bool/null（PROTOCOLS §1.1）")
         for k, v in self.critical.items():
             if isinstance(v, (list, tuple)) and not all(isinstance(x, (int, float)) for x in v):
                 raise NlfError(f"critical[{k!r}] 必须是数值或数值数组")

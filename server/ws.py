@@ -128,6 +128,38 @@ def accept_key(sec_websocket_key: str) -> str:
     return base64.b64encode(digest.digest()).decode("ascii")
 
 
+def peek_buffered(rfile: Any, sock: socket.socket) -> bytes:
+    """非阻塞地取回 ``rfile`` 缓冲区里**已经读到**的字节；没有就返回 ``b""``。
+
+    ``peek()`` 不消费缓冲区，所以交回的字节只会被 WebSocket 层消费一次。
+    CPython 3.13 在非阻塞 + 无数据时返回 ``b""``；旧版本可能抛 ``BlockingIOError``，
+    两种都当"没数据"处理。
+    """
+    try:
+        old_timeout = sock.gettimeout()
+    except OSError:
+        return b""
+    try:
+        sock.setblocking(False)
+        return bytes(rfile.peek() or b"")
+    except (BlockingIOError, InterruptedError, OSError, ValueError):
+        return b""
+    finally:
+        try:
+            sock.settimeout(old_timeout)
+        except OSError:
+            pass
+
+
+def initial_bytes_from_handler(handler: Any) -> bytes:
+    """重建 ``BaseHTTPRequestHandler`` 已消费的请求头，并拼上其缓冲区里的预读字节。"""
+    lines = [bytes(handler.raw_requestline or b"").rstrip(b"\r\n")]
+    for name, value in handler.headers.items():
+        lines.append(f"{name}: {value}".encode("latin-1", "replace"))
+    head = b"\r\n".join(lines) + b"\r\n\r\n"
+    return head + peek_buffered(handler.rfile, handler.connection)
+
+
 def _code_allowed_in_frame(code: int) -> bool:
     """close code 是否可以**出现在帧里**（RFC 6455 §7.4 + IANA 注册表）。
 
@@ -816,15 +848,44 @@ class WebSocket(_FrameCodec):
 
         .. note::
            不能把**仍然留在 socket 里**的字节传进来（例如 ``MSG_PEEK`` 的结果），否则会被解析两次。
-           若外层用 ``http.server.BaseHTTPRequestHandler``，请求头已经被它消费掉了，此时应把
-           ``self.raw_requestline`` 与 ``self.headers`` 重新拼成请求头，连同
-           ``self.rfile.peek()`` 一起交给 ``initial_bytes``。
+           若外层是 ``http.server.BaseHTTPRequestHandler``，**不要照抄"``rfile.peek()`` 一起交回"**
+           ——``peek()`` 在缓冲区为空时会阻塞等下一批字节，而客户端正等着 101，于是每次升级都死锁。
+           请直接用 :meth:`accept_from_handler`（它做了非阻塞 peek）。
         """
         conn = cls(sock, timeout=timeout, max_frame=max_frame)
         if initial_bytes:
             conn._rbuf += initial_bytes
         conn._handshake(tuple(subprotocols))
         return conn
+
+    @classmethod
+    def accept_from_handler(
+        cls,
+        handler: Any,
+        *,
+        timeout: float | None = None,
+        max_frame: int = MAX_FRAME_BYTES,
+        subprotocols: Sequence[str] = (),
+    ) -> "WebSocket":
+        """从 ``http.server.BaseHTTPRequestHandler`` 升级到 WebSocket。
+
+        ``handler`` 需要提供 ``raw_requestline`` / ``headers`` / ``rfile`` / ``connection``
+        （``BaseHTTPRequestHandler`` 全都有）。做两件事：
+
+        1. 把 HTTP 层已经消费掉的请求头**重建**出来（``raw_requestline`` + ``headers``）；
+        2. 用非阻塞 peek 取回 ``rfile`` 里已经缓冲的字节（可能含握手后立刻到达的首帧）。
+
+        为什么必须非阻塞：``BufferedReader.peek()`` 在缓冲区为空时会去 socket 上再读一批，
+        而此时客户端正在等 101 —— 于是升级卡死。这个坑踩过一次：
+        ``server/app.py`` 的实现者实测 ``peek()`` 会等 1.5 s 直到对端再发字节。
+        """
+        return cls.accept(
+            handler.connection,
+            timeout=timeout,
+            max_frame=max_frame,
+            subprotocols=subprotocols,
+            initial_bytes=initial_bytes_from_handler(handler),
+        )
 
     def _handshake(self, subprotocols: tuple[str, ...]) -> None:
         """读请求、校验必需头、回 101；子协议只在有交集时回显。"""

@@ -140,11 +140,33 @@
 | GET | `/api/health` | `{"ok": true, "chapters": N, "version": "..."}`|
 | GET | `/api/chapters` | 章节清单（合并 `docs/chapters.yaml` + 进度 + 依赖）|
 | GET | `/api/chapter/<id>/manifest` | 该章全部 viz 的 manifest |
-| GET | `/api/chapter/<id>/frame?viz=..&params=<base64url json>` | 单个 `.nlf`（`Content-Type: application/x-nlf`）|
+| GET | `/api/chapter/<id>/frame?viz=..&params=<base64url json>&t=<%.6g>` | 单个 `.nlf`（`Content-Type: application/x-nlf`）|
 | GET | `/api/chapter/<id>/frames?...&n=60` | 多帧流：`multipart/mixed` 或长度前缀拼接（降级通道）|
 | POST | `/api/asserts/<id>` | 触发该章断言（仅 `--allow-write` 时启用）|
 
 `params` 传输：JSON 经 UTF-8 → base64url，避免 URL 编码歧义；也接受 `params_json`（简单调试用）。
+
+`t` **是 `/frame` 的必需语义参数**（缺省 `t=0`）：没有它，L2 降级通道就无法响应时间轴拖动
+（拖动/单步都会拿到同一帧）。数字写法与 L3 文件名一致，用 `%.6g`（`t=0.05`、`t=1.5e-05`）；
+服务端解析后 MUST 与 `TimeSpec.dt` 对齐到最近的整步，并在响应帧的 `meta.t_actual` 里写回**实到时刻**。
+
+`/frames`（多帧流）格式**已定稿为 NLFS/1**，自描述长度前缀容器，**所有 u32 一律大端**：
+
+```
+offset 0 : magic   = b"NLFS"
+offset 4 : u32BE   version = 1
+offset 8 : u32BE   header_len
+offset 12: header_len 字节 UTF-8 JSON，形如
+           {"format":"nlf-stream","version":1,"chapter":"0.0","viz":"heat_ftcs",
+            "n":5,"params":{...},"t":[0.0,0.05,0.1,0.15,0.2]}
+之后 n 条记录，每条 = u32BE frame_len | frame_len 字节的完整 .nlf
+```
+
+响应头：`Content-Type: application/octet-stream`、`X-Nlf-Stream: NLFS/1`、`X-Frame-Count: n`。
+参考实现 `server.app.pack_frame_stream` / `read_frame_stream`（测试里另有一份独立的手工解析）。
+时间栅格与 `server.frames.precompute_chapter` 同口径（`tMax*i/(n-1)`，**不做 dt 对齐**），
+因此同参数下 `/frames` 的每一帧与 L3 静态文件**逐字节相同**。
+注意 `.nlf` v1 自己的 `header_len` 是**小端**，两个容器别混。
 
 ---
 
@@ -156,13 +178,23 @@
 
 1. **L1 WebSocket 流**：实时算，所有参数量连续可拖。
 2. **L2 REST 单帧**：无 WS 时按需取帧（拖动节流 60 ms）。
-3. **L3 静态预计算**：`data/precomputed/<chapter>/index.json` + `*.nlf`。
-   - `index.json`：`{"viz": "...", "grid": {"r": [0.1,0.2,...]}, "entries": [{"key": {...}, "file": "r0.10.nlf"}]}`
-   - 查表策略：先精确命中，再在声明为 `interpolable: true` 的轴上取最近两点做**显示插值**，
-     并在 UI 上打出 `precomputed+interp` 徽标（规则 4 的视觉提示义务）。
+3. **L3 静态预计算**：`data/frames/<chapter>/<viz>/<params_hash>_t<%.6g>.nlf`（平铺，无 index.json）。
+   - 文件名里的 `params_hash` 与 `server.frames.params_hash` **逐字节一致**（sha256 前 16 位十六进制，
+     参数键排序、`json.dumps(..., sort_keys=True, separators=(",", ":"), ensure_ascii=False)` 之后取哈希）。
+   - `t` 用 `%.6g`（与 `/frame` 的 `t` 同款写法）；`t=0` 写作 `t0`。
+   - 为什么不做 index.json：文件名本身就是索引。前端在 spawn 之前就能算出候选路径，
+     命中失败只是"少一帧"，不会因为索引与文件不同步而整章黑屏。**候选路径的生成规则只有一份实现**
+     （Python `server.frames.static_frame_path` 与 TS `framesource.staticFrameRelPath`，由 G7 对拍钉住）。
+   - 查表策略：先精确命中；没有再退到 `none`（发一条 `status`，UI 显示"无数据源"）。
+     显示空间插值只在**同一次会话已有的两帧**之间做，并打 `interp` 徽标（规则 4 的视觉提示义务）。
    - **禁止**在降级路径上重算物理量（P8）。
 
-`tools/precompute.py --chapter 4.1 --grid spec.yaml` 生成 L3 数据；`make precompute-all` 生成全套（体积可控，缺省只生成"关键参数点"）。
+`tools/precompute.py --chapter 4.1 [--n N]` 生成 L3 数据；不带 `--chapter` 时生成全套
+（体积可控，缺省每个可视化只生成 1 帧）。
+**`--n` 是视觉回归的公共契约**：基线的文件名里带时刻，所以 CI 固定用 `--n 6`
+（`tools/ci.sh` 的 G8 前置步骤），改它等于改基线命名，必须与 `tests/baselines/` 一起提交。生成完用
+`node dist/viz/tests/scene/dump_scenes.js` 把帧过一遍真前端模型，产物 `dist/scenes/**.json`
+就是视觉回归（G8）的输入。
 
 ---
 
@@ -285,9 +317,17 @@ Python `tools/raster.py` 用同名同值的 LUT（`tools/colorscales.py` 生成�
     lu_partial_pivot: {rtol: 1e-13, atol: 1e-15, reason: "TS 用 float64 同一算法，误差来源仅求和顺序"}
     fft_radix2:      {rtol: 1e-10, atol: 1e-12, reason: "三角查表 vs 递推，累积差"}
   ```
-- 门禁 G7 失败时 MUST 打印 `case / 索引 / python 值 / ts 值 / 相对差 / 容差`。
+- 门禁 G7 失败时 MUST 打印 `case / 索引 / python 值 / ts 值 / 相对差 / 容差`，
+  并给出跨 case 的"最大超差 Top 5"（按 `|Δ|/容差` 降序）。
+- **判定与生成分离**：`--update-golden` 重新生成基准与 `cases.json`（含每份 golden 的 sha256）；
+  `--check-golden` 只验证"盘上的 golden == 现在 Python 算出来的"（谁偷偷改了 `numcore`，这里立刻红）。
+- **容差必须写理由**：`tests/parity/tolerances.yaml` 的每条覆盖都要带 `reason` 与实测值，
+  例如 heat 系"实测逐位相同，但跨平台 FMA 可能差 1 ulp，故留 1e-14≈45 ulp"。
 
-覆盖清单（M0 起逐步补齐）：`lu`、`qr`（Householder）、`chol`、`svd_jacobi`、`power_iter`、
+当前覆盖（M0）：`heat_explicit_step`、`heat_ftcs_run`、`ftcs_amplification_modes`、
+`oscillator_sample`、`order_fit_powerlaw` —— 5 个 case / 1915 个点。
+覆盖清单（M0 起逐步补齐，加一个 case = `tools/parity.py::CASE_SPECS` 加一条 +
+`viz/shared/src/numeric/<algo>.ts` 加一个模块 + `--update-golden`）：`lu`、`qr`（Householder）、`chol`、`svd_jacobi`、`power_iter`、
 `barycentric`、`spline_natural`、`gauss_legendre_nodes`、`fft_radix2`、`dwt_haar`、
 `rk4`、`dopri5_step`、`verlet`、`heat_explicit_step`、`upwind_step`、`sobol_seq`、`pce_basis`。
 
@@ -313,21 +353,30 @@ Python `tools/raster.py` 用同名同值的 LUT（`tools/colorscales.py` 生成�
 ## 9. 产物目录
 
 ```
-dist/
+dist/                                # 全部可重新生成（.gitignore 覆盖 dist/**）
 ├── viz/                 tsc 编译产物（浏览器原生 ESM）
-├── export/
-│   ├── gif/<chapter>-<viz>.gif
-│   ├── mp4/<chapter>-<viz>.mp4        （需 ffmpeg，缺失时降级为 .frames + README）
-│   └── png/<chapter>-<viz>-<t>.png
-├── reports/
-│   ├── assertions.json / asserts_<id>.md
-│   ├── parity_ts.json / parity.json
-│   ├── policy.json
-│   └── progress.json
+├── scenes/<chapter>/<viz>__<params指纹>__t<时刻>.json   # 真模型跑出来的 Scene（G8 的**首选**输入）
 ├── visual/
-│   ├── scenes/<chapter>-<viz>.json    （场景快照，随仓库提交，是回归基线）
-│   └── png/<chapter>-<viz>.png        （光栅基线）
-└── book/
-    ├── chapters/<id>.pdf
-    └── numerical-lab.pdf              （合并本）
+│   ├── scenes/<chapter>-<name>.json   # 光栅器侧的场景快照（诊断用）
+│   ├── png/<chapter>-<name>.png       # 本次光栅结果
+│   └── diff/<chapter>-<name>.png      # 与基线的差异图（不一致时）
+├── reports/
+│   ├── assertions.json / asserts_report.md（各章另存 chapters/<id>/asserts_report.md）
+│   ├── parity_ts.json / parity.json
+│   ├── policy.json / manifests.json / scenes.json / visual_regression.json
+│   ├── book.json / progress.json / ci.json
+├── logs/G1.log … G10.log              # `make ci` 每道门的完整输出
+├── book/                              # one_<id>.tex/pdf、book.tex/pdf、*.log
+└── export/
+    ├── gif/<chapter>-<viz>.gif
+    └── png/<chapter>-<viz>-<t>.png
+
+tests/baselines/<chapter>/<场景文件名>.png   # **进 git**：视觉回归的契约
+tests/parity/golden/<case>.json             # **进 git**：对拍基准（含 sha256 索引 cases.json）
+data/manifests/<id>.json + index.json       # **进 git**：manifest 生成物（G6 保证与真源一致）
+data/frames/<chapter>/<viz>/<hash>_t<t>.nlf # 生成物，可 `make precompute` 重建（不进 git）
 ```
+
+**基线命名规则**：基线文件名 = 场景转储文件名（只换扩展名），所以
+"改 `dump_scenes.ts` 的采样时刻/参数 → 文件名全变 → 全部缺基线"是**有意**的：
+想让新场景进基线，必须显式跑 `make visual-update` 并在提交信息里写明原因。

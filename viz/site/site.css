@@ -1,0 +1,48 @@
+/* 站点样式：刻意极简，只有三件事——排版可读、画布优先、徽标与陷阱面板显眼。 */
+:root {
+  --fg: #1b1f24; --bg: #fbfbfd; --muted: #5c6672; --line: #d8dee6;
+  --accent: #1f6feb; --warn: #b45309; --ok: #15803d; --panel: #ffffff;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; color: var(--fg); background: var(--bg);
+  font: 15px/1.6 "Noto Sans CJK SC", "Source Han Sans SC", -apple-system, "Segoe UI", sans-serif;
+}
+#app { display: grid; grid-template-columns: 300px 1fr; grid-template-rows: auto 1fr auto; min-height: 100vh; }
+.nl-top { grid-column: 1 / -1; padding: 14px 22px; border-bottom: 1px solid var(--line); background: var(--panel); }
+.nl-top h1 { margin: 0; font-size: 19px; }
+.nl-nav { padding: 12px 10px 40px; border-right: 1px solid var(--line); background: var(--panel); overflow-y: auto; }
+.nl-part h2 { font-size: 12px; color: var(--muted); text-transform: none; margin: 14px 8px 4px; font-weight: 600; }
+.nl-nav ul { list-style: none; margin: 0; padding: 0; }
+.nl-nav a { display: block; padding: 4px 8px; border-radius: 6px; color: var(--fg); text-decoration: none; font-size: 13.5px; }
+.nl-nav a:hover { background: #eef3fb; }
+.nl-nav a.active { background: #e4eefc; font-weight: 600; }
+.nl-nav a.pending { color: var(--muted); }
+.nl-content { padding: 16px 22px 40px; min-width: 0; }
+.nl-view { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; }
+.nl-head { grid-column: 1 / -1; display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.nl-head h2 { margin: 0; font-size: 17px; }
+.nl-badges { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.nl-badge { font-size: 12px; padding: 1px 8px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); background: var(--panel); }
+.nl-status { font-size: 12.5px; color: var(--muted); }
+.nl-status[data-level="ws"] { color: var(--ok); }
+.nl-status[data-level="static"] { color: var(--warn); }
+.nl-status[data-level="none"], .nl-status[data-level="error"] { color: #b91c1c; }
+.nl-main { min-width: 0; }
+.nl-stage { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px; overflow: auto; }
+.nl-canvas { display: block; max-width: 100%; height: auto; }
+.nl-timeline { display: flex; gap: 8px; align-items: center; padding: 10px 2px; flex-wrap: wrap; }
+.nl-timeline input[type=range] { flex: 1 1 240px; }
+.nl-timeline button, .nl-export button { font: inherit; font-size: 13px; padding: 3px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); cursor: pointer; }
+.nl-timeline button:disabled { opacity: .45; cursor: default; }
+.nl-dropped { color: var(--warn); font-size: 12.5px; }
+.nl-side { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.nl-controls, .nl-pitfalls { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+.nl-controls h3, .nl-pitfalls h3 { margin: 0 0 8px; font-size: 14px; }
+.nl-controls label { display: block; margin: 10px 0 2px; font-size: 13px; }
+.nl-controls input[type=range] { width: 100%; }
+.nl-controls .nl-crit { color: var(--warn); font-size: 12px; }
+.nl-pitfalls li { margin: 6px 0; font-size: 13.5px; }
+.nl-export { display: flex; gap: 6px; margin-left: auto; }
+.nl-todo { background: var(--panel); border: 1px dashed var(--line); border-radius: 10px; padding: 18px 20px; }
+.nl-foot { grid-column: 1 / -1; padding: 12px 22px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12.5px; background: var(--panel); }

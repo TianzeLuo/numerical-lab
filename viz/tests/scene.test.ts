@@ -33,6 +33,7 @@ import {
   type Badge,
   type Layer,
   type Scene,
+  previewBadge,
 } from "../shared/src/scene.js";
 
 /** 造一个"合法但极简"的场景，再让各测试按需破坏它。 */
@@ -282,12 +283,18 @@ test("criticalBadge 支持下界型与绝对值型约束", () => {
   assert.match(unknown.text, /无可比临界值/);
 });
 
-test("sourceBadge 区分后端与前端预览（规则 5）", () => {
+test("sourceBadge 恒为 source，preview 另有一枚（规则 5）", () => {
+  // `kind` 的唯一性是有意的：`validateScene` 要求任何场景都有 `kind="source"`，
+  // 早先 `sourceBadge("backend+preview")` 返回 `kind="preview"`，纯预览场景必然非法。
   assert.equal(sourceBadge("backend").kind, "source");
   const prev = sourceBadge("backend+preview", "拖动时");
-  assert.equal(prev.kind, "preview");
+  assert.equal(prev.kind, "source");
   assert.match(prev.text, /近似预览/);
   assert.match(prev.text, /拖动时/);
+  const badge2 = previewBadge("拖动时", 8, 26);
+  assert.equal(badge2.kind, "preview");
+  assert.match(badge2.text, /^预览：前端近似/);
+  assert.match(badge2.text, /拖动时/);
 });
 
 test("overflowBadge 文本带上前缀", () => {

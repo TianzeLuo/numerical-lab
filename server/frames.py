@@ -12,6 +12,7 @@ import hashlib
 import json
 import math
 import pathlib
+import threading
 from dataclasses import dataclass, field
 from typing import Any, Iterable, Mapping, Sequence
 
@@ -36,22 +37,27 @@ class ParamError(ValueError):
 
 
 def governing_critical(param: ParamSpec, value: float | None = None) -> float | None:
-    """在 ``param.critical`` 里挑出"当前起支配作用"的那一个（与前端徽标同一口径）。
+    """在 ``param.critical`` 里挑出"当前位置最该被提及"的那一个（与 TS 侧同一口径）。
 
-    * ``above``（缺省）：已被突破的**最小**阈值；都没突破就给最小阈值；
-    * ``below``：已被突破的**最大**阈值；都没突破就给最大阈值；
-    * ``magnitude``：绝对值最接近的那个。
+    语义是"**你现在越过了哪一道线**"，也就是最近越过的那条：
+
+    * ``above``（缺省）：已越过的阈值里**最大**的那个；一条都没越过 → 最小的阈值（下一个目标）；
+    * ``below``：已越过的阈值里**最小**的那个；一条都没越过 → 最大的阈值；
+    * ``magnitude``：绝对值最接近 ``value`` 的那个。
+
+    ``value=None``（未知当前值）时给"最先会被撞上"的那条：``above`` 给最小、``below`` 给最大。
     """
-    crit = list(param.critical)
+    crit = sorted(param.critical)
     if not crit:
         return None
-    crit.sort()
     if value is None:
         return crit[0] if param.beyond != "below" else crit[-1]
     if param.beyond == "above":
-        return next((c for c in crit if value > c), crit[0])
+        crossed = [c for c in crit if value > c]
+        return crossed[-1] if crossed else crit[0]
     if param.beyond == "below":
-        return next((c for c in reversed(crit) if value < c), crit[-1])
+        crossed = [c for c in crit if value < c]
+        return crossed[0] if crossed else crit[-1]
     return min(crit, key=lambda c: abs(abs(c) - abs(value)))
 
 
@@ -163,43 +169,54 @@ class FrameCache:
     """按 (chapter, viz, params, t) 缓存帧字节的有界 LRU。
 
     有界是必须的：一帧热力图可能几 MB，无界缓存会把服务进程吃干。
+
+    **线程安全**：HTTP 服务器是多线程的（``ThreadingHTTPServer``），两个请求同时
+    落进 :meth:`put` 的淘汰循环会同时改 ``_items``/``_bytes``——轻则计数错乱、
+    重则 ``RuntimeError: dictionary changed size during iteration``。所以所有读写都在
+    一把锁里；锁只包住字典操作，**不包**算帧（算帧在调用方，绝不持锁做重活）。
     """
 
     max_entries: int = 64
     max_bytes: int = 256 * 1024 * 1024
     _items: dict[str, bytes] = field(default_factory=dict)
     _bytes: int = 0
+    _lock: threading.Lock = field(default_factory=threading.Lock, repr=False, compare=False)
 
     def key(self, chapter: str, viz: str, params: Mapping[str, Any], t: float) -> str:
         return f"{chapter}/{viz}/{params_hash(chapter, viz, params)}/t={t:.6g}"
 
     @property
     def n_entries(self) -> int:
-        return len(self._items)
+        with self._lock:
+            return len(self._items)
 
     @property
     def n_bytes(self) -> int:
-        return self._bytes
+        with self._lock:
+            return self._bytes
 
     def get(self, key: str) -> bytes | None:
-        return self._items.get(key)
+        with self._lock:
+            return self._items.get(key)
 
     def put(self, key: str, blob: bytes) -> None:
         if len(blob) > self.max_bytes:
             return  # 单帧就超预算：不缓存，直接每次重算
-        old = self._items.pop(key, None)
-        if old is not None:
-            self._bytes -= len(old)
-        self._items[key] = blob
-        self._bytes += len(blob)
-        while self._items and (len(self._items) > self.max_entries or self._bytes > self.max_bytes):
-            evicted, evicted_blob = next(iter(self._items.items()))
-            del self._items[evicted]
-            self._bytes -= len(evicted_blob)
+        with self._lock:
+            old = self._items.pop(key, None)
+            if old is not None:
+                self._bytes -= len(old)
+            self._items[key] = blob
+            self._bytes += len(blob)
+            while self._items and (len(self._items) > self.max_entries or self._bytes > self.max_bytes):
+                evicted, evicted_blob = next(iter(self._items.items()))
+                del self._items[evicted]
+                self._bytes -= len(evicted_blob)
 
     def clear(self) -> None:
-        self._items.clear()
-        self._bytes = 0
+        with self._lock:
+            self._items.clear()
+            self._bytes = 0
 
 
 def static_frame_path(root: pathlib.Path, chapter: str, viz: str, params: Mapping[str, Any], t: float = 0.0) -> pathlib.Path:

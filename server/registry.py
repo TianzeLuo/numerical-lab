@@ -19,6 +19,9 @@ from typing import Any, Iterator, Mapping
 
 from server.manifest import ChapterManifest, ManifestError, load_manifest
 
+MIN_PITFALL_DOC_CHARS = 800
+"""``chapters/<id>/pitfalls.md`` 的最少字数（POLICY §2 第 5 项：少于 800 字算缺失）。"""
+
 __all__ = [
     "ChapterEntry",
     "Registry",
@@ -66,6 +69,8 @@ class ChapterProgress:
     id: str
     title: str
     part: str = ""
+    declared: bool = True
+    """是否在 ``docs/chapters.yaml`` 里声明过。0.0 模板章是"额外章节"，不计入 115。"""
     viz_declared: int = 0
     viz_implemented: int = 0
     has_module: bool = False
@@ -73,17 +78,25 @@ class ChapterProgress:
     manifest_problems: list[str] = field(default_factory=list)
     has_tests: bool = False
     has_notes: bool = False
+    has_pitfalls: bool = False
+    """``chapters/<id>/pitfalls.md`` 存在且不少于 :data:`MIN_PITFALL_DOC_CHARS` 字。"""
+    pitfall_chars: int = 0
+    has_asserts_decl: bool = False
+    """``chapters/<id>/asserts.yaml`` 存在（断言声明，POLICY §2 第 4 项）。"""
     modules_present: list[str] = field(default_factory=list)
     modules_missing: list[str] = field(default_factory=list)
 
     @property
     def complete(self) -> bool:
+        """五件套齐全（POLICY §2）：模块 / manifest+可视化 / 测试+断言声明 / 笔记 / 防误导。"""
         return (
             self.has_module
             and self.manifest_ok
             and self.viz_implemented >= self.viz_declared
             and self.has_tests
+            and self.has_asserts_decl
             and self.has_notes
+            and self.has_pitfalls
             and not self.modules_missing
         )
 
@@ -92,12 +105,16 @@ class ChapterProgress:
             "id": self.id,
             "title": self.title,
             "part": self.part,
+            "declared": self.declared,
             "vizDeclared": self.viz_declared,
             "vizImplemented": self.viz_implemented,
             "hasModule": self.has_module,
             "manifestOk": self.manifest_ok,
             "hasTests": self.has_tests,
             "hasNotes": self.has_notes,
+            "hasPitfalls": self.has_pitfalls,
+            "pitfallChars": self.pitfall_chars,
+            "hasAssertsDecl": self.has_asserts_decl,
             "modulesMissing": list(self.modules_missing),
             "complete": self.complete,
         }
@@ -154,7 +171,10 @@ class Registry:
         """加载全部章节模块。``strict=True`` 时任何 manifest 问题都会抛错。"""
         entries: dict[str, ChapterEntry] = {}
         problems: list[str] = []
-        for path in self.chapter_files():
+        files = self.chapter_files()
+        if not files and strict:
+            raise RegistryError(f"没有发现任何章节模块：{self.chapters_dir} 下没有 <主>.<次>.py 形式的文件")
+        for path in files:
             cid = CHAPTER_FILE_RE.match(path.name).group(1)  # type: ignore[union-attr]
             mod_name = f"numlab_chapter_{cid.replace('.', '_')}"
             spec = importlib.util.spec_from_file_location(mod_name, path)
@@ -225,6 +245,14 @@ class Registry:
     def notes_file(self, chapter_id: str) -> pathlib.Path:
         return self.root / "chapters" / chapter_id / "notes.tex"
 
+    def pitfalls_file(self, chapter_id: str) -> pathlib.Path:
+        """防误导分析（POLICY §2 第 5 项：存在且 ≥800 字）。"""
+        return self.root / "chapters" / chapter_id / "pitfalls.md"
+
+    def asserts_decl_file(self, chapter_id: str) -> pathlib.Path:
+        """断言声明（POLICY §2 第 4 项）。"""
+        return self.root / "chapters" / chapter_id / "asserts.yaml"
+
     def progress(self) -> list[ChapterProgress]:
         """对照 ``docs/chapters.yaml`` 与磁盘现状，算出每章完成度。"""
         declared = load_chapter_yaml(self.root)
@@ -254,32 +282,80 @@ class Registry:
                 except Exception as exc:  # noqa: BLE001
                     prog.manifest_problems = [f"导入失败：{type(exc).__name__}: {exc}"]
                 prog.manifest_ok = prog.has_module and not prog.manifest_problems
-            prog.has_tests = self.tests_dir(cid).is_dir() and any(self.tests_dir(cid).glob("test_*.py"))
-            prog.has_notes = self.notes_file(cid).exists()
+            _fill_chapter_docs(self, cid, prog)
             for mod in info.get("modules", []) or []:
                 rel = str(mod)
                 target = self.root / (rel if rel.endswith(".py") else f"{rel}.py")
-                if not rel.endswith(".py") and "/" in rel and (self.root / rel).is_dir():
+                if not target.exists() and "." in rel and "/" not in rel:
+                    # 允许 yaml 里写点号模块名（numcore.ode.rk）——两种写法都要能找到
+                    target = self.root / (rel.replace(".", "/") + ".py")
+                if not target.exists() and not rel.endswith(".py") and "/" in rel and (self.root / rel).is_dir():
                     target = self.root / rel
                 if target.exists():
                     prog.modules_present.append(rel)
                 else:
                     prog.modules_missing.append(rel)
             out.append(prog)
+        out.extend(self._extra_progress(declared))
+        return out
+
+    def _extra_progress(self, declared: dict[str, dict[str, Any]]) -> list[ChapterProgress]:
+        """磁盘上存在、但 ``docs/chapters.yaml`` 没声明的章节（当前只有 0.0 模板章）。
+
+        它们**不计入** 115 个可视化的总量，但必须出现在进度表里——否则"多出来的章节"
+        就会成为没人管的灰色地带。
+        """
+        out: list[ChapterProgress] = []
+        found = self._entries if self._loaded else self.discover(strict=False)
+        for cid, entry in sorted(found.items(), key=lambda kv: _chapter_sort_key(kv[0])):
+            if cid in declared:
+                continue
+            prog = ChapterProgress(
+                id=cid,
+                title=entry.manifest.title,
+                part=entry.manifest.part or "",
+                declared=False,
+                viz_declared=len(entry.manifest.viz_ids),
+                viz_implemented=sum(1 for vid in entry.manifest.viz_ids if self.viz_file(cid, vid).exists()),
+                has_module=True,
+                manifest_ok=True,
+            )
+            _fill_chapter_docs(self, cid, prog)
+            out.append(prog)
         return out
 
     def summary(self) -> dict[str, Any]:
         """全项目进度汇总（``tools/gen_progress.py`` 与 CI 用）。"""
         prog = self.progress()
-        total_viz = sum(p.viz_declared for p in prog)
-        done_viz = sum(min(p.viz_implemented, p.viz_declared) for p in prog)
+        declared = [p for p in prog if p.declared]
+        extra = [p for p in prog if not p.declared]
+        total_viz = sum(p.viz_declared for p in declared)
+        done_viz = sum(min(p.viz_implemented, p.viz_declared) for p in declared)
+        extra_viz = sum(p.viz_declared for p in extra)
+        extra_done = sum(min(p.viz_implemented, p.viz_declared) for p in extra)
         return {
-            "chapters_declared": len(prog),
-            "chapters_complete": sum(1 for p in prog if p.complete),
+            "chapters_declared": len(declared),
+            "chapters_complete": sum(1 for p in declared if p.complete),
             "vizzes_declared": total_viz,
             "vizzes_implemented": done_viz,
+            "chapters_extra": len(extra),
+            "vizzes_extra": extra_viz,
+            "vizzes_extra_implemented": extra_done,
+            "vizzes_total": total_viz + extra_viz,
             "chapters": [p.to_json() for p in prog],
         }
+
+
+def _fill_chapter_docs(reg: "Registry", cid: str, prog: ChapterProgress) -> None:
+    """填"章内文档"三个字段：测试目录 / 笔记 / 防误导分析 / 断言声明。"""
+    prog.has_tests = reg.tests_dir(cid).is_dir() and any(reg.tests_dir(cid).glob("test_*.py"))
+    prog.has_notes = reg.notes_file(cid).exists()
+    doc = reg.pitfalls_file(cid)
+    if doc.exists():
+        text = doc.read_text(encoding="utf-8").strip()
+        prog.pitfall_chars = len(text)
+        prog.has_pitfalls = len(text) >= MIN_PITFALL_DOC_CHARS
+    prog.has_asserts_decl = reg.asserts_decl_file(cid).exists()
 
 
 def _chapter_sort_key(cid: str) -> tuple[int, int]:

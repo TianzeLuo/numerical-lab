@@ -1,0 +1,59 @@
+# 0.0 章断言清单（真源：`tests/0.0/test_smoke.py`）
+#
+# 用途：`tools/run_asserts.py` 用它做"声明 vs 实测"的对账——
+# 少测一条、把某条断言降级成普通 assert、或者悄悄删掉一类断言，都会被 G4 门抓住。
+# 新章节照抄这个结构：`tests:` 里逐条列出测试函数，`min_counts` 给下限。
+chapter: "0.0"
+title: 管线自检（模板章）
+required_kinds: [A, B, C]
+
+min_counts:
+  A: 4
+  B: 4
+  C: 2
+
+tests:
+  - name: test_ftcs_spatial_order_is_two
+    kind: A
+    what: FTCS 空间收敛阶 = 2 ± 0.1
+    theory: 空间二阶中心差分
+  - name: test_oscillator_residual_scales_as_h_squared
+    kind: A
+    what: 中心差分残差随 h 以二阶缩小（窗口用 head= 截掉舍入地板）
+    theory: O(h²)
+  - name: test_underdamped_envelope_matches_theory
+    kind: A
+    what: 解析解的极值点落在理论包络 e^{-ζωt} 上
+    theory: 包络 = e^{-ζωt}
+  - name: test_critical_damping_is_the_limit_of_underdamped
+    kind: A
+    what: ζ→1⁻ 的欠阻尼解逐点收敛到临界阻尼解
+    theory: 临界阻尼是欠阻尼的极限
+  - name: test_energy_conserved_without_damping
+    kind: B
+    what: ζ=0 时比能量在 4001 步上不漂移
+    theory: 漂移 ≤ 机器精度界
+  - name: test_discrete_maximum_principle
+    kind: B
+    what: r=0.4（稳定区）时三角帽初值的 max|u| 不增
+    theory: 离散极值原理
+  - name: test_heat_boundary_and_initial_conditions
+    kind: B
+    what: 齐次 Dirichlet 边界与初值被逐点保持
+    theory: 边界/初值条件
+  - name: test_heat_solution_stays_symmetric
+    kind: B
+    what: 单模态解关于 x=1/2 的对称性在每一步保持
+    theory: 对称性
+  - name: test_ftcs_stability_threshold_measured
+    kind: C
+    what: 二分实测 FTCS 稳定阈值（nx=21）
+    theory: 1/(2sin²(θmax/2)) = 0.503097…
+  - name: test_ftcs_threshold_converges_to_continuum_limit
+    kind: A
+    what: 实测阈值与 1/2 的偏差按 O(Δx²) 缩小
+    theory: 收敛到连续极限 1/2
+  - name: test_analytic_and_measured_stability_agree
+    kind: C
+    what: 阈值两侧各取 3 点，解析判据与实测判据逐点一致
+    theory: 解析 ⟺ 实测

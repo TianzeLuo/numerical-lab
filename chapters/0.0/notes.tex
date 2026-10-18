@@ -1,0 +1,235 @@
+% 0.0 章 · 管线自检（模板章）
+% 这是"每章笔记应当长什么样"的样板：定理有完整证明、每个结论都能被机器验证、
+% 断言附表由 tools/build_book.py 从实际运行结果生成（\input 进来，不手抄）。
+
+\numlabchapter{管线自检：用一个振子和一根杆子把流水线跑通}{0.0}
+
+\section{这一章为什么存在}
+
+这一章不是教学内容，它是整条流水线的\textbf{活体样本}：数值内核 $\to$ 参数契约 $\to$ 帧
+$\to$ 前端场景 $\to$ 三类断言 $\to$ 视觉回归 $\to$ 笔记。本书其余 27 章都按同一套骨架长大，
+所以这里把骨架上的每一颗螺丝都拧出来给你看。
+
+两个例子都刻意选了\textbf{有闭式解}的问题，只有这样"解析对拍"才有真值可比；
+而它们的陷阱又不是人造的：都在实践中反复骗过人。
+
+\section{阻尼振子：三种阻尼分支}
+
+\subsection{方程与解}
+
+考虑
+\begin{equation}
+  x''(t) + 2\zeta\omega\,x'(t) + \omega^2 x(t) = 0,\qquad x(0)=x_0,\quad x'(0)=v_0,
+  \label{eq:osc}
+\end{equation}
+其中 $\omega>0$ 是固有频率、$\zeta\ge 0$ 是阻尼比。
+
+\begin{theorem}[三种阻尼分支]
+\label{thm:branches}
+设 $\lambda_\pm = \omega\bigl(-\zeta \pm \sqrt{\zeta^2-1}\bigr)$，则 \eqref{eq:osc} 的解按 $\zeta$ 分三支：
+\begin{align}
+  \zeta<1:\quad & x(t) = e^{-\zeta\omega t}\Bigl(x_0\cos\omega_d t
+      + \frac{v_0+\zeta\omega x_0}{\omega_d}\sin\omega_d t\Bigr),
+      \qquad \omega_d = \omega\sqrt{1-\zeta^2};\\
+  \zeta=1:\quad & x(t) = e^{-\omega t}\bigl(x_0 + (v_0+\omega x_0)\,t\bigr);\\
+  \zeta>1:\quad & x(t) = \frac{(v_0-\lambda_- x_0)e^{\lambda_+ t}
+      - (v_0-\lambda_+ x_0)e^{\lambda_- t}}{\lambda_+-\lambda_-}.
+\end{align}
+\end{theorem}
+
+\begin{proof}
+\eqref{eq:osc} 是常系数线性方程，代入试探解 $x=e^{\lambda t}$ 得特征方程
+$\lambda^2+2\zeta\omega\lambda+\omega^2=0$，其根为 $\lambda_\pm$。
+
+\emph{欠阻尼}（$\zeta<1$）：$\lambda_\pm=-\zeta\omega\pm i\omega_d$，通解为
+$x=e^{-\zeta\omega t}(A\cos\omega_d t+B\sin\omega_d t)$。代入 $x(0)=x_0$ 得 $A=x_0$；
+求导并在 $t=0$ 取值得 $v_0=-\zeta\omega A+\omega_d B$，故 $B=(v_0+\zeta\omega x_0)/\omega_d$。
+
+\emph{临界阻尼}（$\zeta=1$）：特征方程有重根 $\lambda=-\omega$，通解为 $x=(A+Bt)e^{-\omega t}$。
+同样代入初值即得。
+
+\emph{过阻尼}（$\zeta>1$）：两根均为负实数且互异，通解 $x=Ae^{\lambda_+t}+Be^{\lambda_-t}$。
+由 $x(0)=x_0$ 与 $x'(0)=v_0$ 解二元一次方程组得
+$A=(v_0-\lambda_-x_0)/(\lambda_+-\lambda_-)$，$B=-(v_0-\lambda_+x_0)/(\lambda_+-\lambda_-)$。
+\end{proof}
+
+\begin{corollary}[临界阻尼是欠阻尼的极限]
+$\lim_{\zeta\to1^-} x_{\text{欠}}(t;\zeta) = x_{\text{临界}}(t)$，且对固定 $t$ 收敛速率是 $O(1-\zeta)$。
+\end{corollary}
+
+\begin{proof}
+记 $\varepsilon=1-\zeta>0$，则 $\omega_d=\omega\sqrt{2\varepsilon-\varepsilon^2}=\omega\sqrt{2\varepsilon}(1+O(\varepsilon))$。
+把 $\cos\omega_d t=1+O(\varepsilon)$、$\sin\omega_d t=\omega_d t\,(1+O(\varepsilon))$ 与
+$e^{-\zeta\omega t}=e^{-\omega t}(1+O(\varepsilon))$ 代入定理 \ref{thm:branches} 的欠阻尼分支，
+两项分别收敛到 $x_0e^{-\omega t}$ 与 $(v_0+\omega x_0)t\,e^{-\omega t}$，相加即临界阻尼解。
+截断误差的 $O(\varepsilon)$ 常数只依赖 $\omega t$。
+\end{proof}
+
+\begin{remark}[$\zeta$ 的临界值]
+$\zeta=1$ 是\textbf{唯一}的临界值：它不改变解的光滑性，但改变"是否穿过平衡位置"这一拓扑性质。
+可视化里把它作为参数 $\zeta$ 的临界值显式标出（规则 6），越过后图上会出现"零次穿越"。
+\end{remark}
+
+\subsection{能量：$\zeta=0$ 时严格守恒}
+
+\begin{theorem}[能量单调性]
+\label{thm:energy}
+比能量 $E(t)=\tfrac12\bigl(x'^2+\omega^2x^2\bigr)$ 满足
+$\dfrac{dE}{dt}=-2\zeta\omega\,x'^2\le 0$，等号当且仅当 $\zeta=0$ 或 $x'\equiv0$。
+\end{theorem}
+
+\begin{proof}
+$\dot E=x'x''+\omega^2xx'=x'(x''+\omega^2x)=-2\zeta\omega x'^2$，最后一步用了 \eqref{eq:osc}。
+\end{proof}
+
+定理 \ref{thm:energy} 给出了 B 类断言的\textbf{解析}依据：$\zeta=0$ 时 $E$ 必须是常数。
+但注意"解析守恒"与"数值守恒"是两件事——B 类断言检的是后者，容差用机器精度界
+$8nu\max|E|$，而不是想当然的 $10^{-12}$。
+
+\subsection{残差：一个可以"量出来"的自洽性检查}
+
+\begin{theorem}[中心差分残差的阶]
+\label{thm:residual}
+设 $x\in C^4$，用中心差分
+$x''(t)\approx \bigl[x(t+h)-2x(t)+x(t-h)\bigr]/h^2$ 计算二阶导数，
+则残差 $R_h(t)=\bigl|x''_h(t)+2\zeta\omega x'(t)+\omega^2x(t)\bigr|$ 满足
+\[
+  R_h(t)=\frac{h^2}{12}\bigl|x''''(t)\bigr|+O(h^4).
+\]
+\end{theorem}
+
+\begin{proof}
+Taylor 展开 $x(t\pm h)=x\pm hx'+\tfrac{h^2}{2}x''\pm\tfrac{h^3}{6}x'''+\tfrac{h^4}{24}x''''+O(h^5)$，
+相加得 $x(t+h)-2x(t)+x(t-h)=h^2x''+\tfrac{h^4}{12}x''''+O(h^6)$，除以 $h^2$ 得
+$x''_h=x''+\tfrac{h^2}{12}x''''+O(h^4)$。代入 \eqref{eq:osc} 消去 $x''$ 即得。
+\end{proof}
+
+于是"残差 $\sim h^2$"是一个\textbf{可测}的 A 类断言。实践中的坑在窗口选择：
+$h\lesssim10^{-3}$ 以后 \eqref{eq:osc} 里两个 $O(1)$ 项相减的舍入误差会盖过 $h^2$ 项，
+实测 $R_h/h^2$ 开始漂移。本项目的做法是用 \texttt{fit\_order(..., head=k)} 只保留粗网格端
+（\texttt{tail=} 保留的是\textbf{细}端，恰好保留被污染的点——这个方向当年在文档与实现之间
+打架过，测试把它钉住了）。
+
+\section{一维热传导：稳定性阈值必须实测}
+
+\subsection{格式与截断误差}
+
+齐次 Dirichlet 问题 $u_t=\alpha u_{xx}$，$u(0,t)=u(1,t)=0$，$u(x,0)=\sin(k\pi x)$
+的精确解是 $u(x,t)=\sin(k\pi x)e^{-\alpha k^2\pi^2 t}$。
+FTCS（时间前向、空间中心）格式为
+\begin{equation}
+  U_j^{n+1}=U_j^n+r\bigl(U_{j+1}^n-2U_j^n+U_{j-1}^n\bigr),\qquad
+  r=\frac{\alpha\Delta t}{\Delta x^2}.
+  \label{eq:ftcs}
+\end{equation}
+
+\begin{theorem}[截断误差]
+\label{thm:trunc}
+\eqref{eq:ftcs} 的局部截断误差为 $\tfrac{\Delta t}{2}u_{tt}-\tfrac{\alpha\Delta x^2}{12}u_{xxxx}+O(\Delta t^2+\Delta x^4)$。
+因此若取 $\Delta t=r\Delta x^2/\alpha$（$r$ 固定），全局误差为 $O(\Delta x^2)$。
+\end{theorem}
+
+\begin{proof}
+在 $(x_j,t_n)$ 处展开：时间前向差 $\frac{u^{n+1}-u^n}{\Delta t}=u_t+\frac{\Delta t}{2}u_{tt}+O(\Delta t^2)$；
+空间中心差 $\frac{u_{j+1}-2u_j+u_{j-1}}{\Delta x^2}=u_{xx}+\frac{\Delta x^2}{12}u_{xxxx}+O(\Delta x^4)$。
+两式相减并利用 $u_t=\alpha u_{xx}$，舍入到格式的离散方程即得局部截断误差。
+$\Delta t=O(\Delta x^2)$ 时 $\frac{\Delta t}{2}u_{tt}=O(\Delta x^2)$，故全局 $O(\Delta x^2)$。
+\end{proof}
+
+定理 \ref{thm:trunc} 正是 A 类断言"FTCS 空间收敛阶 $=2\pm0.1$"的理论依据，
+也说明了为什么\textbf{不能}固定 $\Delta t$ 只加密 $\Delta x$——那样测出来的阶会滑向 1。
+
+\subsection{稳定性：von Neumann 分析与有限网格阈值}
+
+\begin{theorem}[放大因子与连续极限阈值]
+\label{thm:stability}
+把 $U_j^n=g^n e^{ik\pi j\Delta x}$ 代入 \eqref{eq:ftcs} 得放大因子
+\[
+  g_k = 1-4r\sin^2\!\Bigl(\frac{k\pi\Delta x}{2}\Bigr).
+\]
+网格上可分辨的模态是 $k=1,\dots,n_x-2$（两端固定，内部 $n_x-2$ 个未知量）。
+记 $\theta_{\max}=\frac{(n_x-2)\pi}{n_x-1}$，则
+\[
+  \max_{1\le k\le n_x-2}|g_k|\le 1
+  \iff r\le r^*(n_x):=\frac{1}{2\sin^2(\theta_{\max}/2)} ,
+\]
+且 $r^*(n_x)=\tfrac12+O(\Delta x^2)\to\tfrac12$。
+\end{theorem}
+
+\begin{proof}
+代入得 $g_k=1-4r\sin^2(k\pi\Delta x/2)$。$|g_k|\le1\iff 0\le4r\sin^2(\cdot)\le2$，
+即 $r\le 1/(2\sin^2(k\pi\Delta x/2))$。右端在 $k=n_x-2$ 处取最小（$\sin^2$ 在 $(0,\pi/2]$ 上单调增），
+故阈值由最高可分辨模态决定。又
+$\sin^2\frac{\theta_{\max}}2=\sin^2\!\bigl(\frac\pi2-\frac{\pi}{2(n_x-1)}\bigr)
+=\cos^2\frac{\pi}{2(n_x-1)}=1-\frac{\pi^2}{4(n_x-1)^2}+O(n_x^{-4})$，
+故 $r^*(n_x)=\tfrac12\bigl(1+\frac{\pi^2}{4(n_x-1)^2}+O(n_x^{-4})\bigr)=\tfrac12+O(\Delta x^2)$。
+\end{proof}
+
+\begin{corollary}[连续判据是"极限"，不是"实测值"]
+$n_x=21$ 时 $r^*=0.503097\ldots$：存在一小段 $\tfrac12<r<r^*(n_x)$ 在这个网格上\textbf{确实}稳定，
+因为让格式发散的那个"每格反号"的模态 $\theta=\pi$ 在网格上根本表示不出来。
+所以 C 类断言必须拿\textbf{实测}阈值与 $r^*(n_x)$ 比，而不能直接与 $\tfrac12$ 比——
+后者只在 $n_x\to\infty$ 时才对。
+\end{corollary}
+
+\begin{remark}[用最低模态测稳定性是假阴性]
+初始条件 $\sin(\pi x)$ 只激发 $k=1$ 一个模态，而
+$|g_1|=1-4r\sin^2\!\bigl(\frac{\pi}{2(n_x-1)}\bigr)\approx1-\frac{\pi^2r}{(n_x-1)^2}<1$
+对任何合理 $r$ 都成立。于是无论 $r$ 取多大，单模态实验都会"稳定"下去——
+这是数值实验里最常见的一种自欺。本项目因此用\textbf{固定种子的随机扰动}做归一化幂迭代，
+测的是一步算子的谱半径 $|\lambda|_{\max}$，并迭代到收敛（阈值附近 $|\lambda_1|$ 与
+$|\lambda_2|$ 只差 $10^{-7}$ 量级，固定步数分辨不出来：实测 300 步时总增长比只有 $0.078$，
+看起来像稳定）。
+\end{remark}
+
+\section{三类断言：本章实际测了什么}
+
+\begin{itemize}
+  \item \textbf{A 类（解析对拍）}：FTCS 空间收敛阶 $=2\pm0.1$；残差随 $h$ 的二阶缩小；
+        极值点落在包络 $e^{-\zeta\omega t}$ 上；$\zeta\to1^-$ 收敛到临界阻尼解。
+  \item \textbf{B 类（不变量）}：$\zeta=0$ 时比能量不漂移（容差 $8nu\max|E|$）；
+        稳定区里离散极值原理 $\max_j|U_j^{n+1}|\le\max_j|U_j^n|$ 成立；
+        齐次边界与初值被逐点保持；单模态解关于 $x=\tfrac12$ 的对称性保持。
+  \item \textbf{C 类（阈值/收敛率）}：二分实测 $r^*$（幂迭代判据）并与 $r^*(n_x)$ 比对；
+        实测阈值与 $\tfrac12$ 的偏差按 $O(\Delta x^2)$ 收敛；阈值两侧解析判据与实测判据逐点一致。
+\end{itemize}
+
+\begin{table}[htbp]
+\centering
+\caption{本章关键量（机器生成，见附表）}
+\begin{tabular}{@{}lll@{}}
+\toprule
+量 & 理论值 & 实测 \\
+\midrule
+$r^*(21)$ & $0.5030970$ & 二分实测（±0.05\%）\\
+残差阶 & 2 & 拟合（head=4）\\
+能量漂移 & $\le 8nu\max|E|$ & $1.1\times10^{-16}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\input{chapters/0.0/asserts_table}
+
+\section{它会怎样骗你（本章版）}
+
+\begin{enumerate}
+  \item \textbf{自适应纵轴}：过阻尼曲线看起来和欠阻尼一样"陡"，因为你看到的只是衰减尾巴被拉满。
+        凡是要判断"是否发散"的图，纵轴必须固定；本项目的每个可视化都要显式声明
+        \texttt{axes[].autoscaled}（规则 1/4）。
+  \item \textbf{对数误差轴}：$10^{-16}$ 与 $10^{-3}$ 画出来一样深，必须同时读数量级，
+        否则会把"稳定"读成"精确"。
+  \item \textbf{单模态测稳定性}：见注 3——这是最像"实验成功"的假阴性。
+  \item \textbf{请求时刻 ≠ 到达时刻}：显式格式只能整步推进，请求 $t$ 时实际到达
+        $n\Delta t$，图上要用 \texttt{meta.t\_actual} 标出来（相差至多一个 $\Delta t$）。
+  \item \textbf{NaN 连线}：发散后出现 NaN 时若把两侧点直线连起来，会凭空造出一段解。
+        本项目的渲染层约定 NaN 处断线。
+\end{enumerate}
+
+\section{复现}
+
+\begin{verbatim}
+pytest tests/0.0 -q                    # A/B/C 三类断言
+python3 tools/run_asserts.py           # 生成断言报告与章末附表
+python3 tools/gen_manifests.py --check # manifest 与真源无漂移
+make ci                                # 十道门禁全跑
+\end{verbatim}

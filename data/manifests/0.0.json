@@ -1,0 +1,152 @@
+{
+  "chapter": "0.0",
+  "summary": "用两个有闭式解的问题跑通「数值内核 → 帧 → 场景 → 三类断言 → 视觉基线」全链路。",
+  "title": "管线自检（模板章）",
+  "vizzes": [
+    {
+      "axes": [
+        {
+          "autoscaled": false,
+          "id": "main",
+          "title": "x(t)",
+          "ylabel": "位移 x"
+        },
+        {
+          "autoscaled": true,
+          "id": "error",
+          "scale": "log",
+          "title": "ODE 残差",
+          "ylabel": "|x''+2ζωx'+ω²x|"
+        }
+      ],
+      "dataSource": "backend",
+      "description": "ζ<1 振荡衰减、ζ=1 临界、ζ>1 过阻尼；副轴给出解析解代回原方程的残差。",
+      "id": "oscillator_regimes",
+      "params": [
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": 1.0,
+          "label": "固有频率 ω",
+          "max": 5.0,
+          "min": 0.1,
+          "name": "omega",
+          "step": 0.1,
+          "type": "float"
+        },
+        {
+          "critical": [
+            1.0
+          ],
+          "criticalNote": "ζ=1 是临界阻尼：ζ<1 会穿过平衡位置，ζ≥1 不再穿过；ζ=0 时能量才严格守恒。",
+          "default": 0.05,
+          "label": "阻尼比 ζ",
+          "max": 2.0,
+          "min": 0.0,
+          "name": "zeta",
+          "step": 0.01,
+          "type": "float"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": 3,
+          "label": "显示周期数",
+          "max": 20,
+          "min": 1,
+          "name": "n_periods",
+          "type": "int"
+        }
+      ],
+      "pitfalls": "把纵轴设成自适应时，过阻尼曲线看起来和欠阻尼一样「陡」——因为看到的只是衰减尾巴被拉满；另外 ζ=0 时能量守恒只是「解析解的性质」，任何数值积分都会缓慢漂移，别把这两件事混为一谈。",
+      "requiredAux": [
+        "residual"
+      ],
+      "theory": [
+        "x'' + 2ζω x' + ω² x = 0 的特征根 λ± = ω(−ζ ± √(ζ²−1))",
+        "欠阻尼频率 ω_d = ω√(1−ζ²)，包络按 e^{−ζωt} 衰减",
+        "残差的期望量级由中心差分截断误差决定：O(h²·x'''')，h=1e-5 时约 1e-10"
+      ],
+      "time": {
+        "dt": 0.05,
+        "fps": 30,
+        "label": "t",
+        "mode": "stream",
+        "tMax": 20.0
+      },
+      "title": "阻尼振子：三种阻尼分支与残差"
+    },
+    {
+      "axes": [
+        {
+          "autoscaled": false,
+          "id": "main",
+          "title": "u(x,t)",
+          "ylabel": "温度 u"
+        },
+        {
+          "autoscaled": true,
+          "id": "error",
+          "scale": "log",
+          "title": "误差 u−u_exact",
+          "ylabel": "|误差|"
+        }
+      ],
+      "dataSource": "backend",
+      "description": "FTCS（时间前向、空间中心）解 u_t = αu_xx；副轴给出与精确解的差。",
+      "id": "heat_ftcs",
+      "params": [
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": 41,
+          "label": "空间网格 nx",
+          "max": 201,
+          "min": 11,
+          "name": "nx",
+          "type": "int"
+        },
+        {
+          "critical": [
+            0.5
+          ],
+          "criticalNote": "FTCS 的放大因子 g=1−4r sin²(kπΔx/2)，|g|≤1 对全部模态成立当且仅当 r ≤ 1/2。",
+          "default": 0.4,
+          "label": "网格比 r = αΔt/Δx²",
+          "max": 0.7,
+          "min": 0.05,
+          "name": "r",
+          "step": 0.01,
+          "type": "float"
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": 0.05,
+          "label": "终止时刻 t",
+          "max": 0.2,
+          "min": 0.005,
+          "name": "t_end",
+          "step": 0.005,
+          "type": "float"
+        }
+      ],
+      "pitfalls": "r 略大于 1/2 时图在前几十步看起来完全正常，随后突然炸成锯齿——这是「离散不稳定」的典型伪装；误差副轴用对数刻度，会让「误差已经很小」和「误差还很大」看起来差不多，必须同时读数量级。另外请求时刻 t 与实际到达时刻相差至多一个 Δt（meta.t_actual 给出真实值），别把它当成时钟。",
+      "requiredAux": [
+        "error"
+      ],
+      "theory": [
+        "FTCS 截断误差：空间 O(Δx²)、时间 O(Δt)，故总误差在 Δt = rΔx²/α 下以 O(Δx²) 收敛",
+        "放大因子 g(θ) = 1 − 4r sin²(θ/2)，稳定性要求 max|g| ≤ 1 ⟺ r ≤ 1/2",
+        "精确解 u(x,t) = sin(kπx)e^{−αk²π²t}（齐次 Dirichlet 边界）"
+      ],
+      "time": {
+        "dt": 0.005,
+        "label": "t",
+        "mode": "scrub",
+        "tMax": 0.2
+      },
+      "title": "一维热传导：显式格式与稳定阈值"
+    }
+  ]
+}

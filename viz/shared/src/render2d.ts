@@ -295,7 +295,16 @@ function drawHeatLayer(c: Ctx, axis: Axis, layer: Extract<Layer, { kind: "heat" 
       off.ctx.putImageData(new ImageData(Uint8ClampedArray.from(rgba), layer.nx, layer.ny), 0, 0);
       const prev = ctx.imageSmoothingEnabled;
       ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(off.canvas, Math.min(x0, x1), Math.min(y0, y1), dx, dy);
+      // **纵向翻转**：`values` 的第 0 行对应 extent[2]（慢路径用 dataToPixel 把 j=0 画在底部），
+      // 而 drawImage 把图像第 0 行放在矩形**顶部**。不翻就会上下颠倒——慢路径与快路径
+      // 对同一份数据画出两张镜像图（光栅器 D 在 `tools/raster.py` 里复现过这一点）。
+      const left = Math.min(x0, x1);
+      const top = Math.min(y0, y1);
+      ctx.save();
+      ctx.translate(left, top + dy);
+      ctx.scale(1, -1);
+      ctx.drawImage(off.canvas, 0, 0, dx, dy);
+      ctx.restore();
       ctx.imageSmoothingEnabled = prev;
       return;
     }

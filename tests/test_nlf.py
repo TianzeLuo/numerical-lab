@@ -318,3 +318,35 @@ def test_fixture_generator_is_idempotent() -> None:
     from tools.gen_fixtures import build
 
     assert build(check=True) == 0
+
+
+# --------------------------------------------------------------------------- #
+# meta 只允许 number/bool/null —— 这条是"被前端抓出来的"契约
+# --------------------------------------------------------------------------- #
+def test_set_meta_rejects_string_and_points_at_strings() -> None:
+    fr = Frame(chapter="0.0", viz="v", kind="frame")
+    fr.add("x", np.zeros(3))
+    with pytest.raises(NlfError, match="set_strings"):
+        fr.set_meta(regime="underdamped")
+    fr.set_strings(regime="underdamped")
+    assert fr.strings["regime"] == "underdamped"
+
+
+def test_validate_catches_injected_string_meta() -> None:
+    """绕过 set_meta 直接塞字符串，validate()/pack_frame() 也必须拦住。"""
+    fr = Frame(chapter="0.0", viz="v", kind="frame")
+    fr.add("x", np.zeros(3))
+    fr.meta["regime"] = "underdamped"
+    with pytest.raises(NlfError, match="strings"):
+        fr.validate()
+    with pytest.raises(NlfError, match="strings"):
+        pack_frame(fr)
+
+
+def test_meta_types_roundtrip() -> None:
+    fr = Frame(chapter="0.0", viz="v", kind="frame")
+    fr.add("x", np.zeros(3))
+    fr.set_meta(n=3, ok=True, missing=None, r=0.5)
+    back = unpack_frame(pack_frame(fr))
+    assert back.meta == {"n": 3, "ok": True, "missing": None, "r": 0.5}
+    back.validate()

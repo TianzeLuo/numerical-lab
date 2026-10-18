@@ -28,6 +28,8 @@ chapters/**/*.toc
 chapters/**/*.fls
 chapters/**/*.fdb_latexmk
 chapters/**/*.synctex.gz
+# L3 静态帧：可随时用 `make precompute` 重新生成（视觉基线 PNG 才是契约，已入库）
+data/frames/
 data/precomputed/**/*.nlf
 data/precomputed/**/index.json
 *.nlf.gz

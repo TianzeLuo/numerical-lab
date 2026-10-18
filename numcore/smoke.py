@@ -231,9 +231,22 @@ def ftcs_growth(
 
 
 def heat_exact_sine(x: Any, t: float, alpha: float = 1.0, k: int = 1) -> np.ndarray:
-    """``u_t = αu_xx``、``u(0)=u(1)=0``、``u(x,0)=sin(kπx)`` 的精确解。"""
+    """``u_t = αu_xx``、``u(0)=u(1)=0``、``u(x,0)=sin(kπx)`` 的精确解。
+
+    两端点**显式置零**：边界条件是 ``u(0,t)=u(1,t)=0``，这是精确成立的，
+    而 ``sin(kπ)`` 在 IEEE 双精度下给 ``1.2e-16``（不是 0）。留着这点浮点残渣，
+    误差场就会凭空多出 12 个数量级的"误差"（实测把对数误差轴从 ``1e-8…1e-3``
+    拉到 ``1e-20…1``，中段结构全被压扁），而它跟数值格式毫无关系。
+    前端的模型层发现并报告了这一点（`viz/chapters/0.0/heat_ftcs.model.ts` 的作者）。
+    """
     arr = np.asarray(x, dtype=float)
-    return np.sin(k * np.pi * arr) * float(np.exp(-alpha * (k * np.pi) ** 2 * t))
+    u = np.sin(k * np.pi * arr) * float(np.exp(-alpha * (k * np.pi) ** 2 * t))
+    if arr.size >= 2:
+        if abs(arr[0]) < 1e-12:
+            u[0] = 0.0
+        if abs(arr[-1] - 1.0) < 1e-12:
+            u[-1] = 0.0
+    return u
 
 
 def initial_profile(x: Any, kind: str = "sine", k: int = 1) -> np.ndarray:
@@ -246,6 +259,34 @@ def initial_profile(x: Any, kind: str = "sine", k: int = 1) -> np.ndarray:
     raise ValueError(f"未知初值类型 {kind!r}（可用 sine / hat）")
 
 
+def ftcs_step(u: Any, r: float) -> np.ndarray:
+    """**一步** FTCS：``u_j ← u_j + r(u_{j+1} - 2u_j + u_{j-1})``，两端 Dirichlet 置零。
+
+    单独暴露一步是给"逐点对拍"用的：TS 侧有同名的 ``ftcsStep``（``viz/shared/src/numeric/heat.ts``），
+    G7 的双实现对拍要能一对一映射。没有它的时候，对拍只能拿
+    ``t_end = n_steps·Δt`` 反算步数——那是在依赖 ``ceil`` 的巧合，不是契约。
+    """
+    arr = np.asarray(u, dtype=float)
+    out = arr.copy()
+    if arr.size >= 3:
+        interior = slice(1, -1)
+        out[interior] = arr[interior] + r * (arr[2:] - 2.0 * arr[interior] + arr[:-2])
+    if arr.size >= 2:
+        out[0] = 0.0
+        out[-1] = 0.0
+    return out
+
+
+def ftcs_run(u0: Any, r: float, n_steps: int) -> np.ndarray:
+    """从 ``u0`` 走 ``n_steps`` 步 FTCS（每步都重新施加边界条件）。"""
+    if n_steps < 0:
+        raise ValueError(f"n_steps 不能为负，得到 {n_steps}")
+    u = np.asarray(u0, dtype=float).copy()
+    for _ in range(int(n_steps)):
+        u = ftcs_step(u, r)
+    return u
+
+
 def heat_ftcs(
     nx: int = 41,
     alpha: float = 1.0,
@@ -254,11 +295,13 @@ def heat_ftcs(
     k: int = 1,
     *,
     initial: str = "sine",
+    n_steps: int | None = None,
 ) -> HeatRun:
     """显式 FTCS 解一维热传导（自研，仅用切片与 ufunc）。
 
     步长由 ``r = αΔt/Δx²`` 反解：``Δt = r Δx² / α``；
-    ``n_steps = ceil(t_end / Δt)``（最后一拍可能略过 ``t_end``）。
+    步数缺省 ``ceil(t_end / Δt)``（最后一拍可能略过 ``t_end``），
+    也可以用 ``n_steps=`` 直接钉死——对拍/复现都靠它，免得依赖 ``ceil`` 的巧合。
     """
     if nx < 5:
         raise ValueError(f"nx 至少 5，得到 {nx}")
@@ -268,14 +311,12 @@ def heat_ftcs(
         raise ValueError(f"r 必须为正，得到 {r}")
     dx = 1.0 / (nx - 1)
     dt = r * dx * dx / alpha
-    n_steps = max(1, int(np.ceil(t_end / dt)))
+    if n_steps is None:
+        n_steps = max(1, int(np.ceil(t_end / dt)))
+    elif n_steps < 0:
+        raise ValueError(f"n_steps 不能为负，得到 {n_steps}")
     x = np.linspace(0.0, 1.0, nx)
-    u = initial_profile(x, initial, k)
-    interior = slice(1, -1)
-    for _ in range(n_steps):
-        u[interior] = u[interior] + r * (u[2:] - 2.0 * u[interior] + u[:-2])
-        u[0] = 0.0
-        u[-1] = 0.0
+    u = ftcs_run(initial_profile(x, initial, k), r, n_steps)
     t_final = n_steps * dt
     exact = heat_exact_sine(x, t_final, alpha=alpha, k=k)
     return HeatRun(

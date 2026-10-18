@@ -1,0 +1,192 @@
+{
+ "_generated": "本文件由 tools/parity.py --update-golden 生成（请勿手改）；case 定义见 tools/parity.py::CASE_SPECS",
+ "cases": [
+  {
+   "algo": "heat",
+   "golden": "tests/parity/golden/heat_explicit_step.json",
+   "name": "heat_explicit_step",
+   "note": "单步 FTCS（nx=41, r=0.4, u0=sin(πx)）：u_i' = u_i + r(u_{i+1} − 2u_i + u_{i−1})，两端固定 0",
+   "outputs": [
+    "u"
+   ],
+   "params": {
+    "initial": "sine",
+    "k": 1,
+    "n_steps": 1,
+    "nx": 41,
+    "op": "step",
+    "r": 0.4
+   },
+   "sha256": "0ed6a2bcb7d17ec513121562a69488e3b1117fd428ecf7a0095574e6c8d77445",
+   "tolerance": "heat_explicit_step"
+  },
+  {
+   "algo": "heat",
+   "golden": "tests/parity/golden/heat_ftcs_run.json",
+   "name": "heat_ftcs_run",
+   "note": "40 步之后的 u（同网格同 r）：检验误差是否会随步数累积出可见漂移",
+   "outputs": [
+    "u"
+   ],
+   "params": {
+    "initial": "sine",
+    "k": 1,
+    "n_steps": 40,
+    "nx": 41,
+    "op": "run",
+    "r": 0.4
+   },
+   "sha256": "e7542272d04c56845aa28c4e265551a2573ccd789bd1edccd3e29f905bfa82af",
+   "tolerance": "heat_ftcs_run"
+  },
+  {
+   "algo": "amplification",
+   "golden": "tests/parity/golden/ftcs_amplification_modes.json",
+   "name": "ftcs_amplification_modes",
+   "note": "nx=31、r=0.3 时 mode=1..8 的放大因子 g = 1 − 4r sin²(kπ/(2(nx−1)))",
+   "outputs": [
+    "g"
+   ],
+   "params": {
+    "modes": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7,
+     8
+    ],
+    "nx": 31,
+    "r": 0.3
+   },
+   "sha256": "12a64cf37329eb5ddac81d730fac3a2448099206ff26712dc749e753cec77b25",
+   "tolerance": "ftcs_amplification_modes"
+  },
+  {
+   "algo": "oscillator",
+   "golden": "tests/parity/golden/oscillator_sample.json",
+   "name": "oscillator_sample",
+   "note": "ω=1.3、ζ=0.05/1.0/1.5 三条分支在 t ∈ linspace(0,5,200) 上的 x、v 与比能量 E",
+   "outputs": [
+    "x_under",
+    "v_under",
+    "E_under",
+    "x_crit",
+    "v_crit",
+    "E_crit",
+    "x_over",
+    "v_over",
+    "E_over"
+   ],
+   "params": {
+    "branches": [
+     {
+      "tag": "under",
+      "zeta": 0.05
+     },
+     {
+      "tag": "crit",
+      "zeta": 1.0
+     },
+     {
+      "tag": "over",
+      "zeta": 1.5
+     }
+    ],
+    "omega": 1.3,
+    "t_spec": [
+     0.0,
+     5.0,
+     200
+    ],
+    "v0": 0.0,
+    "x0": 1.0
+   },
+   "sha256": "43c96bb7be29eebfed082eeb8d80ad2d5d4e7df7a75ae0869943433fd431290a",
+   "tolerance": "oscillator_sample"
+  },
+  {
+   "algo": "orderfit",
+   "golden": "tests/parity/golden/order_fit_powerlaw.json",
+   "name": "order_fit_powerlaw",
+   "note": "4 组人造幂律 + 1 组带舍入地板；比 slope / intercept / r2 / nUsed / nDropped",
+   "outputs": [
+    "slope_pure_p2",
+    "intercept_pure_p2",
+    "r2_pure_p2",
+    "nUsed_pure_p2",
+    "nDropped_pure_p2",
+    "slope_preasym_p2_skip3",
+    "intercept_preasym_p2_skip3",
+    "r2_preasym_p2_skip3",
+    "nUsed_preasym_p2_skip3",
+    "nDropped_preasym_p2_skip3",
+    "slope_p3_head7",
+    "intercept_p3_head7",
+    "r2_p3_head7",
+    "nUsed_p3_head7",
+    "nDropped_p3_head7",
+    "slope_p05_skip1_tail9",
+    "intercept_p05_skip1_tail9",
+    "r2_p05_skip1_tail9",
+    "nUsed_p05_skip1_tail9",
+    "nDropped_p05_skip1_tail9",
+    "slope_rounding_floor_head6",
+    "intercept_rounding_floor_head6",
+    "r2_rounding_floor_head6",
+    "nUsed_rounding_floor_head6",
+    "nDropped_rounding_floor_head6"
+   ],
+   "params": {
+    "groups": [
+     {
+      "n": 12,
+      "name": "pure_p2",
+      "note": "纯 p=2 幂律，全窗口",
+      "opts": {}
+     },
+     {
+      "n": 10,
+      "name": "preasym_p2_skip3",
+      "note": "p=2 主项 + O(h) 预渐近污染，丢前 3 点",
+      "opts": {
+       "skip": 3
+      }
+     },
+     {
+      "n": 12,
+      "name": "p3_head7",
+      "note": "纯 p=3，只保留最粗的 7 个点（head 保留粗网格端）",
+      "opts": {
+       "head": 7
+      }
+     },
+     {
+      "n": 14,
+      "name": "p05_skip1_tail9",
+      "note": "p=0.5，skip=1 + tail=9（tail 保留细网格端）",
+      "opts": {
+       "skip": 1,
+       "tail": 9
+      }
+     },
+     {
+      "n": 14,
+      "name": "rounding_floor_head6",
+      "note": "p=2 主项 + 1e-6 舍入地板，只保留粗端 6 点，否则斜率被地板拖低",
+      "opts": {
+       "head": 6
+      }
+     }
+    ]
+   },
+   "sha256": "a0b408c46b95ff5ca447a84e0bf8597e630bee8e54ef62b8acf46588180196b1",
+   "tolerance": "order_fit_powerlaw"
+  }
+ ],
+ "golden_dir": "tests/parity/golden",
+ "tolerance_file": "tests/parity/tolerances.yaml",
+ "version": 1
+}

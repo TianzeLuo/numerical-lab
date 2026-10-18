@@ -1,0 +1,19 @@
+{
+  "chapters": [
+    {
+      "chapter": "0.0",
+      "hasModule": true,
+      "nViz": 2,
+      "notesFile": "chapters/0.0/notes.tex",
+      "part": "",
+      "summary": "用两个有闭式解的问题跑通「数值内核 → 帧 → 场景 → 三类断言 → 视觉基线」全链路。",
+      "title": "管线自检（模板章）",
+      "vizzes": [
+        "oscillator_regimes",
+        "heat_ftcs"
+      ]
+    }
+  ],
+  "count": 1,
+  "totalViz": 2
+}
