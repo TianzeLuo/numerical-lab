@@ -56,7 +56,8 @@
             "smooth",
             "tensor",
             "kink",
-            "discontinuous"
+            "discontinuous",
+            "offset_box"
           ],
           "type": "enum"
         },
