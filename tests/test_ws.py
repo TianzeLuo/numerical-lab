@@ -14,6 +14,7 @@
 
 from __future__ import annotations
 
+import base64
 import concurrent.futures
 import dataclasses
 import json
@@ -92,6 +93,11 @@ class _EchoServer(socketserver.ThreadingTCPServer):
         with self._lock:
             self.errors.append((kind, getattr(exc, "code", 0), str(exc)))
 
+    def snapshot(self) -> list[tuple[str, int, str]]:
+        """错误清单的线程安全快照（断言线程与 handler 线程不同，必须走锁）。"""
+        with self._lock:
+            return list(self.errors)
+
 
 class _EchoHandler(socketserver.BaseRequestHandler):
     """握手 → 原样回显：文本回文本、JSON 对象走 json→json、二进制回二进制。"""
@@ -147,6 +153,7 @@ class _CannedHandshakeHandler(socketserver.BaseRequestHandler):
     mode = "bad_accept"
 
     def handle(self) -> None:  # noqa: D102 - socketserver 的回调
+        self.request.settimeout(_IO_TIMEOUT)  # 假服务也要有超时：别让 handler 线程悬着
         raw = b""
         while b"\r\n\r\n" not in raw:  # 读掉请求头
             chunk = self.request.recv(4096)
@@ -159,14 +166,27 @@ class _CannedHandshakeHandler(socketserver.BaseRequestHandler):
                 b"Sec-WebSocket-Version: 13\r\nContent-Length: 0\r\n\r\n"
             )
             return
-        # 101 响应：Accept 故意算错（用常量而不是按请求里的 key 计算）
+        # 按请求里的 Key 算出**正确**的 Accept：这样除 mode="bad_accept" 外，
+        # 唯一不合规的就只有我们要测的那一项（否则 Accept 先报错，测不到 Upgrade 检查）。
+        key = ""
+        for line in raw.decode("latin-1").split("\r\n")[1:]:
+            name, _, value = line.partition(":")
+            if name.strip().lower() == "sec-websocket-key":
+                key = value.strip()
+        accept = "wrong-on-purpose" if self.mode == "bad_accept" else accept_key(key)
         upgrade = b"" if self.mode == "missing_upgrade" else b"Upgrade: websocket\r\n"
+        protocol = (
+            b"Sec-WebSocket-Protocol: never-requested\r\n"
+            if self.mode == "unrequested_subprotocol"
+            else b""
+        )
         self.request.sendall(
             b"HTTP/1.1 101 Switching Protocols\r\n"
             + upgrade
             + b"Connection: Upgrade\r\n"
-            b"Sec-WebSocket-Accept: " + accept_key("not-the-client-key").encode("ascii") + b"\r\n"
-            b"Sec-WebSocket-Protocol: not-requested\r\n\r\n"
+            + f"Sec-WebSocket-Accept: {accept}\r\n".encode("ascii")
+            + protocol
+            + b"\r\n"
         )
 
 
@@ -175,9 +195,22 @@ def _url(srv: _EchoServer, path: str = "/ws/chapter/1.2") -> str:
     return f"ws://127.0.0.1:{srv.server_address[1]}{path}"
 
 
+def _recv_exact(sock: socket.socket, n: int) -> bytes:
+    """从裸 socket 读满 n 字节（服务端帧不掩码，测试里手工解析）。"""
+    buf = b""
+    while len(buf) < n:
+        chunk = sock.recv(n - len(buf))
+        if not chunk:
+            break
+        buf += chunk
+    return buf
+
+
 def _raw_handshake(srv: _EchoServer, request: bytes) -> str:
     """用裸 socket 发一个手工握手请求并读回**响应头**（不依赖自研客户端）。"""
-    with socket.create_connection(("127.0.0.1", srv.server_address[1]), timeout=_IO_TIMEOUT) as sock:
+    with socket.create_connection(
+        ("127.0.0.1", srv.server_address[1]), timeout=_IO_TIMEOUT
+    ) as sock:
         sock.sendall(request)
         buf = b""
         while b"\r\n\r\n" not in buf:
@@ -186,6 +219,29 @@ def _raw_handshake(srv: _EchoServer, request: bytes) -> str:
                 break
             buf += chunk
     return buf.decode("latin-1")
+
+
+def _wait_for_error(
+    srv: _EchoServer, code: int, *, kind: str | None = None, timeout: float = 3.0
+) -> list[tuple[str, int, str]]:
+    """等后台 handler 线程把 ``WsError(code)`` 记进 ``srv.errors``。
+
+    为什么要等：错误在 handler 线程里记录，而断言在主线程执行——客户端刚读到 close 帧时，
+    handler 可能还在 ``_linger_close`` 里排空对端残留字节，尚未 record。
+    同步方式是**轮询 + 截止时间**（不是固定 sleep）：等不到就返回现状，由断言报错。
+    """
+    deadline = time.monotonic() + timeout
+    while True:
+        errors = srv.snapshot()
+        hit = any(
+            got == code and (kind is None or got_kind == kind)
+            for got_kind, got, _m in errors
+        )
+        if hit:
+            return errors
+        if time.monotonic() >= deadline:
+            return errors
+        time.sleep(0.005)
 
 
 _GOOD_HANDSHAKE = (
@@ -201,12 +257,11 @@ _GOOD_HANDSHAKE = (
 
 
 def _handshake_request(
-    *, target: bytes = b"/ws/chapter/1.2", version: bytes | None = b"13", extra: bytes = b""
+    *, target: bytes = b"/ws/chapter/1.2", version: bytes = b"13", extra: bytes = b""
 ) -> bytes:
-    """拼一个握手请求；``version=None`` 表示整个版本头都不发。"""
-    version_line = b"" if version is None else version
+    """拼一个握手请求；``version=b""`` 表示该头存在但值为空（要删整行由调用方 replace）。"""
     return _GOOD_HANDSHAKE.replace(b"{target}", target).replace(
-        b"{version}", version_line
+        b"{version}", version
     ).replace(b"{extra}", extra)
 
 
@@ -274,9 +329,8 @@ def test_server_exposes_request_path_headers_and_subprotocol(
     headers = srv.seen["headers"]
     assert headers["x-nlab-test"] == "yes"
     assert headers["upgrade"].lower() == "websocket"
-    assert headers["sec-websocket-key"] == "dGhlIHNhbXBsZSBub25jZQ==" or len(
-        headers["sec-websocket-key"]
-    ) == 24
+    # 客户端每次用 os.urandom(16) 生成 Key：这里按 RFC 校验「16 字节随机数的 base64」
+    assert len(base64.b64decode(headers["sec-websocket-key"], validate=True)) == 16
 
 
 # --------------------------------------------------------------------- 2. echo
@@ -420,7 +474,7 @@ def test_fragmented_message_exceeding_limit_closes_1009(
         client.raw_send(_frame(0x0, blob * 2, fin=True))  # 5120 > 4096 → 1009
         assert client.recv() is None
         assert client.close_code == 1009
-    assert any(code == 1009 for _kind, code, _msg in srv.errors)
+    assert _wait_for_error(srv, 1009)
 
 
 # ------------------------------------------------------------ 5. 粘包 / 半包
@@ -494,7 +548,7 @@ def test_close_handshake_code_1000(ws_server: Callable[..., _EchoServer]) -> Non
     client.close(1000)  # 幂等：不抛异常、也不再发第二个 close 帧
     with pytest.raises(WsError):
         client.send_text("after-close")  # closed 之后禁止再发
-    assert srv.errors == []
+    assert srv.snapshot() == []  # 干净的 close 握手不该产生任何协议错误
 
 
 def test_client_initiated_custom_close_4001(ws_server: Callable[..., _EchoServer]) -> None:
@@ -505,7 +559,7 @@ def test_client_initiated_custom_close_4001(ws_server: Callable[..., _EchoServer
         assert client.closed
         assert client.close_code == 4001
         assert client.close_reason == "客户端自定义关闭"
-    assert srv.errors == []
+    assert srv.snapshot() == []  # 干净的 close 握手不该产生任何协议错误
 
 
 def test_server_initiated_custom_close_4001(ws_server: Callable[..., _EchoServer]) -> None:
@@ -516,7 +570,7 @@ def test_server_initiated_custom_close_4001(ws_server: Callable[..., _EchoServer
         assert client.recv() is None
         assert client.closed
         assert (client.close_code, client.close_reason) == (4001, "自定义关闭")
-    assert srv.errors == []
+    assert srv.snapshot() == []  # 干净的 close 握手不该产生任何协议错误
 
 
 def test_close_code_not_allowed_in_frame(ws_server: Callable[..., _EchoServer]) -> None:
@@ -561,8 +615,9 @@ def test_illegal_input_closes_with_expected_code(
         client.raw_send(blob)
         assert client.recv() is None, f"{name}: 连接应当被关闭"
         assert client.close_code == code, f"{name}: 期望 close {code}，收到 {client.close_code}"
-    assert any(code == got for _kind, got, _msg in srv.errors), (
-        f"{name}: 服务端应当记录 WsError(code={code})，实际 {srv.errors}"
+    errors = _wait_for_error(srv, code)
+    assert any(got == code for _kind, got, _msg in errors), (
+        f"{name}: 服务端应当记录 WsError(code={code})，实际 {errors}"
     )
 
 
@@ -577,7 +632,7 @@ def test_non_minimal_length_encoding_closes_1002(ws_server: Callable[..., _EchoS
         client.raw_send(blob)
         assert client.recv() is None
         assert client.close_code == 1002
-    assert any(code == 1002 for _kind, code, _msg in srv.errors)
+    assert _wait_for_error(srv, 1002)
 
 
 def test_invalid_utf8_spanning_fragments_closes_1007(
@@ -589,7 +644,7 @@ def test_invalid_utf8_spanning_fragments_closes_1007(
         client.send_fragmented([b"\xe4\xb8", b"\xff\xfe"], text=True)
         assert client.recv() is None
         assert client.close_code == 1007
-    assert any(code == 1007 for _kind, code, _msg in srv.errors)
+    assert _wait_for_error(srv, 1007)
 
 
 def test_oversized_declared_frame_is_rejected_before_payload(
@@ -601,7 +656,7 @@ def test_oversized_declared_frame_is_rejected_before_payload(
         client.raw_send(_frame(0x2, b"", declared=MAX_FRAME_BYTES + 1))  # 只发帧头
         assert client.recv() is None
         assert client.close_code == 1009
-    assert any(code == 1009 for _kind, code, _msg in srv.errors)
+    assert _wait_for_error(srv, 1009)
 
 
 def test_smaller_max_frame_is_honoured(ws_server: Callable[..., _EchoServer]) -> None:
@@ -619,34 +674,57 @@ def test_handshake_version_8_gets_426(ws_server: Callable[..., _EchoServer]) -> 
     response = _raw_handshake(srv, _handshake_request(version=b"8"))
     assert response.startswith("HTTP/1.1 426 ")
     assert "Sec-WebSocket-Version: 13" in response
-    assert srv.errors and srv.errors[0][0] == "handshake"
+    assert _wait_for_error(srv, 1002, kind="handshake")
 
 
 @pytest.mark.parametrize(
-    ("name", "request_bytes", "status"),
+    ("request_bytes", "status"),
     [
-        ("缺少版本头", _handshake_request(version=None), "400 "),
-        ("缺少 Key", _handshake_request().replace(
-            b"Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n", b""), "400 "),
-        ("Key 不是 16 字节", _handshake_request().replace(
-            b"dGhlIHNhbXBsZSBub25jZQ==", b"YWJj"), "400 "),
-        ("Key 重复（头被合并后不是合法 base64）", _handshake_request(
-            extra=b"Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n"), "400 "),
-        ("不是 GET", _handshake_request().replace(b"GET ", b"POST ", 1), "405 "),
-        ("缺少 Upgrade", _handshake_request().replace(b"Upgrade: websocket\r\n", b""), "400 "),
-        ("Connection 里没有 Upgrade", _handshake_request().replace(
-            b"keep-alive, Upgrade", b"keep-alive"), "400 "),
-        ("不是 HTTP/1.1", _handshake_request().replace(b"HTTP/1.1", b"HTTP/1.0", 1), "400 "),
+        pytest.param(
+            _handshake_request().replace(b"Sec-WebSocket-Version: 13\r\n", b""), "400 ",
+            id="缺少版本头",
+        ),
+        pytest.param(_handshake_request(version=b""), "426 ", id="版本头为空"),
+        pytest.param(
+            _handshake_request(extra=b"Sec-WebSocket-Version: 8\r\n"), "426 ",
+            id="版本头重复（合并后不是 13）",
+        ),
+        pytest.param(
+            _handshake_request().replace(
+                b"Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n", b""), "400 ",
+            id="缺少 Key",
+        ),
+        pytest.param(
+            _handshake_request().replace(b"dGhlIHNhbXBsZSBub25jZQ==", b"YWJj"), "400 ",
+            id="Key 不是 16 字节",
+        ),
+        pytest.param(
+            _handshake_request(extra=b"Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n"), "400 ",
+            id="Key 重复（合并后不是合法 base64）",
+        ),
+        pytest.param(_handshake_request().replace(b"GET ", b"POST ", 1), "405 ", id="不是 GET"),
+        pytest.param(
+            _handshake_request().replace(b"Upgrade: websocket\r\n", b""), "400 ",
+            id="缺少 Upgrade",
+        ),
+        pytest.param(
+            _handshake_request().replace(b"keep-alive, Upgrade", b"keep-alive"), "400 ",
+            id="Connection 里没有 Upgrade",
+        ),
+        pytest.param(
+            _handshake_request().replace(b"HTTP/1.1", b"HTTP/1.0", 1), "400 ",
+            id="不是 HTTP/1.1",
+        ),
     ],
 )
 def test_bad_handshake_is_rejected(
-    ws_server: Callable[..., _EchoServer], name: str, request_bytes: bytes, status: str
+    ws_server: Callable[..., _EchoServer], request_bytes: bytes, status: str
 ) -> None:
     """握手不完整/不合法一律回 HTTP 错误码（且不能悄悄升级成 WebSocket）。"""
     srv = ws_server()
     response = _raw_handshake(srv, request_bytes)
-    assert response.startswith("HTTP/1.1 " + status), f"{name}: 收到 {response.splitlines()[:1]}"
-    assert srv.errors and srv.errors[0][0] == "handshake"
+    assert response.startswith("HTTP/1.1 " + status), f"收到 {response.splitlines()[:1]}"
+    assert _wait_for_error(srv, 1002, kind="handshake")
 
 
 def test_client_rejects_non_101_and_bad_accept_key() -> None:
@@ -657,7 +735,10 @@ def test_client_rejects_non_101_and_bad_accept_key() -> None:
         handler = type(f"_H_{mode}", (_CannedHandshakeHandler,), {"mode": mode})
         srv = socketserver.ThreadingTCPServer(("127.0.0.1", 0), handler)
         srv.daemon_threads = True
-        threading.Thread(target=srv.serve_forever, kwargs={"poll_interval": 0.02}, daemon=True).start()
+        thread = threading.Thread(
+            target=srv.serve_forever, kwargs={"poll_interval": 0.02}, daemon=True
+        )
+        thread.start()
         servers.append(srv)
         return int(srv.server_address[1])
 
@@ -671,6 +752,10 @@ def test_client_rejects_non_101_and_bad_accept_key() -> None:
             WebSocketClient.connect(
                 f"ws://127.0.0.1:{start('missing_upgrade')}/ws", timeout=_IO_TIMEOUT
             )
+        with pytest.raises(WsHandshakeError, match="子协议"):
+            WebSocketClient.connect(
+                f"ws://127.0.0.1:{start('unrequested_subprotocol')}/ws", timeout=_IO_TIMEOUT
+            )
     finally:
         for srv in servers:
             srv.shutdown()
@@ -681,6 +766,53 @@ def test_client_rejects_non_ws_scheme() -> None:
     """``wss://`` 不在本子集内：显式拒绝，不能悄悄降级成明文。"""
     with pytest.raises(WsError, match="ws://"):
         WebSocketClient.connect("wss://127.0.0.1:1/ws", timeout=0.5)
+
+
+class _PipelinedHandler(socketserver.BaseRequestHandler):
+    """模拟 ``server/app.py`` 的升级路径：HTTP 层先读走请求头，把缓冲区剩的字节交回。
+
+    ``http.server`` 的 ``self.rfile`` 是带缓冲的读取器，一次 read() 可能把紧随握手而来的
+    帧字节一起吞掉；不交回 ``initial_bytes`` 就会「第一个帧凭空消失、连接卡死」。
+    """
+
+    def handle(self) -> None:  # noqa: D102 - socketserver 的回调
+        self.request.settimeout(_IO_TIMEOUT)  # 交给 accept 前也先设超时，避免悬挂
+        buf = b""
+        while b"\r\n\r\n" not in buf:
+            chunk = self.request.recv(4096)
+            if not chunk:
+                return
+            buf += chunk
+        # 已经把「请求头 + 可能紧随其后的帧字节」从 socket 里读走了，
+        # 所以必须**原样整份**交回（包括请求头本身），accept 才不会丢帧、也不会重复解析。
+        ws = WebSocket.accept(self.request, timeout=_IO_TIMEOUT, initial_bytes=buf)
+        with ws:
+            msg = ws.recv()
+            if msg is not None:
+                ws.send_text(msg.text or "")
+
+
+def test_pipelined_first_frame_is_not_lost() -> None:
+    """握手与第一个帧挤在同一次写入里：预读的字节必须被保住（``_rbuf`` / ``initial_bytes``）。"""
+    srv = socketserver.ThreadingTCPServer(("127.0.0.1", 0), _PipelinedHandler)
+    srv.daemon_threads = True
+    threading.Thread(target=srv.serve_forever, kwargs={"poll_interval": 0.02}, daemon=True).start()
+    try:
+        with socket.create_connection(
+            ("127.0.0.1", srv.server_address[1]), timeout=_IO_TIMEOUT
+        ) as sock:
+            sock.sendall(_handshake_request() + _frame(0x1, b"pipelined"))
+            head = b""
+            while b"\r\n\r\n" not in head:
+                head += _recv_exact(sock, 1)
+            assert head.startswith(b"HTTP/1.1 101 ")
+            header = _recv_exact(sock, 2)
+            assert header[0] == 0x81  # FIN + text，RSV 全 0
+            assert header[1] & 0x80 == 0  # 服务端发出的帧**不得**掩码（RFC 6455 §5.1）
+            assert _recv_exact(sock, header[1] & 0x7F) == b"pipelined"
+    finally:
+        srv.shutdown()
+        srv.server_close()
 
 
 # --------------------------------------------------------------- 8. 并发不串数据

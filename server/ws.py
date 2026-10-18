@@ -479,6 +479,7 @@ class _FrameCodec:
             self._close_sent = True
         self._close_code = code if code not in (1005, 1006) else self._close_code
         self._close_reason = reason
+        self._reset_fragments()
         self._closed = True
         self._linger_close()
         raise WsError(reason, code)
@@ -785,7 +786,7 @@ class WebSocket(_FrameCodec):
         self.request_path: str = ""
         #: 请求头，键统一小写（HTTP 头大小写不敏感）；同名头用 ", " 连接
         self.request_headers: dict[str, str] = {}
-        #: 协商结果：客户端首选项与服务端 ``subprotocols`` 的交集，无交集为 ``None``
+        #: 协商结果：客户端提议与服务端 ``subprotocols`` 的交集（按服务端偏好序挑），无交集为 ``None``
         self.subprotocol: str | None = None
         #: 完整请求行（日志/调试用）
         self.request_line: str = ""
@@ -798,6 +799,7 @@ class WebSocket(_FrameCodec):
         timeout: float | None = None,
         max_frame: int = MAX_FRAME_BYTES,
         subprotocols: Sequence[str] = (),
+        initial_bytes: bytes = b"",
     ) -> "WebSocket":
         """完成 RFC 6455 服务端握手并返回连接对象。
 
@@ -805,8 +807,22 @@ class WebSocket(_FrameCodec):
         ``Sec-WebSocket-Version`` 不是 13 → 426 并附 ``Sec-WebSocket-Version: 13``），
         关掉 socket 后抛 :class:`WsError`——此时还没有 WebSocket 连接，
         按 RFC 只能回 HTTP 状态码，不能回 close 帧。
+
+        ``initial_bytes``：调用方**已经从 socket 读走**的流前缀，原样交回即可（可以包含整个
+        HTTP 请求头，也可以只是其中一部分；剩下的照常从 socket 读）。典型场景：外层用
+        ``socketserver`` 的缓冲读取器（``http.server`` 的 ``rfile`` 就是）读过这个 socket，
+        它一次 ``read()`` 可能把紧随握手而来的帧字节一起吞进缓冲区，那些字节必须交回来，
+        否则握手后的第一帧就永远到不了这里。
+
+        .. note::
+           不能把**仍然留在 socket 里**的字节传进来（例如 ``MSG_PEEK`` 的结果），否则会被解析两次。
+           若外层用 ``http.server.BaseHTTPRequestHandler``，请求头已经被它消费掉了，此时应把
+           ``self.raw_requestline`` 与 ``self.headers`` 重新拼成请求头，连同
+           ``self.rfile.peek()`` 一起交给 ``initial_bytes``。
         """
         conn = cls(sock, timeout=timeout, max_frame=max_frame)
+        if initial_bytes:
+            conn._rbuf += initial_bytes
         conn._handshake(tuple(subprotocols))
         return conn
 

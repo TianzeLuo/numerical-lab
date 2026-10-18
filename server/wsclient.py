@@ -98,7 +98,9 @@ class WebSocketClient(_FrameCodec):
         client = cls(sock, timeout=timeout)
         client.request_target = target
         try:
-            client._handshake(host, port, target, key, tuple(subprotocols), dict(extra_headers or {}))
+            client._handshake(
+                host, port, target, key, tuple(subprotocols), dict(extra_headers or {})
+            )
         except BaseException:
             # 握手失败也要把 fd 放掉：调用方拿到的是异常，没有机会再 close 它
             client._linger_close(0.0)

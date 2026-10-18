@@ -38,6 +38,7 @@ import numpy as np
 __all__ = [
     "GifInfo",
     "decode_gif_frames",
+    "decode_gif_indices",
     "lzw_decode",
     "lzw_encode",
     "quantize_median_cut",
@@ -287,7 +288,8 @@ class _PaletteMapper:
         """``(N, 3)`` int64 颜色 → ``(N,)`` 最近邻索引（欧氏距离平方，并列取最小索引）。"""
         out = np.empty(colors.shape[0], dtype=np.int64)
         # 分块，避免 N×调色板×3 的中间数组吃光内存。
-        chunk = max(1, 1 << 16 // max(1, self._rgb.shape[0]))
+        # 注意括号：`1 << 16 // n` 会被解析成 `1 << (16 // n)`，在 n>16 时退化成一次一色。
+        chunk = max(1, (1 << 16) // max(1, self._rgb.shape[0]))
         for start in range(0, colors.shape[0], chunk):
             block = colors[start : start + chunk].astype(np.int64)
             diff = block[:, None, :] - self._rgb[None, :, :]
@@ -892,12 +894,45 @@ def _deinterlace(indices: np.ndarray, height: int, width: int) -> np.ndarray:
     return out
 
 
+def _frame_indices(frame: _GifFrame, global_palette: bytes | None) -> tuple[np.ndarray, np.ndarray]:
+    """解一帧的**索引图**与它实际使用的色表（局部优先，否则全局）。
+
+    抽成独立函数是为了让"索引 + 色表"这条无损性质可以被直接检验，
+    也给下游（光栅器/导出工具）留一条不必先合成 RGB 的快速路径。
+    """
+    palette_bytes = frame.palette if frame.palette is not None else global_palette
+    if palette_bytes is None:
+        raise ValueError("该帧既没有局部色表也没有全局色表，无法还原颜色")
+    table = np.frombuffer(palette_bytes, dtype=np.uint8).reshape(-1, 3)
+    indices = lzw_decode(frame.data, min_code_size=frame.min_code_size, expected_len=frame.width * frame.height)
+    if frame.interlaced:
+        indices = _deinterlace(indices, frame.height, frame.width)
+    else:
+        indices = indices.reshape(frame.height, frame.width)
+    if int(indices.max()) >= table.shape[0]:
+        raise ValueError(f"帧索引 {int(indices.max())} 超出色表长度 {table.shape[0]}")
+    return indices, table
+
+
+def decode_gif_indices(path: str | pathlib.Path) -> list[tuple[np.ndarray, np.ndarray]]:
+    """解出每帧的 ``(索引图 (h, w) uint8, 色表 (n, 3) uint8)``（不做合成、不处理处置方式）。
+
+    ``palette[indices]`` 就是该帧图像数据本身（含帧矩形尺寸），因此
+    "≤256 色必须无损"这条性质在这里是一行断言。
+    """
+    parsed = _parse_gif(path)
+    if not parsed.frames:
+        raise ValueError("GIF 里没有任何图像帧")
+    return [_frame_indices(frame, parsed.global_palette) for frame in parsed.frames]
+
+
 def decode_gif_frames(path: str | pathlib.Path) -> list[np.ndarray]:
     """解出每一帧并**合成**成 RGB 图像，返回 ``(H, W, 3)`` uint8 数组列表（逻辑屏幕尺寸）。
 
     说明：内部先用自研 LZW 解出索引图，再按该帧的色表（局部优先，否则全局）映射成 RGB，
     并处理处置方式（disposal 2=恢复背景 / 3=恢复上一帧）与透明索引 —— 这与浏览器、
     Pillow 的播放语义一致，因此可以直接和 ``PIL.Image.open(...)`` 的结果逐像素比对。
+    （需要未经合成的原始索引时用 ``decode_gif_indices``。）
     """
     parsed = _parse_gif(path)
     if not parsed.frames:
@@ -931,17 +966,7 @@ def decode_gif_frames(path: str | pathlib.Path) -> list[np.ndarray]:
                 ] = saved_rect
         rect = (slice(frame.top, frame.top + frame.height), slice(frame.left, frame.left + frame.width))
         saved_rect = canvas[rect].copy() if frame.disposal == 3 else None
-        palette_bytes = frame.palette if frame.palette is not None else parsed.global_palette
-        if palette_bytes is None:
-            raise ValueError("该帧既没有局部色表也没有全局色表，无法还原颜色")
-        table = np.frombuffer(palette_bytes, dtype=np.uint8).reshape(-1, 3)
-        indices = lzw_decode(frame.data, min_code_size=frame.min_code_size, expected_len=frame.width * frame.height)
-        if frame.interlaced:
-            indices = _deinterlace(indices, frame.height, frame.width)
-        else:
-            indices = indices.reshape(frame.height, frame.width)
-        if int(indices.max()) >= table.shape[0]:
-            raise ValueError(f"帧索引 {int(indices.max())} 超出色表长度 {table.shape[0]}")
+        indices, table = _frame_indices(frame, parsed.global_palette)
         rgb = table[indices]
         region = canvas[rect]
         if frame.transparent is not None:
