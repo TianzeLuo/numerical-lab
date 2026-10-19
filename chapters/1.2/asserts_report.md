@@ -2,8 +2,8 @@
 
 > 本表由 `tools/run_asserts.py` 从实际运行结果生成，**不是手写的**。
 
-- 断言条数：43（A 18 / B 25 / C 0）
-- 通过：43，失败：0
+- 断言条数：44（A 18 / B 26 / C 0）
+- 通过：44，失败：0
 - 声明文件：`chapters/1.2/asserts.yaml`
 
 | 类别 | 断言 | 理论值 | 实测值 | 容差 | 判定 |
@@ -13,6 +13,7 @@
 | B | max residual_history / (16·n·u·ρ_max) | 1 | 0.0416667 | ≤ 1 | ✅ |
 | B | 奇异帧的 meta 契约（null + status + overflow） | 1 | 2 | ≥ 1 个奇异组合且对照存在 | ✅ |
 | A | overflow 跟随被画对象（像 vs 解向量） | 1 | 1 | κ=1 假 / κ=1e16 真 | ✅ |
+| B | 帧角点：数组/meta 全有限 + 掩码自洽 | 数组与 meta 全有限；不可解处写占位 0 并用掩码标注（NaN 会在前端静默丢段） | 43 帧、0 条问题 | 0 条问题 | ✅ |
 | B | ρ(Wilkinson(n)) 部分 / 完全主元 | 2048 | 2048 | = | ✅ |
 | A | 重建残差 / (n·u·‖A‖∞) | ≤ 1（Wilkinson 界） | 0.399（最大绝对残差 5.329e-15） | 1 | ✅ |
 | A | ρ(部分主元) / 2^(n−1) | 2048 | 2048（完全主元 2） | rel 1e-12 | ✅ |
@@ -50,7 +51,7 @@
 | B | RCM 剖面 ≤ 自然序剖面 | ≤ 404 | 39 | +0 | ✅ |
 | B | 对角阵的带宽/剖面；置换三对角阵的剖面（自然 → RCM） | 对角阵：带宽 (0,0)、剖面 0；RCM 剖面 ≤ 自然序 | 对角 True；404 → 39 | 如上 | ✅ |
 | B | 填充单调性 / 总填充 / 三种排序的最大后向残差 | 单调不减；末步 fill_so_far = fill_total；后向残差 ≈ u | 单调=True，nnz(L+U)=382，末步 fill=95/95，残差最大 8.88e-16 | 单调、末步相等、残差 ≤ 100u | ✅ |
-| B | 帧契约检查 | 每个 viz 的 requiredAux 齐备、关键曲线不是全 NaN | lu_heatmap: 6 数组，6 个全有限；unit_ball: 16 数组，16 个全有限；spy_ordering: 10 数组，10 个全有限；pivot_strategy: 5 数组，5 个全有限 | 全通过 | ✅ |
+| B | 帧契约检查 | 每个 viz 的 requiredAux 齐备、关键曲线不是全 NaN | lu_heatmap: 6 数组，6 个全有限；unit_ball: 18 数组，18 个全有限；spy_ordering: 10 数组，10 个全有限；pivot_strategy: 5 数组，5 个全有限 | 全通过 | ✅ |
 
 <details><summary>逐条细节（拟合窗口、数据点数、残差量级等）</summary>
 
@@ -59,6 +60,7 @@
 - **max residual_history / (16·n·u·ρ_max)**：none/n=4/dom=1.6: 2.2e-16（ρ_max=1）；none/n=8/dom=0.1: 6.8e-14（ρ_max=151）；none/n=12/dom=0.5: 8.9e-16（ρ_max=1.23）；partial/n=4/dom=1.6: 2.8e-16（ρ_max=1）；partial/n=8/dom=0.1: 4.4e-16（ρ_max=1.43）；partial/n=12/dom=0.5: 8.9e-16（ρ_max=1.23）；complete/n=4/dom=1.6: 1.1e-16（ρ_max=1）；complete/n=8/dom=0.1: 4.4e-16（ρ_max=1）；complete/n=12/dom=0.5: 8.9e-16（ρ_max=1）
 - **奇异帧的 meta 契约（null + status + overflow）**：奇异 2 组 / 非奇异 4 组（共 6 组，t∈{0, 17}）
 - **overflow 跟随被画对象（像 vs 解向量）**：κ=1: 像的峰值 1.281（≤ 2.24），overflow=False；κ=1e16: |x̂|∞ = 8.036e+15，overflow=True
+- **帧角点：数组/meta 全有限 + 掩码自洽**：全部通过
 - **ρ(Wilkinson(n)) 部分 / 完全主元**：n=6: ρ_partial=32（理论 2^5=32），ρ_complete=2；n=12: ρ_partial=2048（理论 2^11=2048），ρ_complete=2；n=16: ρ_partial=32768（理论 2^15=32768），ρ_complete=2
 - **LU 运算量增长阶**：R²=0.999996，斜率标准误=3.64e-03，用点 5 个（丢弃 0 个），局部阶=[3.036 3.017 3.009 3.004]
 - **随机矩阵 ρ < 2^(n−1)**：松弛 rtol=0, atol=0，余量 = 5.49756e+11

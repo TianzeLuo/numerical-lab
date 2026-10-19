@@ -1,6 +1,6 @@
 % 本文件由 tools/build_book.py 从 dist/reports/assertions.json 生成，请勿手改。
 \begin{longtable}{@{}p{0.06\textwidth}p{0.32\textwidth}p{0.22\textwidth}p{0.16\textwidth}@{}}
-\caption{章节 1.2 数值断言（生成时间 2026-10-18T13:50:19-0400）}\\
+\caption{章节 1.2 数值断言（生成时间 2026-10-19T16:08:50-0400）}\\
 \toprule
 类别 & 断言 & 理论值 & 实测值 \\
 \midrule
@@ -17,6 +17,7 @@ B & max 前导块残差 / (8$\cdot$m$\cdot$u$\cdot$$\rho$$\cdot$max|A|) & 1 & 0.
 B & max residual\_\allowbreak{}history / (16$\cdot$n$\cdot$u$\cdot$$\rho$\_\allowbreak{}max) & 1 & 0.0416667 \checkmark \\
 B & 奇异帧的 meta 契约(null + status + overflow) & 1 & 2 \checkmark \\
 A & overflow 跟随被画对象(像 vs 解向量) & 1 & 1 \checkmark \\
+B & 帧角点：数组/meta 全有限 + 掩码自洽 & 数组与 meta 全有限；不可解处写占位 0 并用掩码标注(\allowbreak{}NaN 会在前端静默丢段) & 43 帧、\allowbreak{}0 条问题 \checkmark \\
 B & $\rho$(Wilkinson(n)) 部分 / 完全主元 & 2048 & 2048 \checkmark \\
 A & 重建残差 / (n$\cdot$u$\cdot$$\|$A$\|$$\infty$) & $\le$ 1(\allowbreak{}Wilkinson 界) & 0.399(\allowbreak{}最大绝对残差 5.329e-15) \checkmark \\
 A & $\rho$(部分主元) / 2\textasciicircum{}(n$-$1) & 2048 & 2048(\allowbreak{}完全主元 2) \checkmark \\
@@ -54,5 +55,5 @@ B & P$^{\mathsf T}$P=I / PA=A[perm] / LU 的 perm 自洽 & 三者全成立 & 正
 B & RCM 剖面 $\le$ 自然序剖面 & $\le$ 404 & 39 \checkmark \\
 B & 对角阵的带宽/剖面；置换三对角阵的剖面(自然 $\to$ RCM) & 对角阵：带宽 (\allowbreak{}0,\allowbreak{}0)、\allowbreak{}剖面 0；RCM 剖面 $\le$ 自然序 & 对角 True；404 $\to$ 39 \checkmark \\
 B & 填充单调性 / 总填充 / 三种排序的最大后向残差 & 单调不减；末步 fill\_so\_far =\allowbreak{} fill\_total；后向残差 $\approx$ u & 单调=\allowbreak{}True，nnz(\allowbreak{}L+U)=\allowbreak{}382，末步 fill=\allowbreak{}95/\allowbreak{}95，残差最大 8.88e-16 \checkmark \\
-B & 帧契约检查 & 每个 viz 的 requiredAux 齐备、\allowbreak{}关键曲线不是全 NaN & lu\_heatmap: 6 数组，6 个全有限；unit\_ball: 16 数组，16 个全有限；spy\_ordering: 10 数组，10 个全有限；pivot\_strategy: 5 数组，5 个全有限 \checkmark \\
+B & 帧契约检查 & 每个 viz 的 requiredAux 齐备、\allowbreak{}关键曲线不是全 NaN & lu\_heatmap: 6 数组，6 个全有限；unit\_ball: 18 数组，18 个全有限；spy\_ordering: 10 数组，10 个全有限；pivot\_strategy: 5 数组，5 个全有限 \checkmark \\
 \end{longtable}

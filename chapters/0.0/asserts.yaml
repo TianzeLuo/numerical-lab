@@ -50,7 +50,7 @@ tests:
     what: 二分实测 FTCS 稳定阈值（nx=21）
     theory: 1/(2sin²(θmax/2)) = 0.503097…
   - name: test_ftcs_threshold_converges_to_continuum_limit
-    kind: A
+    kind: C
     what: 实测阈值与 1/2 的偏差按 O(Δx²) 缩小
     theory: 收敛到连续极限 1/2
   - name: test_analytic_and_measured_stability_agree

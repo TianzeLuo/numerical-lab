@@ -1,6 +1,6 @@
 % 本文件由 tools/build_book.py 从 dist/reports/assertions.json 生成，请勿手改。
 \begin{longtable}{@{}p{0.06\textwidth}p{0.32\textwidth}p{0.22\textwidth}p{0.16\textwidth}@{}}
-\caption{章节 2.2 数值断言（生成时间 2026-10-18T14:09:13-0400）}\\
+\caption{章节 2.2 数值断言（生成时间 2026-10-19T16:08:50-0400）}\\
 \toprule
 类别 & 断言 & 理论值 & 实测值 \\
 \midrule
@@ -92,7 +92,7 @@ B & PCHIP 的 |$\Delta$S'|(runge, n=31) & $\le$ 2.12847e-14 & $1.776\times 10^{-
 B & 样条的 |$\Delta$S''|/(u$\cdot$scale)(界 1) & $\le$ 1 & 0 \checkmark \\
 A & C$^2$ 跳变 / C$^1$ 跳变 & 样条 |$\Delta$S''| \textasciitilde{} u$\cdot$scale；PCHIP 的 |$\Delta$S''| 是真跳变(\allowbreak{}O(\allowbreak{}h\textasciicircum{}-2)$\cdot$数据尺度) & 样条最大 |$\Delta$S''|/\allowbreak{}(\allowbreak{}u$\cdot$scale) =\allowbreak{} 0.000；PCHIP 最大 |$\Delta$S''| =\allowbreak{} 82.5(\allowbreak{}最小 0.214) \checkmark \\
 B & 自然样条能量 $\le$ PCHIP 能量(比值倒数 $\le$ 1) & $\le$ 1 & 0.803104 \checkmark \\
-A & 能量比 E(对手)/E(自然样条) & 自然样条最小 $\Rightarrow$ 所有比值 > 1；多项式因 Runge 现象可达 1e2\textasciitilde{}1e5 & PCHIP 比值 [1.245,\allowbreak{} 1.53]，多项式比值 [1,\allowbreak{} 3.02e+05]，夹持/\allowbreak{}自然 [1.000,\allowbreak{} 1.027]，折线 0(\allowbreak{}不在 H$^2$ 内，不计入) \checkmark \\
+A & 能量比 E(对手)/E(自然样条) & 自然样条最小 $\Rightarrow$ 所有比值 > 1；多项式因 Runge 现象可达 1e2\textasciitilde{}1e5 & PCHIP 比值 [1.245,\allowbreak{} 1.53]，多项式比值 [1,\allowbreak{} 3.02e+05]，not-a-knot/\allowbreak{}自然 [1.000,\allowbreak{} 1.011]，夹持/\allowbreak{}自然 [1.000,\allowbreak{} 1.027]，折线 0(\allowbreak{}不在 H$^2$ 内，不计入) \checkmark \\
 A & not-a-knot 样条 L$\infty$ 误差阶 & 4 & 3.97257 \checkmark \\
 A & 夹持(精确端点导数)误差阶 & 4 & 4.00635 \checkmark \\
 A & 自然样条实测阶(边界层) & 自然边界强制 S''=\allowbreak{}0 与 f''$\ne$0 冲突 $\Rightarrow$ 全局 O(\allowbreak{}h$^2$) & 实测阶 2.007(\allowbreak{}R$^2$=\allowbreak{}1.0000)，误差 1.183e-05；not-a-knot 3.973，夹持 4.006 \checkmark \\

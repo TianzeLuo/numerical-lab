@@ -148,6 +148,10 @@ tests:
     kind: B
     what: 4 个 viz 的 requiredAux 与关键曲线有限性
     theory: 帧契约：必备对照量真的存在
+  - name: test_every_frame_corner_stays_finite_and_masks_the_unsolvable_points
+    kind: B
+    what: 默认/参数端点/时间端点的帧数组与 meta 全有限；不可解处写占位 0 并用掩码标注
+    theory: 帧契约：NaN 会在前端静默丢段，占位符 + 掩码才是可读的"无解"
 
   # ---- 帧级回归（tests/1.2/test_frames.py）：把前端真踩到的坑钉住 ----
   - name: test_permuted_factorization_identity_holds_for_all_pivots
