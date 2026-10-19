@@ -218,6 +218,22 @@ export const chapterIndex: ChapterIndexEntry[] = [
     "title": "不确定性量化与全局敏感性",
     "vizzes": ["point_fill", "output_hist", "sobol_bars", "pce_spectrum"],
   },
+  {
+    "chapter": "6.1",
+    "nViz": 4,
+    "part": "VI",
+    "summary": "把前五部分的零件装成三个完整求解器：顶盖驱动方腔的流函数--涡量、Gray--Scott 反应扩散的图灵判据、浅水方程的干底溃坝。每个应用都配公开基准、守恒/收敛证据与失效边界，尤其是『残差小≠解准』『经典斑图≠图灵』『干底守恒漂移≠格式不守恒』这三类最容易读错的量。",
+    "title": "二维综合仿真",
+    "vizzes": ["cavity_vorticity", "ghia_benchmark", "turing_pattern", "dam_break"],
+  },
+  {
+    "chapter": "6.2",
+    "nViz": 3,
+    "part": "VI",
+    "summary": "把 28 章组织成可导航、可导出、可编译的产品：目录依赖图决定构建顺序，视频导出的内容时刻与 GIF 播放时刻必须分开记账，讲义构建则逐章核对引用闭合、附表行数、输入文件与字形风险。三个页面都在审计「看起来成功」背后的可测量不变量。",
+    "title": "交互式教材打包与视频导出",
+    "vizzes": ["catalog_nav", "export_timeline", "book_build"],
+  },
 ];
 
 export default chapterIndex;
