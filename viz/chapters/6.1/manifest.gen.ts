@@ -1,0 +1,252 @@
+// 本文件由 tools/gen_manifests.py 从章节模块的 MANIFEST 生成，请勿手改。
+import type { ChapterManifestJson } from "../../shared/src/manifest.js";
+
+/** 二维综合仿真 */
+export const manifest: ChapterManifestJson = {
+  "chapter": "6.1",
+  "part": "VI",
+  "summary": "把前五部分的零件装成三个完整求解器：顶盖驱动方腔的流函数--涡量、Gray--Scott 反应扩散的图灵判据、浅水方程的干底溃坝。每个应用都配公开基准、守恒/收敛证据与失效边界，尤其是『残差小≠解准』『经典斑图≠图灵』『干底守恒漂移≠格式不守恒』这三类最容易读错的量。",
+  "title": "二维综合仿真",
+  "vizzes": [
+    {
+      "axes": [
+        {
+          "autoscaled": false,
+          "id": "main",
+          "title": "稳态涡量与流函数等值线",
+          "ylabel": "y",
+        },
+        {
+          "autoscaled": true,
+          "id": "residual",
+          "scale": "log",
+          "title": "耦合迭代残差",
+          "ylabel": "相对残差",
+        },
+      ],
+      "dataSource": "backend",
+      "description": "单位方腔顶盖以 U=1 拖动。流函数--涡量形式：DST 直接解 Poisson，红黑 SOR 扫涡量方程。主图是稳态涡量与流函数等值线，副轴是耦合迭代的相对残差历史；右侧报 Re、网格、主涡位置、与 Ghia 基准的 RMSE、以及扩散/CFL 两条时间步限制。",
+      "id": "cavity_vorticity",
+      "params": [
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": 1000,
+          "label": "雷诺数 Re",
+          "name": "re",
+          "options": [
+            100,
+            400,
+            1000,
+          ],
+          "type": "enum",
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": 41,
+          "label": "每边节点数 n",
+          "name": "n",
+          "options": [
+            25,
+            33,
+            41,
+            49,
+          ],
+          "type": "enum",
+        },
+      ],
+      "pitfalls": "残差小不等于解准：这里的残差只量『离离散方程有多远』，而中心线 RMSE 量的是『离 Ghia 基准有多远』。n=41、Re=1000 时残差降到 1e-7，RMSE 仍有 0.2 量级——粗网格一阶迎风的数值扩散把主涡位置拖偏了。第二件事：网格与时间步的限制来自两个机制，dt_diffusion~Re h^2、dt_CFL~h/|u|，它们的交叉点在 Re_x=4 c_cfl(n-1)；本页 Re=1000 已经在 CFL 一侧，所以『Re 越大越难算』这句话在交叉点两侧是反的。第三：中心差分的格点雷诺数 Re_h=Re|u|h 超过 2 时会失去对角占优，n=41、Re=1000 的 Re_h≈25，换二阶中心格式会先失稳而不是先变准。",
+      "requiredAux": ["residual"],
+      "theory": ["流函数--涡量：Δψ = -ω，ω_t + u·∇ω = Re^{-1}Δω；壁面涡量用 Thom 公式", "DST 直接解 Poisson：Δ 在 Dirichlet 下的特征值 -(4/h²)(sin²(iπ/2m)+sin²(jπ/2m))", "残差只量离散方程；中心线剖面与 Ghia 基准的差是离散误差，二者不能互替"],
+      "time": {
+        "label": "t",
+        "mode": "none",
+      },
+      "title": "顶盖驱动方腔：涡量、流线与残差",
+    },
+    {
+      "axes": [
+        {
+          "autoscaled": false,
+          "id": "main",
+          "title": "竖直中心线 u(y) vs Ghia",
+          "ylabel": "y",
+        },
+        {
+          "autoscaled": true,
+          "id": "error",
+          "scale": "log",
+          "title": "RMSE 随网格 n 的收敛",
+          "ylabel": "RMSE",
+        },
+        {
+          "autoscaled": true,
+          "id": "vprofile",
+          "title": "水平中心线 v(x) vs Ghia",
+          "ylabel": "v",
+        },
+      ],
+      "dataSource": "backend",
+      "description": "把数值解插值到 Ghia--Ghia--Shin (1982) 的原表节点上，分别对拍竖直中心线u(y) 与水平中心线 v(x)。副轴是 RMSE 随网格 n 的收敛曲线；侧栏固定报出基准抄写分歧（不得低于 1e-2）与主涡位置。",
+      "id": "ghia_benchmark",
+      "params": [
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": 100,
+          "label": "雷诺数 Re",
+          "name": "re",
+          "options": [
+            100,
+            400,
+            1000,
+          ],
+          "type": "enum",
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": 49,
+          "label": "主剖面的网格 n",
+          "name": "n",
+          "options": [
+            25,
+            33,
+            49,
+            65,
+          ],
+          "type": "enum",
+        },
+      ],
+      "pitfalls": "对拍要先把『基准本身的抄写分歧』算进去：Ghia 表在 Re=1000 的 v 剖面上，不同转载在 x=0.9063 处就有 -0.51550 与 -0.51500 两种写法，跨转载最大分歧1e-2 量级。把容差压到 1e-3 的『完美对拍』量的是抄写版本，不是数值误差。第二：插值方向要固定——把基准插到网格上会把离散误差抹平，本页统一把数值解插到 Ghia 原表节点。第三：Re=1000 的 RMSE 在 n=49 仍有 0.2 左右，这不是代码错，而是粗网格一阶迎风的离散误差；R=100 的同一套代码能到 0.006。第四：网格收敛阶要用同一窗口与同一范数报，换窗口能把阶改掉。",
+      "requiredAux": ["error"],
+      "theory": ["Ghia 表是公开基准，不是真值；转载分歧 1e-2 量级，容差不能低于它", "数值解插值到基准节点，而不是把基准插到数值网格上（后者抹平离散误差）", "一阶迎风的网格收敛阶接近 1，但 Re=1000 在粗网格上被数值扩散主导"],
+      "time": {
+        "label": "t",
+        "mode": "none",
+      },
+      "title": "Ghia 基准：中心线剖面与网格收敛",
+    },
+    {
+      "axes": [
+        {
+          "autoscaled": false,
+          "id": "main",
+          "title": "v(x,y)：Gray--Scott 斑图",
+          "ylabel": "y",
+        },
+        {
+          "autoscaled": true,
+          "id": "error",
+          "scale": "log",
+          "title": "五点模板增长率误差 vs n",
+          "ylabel": "相对误差",
+        },
+        {
+          "autoscaled": true,
+          "id": "dispersion",
+          "title": "解析色散关系 λ(φ)",
+          "ylabel": "λ_max",
+        },
+      ],
+      "dataSource": "backend",
+      "description": "单位正方形周期域上的 Gray--Scott 系统，显式 FTCS 从中心种子出发。主图是 v(x,y) 随步数的演化；右上是解析色散关系 λ(φ) 与最不稳定波数；副轴是五点模板增长率误差随 n 的收敛。turing 预设是真图灵，spots/stripes/waves 的最快模都在 φ=0，各缺一条判据，是对照组。",
+      "id": "turing_pattern",
+      "params": [
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": "turing",
+          "label": "参数预设",
+          "name": "preset",
+          "options": ["turing", "spots", "stripes", "waves", "uniform"],
+          "type": "enum",
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": 128,
+          "label": "每边格点数 n",
+          "name": "n",
+          "options": [
+            64,
+            96,
+            128,
+          ],
+          "type": "enum",
+        },
+      ],
+      "pitfalls": "经典 Gray--Scott 斑图不是图灵斑图：spots 没有非平凡稳态，最快模 λ*=-0.035 在 φ=0；stripes 的底态存在但 λ(0)=+0.0054>0，均匀模先失稳；waves 的 λ*=-0.014 也在 φ=0。三者都没有正波数增长带；真正的图灵预设 λ*=+0.015 且 φ*=53.9>0。判据必须同时满足『底态无扩散稳定』与『正波数 λ*>0』两条：只看图案长得好看会把整类自复制斑图误认成图灵失稳。第二：λ*>0 也不一定是图灵——最大值在 φ=0 时，那是整片均匀（同相）失稳。第三：显式稳定性上限只看最大扩散系数，Δt<=Δx²/(4 max(Du,Dv)) 的一半；turing 预设请求 dt=0.25 会被夹到 0.095，帧里如实标出 dt_clamped。第四：域长固定时允许波数 φ=2πm 与 n 无关，加密网格只抬高截止；真正按 O(Δx²) 收敛的是五点模板的有效波数与增长率。",
+      "requiredAux": ["error"],
+      "theory": ["Gray--Scott：u_t=DuΔu-uv²+F(1-u)，v_t=DvΔv+uv²-(F+k)v（周期边界）", "图灵判据：底态无扩散稳定，且 M(φ)=J-φ²diag(Du,Dv) 的最大特征值 λ(φ) 在某 φ*>0 变正", "显式 FTCS 稳定上限 dt <= Δx²/(4 max(Du,Dv))；五点模板有效波数 (2/Δx)sin(φΔx/2)"],
+      "time": {
+        "dt": 2000.0,
+        "label": "显式步数",
+        "mode": "scrub",
+        "tMax": 10000.0,
+      },
+      "title": "Gray--Scott：图灵斑图、色散关系与网格误差",
+    },
+    {
+      "axes": [
+        {
+          "autoscaled": false,
+          "id": "main",
+          "title": "水深 h(x) 与 Ritter 精确解",
+          "ylabel": "h",
+        },
+        {
+          "autoscaled": true,
+          "id": "error",
+          "scale": "log",
+          "title": "|h_num - h_exact|（逐点）",
+          "ylabel": "绝对误差",
+        },
+      ],
+      "dataSource": "backend",
+      "description": "一维浅水方程，Rusanov 通量 + 显式推进。初始为 x=0.5 左侧 h=1、右侧干底。主图是水深剖面与 Ritter 精确解，副轴是逐点绝对误差（对数）；时间轴是物理时间。侧栏把扇内 L1、全域 L1、质量漂移与 max CFL 分开报。",
+      "id": "dam_break",
+      "params": [
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": 200,
+          "label": "格数 n",
+          "name": "n",
+          "options": [
+            100,
+            200,
+            400,
+          ],
+          "type": "enum",
+        },
+        {
+          "critical": [
+            1.0,
+          ],
+          "criticalNote": "CFL>1 不保证稳定；本模块的实测临界值在 1.2-1.5 之间，但页面只允许到 0.9。",
+          "default": 0.8,
+          "label": "目标 CFL",
+          "max": 0.9,
+          "min": 0.3,
+          "name": "cfl",
+          "step": 0.1,
+          "type": "float",
+        },
+      ],
+      "pitfalls": "对拍窗口决定成败：干底 Ritter 解只在扇区 -c_L<=ξ<=2c_L 内光滑，干锋与头部折点都在窗口外。把整个域喂进 L1 误差，量到的主要是干锋位置误差；本页把扇内、全域两个数并排报，且不把『全域更差』说成格式精度。第二：干底的质量漂移本来就不为零——正性地板每步至少注入 min_depth·Δx 的水，拿它当『守恒性证据』是假证据；真正可测的是湿域/周期域的守恒。第三：CFL 不是抄来的常数，本页记录实际 max_cfl 与步数；cfl=0.8 稳，但把 cfl 推到 2 会出非有限值，页面不替它兜底。第四：Rusanov 的波速上界让通量失去逐点单调的直觉，别把『看起来单调』当定理。",
+      "requiredAux": ["error"],
+      "theory": ["Ritter 干底解：h=(2c_L-ξ)²/(9g)、u=(2/3)(ξ+c_L)（-c_L<ξ<2c_L，ξ=(x-x0)/t）", "Rusanov 通量：F=1/2(F_L+F_R)-1/2 a(U_R-U_L)，a=max(|u|+sqrt(gh))", "干底质量漂移来自正性地板 min_depth·Δx 的注入，不是格式不守恒"],
+      "time": {
+        "dt": 0.01,
+        "label": "物理时间 t",
+        "mode": "scrub",
+        "tMax": 0.06,
+      },
+      "title": "干底溃坝：Ritter 精确解、误差窗口与 CFL",
+    },
+  ],
+};
+
+export default manifest;

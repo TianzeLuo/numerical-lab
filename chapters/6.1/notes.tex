@@ -1,0 +1,444 @@
+% 6.1 章 · 二维综合仿真
+% 这一章的笔记把前五部分的零件装成三个完整求解器，并把"能出图"与"算对了"之间的
+% 证据链拆成四页：方腔的残差 vs 离散误差、Ghia 基准的抄写地板、Gray--Scott 的
+% 图灵判据（含三种"看起来像图灵"的对照）、干底溃坝的误差窗口与质量账本。
+% 所有数字都来自 tests/6.1/ 的断言记录（asserts_table.tex 由断言报告生成）。
+
+\numlabchapter{二维综合仿真}{6.1}
+
+\section{这一章要解决什么}
+
+前面各部分已经有了离散算子、时间推进、线性求解器、谱方法与优化器。本章不再引入
+新的数学工具，而是把它们组装成三个**完整的应用求解器**，然后只问一个问题：
+\[
+  \text{“图看起来对”} \quad\Longrightarrow\quad \text{“这个结论有证据吗？”}
+\]
+四个可视化分别对应四条独立证据链：
+
+\begin{enumerate}
+  \item \textbf{方腔}（\texttt{cavity\_vorticity}）：顶盖驱动、$\psi$--$\omega$ 形式、
+        DST 直接解 Poisson、红黑 SOR 扫涡量。残差 $10^{-7}$ 与 Ghia 中心线
+        RMSE $0.2271$ 同时成立——前者量离散方程，后者量离散误差。
+  \item \textbf{Ghia 基准}（\texttt{ghia\_benchmark}）：把数值解插到
+        Ghia--Ghia--Shin (1982) 的原表节点上，分别对拍 $u(y)$ 与 $v(x)$；
+        Re=100 的四网格 RMSE 为 $0.02024,0.01211,0.00870,0.00603$，实测收敛阶
+        $1.10$。基准本身有 $10^{-2}$ 量级的转载分歧，页面把这条地板画出来。
+  \item \textbf{Gray--Scott}（\texttt{turing\_pattern}）：真图灵预设的
+        $\varphi^\ast=53.8988$、$\lambda^\ast=0.015017$；det 的顶点
+        $\varphi=62.7495$ 只给 $0.013392$，低 $10.8\%$。经典 spots 的
+        $\lambda^\ast=-0.035$ 仍长出振幅 $0.729$ 的斑图；
+        stripes 的底态存在但 $\lambda(0)=+0.00539$（均匀失稳）；
+        uniform 的 $\lambda(\varphi)=-D\varphi^2$ 只有纯扩散衰减。
+  \item \textbf{干底溃坝}（\texttt{dam\_break}）：Rusanov 通量 + 显式推进，
+        与 Ritter 精确解对拍。$t=0.06$ 时扇内 L1 $=2.02\times10^{-2}$，
+        全域 L1 $=2.21\times10^{-2}$，比值 $1.093$；$n=100\to400$ 的扇内 L1
+        从 $3.04\times10^{-2}$ 降到 $1.25\times10^{-2}$。质量漂移 $9.9\times10^{-9}$
+        来自正性地板注水，不是守恒格式的反证。
+\end{enumerate}
+
+记号：$h=1/(n-1)$ 是方腔网格间距；$\omega=\partial_xv-\partial_yu$ 是涡量，
+$\psi$ 是流函数；$U=1$ 是顶盖速度；$\mathrm{RMSE}$ 是数值解与基准在基准节点上的
+均方根差；$\varphi$ 是连续波数（弧度/单位长），$z=\varphi^2$；
+$D_u,D_v,F,k$ 是 Gray--Scott 的扩散系数与喂料/杀灭率；
+$c_L=\sqrt{g h_L}$ 是干底溃坝的左行波速，$\xi=(x-x_0)/t$。
+
+\section{方腔：残差不是误差}\label{sec:cavity}
+
+\subsection{流函数--涡量形式与两个边界条件}
+
+不可压方腔里，速度由流函数给出：
+\[
+  u=\frac{\partial\psi}{\partial y},\qquad
+  v=-\frac{\partial\psi}{\partial x},\qquad
+  \Delta\psi=-\omega .
+\]
+第二个式子是 Poisson 方程，配齐四壁的 $\psi=0$；涡量方程是
+\[
+  \omega_t+u\omega_x+v\omega_y=\frac1{Re}\Delta\omega .
+\]
+壁面涡量不能直接由 $\psi$ 的内部差分得到（会损失一阶精度、并且符号容易写反），
+实现用 Thom 公式
+\[
+  \omega_w=-\frac{2\psi_{\text{邻}}}{h^2}-\frac{2U_\tau}{h},
+\]
+其中底/左/右壁 $U_\tau=0$，顶盖 $U_\tau=1$。顶盖沿 $+x$ 运动时顶壁涡量约为
+$-2/h$；符号写反会得到一个**镜像**但仍然光滑的解——$n=129$、$Re=100$ 时主涡心会
+跑到 $x=0.383$ 而不是 Ghia 的 $0.6172$，而残差曲线依然漂亮。这是本章最值得
+先讲的一条“可测量陷阱”。
+
+\subsection{DST：Poisson 与 Helmholtz 都被对角化}
+
+\begin{theorem}[五点 Laplace 的 DST 对角化]\label{thm:dst}
+在 $m=n-2$ 个内部点上，记
+$\lambda_{pq}=-\frac{4}{h^2}\bigl(\sin^2\frac{p\pi}{2(m+1)}
++\sin^2\frac{q\pi}{2(m+1)}\bigr)$。则五点 Laplace 的特征向量为
+$(\sin\frac{ip\pi}{m+1}\sin\frac{jq\pi}{m+1})_{ij}$，特征值为
+$\lambda_{pq}$；因此
+\[
+  \Delta_h\psi=-\omega,\qquad (I-a\Delta_h)\psi=f
+\]
+都可以用二维 DST 在 $O(n^2\log n)$ 内直接求解，而不需要迭代。
+\end{theorem}
+
+\begin{proof}
+把五点模板写成 $L_h=L_x\otimes I+I\otimes L_y$，其中 $L_x$ 是一维 Dirichlet
+二阶差分。一维 $L_x$ 的特征向量是 $\sin(ip\pi/(m+1))$，特征值为
+$-4\sin^2(p\pi/(2(m+1)))/h^2$；张量积的特征值相加，特征向量取乘积。于是
+Poisson 在变换域里逐点除以 $\lambda_{pq}$，Helmholtz 逐点除以
+$1-a\lambda_{pq}$（$a=0$ 退化为 Poisson）。实现中对四个角点的边界行/列单独处理，
+内部点数与变换长度一致，所以没有额外填充。
+\end{proof}
+
+\begin{proof}[制造解实测]
+取 $\psi_{\text{exact}}=\sin(\pi x)\sin(\pi y)$，五点 Laplace 得到 $f$ 后再用
+同样的 DST 求解。实测 $\max|\Delta_h\psi+\omega|=4.885\times10^{-14}$，
+Helmholtz 的制造解误差 $\max|\psi_H-\psi_{\text{exact}}|=1.110\times10^{-15}$。
+这两条是 A 类断言的“解析靶子”：它们证明离散算子与变换实现没有互相抵消的错。
+\end{proof}
+
+由 $\psi$ 求速度时，$u=\psi_y$、$v=-\psi_x$ 用同源的中心差分；离散散度
+$\max|u_x+v_y|=8.882\times10^{-16}$。这条恒等式不是“看起来满足”，而是网格内
+每个点都成立的代数事实。
+
+\subsection{耦合迭代与相对残差}
+
+外层用红黑 SOR 扫涡量方程，内层每个 sweep 用一次 DST Poisson；收敛判据是
+\[
+  R^{(k)}=\frac{\max|R_{\text{disc}}|}
+  {\max|u|/h\cdot\max|\omega|}.
+\]
+实现记录每一次 sweep 的 $R$，最后把 $\log_{10}R$ 交给前端。默认参数
+$Re=1000,n=41$ 时，1087 次 SOR + 1087 次 Poisson 把 $R$ 压到
+$1.00\times10^{-7}$（tol $=10^{-7}$）。这**只说明**离散稳态方程被解得足够好；
+与 Ghia 的中心线 RMSE $0.2271$（$u$ 剖面 $0.1833$、$v$ 剖面 $0.2637$）相比，
+中间差了四个数量级。
+
+\begin{theorem}[残差与误差是两件事]\label{thm:residual}
+设 $L_h\psi_h=\omega_h$ 是离散方程，$\psi$ 是连续解。相对残差
+$R=\|L_h\psi_h-f_h\|/\text{尺度}$ 可以在 $h\to0$ 前任意小（只要解方程够狠），
+而离散误差 $\|\psi_h-\psi\|\sim C h^p$ 由格式与网格决定，不会被迭代误差压低到
+$Ch^p$ 以下。因此“残差小”既不蕴含“误差小”，也不能替代网格收敛研究。
+\end{theorem}
+
+\begin{proof}
+把误差分解为 $\psi_h-\psi=(\psi_h-\psi_h^\ast)+(\psi_h^\ast-\psi)$，其中
+$\psi_h^\ast$ 是离散方程的精确解。第一项由迭代误差控制，第二项由截断误差控制。
+残差只直接约束第一项；第二项需要与基准/制造解比较，或做网格加密。
+$Re=1000,n=33$ 的实测是干净的负对照：残差 $9.89\times10^{-8}$，但
+Ghia RMSE $0.2413$；同一套代码在 $Re=100,n=49$ 上给出 $9.91\times10^{-8}$ 与
+$0.0060$。残差相同，误差相差 40 倍，说明差异只能来自离散误差。
+\end{proof}
+
+\subsection{时间步的两个来源}
+
+如果要把稳态求解器改成显式推进，两个稳定性限制会同时出现：
+\begin{align}
+  \Delta t_{\text{diff}}&=\frac{h^2Re}{4},\\
+  \Delta t_{\text{CFL}}&=\frac{c_{\text{cfl}}h}{U_{\max}}.
+\end{align}
+交叉点满足 $\Delta t_{\text{diff}}=\Delta t_{\text{CFL}}$，即
+\[
+  Re_\times=\frac{4c_{\text{cfl}}(n-1)}{U_{\max}}.
+\]
+$c_{\text{cfl}}=0.8$、$U_{\max}=1$ 时 $Re_\times=3.2(n-1)$：$n=33$ 给 $102.4$，
+$n=41$ 给 $128$，$n=49$ 给 $153.6$。在 $Re=1000$ 的默认页上，$n=41$ 的
+$\Delta t_{\text{CFL}}=0.0200$ 小于 $\Delta t_{\text{diff}}=0.1563$，
+由 CFL 绑定；$Re=50$ 时反过来，由扩散绑定。
+“Re 越大越难算”这句话在交叉点两侧方向相反。
+
+另一条容易忽略的限制是中心差分的格点雷诺数：
+\[
+  Re_h=Re\,|u|\,h=\frac{Re}{n-1}.
+\]
+五点中心对流的对角占优条件是 $Re_h<2$，即 $Re<2(n-1)$。$n=41$ 时阈值
+$Re=80$，而 $Re=1000$ 的 $Re_h=25$——中心格式会先失稳而不是先变准；
+实现因此默认一阶迎风。迎风带来 $O(h)$ 的数值扩散，也是 Ghia 曲线在
+$Re=1000$ 粗网格上误差仍有 $0.2$ 的来源。
+
+\begin{center}
+\begin{tabular}{lrrrr}
+\toprule
+量 & $Re=100,n=49$ & $Re=1000,n=41$ & 解释 \\
+\midrule
+SOR 残差 & $9.9\times10^{-8}$ & $1.0\times10^{-7}$ & 离散方程离差 \\
+Ghia RMSE & $0.0060$ & $0.2271$ & 与基准的差 \\
+$Re_h$ & $2.04$ & $25.00$ & 中心格式阈值 $2$ \\
+时间步绑定 & 扩散 & CFL & $Re_\times=3.2(n-1)$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Ghia 基准：把“基准”本身也当成误差源}\label{sec:ghia}
+
+\subsection{表、方向与端点}
+
+Ghia 表给的是两条中心线上的离散节点：竖直中心线 $u(y)$ 与水平中心线 $v(x)$，
+每条 17 个点。实现把**数值解插值到基准节点**，而不是把基准插到数值网格上：
+
+\begin{itemize}
+  \item 后者会把基准的局部极值抹平，误差曲线看起来更漂亮；
+  \item 数值解在基准节点上的插值误差是 $O(h^2)$，远小于一阶迎风的 $O(h)$；
+  \item 端点必须精确：$u(0)=u(1)=0$（除顶盖 $u(1)=1$）、$v(0)=v(1)=0$，
+        用端点常数外插而不是线性外推。
+\end{itemize}
+
+实测三列（$Re=100,400,1000$）的端点严格相等、采样严格递增；主涡中心随 Re
+单调移动：$(0.6172,0.7344)\to(0.5547,0.6055)\to(0.5313,0.5625)$。
+$Re=1000$ 还存在左下/右下两个二次涡。
+
+\subsection{抄写地板}
+
+不同转载的 Ghia 表在 $Re=1000$ 的 $v$ 剖面上，$x=0.9063$ 处就有
+$-0.51550$ 与 $-0.51500$ 两种写法。把容差压到 $10^{-3}$ 的“完美对拍”量的是
+转载版本，不是数值误差。页面固定报 \texttt{transcription\_floor=1e-2}，并把这条虚线
+画在误差图上；当 RMSE 与地板同量级时，读者应该读“已经到抄写精度”，而不是
+“格式只有这么准”。
+
+\subsection{网格收敛阶}
+
+用 $h=1/(n-1)$、四档 $n=17,25,33,49$ 做 log--log 拟合，$Re=100$ 的总 RMSE
+为 $0.02024,0.01211,0.00870,0.00603$，斜率 $1.10$；$u$ 剖面 $0.64$、$v$ 剖面
+$2.10$。一阶迎风的理论阶是 1，实测在 $(0.5,2.5)$ 的宽窗内，但**不能把 $v$ 的
+2.10 读成二阶精度**：$v$ 的误差更小、更接近抄写地板，四点的局部斜率容易被
+基准本身的截断带偏。$Re=1000$ 时总斜率 $0.088$、$u$ 0.19、$v$ 0.19，
+粗网格上数值扩散主导，曲线接近平线；这不是代码错，而是离散误差大。
+
+\begin{center}
+\begin{tabular}{rrrrr}
+\toprule
+$n$ & 总 RMSE & $u$ 剖面 & $v$ 剖面 & 备注 \\
+\midrule
+17 & 0.02024 & 0.01677 & 0.02320 & 粗网格 \\
+25 & 0.01211 & — & — & 下降 \\
+33 & 0.00870 & — & — & 下降 \\
+49 & 0.00603 & 0.00821 & 0.00231 & 最优点 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Gray--Scott：图灵判据不是“图案好看”}\label{sec:turing}
+
+\subsection{方程与非平凡稳态}
+
+单位正方形周期域上的 Gray--Scott 系统
+\begin{align}
+  u_t&=D_u\Delta u-uv^2+F(1-u),\\
+  v_t&=D_v\Delta v+uv^2-(F+k)v .
+\end{align}
+均匀稳态满足 $v=(F+k)/u$。代入 $u$ 方程，得到
+\[
+  u_\pm=\frac{1\pm\sqrt{1-4(F+k)^2/F}}{2},
+\]
+并要求判别式非负。两支中只有 $u_-$（小 $u$、大 $v$）给出
+$\det J=(F+k)(v^2-F)>0$；$u_+$ 是 $\det J<0$ 的鞍点。
+turing 预设 $(F,k)=(0.03,0.045)$ 的底态是 $(0.25,0.30)$，$\det J=0.0045$；
+spots 预设 $(0.035,0.060)$ 的判别式为负，没有非平凡稳态，实现退回平凡态
+$(1,0)$。
+
+\subsection{线性化与图灵条件}
+
+在底态 $J=\begin{pmatrix}f_u&f_v\\g_u&g_v\end{pmatrix}$ 上加模态
+$\exp(\lambda t+i\varphi x)$，得到
+\[
+  M(\varphi)=J-\varphi^2\operatorname{diag}(D_u,D_v),\qquad
+  \lambda_{\max}(\varphi)=\frac{\operatorname{tr}M}
+  {2}+\frac{\sqrt{\operatorname{tr}^2M-4\det M}}{2}.
+\]
+图灵失稳要求：
+\begin{enumerate}
+  \item 底态无扩散稳定：$\operatorname{tr}J<0$、$\det J>0$；
+  \item 存在 $\varphi>0$ 使 $\lambda_{\max}(\varphi)>0$；
+  \item 边界 $\varphi=0$ 仍然稳定，即 $\lambda(0)<0$。
+\end{enumerate}
+
+\begin{theorem}[图灵带与最不稳定波数]\label{thm:turing}
+记 $z=\varphi^2$，
+\[
+  \det M(z)=D_uD_vz^2-(D_ug_v+D_vf_u)z+\det J .
+\]
+在 $\operatorname{tr}J<0,\det J>0$ 的前提下，图灵失稳等价于
+$D_ug_v+D_vf_u>2\sqrt{D_uD_v\det J}$，且失稳区间是某个 $z>0$ 的开区间。
+最不稳定波数由
+$\frac{d}{dz}\bigl(\operatorname{tr}M+\sqrt{\operatorname{tr}^2M-4\det M}\bigr)=0$
+给出，一般**不是** $\det M$ 的顶点
+$z_v=(D_ug_v+D_vf_u)/(2D_uD_v)$。
+\end{theorem}
+
+\begin{proof}
+$\lambda_{\max}(z)$ 是 $M$ 的最大特征值。$\det M(z)$ 在 $z_v$ 取最小，但
+$\operatorname{tr}M(z)=f_u+g_v-(D_u+D_v)z$ 随 $z$ 线性下降；当特征值为实数时
+$\lambda_{\max}=(\operatorname{tr}+\sqrt{\operatorname{tr}^2-4\det})/2$，
+两项的竞争把最大点推到 $z_v$ 左侧。对 $z$ 求导并解二次方程即得驻点；
+端点 $z=0$ 与复特征值分支单独比较，取全局最大。turing 预设的实测是
+$\varphi^\ast=53.8988$、$\lambda^\ast=0.015017$，而 det 顶点 $\varphi=62.7495$
+给 $0.013392$，低 $10.8\%$；只信 det 顶点会系统性偏大波长。
+\end{proof}
+
+\paragraph{四种预设的正确读法}
+
+\begin{center}
+\begin{tabular}{llll}
+\toprule
+预设 & 底态 & $\lambda(0)$ & 结论 \\
+\midrule
+turing & $(0.25,0.30)$，$\det>0$ & $-0.0225$ & 真图灵带 $\varphi^\ast=53.90$ \\
+stripes & $(0.404,0.210)$ & $+0.00539$ & 均匀模失稳，不是图灵带 \\
+spots & 无（退回平凡态） & $-0.035$ & 自复制瞬态 \\
+waves & 无（退回平凡态） & $-0.014$ & 自复制瞬态 \\
+uniform & 平凡态 $(1,0)$ & $0$ & 纯扩散 $\lambda=-D\varphi^2$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+spots 的负对照最容易骗人：$\lambda^\ast=-0.035$ 却仍能在 4000 步后长出
+振幅 $0.729$、16 个斑块的图案。图案来自激励介质的自复制瞬态，不是线性图灵
+失稳；把“有斑图”当“有正特征值”会把整类 Gray--Scott 图案误判。
+stripes 的底态存在，但 $g_v=F+k>0$ 且 $\operatorname{tr}J>0$：它在 $\varphi=0$
+就已经均匀失稳，也不是图灵带。uniform 的反应项为零，色散关系
+$\lambda(\varphi)=-D\varphi^2$ 全是衰减，没有增长模。
+
+\subsection{显式时间步与模板误差}
+
+FTCS 的五点模板在 Fourier 域里的符号是 $[-8/\Delta x^2,0]$，放大因子
+$1-8D\Delta t/\Delta x^2$ 必须落在 $[-1,1]$，因此
+\[
+  \Delta t\le\frac{\Delta x^2}{4\max(D_u,D_v)}.
+\]
+实现默认再乘安全系数 $0.5$。$n=128$、turing 预设的 $\Delta x=1/128$，
+上限 $0.190735$，安全值 $0.0953674$；请求的 $0.25$ 被夹到安全值，帧里的
+\texttt{dt\_clamped=1}、\texttt{dt\_requested=0.25}、\texttt{dt\_limit=0.0953674} 三者同时存在，页面
+不把“请求值”冒充“实际值”。\texttt{clamp=False} 时直接抛 \texttt{ValueError}。
+
+空间模板的有效波数是
+\[
+  \varphi_{\text{eff}}=\frac{2}{\Delta x}\sin\left(\frac{\varphi\Delta x}{2}\right),
+\]
+把 $\varphi_{\text{eff}}$ 代入解析增长率就得到离散增长率。误差随 $\Delta x^2$
+下降：$n=64,128,256,512$ 的相对误差
+$9.32\times10^{-3},3.24\times10^{-3},8.68\times10^{-4},2.21\times10^{-4}$，
+实测阶 $1.81$。这是**空间模板误差**，不是完整时间推进误差；页面把两件事分开。
+
+\subsection{质量与波长}
+
+扩散项在周期域上逐点和为零，因此
+\[
+  \frac{d}{dt}\sum_{ij}u_{ij}=\Delta t\sum_{ij}
+  \bigl(-u_{ij}v_{ij}^2+F(1-u_{ij})\bigr).
+\]
+五步实测的 $\Delta\Sigma u$ 与右端预测相对差为 $0$。Gray--Scott 不守恒；
+质量变化本身不是错误。
+
+图灵饱和图案的主波长由 $\varphi^\ast$ 选出：理论 $2\pi/\varphi^\ast=0.1166$，
+$n=128$、10000 步实测 $0.1253$（差 $7.5\%$），振幅 $0.302$、96 个局部极大。
+有限盒、初始随机种子与非线性饱和都让实测偏离解析值；页面把“主波长无定义”
+和“波长恰好为 0”严格分开：uniform 的 \texttt{wavelength\_valid=0}，帧里存 0 只是占位，
+侧栏写“无空间结构”，不写“波长 0”。
+
+\section{干底溃坝：窗口、守恒与 CFL}\label{sec:dam}
+
+\subsection{浅水方程与 Rusanov 通量}
+
+一维浅水方程
+\[
+  \partial_t\begin{pmatrix}h\\hu\end{pmatrix}
+  +\partial_x\begin{pmatrix}hu\\hu^2+\tfrac12gh^2\end{pmatrix}=0 .
+\]
+有限体积的 Rusanov 通量
+\[
+  \hat F_{i+1/2}=\frac12(F_L+F_R)-\frac12 a_{i+1/2}(U_R-U_L),
+  \qquad a_{i+1/2}=\max(|u_L|+\sqrt{gh_L},|u_R|+\sqrt{gh_R}).
+\]
+实测相同态通量逐位相等（$\Delta F_h=\Delta F_{hu}=0$）；波速与
+$|u|+\sqrt{gh}$ 逐点一致。干底用正性地板 $h=\max(h,10^{-8})$；
+这不是“物理正确”，而是让波速有定义、让推进不出现负水深。质量因此会有
+$10^{-9}$ 量级的漂移，页面把它写成“地板注入”，不写成“守恒误差”。
+
+\subsection{Ritter 解与窗口}
+
+初始 $h_L=1$、右侧干底，精确解是自相似扇：
+\[
+  h(\xi)=\frac{(2c_L-\xi)^2}{9g},\qquad
+  u(\xi)=\frac23(\xi+c_L),\qquad -c_L<\xi<2c_L,
+\]
+$\xi=(x-x_0)/t$，$c_L=\sqrt{gh_L}$。扇外 $h=1$（左侧）或 $h=0$（右侧干区），
+干锋在 $\xi=2c_L$。$t=0.06$ 时窗口 $x\in[0.312,0.876]$；扇内是光滑区，
+全域还包含干锋折点，后者的位置误差不是格式阶的干净估计。
+
+\begin{center}
+\begin{tabular}{rrrr}
+\toprule
+$n$ & 扇内 L1 & 全域 L1 & 全域/扇区 \\
+\midrule
+100 & $1.91\times10^{-2}$ & $3.13\times10^{-2}$ & 1.75 \\
+200 & $1.20\times10^{-2}$ & $2.07\times10^{-2}$ & 1.75 \\
+400 & $7.42\times10^{-3}$ & $1.30\times10^{-2}$ & 1.75 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+扇内 L1 的实测阶为 $0.669$ 与 $0.694$（n=100→200、200→400），在全域上则被
+干锋误差污染。帧里 \texttt{fan} 与 \texttt{error\_valid} 两个掩码分别负责“扇区”与“不是地板
+占位”；t=0 时 \texttt{n\_steps=0}、\texttt{fan} 全 0、误差全部无效，面板为空而不是画一条假零线。
+
+\subsection{well-balanced 与 CFL}
+
+静水 $h+\text{底高程}=\text{const}$、$u=0$ 时，通量梯度与源项应逐点抵消。
+well-balanced 支路实测质量/水面漂移 $1.89\times10^{-16}$；朴素中心源项给
+$3.30\times10^{-4}$，相差 $1.7\times10^{12}$ 倍。后者不是“精度差一点”，
+而是会在静水上制造假波。
+
+CFL 不是抄来的常数：$cfl=0.8$ 时到达 $t_{\text{end}}$、$h_{\min}=0.426$；
+$cfl=2.0$ 时 830 步后 $h_{\max}=\infty$、解非有限。页面把实际
+\texttt{max\_cfl} 与步数写进帧，且不把越界的请求悄悄夹回。
+
+\subsection{二维径向溃坝}
+
+二维版本把初始跃变换成圆形水柱，用 Rusanov + 出流边界推进到 $t=0.05$：
+$h_{\min}=0.1$、总质量 $0.278418$ 不增、能量 $0.852330$ 不增、maxCFL $0.30$。
+二维的“干区不出现负水深”比一维更脆：对角方向的波速、边界出流、正性地板三者
+必须同时正确。这条 A 类断言是本章 2D 求解器的入口检查。
+
+\section{四张图分别在说什么}\label{sec:reading}
+
+\paragraph{方腔页}
+左上是稳态涡量（红正蓝负的发散色标）与流函数等值线，黑箭头是速度方向
+（按全场最大速度归一，只表方向）。左下是 $\log_{10}$ 相对残差；侧栏同时给
+SOR 残差与 Ghia RMSE，并说明两者不能互替。红点标主涡，右侧色标由渲染器
+自动配；色标与文字之间留了 110\,px 的过道。
+
+\paragraph{Ghia 页}
+左上 $u(y)$、右上 $v(x)$，蓝色是数值解、橙点是 Ghia；左下是总/ $u$ / $v$
+三条 RMSE 曲线，灰虚线是 $10^{-2}$ 抄写地板。四个网格点是实际求解出来的，
+不是拟合出来的；侧栏写实收阶与最优点。
+
+\paragraph{图灵页}
+主图是 $v(x,y)$（viridis，固定色标 0 到当前最大值），右上是解析色散
+$\lambda(\varphi)$（灰虚是 0，橙虚是 $\varphi^\ast$），左下是五点模板误差
+（对数纵轴、灰虚 $O(n^{-2})$）。四种预设的底态、$\lambda(0)$、$\varphi^\ast$
+和“是否有正波数增长带”在侧栏逐项列出；uniform 的色标固定 0--1 并明确写
+“$v\equiv0$”，不拿 $10^{-9}$ 的假细节充当色标。
+
+\paragraph{溃坝页}
+主图是水深剖面：蓝是数值解、橙虚是 Ritter、灰虚是初值、灰带是扇区；
+左下是逐点 $|h-h_{\text{exact}}|$（对数），只画 \texttt{error\_valid=1} 的点。
+侧栏把扇内 L1、全域 L1、质量漂移、实际 max CFL、末步 dt 分开报。
+t=0 的帧没有扇区、没有有效误差，页面写“0 步”和“无有效点”，不画假数据。
+
+\section{本章的“不要被骗”清单}
+
+\begin{itemize}
+  \item 残差 $10^{-7}$ 不等于 RMSE 小：$Re=1000,n=41$ 的 RMSE 仍有 $0.2271$。
+  \item Ghia 表本身有 $10^{-2}$ 量级的转载分歧；低于它的容差量的是抄写版本。
+  \item 数值解要插到基准节点，不能把基准插到数值网格上。
+  \item $\lambda^\ast>0$ 不一定是图灵：stripes 的 $\lambda(0)=+0.00539$ 是均匀失稳。
+  \item 有斑图不等于图灵：spots 的 $\lambda^\ast=-0.035$ 仍长出振幅 $0.729$ 的斑图。
+  \item 没有正波数增长带时，“主波长”无定义；帧里的 0 只是占位，不是测量值。
+  \item dt 被夹紧时必须同时显示请求值、实际上限与实际值；不能只报一个好看数。
+  \item 五点模板的 $O(\Delta x^2)$ 是空间误差，不是完整时间推进误差。
+  \item 干底的质量漂移主要来自正性地板注入，不是守恒性的反证。
+  \item 全域 L1 混着干锋位置误差；报格式阶要用扇内窗口。
+  \item well-balanced 与朴素源项在静水上差 $10^{12}$ 倍，不是“小误差”。
+  \item CFL 越界会真出非有限值；页面不兜底、不静默夹取。
+\end{itemize}
+
+\input{chapters/6.1/asserts_table}

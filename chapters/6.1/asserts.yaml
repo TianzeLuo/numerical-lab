@@ -1,0 +1,239 @@
+# 6.1 章断言清单（真源：`tests/6.1/` 下的五个文件）
+#
+# 本章把前五部分的零件装成三个完整求解器，断言分成两层：
+#   * **核心层**（cavity / ghia / reaction_diffusion / shallow_water）：
+#     DST Poisson 与 Helmholtz 制造解、由流函数得到的速度散度、Ghia 表完整性、
+#     主涡随 Re 的单调移动、图灵两支底态与解析色散关系、Gray--Scott 质量账本、
+#     五点模板的 O(n^-2)、Rusanov 一致性、Ritter 扇区公式、静水 well-balanced、
+#     干底/周期质量账本、CFL 稳定边界与二维径向溃坝。
+#   * **帧层**（test_frames.py）：呈现纪律。残差与 RMSE 必须同时在场；
+#     Ghia 的抄写地板是 1e-2；图灵四种预设按"底态稳定 + 正波数增长"分开；
+#     干底的扇内 / 全域 L1 与质量漂移分开报；帧数组与核心逐位一致。
+#
+# 本章的 A 类不是"算得差不多"，而是与解析/公开基准/制造解逐位或闭式对拍；
+# B 类是不变量与失效边界：残差小 != 解准、λ*>0 != 图灵、干底 L1 的窗口、
+# 质量漂移的来源、CFL 越界会真炸。
+chapter: "6.1"
+title: 二维综合仿真
+required_kinds: [A, B]
+
+min_counts:
+  A: 18
+  B: 10
+
+tests:
+  # ---------------------------------------------------------------- 方腔：解析解与离散证据
+  - name: test_dst_poisson_residual_and_helmholtz_manufactured_solution
+    kind: A
+    what: >-
+      DST 直接解 Poisson 的离散残差 4.885e-14；Helmholtz (I-aΔ) 制造解的误差 1.110e-15
+    theory: >-
+      Δψ=-ω 的五点离散在 Dirichlet 边界下由 DST 对角化；Helmholtz 用同一个特征分解求解，
+      制造解的离散误差应贴舍入级
+
+  - name: test_velocity_is_divergence_free_and_interp_is_conservative
+    kind: A
+    what: >-
+      由 ψ 得到的 (u,v) 离散散度 8.882e-16；中心线插值在区间外取端点，实测逐点相等
+    theory: >-
+      u=ψ_y、v=-ψ_x 使离散散度恒为 0；线性插值在支撑集之外不应外推（取端点常数）
+
+  - name: test_small_residual_does_not_imply_benchmark_accuracy
+    kind: B
+    what: >-
+      Re=1000/n=33：残差 9.89e-08 但 Ghia RMSE=0.2413；Re=100/n=49：残差 9.91e-08、RMSE=0.0060
+    theory: >-
+      残差量的是离散方程的离差，RMSE 量的是离散误差；两者可以相差四个数量级
+
+  - name: test_ghia_grid_convergence_re100
+    kind: A
+    what: >-
+      Re=100 的 RMSE：n=17/25/33/49 为 0.02024/0.01211/0.00870/0.00603，实测阶 1.10
+    theory: >-
+      一阶迎风的网格收敛阶接近 1；RMSE 关于 h=1/(n-1) 的 log-log 斜率在 (0.5, 2.5)
+
+  - name: test_dt_limits_cross_over
+    kind: B
+    what: >-
+      Re=50 时扩散限制 dt=0.01221（CFL=0.025），Re=400 时 CFL 限制 dt=0.025（扩散=0.09766）；
+      交叉点 Re_x=102.4
+    theory: >-
+      dt_diffusion~Re h² 与 dt_CFL~h/|u| 的交叉点由 Re_x=2(n-1) 给出；交叉点两侧谁更难算会反过来
+
+  - name: test_central_scheme_threshold_and_cell_reynolds
+    kind: B
+    what: >-
+      中心格式阈值 Re_th=2(n-1)：n=33/41/49 给 64/80/96；阈值处 Re_h=2.000，
+      Re=1000 时 Re_h=31.25/25.00/20.83
+    theory: >-
+      中心差分失去对角占优的条件是格点雷诺数 Re|u|h>2，等价于 Re>2(n-1)
+
+  # ---------------------------------------------------------------- Ghia 公开基准
+  - name: test_ghia_tables_complete_and_endpoints_exact
+    kind: A
+    what: >-
+      Re=100/400/1000 三列中心线表各 17 点；u(0)=0、u(1)=1、v(0)=v(1)=0，采样严格递增
+    theory: >-
+      Ghia--Ghia--Shin (1982) 的公开表是离散节点；端点与单调性必须逐点核对，不能只看图形
+
+  - name: test_ghia_vortex_centers_and_transcription_floor
+    kind: A
+    what: >-
+      主涡 (0.6172,0.7344)@Re100 → (0.5547,0.6055)@Re400 → (0.5313,0.5625)@Re1000；
+      Re=1000 有左下/右下二次涡；转载分歧地板 1e-2
+    theory: >-
+      主涡中心随 Re 单调左移/下移；不同转载的 Ghia 表本身有 1e-2 量级分歧，
+      对拍容差低于它量的是抄写版本
+
+  # ---------------------------------------------------------------- 图灵与 Gray--Scott
+  - name: test_turing_base_state_selects_stable_branch
+    kind: A
+    what: >-
+      turing 预设底态 (0.25,0.30)，det J=+0.0045；u_+ 分支 (0.75,0.10) 的 det=-0.0015；
+      spots 预设没有非平凡稳态
+    theory: >-
+      Gray--Scott 非平凡稳态的两支中只有 u_- 满足 det J>0；u_+ 是鞍点
+
+  - name: test_most_unstable_mode_beats_det_vertex
+    kind: A
+    what: >-
+      φ*=53.8988、λ*=0.015017；det 顶点 φ=62.7495 给 λ=0.013392（低 10.8%）；
+      stripes 的 λ(0)=+0.00539 是均匀失稳；经典三预设都没有 φ>0 增长模
+    theory: >-
+      增长率最大点不是 det 的顶点；Turing 带要求底态无扩散稳定且 λ(φ)>0 在 φ>0 成立
+
+  - name: test_dt_limit_clamps_instead_of_silently_diverging
+    kind: B
+    what: >-
+      n=128、turing 预设：dt_requested=0.25 被夹到 0.0953674；clamp=False 抛 ValueError
+    theory: >-
+      显式 FTCS 的上限是 Δx²/(4 max(Du,Dv))；越界必须夹紧并如实报告，不能悄悄推进
+
+  - name: test_mass_changes_only_by_reaction
+    kind: B
+    what: >-
+      5 步内 Σu 变化与 dt·Σ反应 的预测值相等（相对差 0）；周期扩散项的逐点和为 0
+    theory: >-
+      Gray--Scott 不守恒；周期域上扩散项的和恒为 0，Σu 只能由反应项改变
+
+  - name: test_stencil_dispersion_error_converges_second_order
+    kind: A
+    what: >-
+      n=64/128/256/512 的增长率相对误差 9.32e-3/3.24e-3/8.68e-4/2.21e-4，实测阶 1.81
+    theory: >-
+      五点模板的有效波数 φ_eff=(2/Δx)sin(φΔx/2) 带来 O(Δx²) 的增长率误差
+
+  - name: test_classic_pattern_grows_without_turing_instability
+    kind: B
+    what: >-
+      spots：φ*=0、λ*=-0.035，4000 步后振幅 0.729、16 个斑块
+    theory: >-
+      λ*<0 仍能长斑图：经典 Gray--Scott 图案来自激励介质的自复制瞬态，不是图灵分岔
+
+  - name: test_turing_pattern_saturates_near_analytic_wavelength
+    kind: A
+    what: >-
+      10000 步后振幅 0.302、96 个局部极大；主波长 0.1253 vs 2π/φ*=0.1166（差 7.5%）
+    theory: >-
+      图灵带内的主波长由 φ* 选出；有限盒与初始瞬态使实测偏离解析值，但应在 12% 内
+
+  # ---------------------------------------------------------------- 浅水与干底溃坝
+  - name: test_flux_consistency_wave_speed_and_ritter_limit
+    kind: A
+    what: >-
+      相同态 Rusanov 通量逐位相等（ΔF=0）；波速 [2.926,3.681,4.679] 与 |u|+sqrt(gh) 一致；
+      t=0 的干底阶跃精确
+    theory: >-
+      守恒型通量必须满足 F(U,U)=F(U)；Rusanov 的波速上界是 max(|u|+sqrt(gh))
+
+  - name: test_ritter_solution_formula_and_positivity
+    kind: A
+    what: >-
+      扇区内 max|Δh|=0、max|Δu|=0；h_min=0（干底非负）
+    theory: >-
+      Ritter 干底解 h=(2c_L-ξ)²/(9g)、u=(2/3)(ξ+c_L)，在 -c_L<ξ<2c_L 内逐点成立且 h≥0
+
+  - name: test_dam_break_error_windows_and_convergence
+    kind: A
+    what: >-
+      n=100/200/400 的扇内 L1 为 1.91e-2/1.20e-2/7.42e-3，实测阶 0.669/0.694；
+      全域/扇区误差比 1.75
+    theory: >-
+      只在 Ritter 光滑扇区内报 L1；全域误差混入干锋位置误差，不是干净的格式阶
+
+  - name: test_periodic_mass_is_conserved
+    kind: B
+    what: >-
+      周期湿域的质量漂移 2.22e-16；干底的质量漂移 9.90e-9（更大，但不是不守恒）
+    theory: >-
+      周期边界没有质量通量，守恒格式的总质量贴舍入；干底正性地板每步注入 min_depth·Δx 的水
+
+  - name: test_lake_at_rest_well_balanced_vs_naive
+    kind: B
+    what: >-
+      well-balanced 静水漂移 1.89e-16；朴素源项 3.30e-4（相差 1.7e12 倍）
+    theory: >-
+      well-balanced 格式把静水通量与源项逐点抵消；朴素中心源项会把静水搅出假波
+
+  - name: test_cfl_stability_bracket
+    kind: B
+    what: >-
+      cfl=0.8：到达 t_end、h_min=0.426；cfl=2.0：非有限、830 步后 h_max=inf
+    theory: >-
+      Rusanov + 显式推进的 CFL 稳定域不是自动的；越界会真出非有限值，页面不替它兜底
+
+  - name: test_radial_dam_break_2d_is_finite_and_physical
+    kind: A
+    what: >-
+      二维径向溃坝 t=0.05：h_min=0.1、质量 0.278418 不增、能量 0.852330 不增、maxCFL=0.30
+    theory: >-
+      二维正性、出流边界质量/能量非增、有限性是浅水求解器的硬不变量
+
+  # ---------------------------------------------------------------- 帧层：呈现与搬运
+  - name: test_all_frames_finite_packable_and_declare_aux
+    kind: A
+    what: >-
+      6 个端点帧、58 个数组；数组/meta 全有限；JSON 头里真正的非有限常量 0 个；requiredAux 都定位
+    theory: >-
+      帧是前端唯一输入：非有限值必须被显式处理，不能靠 JSON.parse 悄悄接受 NaN
+
+  - name: test_cavity_residual_and_discretization_error_are_separate
+    kind: A
+    what: >-
+      Re=1000/n=41：残差 1.00e-7、RMSE 0.2271、CFL 绑定、Re_h=25；Re=100/n=49：RMSE 0.0060
+    theory: >-
+      帧里必须同时报 SOR 残差与 Ghia RMSE；日志残差末点等于 log10(residual_final)
+
+  - name: test_ghia_curve_matches_grid_evidence
+    kind: A
+    what: >-
+      n_grid=[17,25,33,49]，RMSE 严格下降；斜率 1.105；n=25 的 RMSE 是 n=49 的 2 倍；
+      中心距 0.0174；抄写地板 1e-2
+    theory: >-
+      帧里的误差曲线必须与四个实际网格点一致；抄写地板必须写进页面
+
+  - name: test_turing_band_flags_distinguish_four_reasons
+    kind: A
+    what: >-
+      turing：band=1、dt 0.25→0.09537、波长差 7.5%；stripes：band=0、base=1、λ(0)=+0.00539；
+      spots：band=0、base=0；uniform：波长掩码 0
+    theory: >-
+      "有斑图"不是图灵判据：四种预设对应四种不同的缺失条件，帧必须分别说清
+
+  - name: test_dam_break_windows_and_cfl_are_reported_separately
+    kind: A
+    what: >-
+      t=0：0 步、L1=0、h==h_initial；t=0.06：fan=113 点、valid=166 点，
+      L1_fan=2.02e-2、L1_all=2.21e-2、质量漂移 9.9e-9
+    theory: >-
+      fan/error_valid 掩码要能重建两个 L1 窗口；干底质量漂移是正性地板注入，不是守恒证据
+
+  - name: test_frames_match_kernel_calls_bitwise
+    kind: B
+    what: >-
+      方腔 ω/ψ/x、Ghia u_num/u_ref、图灵 v、溃坝 h/x 与直接调用 numcore 的最大差全部为 0
+    theory: >-
+      装配层只搬运：帧数组不允许被前端或适配层重算/平滑
+
+# 另有 4 个参数化的 manifest/帧契约测试（不产生断言记录）：
+#   test_manifest_entry_contract（每个 viz 的 id/参数/pitfalls/axes）
