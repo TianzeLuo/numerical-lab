@@ -204,7 +204,7 @@ MANIFEST: dict[str, Any] = {
                     "criticalNote": "",
                 },
             ],
-            "time": {"mode": "scrub", "tMax": 400.0, "dt": 1.0, "fps": 30, "label": "迭代 k"},
+            "time": {"mode": "scrub", "tMax": 60.0, "dt": 1.0, "fps": 30, "label": "迭代 k"},
             "requiredAux": ["error"],
             "axes": [
                 {"id": "main", "autoscaled": False, "title": "等高线 f(x)=const 与四条下降路径", "ylabel": "x_2"},
@@ -318,9 +318,9 @@ MANIFEST: dict[str, Any] = {
             "id": "saddle_escape",
             "title": "鞍点逃逸：负曲率方向与扰动幅度",
             "description": (
-                "鞍点 f = 1/2(λ₊x₁^2 + λ-x₂^2)（λ-<0）上，GD 从稳定流形出发会**收敛到鞍点**并停住；"
-                "扰动只有在负曲率方向 u_min 上有分量时才跑得掉。图中给出扰动轨迹、"
-                "沿 u_min / 随机方向 / 正交方向的实测逃逸阈值："
+                "鞍点 f = 1/2(λ-x₁^2 + λ₊x₂^2)（λ-<0，负曲率方向是 x₁）上，GD 从稳定流形"
+                "出发会**收敛到鞍点**并停住；扰动只有在负曲率方向 u_min 上有分量时才跑得掉。"
+                "图中给出扰动轨迹、沿 u_min / 随机方向 / 正交方向的实测逃逸阈值："
                 "随机方向的阈值恰好是 u_min 方向的 1/|<u_min,d>| 倍。"
             ),
             "dataSource": "backend",
@@ -332,7 +332,7 @@ MANIFEST: dict[str, Any] = {
                     "min": -2.0,
                     "max": -0.001,
                     "step": 0.001,
-                    "default": -0.05,
+                    "default": -0.02,
                     "critical": [],
                     "criticalNote": "",
                 },
@@ -343,7 +343,7 @@ MANIFEST: dict[str, Any] = {
                     "min": 1e-09,
                     "max": 0.1,
                     "step": 1e-09,
-                    "default": 1e-05,
+                    "default": 0.02,
                     "critical": [],
                     "criticalNote": "",
                 },
@@ -367,7 +367,7 @@ MANIFEST: dict[str, Any] = {
                     "criticalNote": "",
                 },
             ],
-            "time": {"mode": "scrub", "tMax": 400.0, "dt": 1.0, "fps": 30, "label": "GD 步 k"},
+            "time": {"mode": "scrub", "tMax": 200.0, "dt": 1.0, "fps": 30, "label": "GD 步 k"},
             "requiredAux": ["residual"],
             "axes": [
                 {"id": "main", "autoscaled": False, "title": "鞍点等高线（双曲线族）与扰动轨迹", "ylabel": "x_2"},
@@ -375,8 +375,8 @@ MANIFEST: dict[str, Any] = {
             ],
             "pitfalls": (
                 "「加了随机扰动就逃出来了」不是方法有效的证据：逃逸与否只取决于扰动在"
-                "负曲率方向上的投影，实测沿 u_min 的阈值是 2.87e-3、沿 45° 随机方向是 4.05e-3，"
-                "比值 1.414 正好等于 1/|<u_min, d>|。把扰动换成与 u_min 正交的方向，"
+                "负曲率方向上的投影。实测沿 u_min 的阈值与解析式 R·(1+|λ-|α)^(-N) 一致；"
+                "随机方向的阈值是它的 1/|<u_min, d>| 倍。把扰动换成与 u_min 正交的方向，"
                 "阈值在放大到 1e12 之后仍然找不到——图上看到的「没跑掉」才是真相，"
                 "而 meta 里那个 null 必须如实说明它是「没测到」而不是 0。"
             ),
@@ -445,7 +445,7 @@ MANIFEST: dict[str, Any] = {
                     "criticalNote": "",
                 },
             ],
-            "time": {"mode": "scrub", "tMax": 40.0, "dt": 1.0, "fps": 30, "label": "迭代 k"},
+            "time": {"mode": "scrub", "tMax": 24.0, "dt": 1.0, "fps": 30, "label": "迭代 k"},
             "requiredAux": ["residual"],
             "axes": [
                 {"id": "main", "autoscaled": False, "title": "Rosenbrock 等高线与信赖域圆", "ylabel": "y"},
@@ -550,6 +550,7 @@ def _descent_race_frame(params: Mapping[str, Any], t: float) -> Frame:
         k_actual=int(k),
         kappa_theory=None if _finite_or_none(gd_iterations(kappa, 1e-8)) is None else int(round(gd_iterations(kappa, 1e-8))),
         n_exact_end=int(n_exact),
+        error_floor=ERROR_FLOOR,
         overflow=bool(overflow),
     )
     fr.set_meta(**meta)
@@ -637,6 +638,8 @@ def _convergence_rates_frame(params: Mapping[str, Any], t: float) -> Frame:
         n_iter_gd=int(traces["gd"].n_iter),
         n_iter_bfgs=int(traces["bfgs"].n_iter),
         error_floor=ERROR_FLOOR,
+        ratio_floor=RATIO_FLOOR,
+        ratio_display_ceiling=1e10,
         overflow=False,
     )
     fr.set_strings(
@@ -755,9 +758,10 @@ def _saddle_escape_frame(params: Mapping[str, Any], t: float) -> Frame:
     fr.add("stable_x", stable.xs[:, 0], unit="", label="稳定流形上的 GD: x_1")
     fr.add("stable_y", stable.xs[:, 1], unit="", label="稳定流形上的 GD: x_2")
 
-    # 阈值只看 (λ-, α, N, R)，与扰动幅度 δ、scrub 时刻都无关；这里用固定的 N=96
-    # 换取「每帧 < 0.2 s」的代价，并把口径写进 strings（断言里用的是更细的 tol）。
-    n_esc = int(min(max(max_iter, 40), 96))
+    # 阈值只看 (λ-, α, N, R)，与扰动幅度 δ、scrub 时刻都无关。N 必须与时间轴上的
+    # 最大步数一致：否则会出现「δ 已经越过 N=96 的阈值、当前距离也超过 1，但按 96 步
+    # 判据却写尚未逃逸」的自相矛盾。二维 GD 的代价很小，直接用 max_iter 做二分。
+    n_esc = int(max(1, max_iter))
     esc = escape_threshold(S, np.zeros(2), u_min, step=step, max_iter=n_esc, radius=1.0, tol=1e-4, bisect=40, max_expand=40)
     esc_rand = escape_threshold(S, np.zeros(2), _random_unit(20260501), step=step, max_iter=n_esc, radius=1.0, tol=1e-4, bisect=40, max_expand=40)
 
@@ -779,6 +783,7 @@ def _saddle_escape_frame(params: Mapping[str, Any], t: float) -> Frame:
         escaped_neg_curv=bool(esc.escaped),
         escape_steps=n_esc,
         theory_threshold=_finite_or_none((1.0 + abs(neg) * step) ** (-n_esc)),
+        error_floor=ERROR_FLOOR,
         overflow=bool(float(np.max(np.abs(traj.xs))) > 2.5 or float(np.max(np.abs(stable.xs))) > 2.5),
     )
     fr.set_strings(
@@ -826,7 +831,8 @@ def _trust_region_frame(params: Mapping[str, Any], t: float) -> Frame:
     tr = trust_region(R, x0, delta0=delta0, t2=t2, max_iter=max_iter, tol=1e-14)
     k = _step_index(t, max_iter)
 
-    n_grid = 61
+    # 61×61 时 Rosenbrock 窄谷里的等高线会在屏幕上碎成锯齿；显示底图加密到 121。
+    n_grid = 121
     X, Y, Z = contour_grid(R, (-3.5, 3.5), (-1.5, 12.0), n=n_grid)
 
     fr = Frame(chapter="5.1", viz="trust_region_radius", kind="frame")
@@ -847,14 +853,16 @@ def _trust_region_frame(params: Mapping[str, Any], t: float) -> Frame:
     fr.add("neg_curv", _pad_tail(tr.extra("neg_curv"), max_iter, fill=0.0), unit="", label="负曲率分支掩码")
 
     radius_now = float(radius_clean[k]) if radius_clean.size > k else delta0
-    ratio_now = float(ratio_series[k]) if ratio_series.size > k else 0.0
+    # k 步已经走完：第 k 步的结果是 ratio[k-1]；k=0 时还没有任何一步发生，
+    # 这里必须写 null（“没有测到”），不能拿第一步的未来值冒充当前读数。
+    ratio_now = float(ratio_series[k - 1]) if k >= 1 and ratio_series.size >= k else None
     fr.set_meta(
         k_actual=int(k),
         t2=t2,
         delta0=delta0,
         radius_current=_finite_or_none(radius_now),
         ratio_current=_finite_or_none(ratio_now),
-        accepted_current=bool(bool(tr.accepted[k])) if tr.accepted.size > k else False,
+        accepted_current=bool(bool(tr.accepted[k - 1])) if k >= 1 and tr.accepted.size >= k else False,
         n_iter=int(tr.n_iter),
         n_accepted=int(np.count_nonzero(tr.accepted)),
         n_rejected=int(tr.accepted.size - np.count_nonzero(tr.accepted)),
@@ -863,6 +871,8 @@ def _trust_region_frame(params: Mapping[str, Any], t: float) -> Frame:
         ratio_min=_finite_or_none(np.min(ratio_series)) if ratio_series.size else None,
         n_negative_curv=int(np.count_nonzero(tr.extra("neg_curv"))),
         final_dist=_finite_or_none(tr.dist[-1]),
+        radius_floor=1e-14,
+        error_floor=ERROR_FLOOR,
         overflow=bool(float(np.max(np.abs(tr.xs))) > 3.5 or float(np.max(np.abs(tr.xs[:, 1]))) > 12.0),
     )
     fr.set_strings(

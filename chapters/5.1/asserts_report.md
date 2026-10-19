@@ -8,8 +8,8 @@
 
 | 类别 | 断言 | 理论值 | 实测值 | 容差 | 判定 |
 |---|---|---|---|---|---|
-| A | 端点组合帧数与 JSON 里的 NaN/Infinity 计数 | NaN/Infinity 计数 = 0 | 69 帧，计数 0（descent_race: 16 个数组、19 个 meta 字段） | = 0 | ✅ |
-| A | 对数轴曲线最小值 > 0、掩码形状与 dtype、strings 里的地板说明 | 全部满足 | descent_race.error_gd min=4.3e-01；descent_race.error_newton min=1.3e-14；convergence_rates.error_gd min=1.0e+00；convergence_rates.error_newton min=1.0e-17；saddle_escape.residual min=5.0e-07；saddle_escape.error_to_saddle min=1.0e-05；q_newton_valid dtype=bool | 全 True | ✅ |
+| A | 端点组合帧数与 JSON 里的 NaN/Infinity 计数 | NaN/Infinity 计数 = 0 | 69 帧，计数 0（descent_race: 16 个数组、20 个 meta 字段） | = 0 | ✅ |
+| A | 对数轴曲线最小值 > 0、掩码形状与 dtype、strings 里的地板说明 | 全部满足 | descent_race.error_gd min=4.3e-01；descent_race.error_newton min=1.3e-14；convergence_rates.error_gd min=1.0e+00；convergence_rates.error_newton min=1.0e-17；saddle_escape.residual min=4.0e-04；saddle_escape.error_to_saddle min=2.0e-02；q_newton_valid dtype=bool | 全 True | ✅ |
 | A | 发散帧的三个诚实字段 | diverged_gd=True（放大 1/u 倍即判发散）、overflow=True、stop_gd='diverged' | diverged_gd=True，overflow=True，stop_gd='diverged'，α/α_stable=1.5998 | 全 True | ✅ |
 | A | 发散帧里 error_gd 的长度与有限性 | 长度 = max_iter+1 = 401，全有限（尾部补位） | 长度 401，max=3.027e+15，尾部 3 个 [3.027e+15 3.027e+15 3.027e+15] | 401 且有限 | ✅ |
 | A | meta.n_iter_gd 与核心 gd(...) 的迭代数 | 相等 | 帧 60 vs 核心 60（α=1.980198e-02） | 相等 | ✅ |
@@ -19,7 +19,7 @@
 | A | alpha_cap=1 时的尾部阶 / 窗口 / 地板起点 / q 最大值 | 阶 ≥ 1.8、窗口 ≥ 2、常数有限、地板起点有限、q 冲到 ≥ 1e50 | 阶 2.999，窗口 2，C=9.9047694185682e-05，地板起点 k=4，q_max=3.35e+122 | 全 True | ✅ |
 | A | alpha_cap=0.5 时的尾部阶 / 窗口 / 常数 | 阶 ≈ 1（线性）、窗口 0、常数 None | 阶 1.000，窗口 0，C=None，步数 30 | 阶 ≤ 1.2 且 C 为 None | ✅ |
 | A | 两个方向上的扰动末距（δ=0.1, 200 步） | neg_curv 远大于 1 远大于 orthogonal（差 ≥ 1e3 倍） | neg_curv 1.729e+03 vs orthogonal 0.000e+00（比 1.73e+303） | ≥ 1e3 | ✅ |
-| A | 实测 λ_min 与解析阈值的对照 | λ_min = -0.05，阈值 ≈ 2.87e-3（N=96 时的解析值） | λ_min=-0.050000，u_min=(1.000,0.000)，阈值 9.2432e-03，解析 9.2433e-03 | 相对 1e-3 | ✅ |
+| A | 实测 λ_min 与解析阈值的对照 | λ_min = -0.05，阈值 ≈ 2.87e-3（N=96 时的解析值） | λ_min=-0.050000，u_min=(1.000,0.000)，阈值 5.7830e-05，解析 5.7828e-05 | 相对 1e-3 | ✅ |
 | A | contour_z 与逐点求值的最大相对差 | ≤ 1e-14 | 0.000e+00（网格 (61, 61)） | 1e-14 | ✅ |
 | A | 不定起点上的负曲率分支 / 拒绝次数 / 负 ρ | n_negative_curv ≥ 1、n_rejected ≥ 1、min ρ < 0 | 负曲率 3 次，拒绝 3 次，min ρ=-1.801，接受掩码里 0 的个数 9 | 全 True | ✅ |
 | A | 半径的收缩与扩张范围 | radius_min < Δ0=1.0 < radius_max | [0.2500, 2.0000]，终值 1.0000 | 严格夹住 Δ0 | ✅ |

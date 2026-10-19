@@ -1,6 +1,6 @@
 % 本文件由 tools/build_book.py 从 dist/reports/assertions.json 生成，请勿手改。
 \begin{longtable}{@{}p{0.06\textwidth}p{0.32\textwidth}p{0.22\textwidth}p{0.16\textwidth}@{}}
-\caption{章节 5.1 数值断言（生成时间 2026-10-18T17:12:53-0400）}\\
+\caption{章节 5.1 数值断言（生成时间 2026-10-19T16:08:50-0400）}\\
 \toprule
 类别 & 断言 & 理论值 & 实测值 \\
 \midrule
@@ -12,8 +12,8 @@
 \bottomrule
 \endlastfoot
 
-A & 端点组合帧数与 JSON 里的 NaN/Infinity 计数 & NaN/\allowbreak{}Infinity 计数 =\allowbreak{} 0 & 69 帧，计数 0(\allowbreak{}descent\_race: 16 个数组、\allowbreak{}19 个 meta 字段) \checkmark \\
-A & 对数轴曲线最小值 > 0、掩码形状与 dtype、strings 里的地板说明 & 全部满足 & descent\_race.error\_gd min=\allowbreak{}4.3e-01；descent\_race.error\_newton min=\allowbreak{}1.3e-14；convergence\_rates.error\_gd min=\allowbreak{}1.0e+00；convergence\_rates.error\_newton min=\allowbreak{}1.0e-17；saddle\_escape.residual min=\allowbreak{}5.0e-07；saddle\_escape.error\_to\_saddle min=\allowbreak{}1.0e-05；q\_newton\_valid dtype=\allowbreak{}bool \checkmark \\
+A & 端点组合帧数与 JSON 里的 NaN/Infinity 计数 & NaN/\allowbreak{}Infinity 计数 =\allowbreak{} 0 & 69 帧，计数 0(\allowbreak{}descent\_race: 16 个数组、\allowbreak{}20 个 meta 字段) \checkmark \\
+A & 对数轴曲线最小值 > 0、掩码形状与 dtype、strings 里的地板说明 & 全部满足 & descent\_race.error\_gd min=\allowbreak{}4.3e-01；descent\_race.error\_newton min=\allowbreak{}1.3e-14；convergence\_rates.error\_gd min=\allowbreak{}1.0e+00；convergence\_rates.error\_newton min=\allowbreak{}1.0e-17；saddle\_escape.residual min=\allowbreak{}4.0e-04；saddle\_escape.error\_to\_saddle min=\allowbreak{}2.0e-02；q\_newton\_valid dtype=\allowbreak{}bool \checkmark \\
 A & 发散帧的三个诚实字段 & diverged\_gd=\allowbreak{}True(\allowbreak{}放大 1/\allowbreak{}u 倍即判发散)、\allowbreak{}overflow=\allowbreak{}True、\allowbreak{}stop\_gd=\allowbreak{}'diverged' & diverged\_gd=\allowbreak{}True，overflow=\allowbreak{}True，stop\_gd=\allowbreak{}'diverged'，$\alpha$/\allowbreak{}$\alpha$\_stable=\allowbreak{}1.5998 \checkmark \\
 A & 发散帧里 error\_\allowbreak{}gd 的长度与有限性 & 长度 =\allowbreak{} max\_iter+1 =\allowbreak{} 401，全有限(\allowbreak{}尾部补位) & 长度 401，max=\allowbreak{}3.027e+15，尾部 3 个 [3.027e+15 3.027e+15 3.027e+15] \checkmark \\
 A & meta.n\_\allowbreak{}iter\_\allowbreak{}gd 与核心 gd(...) 的迭代数 & 相等 & 帧 60 vs 核心 60(\allowbreak{}$\alpha$=\allowbreak{}1.980198e-02) \checkmark \\
@@ -23,7 +23,7 @@ A & $\beta$=0(退化成二次型)时的常数与说明 & 常数 =\allowbreak{} N
 A & alpha\_\allowbreak{}cap=1 时的尾部阶 / 窗口 / 地板起点 / q 最大值 & 阶 $\ge$ 1.8、\allowbreak{}窗口 $\ge$ 2、\allowbreak{}常数有限、\allowbreak{}地板起点有限、\allowbreak{}q 冲到 $\ge$ 1e50 & 阶 2.999，窗口 2，C=\allowbreak{}9.9047694185682e-05，地板起点 k=\allowbreak{}4，q\_max=\allowbreak{}3.35e+122 \checkmark \\
 A & alpha\_\allowbreak{}cap=0.5 时的尾部阶 / 窗口 / 常数 & 阶 $\approx$ 1(\allowbreak{}线性)、\allowbreak{}窗口 0、\allowbreak{}常数 None & 阶 1.000，窗口 0，C=\allowbreak{}None，步数 30 \checkmark \\
 A & 两个方向上的扰动末距($\delta$=0.1, 200 步) & neg\_curv 远大于 1 远大于 orthogonal(\allowbreak{}差 $\ge$ 1e3 倍) & neg\_curv 1.729e+03 vs orthogonal 0.000e+00(\allowbreak{}比 1.73e+303) \checkmark \\
-A & 实测 $\lambda$\_\allowbreak{}min 与解析阈值的对照 & $\lambda$\_min =\allowbreak{} -0.05，阈值 $\approx$ 2.87e-3(\allowbreak{}N=\allowbreak{}96 时的解析值) & $\lambda$\_min=\allowbreak{}-0.050000，u\_min=\allowbreak{}(\allowbreak{}1.000,\allowbreak{}0.000)，阈值 9.2432e-03，解析 9.2433e-03 \checkmark \\
+A & 实测 $\lambda$\_\allowbreak{}min 与解析阈值的对照 & $\lambda$\_min =\allowbreak{} -0.05，阈值 $\approx$ 2.87e-3(\allowbreak{}N=\allowbreak{}96 时的解析值) & $\lambda$\_min=\allowbreak{}-0.050000，u\_min=\allowbreak{}(\allowbreak{}1.000,\allowbreak{}0.000)，阈值 5.7830e-05，解析 5.7828e-05 \checkmark \\
 A & contour\_\allowbreak{}z 与逐点求值的最大相对差 & $\le$ 1e-14 & 0.000e+00(\allowbreak{}网格 (\allowbreak{}61,\allowbreak{} 61)) \checkmark \\
 A & 不定起点上的负曲率分支 / 拒绝次数 / 负 $\rho$ & n\_negative\_curv $\ge$ 1、\allowbreak{}n\_rejected $\ge$ 1、\allowbreak{}min $\rho$ < 0 & 负曲率 3 次，拒绝 3 次，min $\rho$=\allowbreak{}-1.801，接受掩码里 0 的个数 9 \checkmark \\
 A & 半径的收缩与扩张范围 & radius\_min < $\Delta$0=\allowbreak{}1.0 < radius\_max & [0.2500,\allowbreak{} 2.0000]，终值 1.0000 \checkmark \\
