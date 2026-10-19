@@ -1,0 +1,135 @@
+# 4.3 章断言清单（真源：tests/4.3/test_conservation.py 与 tests/4.3/test_frames.py）
+#
+# 这一章的证据链刻意分成两层：
+#   * **算法层**（test_conservation.py）：真推进的激波速度 vs Rankine–Hugoniot、
+#     Sod 星区值 vs Toro 教科书、跨激波 RH 残差、接触间断的 p/u 连续与 rho 跳跃、
+#     HLLC 对静止接触的精确分辨、Godunov 与迎风通量在跨声速稀疏波上的**离散分歧**、
+#     破散时间三条路线（闭式/扫描/特征线交点）互相吻合；以及守恒账本的负对照、
+#     TVD、熵收支、Euler 正性与周期质量不变。
+#   * **帧层**（test_frames.py）：同一套数搬进帧后，界面通量的望远镜和、
+#     质量账本恒等式、特征线掩码一致性仍然成立。
+#
+# `docs/chapters.yaml` 对 4.3 声明 `asserts: [A, B]`，这里 A/B 都有。
+# min_counts 留了余量：每多对一个算例/一条守恒支路，记录数会增减。
+chapter: "4.3"
+title: 守恒律与有限体积
+required_kinds: [A, B]
+
+min_counts:
+  A: 8
+  B: 8
+
+tests:
+  # ---------------------------------------------------------------- A：解析对拍
+  - name: test_burgers_shock_speed_matches_rankine_hugoniot
+    kind: A
+    what: >-
+      n=400 真推进、追踪 0.5 等值线并线性拟合，实测激波速度与 RH 闭式 0.5 的相对差 <= 2e-3
+    theory: >-
+      Rankine–Hugoniot s=(f(u_L)-f(u_R))/(u_L-u_R)=(u_L+u_R)/2（Burgers 凸通量）
+
+  - name: test_riemann_solution_is_self_similar
+    kind: A
+    what: >-
+      把精确解在两个时刻采样到同一 xi=(x-0.5)/t 网格上，连续区的最大差为 0（逐位）
+    theory: >-
+      Riemann 解是自相似解 u(x,t)=U((x-0.5)/t)；两个时刻的同一 xi 必须给出同一个值
+
+  - name: test_sod_star_values_match_the_textbook
+    kind: A
+    what: >-
+      Sod 的 p*=0.30313018、u*=0.92745262、rho_*L=0.42631943、rho_*R=0.26557371 与二分解相对差 <= 2e-5
+    theory: >-
+      Toro, *Riemann Solvers and Numerical Methods for Fluid Dynamics*, §4.9 的星区值
+
+  - name: test_euler_shock_satisfies_all_three_rankine_hugoniot_conditions
+    kind: A
+    what: >-
+      跨 Sod 右激波的质量/动量/能量三条跳跃条件残差（按跳跃尺度归一）<= 1e-13
+    theory: >-
+      s[U]=[F]：质量、动量、能量三条 RH 条件都必须贴舍入
+
+  - name: test_euler_contact_is_continuous_in_pressure_and_velocity_only
+    kind: A
+    what: >-
+      xi=u* 两侧 1e-8 内 |Δp|<=1e-12、|Δu|<=1e-12，而 |Δrho|>0.1
+    theory: >-
+      接触间断的定义：压强与速度连续、密度跳跃；这是标量守恒律里不存在的波型
+
+  - name: test_hllc_preserves_a_stationary_contact_exactly
+    kind: A
+    what: >-
+      u=0、p=1、rho_L=1、rho_R=0.125 的静止接触，HLLC 通量为 [0, 1, 0]（误差 <= 1e-14）
+    theory: >-
+      HLLC 的接触波速与质量通量由 upwind 星区给出；静止接触的通量只剩压强
+
+  - name: test_godunov_and_upwind_disagree_exactly_on_a_transonic_rarefaction
+    kind: A
+    what: >-
+      u_L=-1、u_R=1 时 Godunov 通量 = 0，朴素迎风通量 = 0.5（差 0.5，不是舍入）
+    theory: >-
+      Godunov 取 xi=0 的精确解（跨声速时 u_s=0，f(u_s)=0）；迎风按最大波速取一侧，给 f(u_R)
+
+  - name: test_breaking_time_three_routes_agree
+    kind: A
+    what: >-
+      sine 破散时间：闭式 1/(2πA)、20001 点扫描、40 条特征线的首个交点，两两相对差 <= 2e-3
+    theory: >-
+      t_b=-1/min u_0'(x)；三条路线分别来自解析求导、网格扫描与离散特征线交点
+
+  # ---------------------------------------------------------------- B：不变量
+  - name: test_conservation_ledger_separates_conservative_from_advective
+    kind: B
+    what: >-
+      Godunov/MUSCL 的账本残差 <= 1e-13，非守恒 advective 支路 > 0.1（同一算例、同一记账规则）
+    theory: >-
+      守恒格式：M(t)-M(0)=-(out-in)，内部通量望远镜相消；非守恒格式没有这条恒等式
+
+  - name: test_total_variation_is_non_increasing
+    kind: B
+    what: >-
+      Godunov（n=200, cfl=0.4）的总变差逐步非增，最大单步增量为 0（<= 1e-12）
+    theory: >-
+      单调格式满足 TVD：TV(u^{n+1}) <= TV(u^n)
+
+  - name: test_entropy_budget_separates_godunov_from_upwind
+    kind: B
+    what: >-
+      跨声速稀疏波上 Godunov 的熵产 <= 0，而朴素迎风的熵产 > 1e-3
+    theory: >-
+      熵不等式 d/dt∫eta dx + [q] <= 0；违背它会产生满足 RH、TV 不增的膨胀激波
+
+  - name: test_euler_positivity_and_mass_ledger
+    kind: B
+    what: >-
+      Sod（t=0.2，波未出界）的 min rho、min p 为正，质量残差 <= 1e-12
+    theory: >-
+      正密度/正压强是 Euler 有限体积的硬不变量；波未到边界时总质量严格守恒
+
+  - name: test_periodic_boundary_conserves_mass_exactly
+    kind: B
+    what: >-
+      sine 初值 + 周期边界 + MUSCL，总质量相对初始值的最大漂移 <= 1e-13
+    theory: >-
+      周期边界没有质量通量，守恒格式的总质量必须在舍入级不变
+
+  - name: test_flux_ledger_telescopes_inside_the_frame
+    kind: B
+    what: >-
+      帧里的 sum(flux_net) 与 F_0-F_N 的差 <= 1e-13（n=160, t=0.3）
+    theory: >-
+      单元净流入求和 = -(F_N-F_0)，这是前端柱状图和守恒结论的共同底座
+
+  - name: test_mass_ledger_identity_holds_on_the_common_time_axis
+    kind: B
+    what: >-
+      帧里的 M_godunov(t)-M(0) 与 inflow_cum-outflow_cum 在公共时间轴上逐点差 <= 1e-14
+    theory: >-
+      账本恒等式在插值到公共时间轴后仍必须成立（否则图上的交点是假的）
+
+  - name: test_characteristic_cross_times_respect_the_mask
+    kind: B
+    what: >-
+      cross_mask=0 的特征线对没有一个携带有限正交点；mask=1 的交点全部有限且为正
+    theory: >-
+      发散的特征线没有交点（t_cross=inf）；帧把它替换成地板值，必须靠掩码区分

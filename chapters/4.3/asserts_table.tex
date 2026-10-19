@@ -1,0 +1,31 @@
+% 本文件由 tools/build_book.py 从 dist/reports/assertions.json 生成，请勿手改。
+\begin{longtable}{@{}p{0.06\textwidth}p{0.32\textwidth}p{0.22\textwidth}p{0.16\textwidth}@{}}
+\caption{章节 4.3 数值断言（生成时间 2026-10-19T07:20:49-0400）}\\
+\toprule
+类别 & 断言 & 理论值 & 实测值 \\
+\midrule
+\endfirsthead
+\toprule
+类别 & 断言 & 理论值 & 实测值 \\
+\midrule
+\endhead
+\bottomrule
+\endlastfoot
+
+A & Godunov 实测激波速度(n=400) & RH: s=\allowbreak{}0.5 & 0.500038 \checkmark \\
+A & 同一 xi 在两个时刻的精确解最大差 & 自相似 -> 0 & 0 \checkmark \\
+A & Sod 星区值 vs Toro 教科书 & p*=\allowbreak{}0.30313018 等 & $6.431\times 10^{-9}$ \checkmark \\
+A & Sod 右激波三条 RH 残差的最大值 & <=\allowbreak{} 1e-13(\allowbreak{}双向归一) & $1.187\times 10^{-15}$ \checkmark \\
+A & 接触间断两侧：|$\Delta$p|, |$\Delta$u|, |$\Delta$rho| & dp=\allowbreak{}du=\allowbreak{}0，drho>0.1 & dp=\allowbreak{}0.0e+00,\allowbreak{} du=\allowbreak{}0.0e+00,\allowbreak{} drho=\allowbreak{}0.161 \checkmark \\
+A & 静止接触的 HLLC 质量/动量/能量通量 & [0,\allowbreak{} p,\allowbreak{} 0] & [0.0e+00,\allowbreak{} 1.000000000000,\allowbreak{} 0.0e+00] \checkmark \\
+A & 跨声速稀疏波的 Godunov vs upwind 通量 & Godunov=\allowbreak{}0,\allowbreak{} upwind=\allowbreak{}0.5 & godunov=\allowbreak{}0.0,\allowbreak{} upwind=\allowbreak{}0.5 \checkmark \\
+A & 破散时间闭式/扫描/特征线交点 & 闭式 0.318309886184 & scan=\allowbreak{}0.318309886,\allowbreak{} lines=\allowbreak{}0.318637371 \checkmark \\
+B & 三本账的最大残差(godunov / muscl / advective) & 守恒两条 \textasciitilde{}1e-16，非守恒 \textasciitilde{}0.3 & 5.83e-16 /\allowbreak{} 1.17e-15 /\allowbreak{} 3.00e-01 \checkmark \\
+B & Godunov 的总变差最大单步增量 & <=\allowbreak{} 1e-12(\allowbreak{}TVD) & $3.331\times 10^{-16}$ \checkmark \\
+B & 跨声速稀疏波末态熵产(Godunov / upwind) & Godunov <=\allowbreak{} 0，upwind > 0 & godunov=\allowbreak{}-5.358e-03,\allowbreak{} upwind=\allowbreak{}2.000e-01 \checkmark \\
+B & Euler 最小密度/最小压强/质量残差 & rho>0,\allowbreak{} p>0,\allowbreak{} |$\Delta$M| <=\allowbreak{} 1e-12 & min rho=\allowbreak{}0.125000,\allowbreak{} min p=\allowbreak{}0.100000,\allowbreak{} defect=\allowbreak{}1.11e-16 \checkmark \\
+B & 周期边界下总质量的最大漂移 & <=\allowbreak{} 1e-13 & $4.441\times 10^{-17}$ \checkmark \\
+B & sum(flux\_\allowbreak{}net) 与 F\_\allowbreak{}0 - F\_\allowbreak{}N 的差 & 望远镜求和 -> 0(\allowbreak{}舍入级) & 0 \checkmark \\
+B & godunov：M(t)-M(0) 与边界通量累计的最大差 & <=\allowbreak{} 1e-14(\allowbreak{}望远镜求和 + 时间插值误差) & $7.772\times 10^{-16}$ \checkmark \\
+B & 特征线交点数组的掩码一致性 & 掩码=\allowbreak{}0 的点不得含有效交点 & masked 越界 0 个，有效但非正 0 个 \checkmark \\
+\end{longtable}

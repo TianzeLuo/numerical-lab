@@ -1,0 +1,381 @@
+% 4.3 章 · 守恒律与有限体积
+% 这一章的主线：积分形式 -> 弱解 -> Rankine–Hugoniot -> 熵条件 -> Godunov 格式
+%   -> 有限体积的望远镜求和 -> Euler 方程组的 Riemann 解扇。
+% 每个纸面结论都配本章断言的实测数字（tests/4.3/ 的断言报告）。
+% 断言附表由 tools/build_book.py 生成，\input 进来，不手抄。
+
+\numlabchapter{守恒律与有限体积}{4.3}
+
+\section{为什么守恒律必须从积分形式开始}
+
+标量守恒律
+\begin{equation}
+  u_t+f(u)_x=0,\qquad x\in(0,L),\ t>0,\qquad u(x,0)=u_0(x)
+  \label{eq:cl}
+\end{equation}
+看起来只是平流方程把 $a u_x$ 换成了 $f(u)_x$，但两者的数学性质有一个决定性的差别：
+\eqref{eq:cl} 的\textbf{经典解会在有限时间破裂}。Burgers 方程 $f(u)=u^2/2$ 是最小的例子：
+特征线 $x(t)=x_0+t\,u_0(x_0)$ 是直线，斜率就是初值本身；初值递减的地方，
+后面的特征线追上前面的，解出现多值。
+
+物理量（质量、动量、能量）在破裂之后仍然有定义，所以正确的出发点是积分形式。
+对任意区间 $[a,b]$，
+\begin{equation}
+  \frac{d}{dt}\int_a^b u\,dx
+  = f(u(a,t))-f(u(b,t)).
+  \label{eq:integral}
+\end{equation}
+\eqref{eq:integral} 只要求 $u$ 是 $L^1_{\text{loc}}$，不要求它可导；它把 ``$u_t+f(u)_x=0$''
+从一个逐点等式降格成一个\textbf{分布意义}下的等式。这一降格不是为了偷懒：
+破裂后的熵解本来就不是经典解，任何只对光滑解成立的推导都管不到它。
+
+\begin{definition}[弱解]
+若 $u\in L^\infty(\mathbb{R}\times[0,\infty))$ 且对一切 $\varphi\in C_c^\infty(\mathbb{R}\times[0,\infty))$
+\begin{equation}
+  \int_0^\infty\!\!\int_{\mathbb{R}}
+  \bigl(u\,\varphi_t+f(u)\,\varphi_x\bigr)\,dx\,dt
+  +\int_{\mathbb{R}}u_0(x)\,\varphi(x,0)\,dx=0,
+  \label{eq:weak}
+\end{equation}
+则称 $u$ 是~\eqref{eq:cl} 的弱解。
+\end{definition}
+
+弱解不一定唯一。取 $u_L=0$、$u_R=1$ 的 Burgers 数据：一条右行激波（速度 $1/2$）
+与一条左行膨胀激波（速度 $1/2$，方向相反）都满足~\eqref{eq:weak}。
+所以``弱解''这个词本身只是把可选项扩大了；要选出物理上那一个，需要熵条件。
+这是本章所有``防误导''讨论的源头：\textbf{满足守恒律的数值解可以收敛到错误的东西}。
+
+\section{有限体积：守恒性是一条恒等式，不是一句口号}
+
+\begin{definition}[单元平均与数值通量]
+把区间分成 $N$ 个长度 $\Delta x$ 的单元 $I_j=[x_{j-1/2},x_{j+1/2}]$，
+令 $U_j^n\approx\frac1{\Delta x}\int_{I_j}u(x,t_n)\,dx$。有限体积格式写成
+\begin{equation}
+  U_j^{n+1}=U_j^n-\frac{\Delta t}{\Delta x}
+  \bigl(F_{j+1/2}-F_{j-1/2}\bigr),
+  \qquad F_{j+1/2}=F(U_j,U_{j+1}).
+  \label{eq:fv}
+\end{equation}
+$F$ 是\textbf{数值通量}：一致（$F(u,u)=f(u)$）、单调或至少满足某种熵估计。
+\end{definition}
+
+\begin{theorem}[离散守恒]
+\label{thm:conservation}
+设~\eqref{eq:fv} 在 $j=1,\dots,N$ 上成立，$F_{1/2}$ 与 $F_{N+1/2}$ 是边界通量，则
+\begin{equation}
+  \sum_{j=1}^N U_j^{n+1}\Delta x
+  =\sum_{j=1}^N U_j^{n}\Delta x
+  -\Delta t\bigl(F_{N+1/2}-F_{1/2}\bigr).
+  \label{eq:conservation}
+\end{equation}
+特别地，周期边界（$F_{1/2}=F_{N+1/2}$）下总质量逐位不变。
+\end{theorem}
+
+\begin{proof}
+把~\eqref{eq:fv} 乘以 $\Delta x$ 并对 $j$ 求和。右端的内部通量成对出现：
+$F_{j+1/2}$ 在单元 $j$ 的方程里取负号，在单元 $j+1$ 的方程里取正号，
+求和后只剩两个端点。边界条件只通过 $F_{1/2}$ 与 $F_{N+1/2}$ 进入。
+\end{proof}
+
+这条证明短得不像一个定理，但它正是本章最重要的结构性事实：
+\textbf{内部通量怎么错都不破坏守恒}。迎风格式、Rusanov、Osher、MUSCL，
+甚至通量算错的代码，只要写成~\eqref{eq:fv} 并且边界通量记账一致，总质量就严格守恒。
+反过来，\textbf{只有不写成通量差的离散才会漏}——比如把 $u_t+f(u)_x=0$ 改写成
+特征形式 $u_t+u\,u_x=0$ 再对 $u\,u_x$ 做中心差分或迎风差分。
+两种写法在光滑区逐点相同，在间断处完全不同。
+
+本章的断言把这件事量成了两个数。取 $u_L=1$、$u_R=0$ 的激波、$N=160$、$t=0.6$、
+出流边界，三套格式用\textbf{同一套记账规则}：
+\begin{center}
+\begin{tabular}{@{}lrr@{}}
+\toprule
+格式 & 最大账本残差 $|M-M_0+(\text{out}-\text{in})|$ & 末态质量 \\
+\midrule
+一阶 Godunov（守恒） & $5.83\times10^{-16}$ & $0.800000$ \\
+MUSCL--Hancock（守恒） & $1.17\times10^{-15}$ & $0.800000$ \\
+特征形式（非守恒） & $3.00\times10^{-1}$ & $0.500000$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+出流边界下质量本来就该从 $0.5$ 变到 $0.8$（累计流入 $0.3$），所以
+\textbf{质量曲线本身不是守恒判据}；残差才是。三者的差有 15 个数量级，
+而解在光滑区看起来完全一样——这是本章第一个、也是最容易被忽略的陷阱。
+
+\section{Rankine–Hugoniot：激波速度从守恒律里唯一确定}
+
+\begin{theorem}[Rankine--Hugoniot 条件]
+\label{thm:rh}
+设 $u$ 是分片光滑弱解，在曲线 $x=s t$ 两侧的极限为 $u_L,u_R$。则
+\begin{equation}
+  s\,(u_R-u_L)=f(u_R)-f(u_L),
+  \qquad\text{即}\qquad
+  s=\frac{f(u_R)-f(u_L)}{u_R-u_L}.
+  \label{eq:rh}
+\end{equation}
+\end{theorem}
+
+\begin{proof}
+取一个跨过间断的矩形控制体 $[-\varepsilon+s t,\ \varepsilon+s t]\times[t_1,t_2]$，
+在其上对~\eqref{eq:integral} 积分。让 $\varepsilon\to0^+$：
+体积项给出 $\int_{t_1}^{t_2}s(u_R-u_L)\,dt$（上下边界的贡献因高度趋零而消失），
+通量项给出 $\int_{t_1}^{t_2}(f(u_R)-f(u_L))\,dt$。对任意区间成立，
+故被积函数相等。
+\end{proof}
+
+对 Burgers，$s=(u_L+u_R)/2$。取 $u_L=1,u_R=0$，$s=1/2$。
+本章用 $n=400$ 的一阶 Godunov 真推进到 $t=0.5$，追踪 $u=1/2$ 的等值线位置，
+再做位置-时间线性拟合：$\hat s=0.50003848$（$r^2=0.999999$），相对误差 $7.7\times10^{-5}$。
+误差主要来自激波被抹宽后等值线位置的离散抖动，而不是格式的相速度。
+
+定理~\ref{thm:rh} 只用了守恒，没有用熵。这就是为什么``RH 满足''不能作为
+正确性的判据：膨胀激波也满足它。
+
+\section{熵条件：在 RH 之外再选一次}
+
+\begin{definition}[Lax 熵条件；凸通量]
+对凸通量（$f''>0$），跨激波
+\begin{equation}
+  f'(u_L)>s>f'(u_R).
+  \label{eq:lax}
+\end{equation}
+对 Burgers 就是 $u_L>s>u_R$，即\textbf{左状态跑得比激波快、右状态跑得慢}。
+若 $u_L<u_R$，~\eqref{eq:rh} 给出的曲线两侧特征线是发散的，
+它是一条\textbf{膨胀激波}：数学上满足弱解定义，物理上不存在。
+\end{definition}
+
+\begin{theorem}[熵不等式]
+\label{thm:entropy}
+设存在凸熵 $\eta(u)$ 与熵通量 $q(u)$，$q'=\eta'f'$。物理弱解必须满足分布意义下的
+\begin{equation}
+  \eta(u)_t+q(u)_x\le 0.
+  \label{eq:entropy}
+\end{equation}
+对 Burgers，取 $\eta=u^2/2$、$q=u^3/3$：光滑区~\eqref{eq:entropy} 取等号，
+激波处严格小于零（熵产为正），膨胀激波则给出严格大于零。
+\end{theorem}
+
+\begin{proof}[证明思路]
+在方程里加一个消失的黏性项 $\varepsilon u_{xx}$，对光滑解乘以 $\eta'(u)$ 得
+$\eta_t+q_x=\varepsilon\,\eta''(u)\,u_x^2\le0$（$\eta$ 凸）。令 $\varepsilon\to0^+$，
+黏性解收敛到满足~\eqref{eq:entropy} 的弱解；而膨胀激波作为消失黏性的极限不出现。
+\end{proof}
+
+本章的数值证据来自跨声速稀疏波 $u_L=-1$、$u_R=1$：
+\begin{itemize}
+  \item 精确 Godunov 通量取临界点 $u_s=0$，通量 $f(u_s)=0$；
+  \item 朴素迎风通量按最大波速取一侧，给 $f(u_R)=1/2$。
+\end{itemize}
+两者相差 $0.5$，\textbf{不是舍入，是两种不同的弱解}。
+真推进到 $t=0.3$：Godunov 的末态熵产 $-5.36\times10^{-3}$（正确，熵被耗散），
+朴素迎风 $+2.00\times10^{-1}$（错误，熵被凭空制造）。
+与此同时，两者的总变差都没有增加、RH 都满足、格式都单调——
+\textbf{常规检查全部通过}。这就是本章第二个陷阱：熵条件是唯一能抓住它的判据。
+
+\section{Godunov 格式与 Riemann 问题}
+
+\begin{definition}[Godunov 通量]
+在每个界面 $x_{j+1/2}$ 上解精确 Riemann 问题（左状态 $U_j$、右状态 $U_{j+1}$），
+取相似变量 $\xi=x/t=0$ 处的数值通量：
+\begin{equation}
+  F^{\text{Gud}}_{j+1/2}=f\bigl(U^\star(0;U_j,U_{j+1})\bigr).
+\end{equation}
+\end{definition}
+
+对 Burgers，$\xi=0$ 处的 Riemann 解有三种情形：
+\begin{itemize}
+  \item $u_L>u_R$：激波，$u^\star(0)=u_L$（因为 $s>0$ 时左状态占 $x=0$ 的上风侧），$F=f(u_L)$；
+  \item $u_L\le u_R$ 且 $0\notin[u_L,u_R]$：单侧状态，$F=f(u_L)$ 或 $f(u_R)$；
+  \item 跨声速（$u_L<0<u_R$）：稀疏波扇面覆盖 $x=0$，$u^\star(0)=0$，$F=f(0)=0$。
+\end{itemize}
+最后一条是 Godunov 格式与朴素迎风通量的全部差别：迎风只看``风往哪边吹''，
+Godunov 还看``$x=0$ 处到底是哪个状态''。
+
+\begin{theorem}[Godunov 格式的熵稳定性]
+\label{thm:godunov-entropy}
+若 $F$ 是精确 Riemann 通量，则格式满足离散熵不等式
+\begin{equation}
+  \eta(U_j^{n+1})\le\eta(U_j^n)
+  -\frac{\Delta t}{\Delta x}\bigl(Q_{j+1/2}-Q_{j-1/2}\bigr),
+\end{equation}
+其中 $Q$ 由 Riemann 扇面的熵通量给出。特别地，收敛的 Godunov 解满足~\eqref{eq:entropy}。
+\end{theorem}
+
+\begin{proof}[证明思路]
+精确 Riemann 解的熵产在每条激波上非负、在稀疏波内为零（等熵），
+所以每个界面贡献的数值熵通量满足所需的单侧估计。沿 $t$ 积分并用
+单元平均的凸性（Jensen 不等式）即可得到离散不等式。
+\end{proof}
+
+本章用 $n=200$、$\text{cfl}=0.4$ 验证了 Godunov 的 TVD：
+总变差从 $1.0000$ 到 $1.0000$，逐点最大单步增量为
+$3.3\times10^{-16}$（舍入级）。注意 TVD 只说明``不产生新振荡''，
+它对熵条件保持沉默。
+
+\section{Euler 方程组的 Riemann 解扇}
+
+Euler 方程组
+\begin{equation}
+  \mathbf U=\begin{pmatrix}\rho\\ \rho u\\ E\end{pmatrix},
+  \qquad
+  \mathbf F=\begin{pmatrix}\rho u\\ \rho u^2+p\\ u(E+p)\end{pmatrix},
+  \qquad
+  E=\frac{p}{\gamma-1}+\frac12\rho u^2
+  \label{eq:euler}
+\end{equation}
+的 Riemann 解比标量情形多了一种波：接触间断。它的结构是
+\begin{equation}
+  \underbrace{\text{左波}}_{\text{激波或稀疏波}}\quad
+  \underbrace{\text{接触间断}}_{u,p\ \text{连续},\ \rho\ \text{跳}}\quad
+  \underbrace{\text{右波}}_{\text{激波或稀疏波}} .
+  \label{eq:fan}
+\end{equation}
+
+\begin{theorem}[星区压强方程]
+\label{thm:pstar}
+令 $f_L(p)$、$f_R(p)$ 为左/右波的 ``压强函数''（激波用 RH、稀疏波用等熵关系），
+则星区压强 $p^\star$ 是方程
+\begin{equation}
+  f_L(p^\star)+f_R(p^\star)+u_R-u_L=0
+  \label{eq:pstar}
+\end{equation}
+的唯一正根；星区速度 $u^\star$ 由任一$f$给出。
+\end{theorem}
+
+\begin{proof}[证明思路]
+$f_L,f_R$ 在 $(0,\infty)$ 上连续、单调递增（激波段 $f'>0$，稀疏波段由
+$f_K(p)=\frac{2c_K}{\gamma-1}\bigl[(p/p_K)^{(\gamma-1)/(2\gamma)}-1\bigr]$ 也递增），
+且在 $p\to0^+$ 与 $p\to\infty$ 时分别趋于有限值与 $+\infty$，故和函数严格递增；
+中间值定理给出唯一根。若 $f_L(0)+f_R(0)+u_R-u_L>0$，则出现真空，
+本章的三个算例都避开这一支。
+\end{proof}
+
+用二分解出 Sod 的星区值，与 Toro 的教科书值对拍，最大相对差
+$6.4\times10^{-9}$：
+\[
+  p^\star=0.30313018,\qquad u^\star=0.92745262,\qquad
+  \rho^\star_L=0.42631943,\qquad \rho^\star_R=0.26557371 .
+\]
+跨右激波的三条 RH 条件（质量、动量、能量，按跳跃尺度归一）残差为
+$9.2\times10^{-16}$、$2.3\times10^{-16}$、$1.2\times10^{-15}$。
+接触间断两侧在 $\xi=u^\star$ 的 $10^{-8}$ 邻域内 $|\Delta p|=|\Delta u|=0$，
+而 $|\Delta\rho|=0.161$——这正是~\eqref{eq:fan} 的结构。
+
+\begin{theorem}[HLLC 精确分辨静止接触]
+\label{thm:hllc-contact}
+若 $u_L=u_R=0$、$p_L=p_R=p$、$\rho_L\ne\rho_R$，则 HLLC 通量为
+\begin{equation}
+  \mathbf F^{\text{HLLC}}=(0,\ p,\ 0)^{\mathsf T},
+\end{equation}
+与密度无关。
+\end{theorem}
+
+\begin{proof}
+静止接触的中间波速 $S_M=0$；HLLC 的星区选择退化为在接触两侧各取常状态，
+而两侧的动量为零、总能量只通过 $p$ 进入通量，故动量通量就是 $p$，
+质量与能量通量为零。
+\end{proof}
+
+本章断言的实测值是 $[0,\ 1.000000000000,\ 0]$（误差 $\le10^{-14}$）。
+这条性质说明：\textbf{接触间断是否被抹宽，是检验数值通量分辨率的直接读数}；
+一阶格式把它抹成 $O(\sqrt{\Delta x})$ 宽，二阶格式 $O(\Delta x)$。
+
+\section{特征线与破散时间}
+
+对 Burgers，$f'(u)=u$，特征线是直线
+\begin{equation}
+  x(t)=x_0+t\,u_0(x_0).
+  \label{eq:char}
+\end{equation}
+相邻两条特征线（$u_i>u_{i+1}$）的交点
+\begin{equation}
+  t_\ast=\frac{x_{i+1}-x_i}{u_i-u_{i+1}},
+  \qquad
+  x_\ast=x_i+t_\ast u_i,
+  \label{eq:cross}
+\end{equation}
+最早的交点就是破散时间 $t_b=-1/\min_x u_0'(x)$。
+对 $u_0=A\sin(2\pi x)$，$\min u_0'=-2\pi A$，故
+\begin{equation}
+  t_b=\frac{1}{2\pi A}.
+  \label{eq:tb}
+\end{equation}
+
+本章用三条独立路线量同一个 $t_b$：
+闭式 $0.3183098862$、20001 点扫描 $0.3183098862$（逐位相同，因为极值点落在网格上）、
+40 条特征线的首个交点 $0.3186373711$（相对差 $1.03\times10^{-3}$，
+误差来自离散起点 $x_0=(i+1/2)/n$ 与真实极值点的偏移）。
+三条路线一致到 $O(1/n)$，这就是``理论值''在数值实验里的正确用法：
+\textbf{允许它比网格精度更准，但不允许它和网格无关}。
+
+破散之后（$t>t_b$），\eqref{eq:char} 的回溯不再唯一：同一条 $x$ 对应三条特征线，
+``最靠左的一支''只是多值解的一个分支。拿它当精确解算误差，误差会随 $\Delta x$
+漂亮地收敛——但收敛到一个\textbf{不是熵解}的东西。这是本章第三个陷阱，
+断言里用 \texttt{exact\_valid} 掩码把这种比较整条作废。
+
+\section{为什么二阶不会自动更守恒}
+
+MUSCL--Hancock 在单元内做斜率重构，再用半步预测更新界面状态：
+\begin{equation}
+  U_j^{L}=U_j^n+\frac12\,s_j,\qquad
+  U_j^{R}=U_j^n-\frac12\,s_j,\qquad
+  s_j=\operatorname{minmod}\bigl(U_j-U_{j-1},\ U_{j+1}-U_j\bigr).
+  \label{eq:muscl}
+\end{equation}
+$s_j=0$ 时它逐位退化成 Godunov（限制器把极值处降成一阶）。
+限制器保证 TVD，代价是在极值处损失二阶精度；这正是 Godunov 定理
+（线性单调格式至多一阶）允许的折中。
+
+本章实测：一阶与 MUSCL 的账本残差分别是 $5.83\times10^{-16}$ 与
+$1.17\times10^{-15}$——两者都在舍入级，MUSCL 只是大了 2 倍。
+\textbf{``更准''与``更守恒''是两条独立的账}：二阶重构没有改变
+通量差的望远镜结构，所以守恒性不随精度阶变化；它改变的是通量的数值，
+从而改变解的形状、熵产和激波位置。
+
+\section{本章的实测数字一览}
+
+\begin{center}
+\begin{tabular}{@{}lll@{}}
+\toprule
+量 & 实测 & 理论/判据 \\
+\midrule
+Burgers 激波速度（n=400） & $0.50003848$ & RH $=0.5$，相对差 $7.7\times10^{-5}$ \\
+Sod $p^\star$ & $0.30313018$ & Toro $0.30313018$，相对差 $6.4\times10^{-9}$ \\
+Sod $u^\star$ & $0.92745262$ & Toro $0.92745262$ \\
+跨右激波 RH 最大残差 & $1.19\times10^{-15}$ & 舍入级 \\
+接触两侧 $|\Delta p|/|\Delta u|/|\Delta\rho|$ & $0/0/0.161$ & 连续/连续/跳跃 \\
+静止接触的 HLLC 通量 & $(0,1,0)$ & 精确 \\
+跨声速稀疏波 Godunov / 迎风通量 & $0$ / $0.5$ & 临界点 / 单侧 \\
+Godunov 熵产（稀疏波，t=0.3） & $-5.36\times10^{-3}$ & $\le0$ \\
+迎风熵产（同一算例） & $+2.00\times10^{-1}$ & $>0$，熵违背 \\
+守恒账本残差（Godunov/MUSCL/迎风） & $5.83\times10^{-16}/1.17\times10^{-15}/3.0\times10^{-1}$ & 守恒/守恒/漏水 \\
+破散时间：闭式/扫描/特征线 & $0.3183098862/0.3183098862/0.3186373711$ & 相对差 $\le1.03\times10^{-3}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\input{chapters/4.3/asserts_table}
+
+\section{它会怎样骗你（本章版）}
+
+\begin{enumerate}
+  \item \textbf{``质量不变''不是守恒判据。} 出流边界下守恒格式的质量从 $0.5$ 涨到 $0.8$，
+        看起来一点都不``守恒''；而账本残差是 $5.8\times10^{-16}$。
+        反过来，周期边界下非守恒格式的质量也可能看起来不变，但它的残差是 $O(1)$。
+        本项目的做法：帧里同时给质量曲线、累计边界通量与账本残差，
+        \texttt{meta.rel\_defect} 与 \texttt{strings.reading\_note} 写明读法。
+  \item \textbf{熵条件不是``可选的严格性''。} 跨声速稀疏波上，朴素迎风通量的
+        RH 满足、TV 不增、格式单调，所有常规检查都通过；只有熵产从负变正。
+        本项目的做法：\texttt{meta.entropy\_production} 进帧，并在图注里把它与
+        TV、RH 并列写出；任何``误差很小''的结论必须同时看熵号。
+  \item \textbf{破散之后的精确解不是精确解。} 特征回溯给出多值解的一支，
+        它光滑、能满足一堆不变量，拿它算误差会得到漂亮的假收敛。
+        本项目的做法：\texttt{exact\_valid} 掩码逐点进帧，前端据此把精确解曲线
+        截断并把误差轴整条置灰；\texttt{strings.mask\_note} 写明``这是没有参照物，
+        不是误差变大''。
+  \item \textbf{守恒与精度是两本账。} MUSCL 的残差比一阶大 2 倍却仍然在舍入级；
+        二阶重构也不会自动修好边界记账。本项目的做法：账本残差按每个格式单独给，
+        而不是拿``整体看起来守恒''一句话代替。
+  \item \textbf{CFL 越界不是``误差大一点''。} $\nu>1$ 时格式不再是一个离散解：
+        $\max|u|$ 指数增长、通量越界。本项目的做法：帧把解截到 $\pm2.5$ 并置
+        \texttt{overflow} 与 \texttt{u\_clipped} 掩码——把失控标出来，而不是藏起来。
+\end{enumerate}
