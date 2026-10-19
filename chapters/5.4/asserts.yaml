@@ -1,0 +1,165 @@
+# 5.4 章断言清单（真源：`tests/5.4/` 下的四个文件）
+#
+# 本章的分工：
+#   * **A 类（主）**——解析对拍与一致性。Ishigami / g-函数的闭式指数、gPC 基的正交归一性、
+#     Gauss--Legendre 与 2.4 章对拍、Hermite 三点权重、多项式被精确投影、PCE 指数与
+#     pick-freeze 对拍、点集的网性质、Koksma--Hlawka 不等式、以及**帧与核心逐位一致**。
+#   * **B 类**——"判据 vs 恒等式"。`sum S_i <= 1 <= sum S_Ti` 在独立输入下成立、
+#     在相关输入下失效；批量均值法估标准误；确定性 QMC 没有误差估计；直方图归一化。
+#   * **C 类（辅）**——收敛率与失效区。MC 的 1/sqrt(N)、覆盖率对分布的依赖、
+#     QMC 与 MC 的实测斜率差、谱衰减的两种形态（几何 vs 代数）。
+#
+# 这里**故意**登记了一批"负面结论"，它们和正面结论一样重要：
+#   * 斜率随窗口变（小窗口 Sobol -1.22，大窗口 -1.90）——报斜率必须连窗口一起报；
+#   * 间断函数边界落在 2^-1 上时 Sobol 的误差**恒为 0**（那是网结构的精确性，不是"快"）；
+#   * 相关输入下 `sum S_i` 可以到 1.4942（大于 1），分解不再唯一；
+#   * 估计器漂移 0.3242 是**偏差**不是噪声；
+#   * 折点函数 |x| 只有代数衰减（alpha 1.09-1.31，测不出干净的 -1）；
+#   * n_train=8 时训练误差 4e-16 而留出误差 0.485（差 1e15 倍）；
+#   * 外推放大 709 倍（exp）与 1.5e4 倍（Runge）。
+chapter: "5.4"
+title: 不确定性量化与全局敏感性
+required_kinds: [A, B, C]
+
+min_counts:
+  A: 23
+  B: 6
+  C: 4
+
+tests:
+  # ---- 帧层：呈现纪律（tests/5.4/test_frames.py）----
+  - name: test_all_frames_finite_and_packable_at_corners
+    kind: A
+    what: 66 帧（参数端点 x 时间端点）全部只有有限值，头部 JSON 里真正的非有限常量 0 个
+    theory: 数组/数值 meta 全有限；`allow_nan=False` 的头部里不许出现 NaN/Infinity 常量
+  - name: test_log_axis_curves_are_floored_with_masks
+    kind: A
+    what: 对数曲线一律 >= -17 且 max 高于地板一个数量级；贴地板的点掩码为 0（discontinuous 全 0、offset_box 全 1）
+    theory: 对数轴上画不出 0：存 log10 值 + 地板 1e-17 + `*_valid` 掩码
+  - name: test_point_fill_declares_missing_error_band
+    kind: A
+    what: randomize=False 与 method=grid 时 band_valid 全 0、band_available=False；randomize=True 时全 1
+    theory: 确定性点集的复制标准差恒为 0，误差棒**不存在**（不是「误差很小」）
+  - name: test_point_fill_refuses_to_report_slope_on_the_floor
+    kind: A
+    what: 误差整条贴地板时 slope_current=None、note 说明「精确为 0」；对照的 offset_box 斜率 -0.898
+    theory: 不许在地板上拟合斜率；测不出来就报 None
+  - name: test_sobol_bars_correlation_states
+    kind: A
+    what: rho=0 时 overlap/sum_between 为 None、corr_valid 全 0；rho=0.5 时 sum_between=1.4942、sum_indep=0.9890
+    theory: 「不适用」必须与「实测到 0」分开；相关分解只在正态域模型上有定义
+  - name: test_sobol_bars_sum_criterion_and_truth_flags
+    kind: A
+    what: 独立 g-函数 sum S_i=0.8565 <= 1 <= sum S_Ti=1.1154（解析 0.9290/1.0716）；相关双线性 sum_between=1.4942 > 1
+    theory: 上下界由实测值 + 区间算出来，不是恒真的显示位
+  - name: test_pce_spectrum_marks_overfitting_region
+    kind: A
+    what: n_train=8、p=10 时 underdetermined=True、under_flag 与 n_basis>8 逐点一致、训练误差 4.5e-16、留出误差 0.485
+    theory: 过拟合区必须可见：训练误差到机器零不能说明精度
+  - name: test_pce_spectrum_reports_exact_order_and_floor
+    kind: A
+    what: poly4+projection 的 exact_at_order=4，p<4 时 log10(err) >= -1.05，p=12 时 1.65e-14，掩码全 1（未触地板）
+    theory: 四次多项式用四阶基精确；掩码只在真的贴地板时为 0
+  - name: test_output_hist_declares_reference_identity
+    kind: A
+    what: 正态+线性 ref_is_exact=True 且两个 KS 相差 1e-3；均匀+线性精确三角密度（KS 0.0029 vs 正态 0.0190）；指数+线性为 CLT 近似
+    theory: 参考线是不是真值必须声明，否则 |密度差| 会被读成「模型误差」
+  - name: test_frames_match_kernel_calls_bitwise
+    kind: A
+    what: 点集差 0、指数差 0、计数和恰为 N、PCE 误差 log10 差 <= 1e-9
+    theory: 装配层只许搬运，不许在服务端重算统计量
+  # ---- MC 层（tests/5.4/test_mc_confidence.py）----
+  - name: test_norm_ppf_cross_check_and_roundtrip
+    kind: A
+    what: 与 scipy 的 ndtri 最大相对差 0.0（在 2.4 章的对拍口径下），往返误差 2.465e-10
+    theory: 自实现的 Acklam 有理逼近相对误差 < 1.15e-9
+  - name: test_input_distribution_moments_and_support
+    kind: A
+    what: 四种输入分布（均匀/正态/beta/指数）的样本均值与标准差都收敛到设定值（spread 标度）
+    theory: 采样器必须真按标称测度抽样，否则后面所有覆盖率都无意义
+  - name: test_exact_sum_density_matches_empirical_and_declines_when_unknown
+    kind: A
+    what: 均匀和的精确三角密度 vs 经验 L1=0.01402、质量 0.999981；指数和给 None（没有精确解）
+    theory: 精确参考只在能解析算出时给出，算不出就报 None
+  - name: test_histogram_normalization_and_bin_tradeoff
+    kind: B
+    what: 密度积分 1.000000000000、计数 50000/50000、bin 数误差曲线在 B=16 取极小（0.0029）
+    theory: 直方图必须归一；bin 数存在 U 形最优（偏差-方差权衡）
+  - name: test_mc_rate_is_one_over_sqrt_n
+    kind: C
+    what: 1/N 轴上的 RMSE 斜率 0.4731（R^2=0.987），与本模块 loglog_slope 一致
+    theory: MC 的 RMSE ~ N^{-1/2}（在 1/N 轴上斜率为 1/2）
+  - name: test_confidence_interval_coverage_versus_sample_size
+    kind: C
+    what: N=100 时正态输出 0.9533、重尾 0.9267（差 0.0267，se 0.0122）；N=1000 时 0.9467/0.9567
+    theory: 1/sqrt(N) 是标度不是保证：小 N + 重尾时覆盖率会明显掉下来
+  - name: test_ks_distance_shrinks_for_correct_reference_only
+    kind: B
+    what: 精确参考下 KS 0.01492 -> 0.00722 -> 0.00422；CLT 参考下 0.0265 -> 0.0204 -> 0.0177
+    theory: KS 只对**正确**的参考线收敛到 0；参考错了它会停在一个正的地板上
+  # ---- QMC / 点集（tests/5.4/test_qmc_sobol.py）----
+  - name: test_sobol_net_stratification_and_scramble_invariance
+    kind: A
+    what: m=4/8/10、两种种子下，none/shift/linear 三种置乱在每个 m1+m2=m 的切法上都恰好 1 点
+    theory: (0,m,2)-网的每格计数恒为 1；置乱必须保网性质（线性置乱的方向与对角线都要对）
+  - name: test_koksma_hlawka_holds_but_is_not_an_estimate
+    kind: A
+    what: 20 种组合（5 个被积函数 x 4 种点集）不等式一次都没被违反，松紧度 0.000--0.968（跨 3 个数量级）
+    theory: '|I_hat - I| <= V(f) D*_N 成立，但 V(f) D*_N 常常比真实误差大几个数量级——它是上界不是估计'
+  - name: test_variation_grows_quadratically_with_frequency
+    kind: A
+    what: V(k)/(V(1)k^2) 在 400 格上最大偏差 9.3e-4、在 1600 格上再降一半以上
+    theory: 变差按频率二次增长；偏差本身是差分离散化误差，加密网格必须变小
+  - name: test_star_discrepancy_ordering_and_anchor_grid_floor
+    kind: A
+    what: 37 格上 D*：MC 0.06153/0.03517/0.01768 vs Sobol 0.01152/0.00275/0.00087（优势随 N 增大）；64 格上 N=4096 时 0
+    theory: Sobol 的星偏差比 MC 低一个数量级并随 N 拉开；但锚网格分辨率会给出 0 地板
+  - name: test_deterministic_qmc_has_no_error_estimate
+    kind: B
+    what: 复制标准差 0.0e+00、真实误差 2.866e-04、确定性覆盖率 0.00；随机化后 stderr_of_mean 6.997e-07、bar_honesty*sqrt(R)=0.986
+    theory: 确定性点集给不出误差估计（误差棒宽度 0 而误差不为 0）；随机化是**唯一**的误差来源
+  - name: test_batch_means_estimates_the_stderr_of_the_mean
+    kind: B
+    what: 批量均值/真实标准误的比值：MC 1.143、Sobol 0.810、格点 0.954
+    theory: 批量均值法估的是均值的标准误；QMC 分批之间负相关，比值系统性偏小（已知现象）
+  - name: test_qmc_rate_beats_mc_rate_and_slope_depends_on_window
+    kind: C
+    what: 小窗口 [64,4096] MC -0.4969 / Sobol -1.2185（差 0.7216）；大窗口 [1024,65536] MC -0.5151 / Sobol -1.9034；对齐间断误差恒 0 vs 偏移 -0.898
+    theory: QMC 的实测斜率优于 MC，但**斜率本身依赖窗口**与函数的光滑性
+  - name: test_sobol_points_are_order_and_scramble_consistent
+    kind: A
+    what: 生成矩阵累加 vs sobol_points 的集合差 0.000e+00；置乱后 256 点落在 256 个 1 维格子里，每格恰好 1
+    theory: 点集必须与生成矩阵自洽；一维分层的完美性不能用来证明二维网性质
+  # ---- 敏感性 / PCE（tests/5.4/test_sensitivity_pce.py）----
+  - name: test_ishigami_analytic_matches_closed_form
+    kind: A
+    what: 三元组与闭式相对差 <= 1e-12；sum S_i=0.7563 < 1 < sum S_Ti=1.2437（S_13=0.2437）
+    theory: Ishigami 有解析方差分解：交互项可以和一阶项一样大
+  - name: test_g_function_analytic_and_the_one_bug_that_got_away
+    kind: A
+    what: 正确公式 sum S_i=0.9290 < 1；写错的公式给 1.0716 > 1
+    theory: 一阶指数之和大于 1 在数学上不可能——它是「代码写错了」的判据
+  - name: test_basis_orthonormality_and_gauss_rules_against_chapter_2_4
+    kind: A
+    what: Gram 最大偏离 8e-14（Hermite 4.9e-11）；GL 节点差 <= 5e-15、权重比恒为 2；GH 三点权重 (1/6,2/3,1/6)
+    theory: gPC 基在各自测度下正交归一；求积规则必须与 2.4 章一致
+  - name: test_pce_exact_for_polynomials_and_fails_for_kinks
+    kind: A
+    what: poly4 在 p=2/3 时误差 > 1.2e-1、p>=4 时 <= 1e-12；|x| 在 p=12 时仍有 2e-2
+    theory: 多项式被精确投影，折点函数不是——同一个基、同一个阶数，差别只在光滑性
+  - name: test_pce_analytic_indices_match_pick_freeze
+    kind: A
+    what: PCE 由系数读出 (0.5,0.5)（精确到 1e-12），pick-freeze 实测 (0.5,0.5)、V=2.00
+    theory: 两条互不相干的路必须给同一个数
+  - name: test_variance_decomposition_criterion_holds_and_fails
+    kind: B
+    what: 独立 sum S_i=0.9348±0.0820（解析 0.9290）、sum S_Ti=1.1077±0.0358；rho=0.5 条件方差口径 1.4942、乘积测度口径 0.9890
+    theory: sum S_i <= 1 <= sum S_Ti 是**输入独立**下的判据，不是恒等式
+  - name: test_estimator_drift_is_bias_not_noise
+    kind: B
+    what: sum S_i(N) 在 N=64..4096 上从 0.8416 漂到 0.9488（幅度 0.3242），末端与解析差 0.0198
+    theory: 漂移是 O(1/N) 的偏差，不随单次实验的重复而减小
+  - name: test_spectral_decay_geometric_versus_algebraic
+    kind: C
+    what: exp 的半对数斜率 -1.0005（每阶掉一个数量级，R^2=0.99）；|x| 只掉 1.8 个数量级，alpha 在 1.094--1.306 之间
+    theory: 光滑函数谱收敛（几何），有折点的只有代数收敛，且 p<=16 上测不出干净的 -1
