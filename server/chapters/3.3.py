@@ -343,14 +343,14 @@ MANIFEST: dict[str, Any] = {
             "axes": [
                 {
                     "id": "main",
-                    "title": "能量相对误差 (H−H₀)/|H₀|（自动纵轴，对数可选）",
+                    "title": "能量相对误差（自适应窗口）",
                     "ylabel": "ΔE/E₀",
                     "autoscaled": True,
                 },
                 {
                     "id": "aux",
-                    "title": "带宽 / 趋势 / 短期误差（三条独立刻度，自动）",
-                    "ylabel": "带宽 · 趋势 · 短期误差",
+                    "title": "带宽 / 趋势 / 短期误差（对数）",
+                    "ylabel": "量级",
                     "autoscaled": True,
                     "scale": "log",
                 },
@@ -441,14 +441,14 @@ MANIFEST: dict[str, Any] = {
             "axes": [
                 {
                     "id": "main",
-                    "title": "相平面 (q,p)：数值轨道 vs 不变量曲线 vs 精确轨道（固定窗口 ±1.6）",
+                    "title": "相平面 (q,p)（固定窗口 ±1.6）",
                     "xlabel": "q",
                     "ylabel": "p",
                     "autoscaled": False,
                 },
                 {
                     "id": "aux",
-                    "title": "到不变曲线的偏差与到精确轨道的偏差（对数，自动）",
+                    "title": "到不变曲线/精确轨道的偏差（对数）",
                     "ylabel": "径向相对偏差",
                     "autoscaled": True,
                     "scale": "log",
@@ -540,14 +540,14 @@ MANIFEST: dict[str, Any] = {
             "axes": [
                 {
                     "id": "main",
-                    "title": "真实能量的相对误差与它的带（自动纵轴）",
+                    "title": "真实能量的相对误差与误差带",
                     "ylabel": "ΔE/E₀",
                     "autoscaled": True,
                 },
                 {
                     "id": "aux",
-                    "title": "修正能量 H_h 的相对变化（对数，自动）与 det M 偏离 1 的量",
-                    "ylabel": "修正量的相对变化",
+                    "title": "修正能量与 det M 的偏离（对数）",
+                    "ylabel": "相对变化",
                     "autoscaled": True,
                     "scale": "log",
                 },
@@ -619,14 +619,14 @@ MANIFEST: dict[str, Any] = {
             "axes": [
                 {
                     "id": "main",
-                    "title": "轨道平面 (x,y)：数值轨道 vs 精确椭圆（固定窗口 ±1.25）",
+                    "title": "轨道平面 (x,y)（窗口按 e 固定）",
                     "xlabel": "x",
                     "ylabel": "y",
                     "autoscaled": False,
                 },
                 {
                     "id": "aux",
-                    "title": "能量误差、角动量相对漂移与到精确椭圆的径向偏差（对数，自动）",
+                    "title": "能量/角动量/径向偏差（对数）",
                     "ylabel": "误差 / 漂移",
                     "autoscaled": True,
                     "scale": "log",
