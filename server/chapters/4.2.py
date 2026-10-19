@@ -665,13 +665,13 @@ MANIFEST: dict[str, Any] = {
                 {
                     "id": "solution",
                     "autoscaled": False,
-                    "title": "解曲线与精确平移解（窗口固定 −0.6–1.6：起振时冲出去，而不是被自动缩放藏起来）",
+                    "title": "解曲线与精确平移解（固定窗口）",
                     "ylabel": "u(x,t)",
                 },
                 {
                     "id": "error",
                     "autoscaled": False,
-                    "title": "逐点误差（对数纵轴，窗口固定 1e-17–3）与过冲/欠冲",
+                    "title": "逐点误差（对数）与过冲/欠冲",
                     "ylabel": "|u − u_exact|",
                 },
             ],
@@ -754,13 +754,13 @@ MANIFEST: dict[str, Any] = {
                 {
                     "id": "speed",
                     "autoscaled": False,
-                    "title": "相速度比 c_num/c 与修正方程预测（窗口固定 −0.5–1.6）",
+                    "title": "相速度比与 φ⁵ 预测（窗口 −0.2–2.6）",
                     "ylabel": "c_num / c",
                 },
                 {
                     "id": "amplitude",
                     "autoscaled": False,
-                    "title": "同一波数上的 |G(φ)|（窗口固定 0.9–1.5：中心差分一直 >1）",
+                    "title": "|G(φ)|（窗口 0.15–1.15）",
                     "ylabel": "|G|",
                 },
             ],
@@ -845,13 +845,13 @@ MANIFEST: dict[str, Any] = {
                 {
                     "id": "sweby",
                     "autoscaled": False,
-                    "title": "Sweby 图 φ(r) 与区域 [0, min(2r,2)]（窗口固定 −0.5–4.5）",
+                    "title": "Sweby 图 φ(r) 与 TVD 区域",
                     "ylabel": "φ(r)",
                 },
                 {
                     "id": "tv",
                     "autoscaled": False,
-                    "title": "总变差 TV(t)（窗口固定 1.8–2.2：TVD 要求这条线不上升）",
+                    "title": "总变差 TV(t)（窗口 1.8–2.2）",
                     "ylabel": "TV",
                 },
             ],
@@ -949,13 +949,13 @@ MANIFEST: dict[str, Any] = {
                 {
                     "id": "packet",
                     "autoscaled": False,
-                    "title": "波包与精确解（窗口固定 −0.3–1.3）",
+                    "title": "波包与精确解（固定窗口）",
                     "ylabel": "u(x,t)",
                 },
                 {
                     "id": "error",
                     "autoscaled": False,
-                    "title": "逐点误差（对数纵轴，窗口固定 1e-17–3）",
+                    "title": "逐点误差（对数）",
                     "ylabel": "|u − u_exact|",
                 },
             ],
