@@ -252,6 +252,12 @@ class PowerResult:
     ``rayleigh`` 是每一步的 Rayleigh 商（对实矩阵是实数）；``residual`` 是对应残差；
     ``angle_step`` 是相邻两向量夹角（`:math:`\\pi/2` 附近说明在原地打转——
     复主特征值时就是这个现象，见 :func:`power_iteration` 的说明）。
+
+    ``ratios`` 是残差序列的逐步比值；``ratio`` 是它的几何平均，即**实测收敛因子**
+    :math:`\\hat r`，可与 :math:`|\\lambda_2/\\lambda_1|` 对拍（A 类断言的常用靶子）。
+    提醒：深收敛区残差已经是**相消差**（``|Ax-\\lambda x| \\sim u\\|A\\|``），
+    此时比值带 ~``u``/残差 量级的噪声，跨实现只能给 1e-4 量级的相对判据
+    （1.4 章与 G7 的 ``power_iter_ratio_floor`` case 都撞到过这条）。
     """
 
     eigenvalue: float
@@ -263,6 +269,7 @@ class PowerResult:
     n_iter: int
     converged: bool
     ratios: np.ndarray
+    ratio: float
     is_complex_pair: bool
 
 
@@ -365,6 +372,7 @@ def power_iteration(
         n_iter=used,
         converged=converged,
         ratios=np.asarray(ratios),
+        ratio=ratio,
         is_complex_pair=is_complex,
     )
 
