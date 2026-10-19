@@ -21,7 +21,6 @@ import gzip
 import json
 import math
 import struct
-import time
 import zlib
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -275,12 +274,13 @@ class Frame:
 
 
 def _generator_info() -> dict[str, str]:
+    # 不写 wall-clock 时间戳：L3 帧是契约产物，同一输入必须逐字节可复现
+    # （tests/test_l3_frames.py 会连跑两次比字节）。
     return {
         "tool": "server/nlf.py",
         "format": FORMAT_VERSION,
         "python": ".".join(str(x) for x in __import__("sys").version_info[:3]),
         "numpy": np.__version__,
-        "written_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
     }
 
 

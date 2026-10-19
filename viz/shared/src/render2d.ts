@@ -150,7 +150,7 @@ function drawAxis(c: Ctx, axis: Axis): void {
     if (axis.title) ctx.fillText(axis.title, rx + rw / 2, ry - 6);
     if (axis.ylabel) {
       ctx.save();
-      ctx.translate(rx - 42, ry + rh / 2);
+      ctx.translate(rx - 50, ry + rh / 2);
       ctx.rotate(-Math.PI / 2);
       ctx.textBaseline = "top";
       ctx.fillText(axis.ylabel, 0, 0);
@@ -165,6 +165,7 @@ function drawAxis(c: Ctx, axis: Axis): void {
 // --------------------------------------------------------------------------- //
 function drawLineLayer(c: Ctx, axis: Axis, layer: Extract<Layer, { kind: "line" }>): void {
   const { ctx } = c;
+  withClippedAxis(c, axis, () => {
   for (const s of layer.series) {
     const path = clipSeriesToAxis(axis, layerToPixelPath(axis, s.x, s.y));
     ctx.save();
@@ -222,12 +223,14 @@ function drawLineLayer(c: Ctx, axis: Axis, layer: Extract<Layer, { kind: "line" 
     }
     ctx.restore();
   }
+  });
 }
 
 function drawBandLayer(c: Ctx, axis: Axis, layer: Extract<Layer, { kind: "band" }>): void {
   const { ctx } = c;
   const b = layer.band;
   const n = Math.min(b.x.length, b.ylo.length, b.yhi.length);
+  withClippedAxis(c, axis, () => {
   ctx.save();
   ctx.globalAlpha = b.alpha;
   ctx.fillStyle = b.color;
@@ -249,10 +252,12 @@ function drawBandLayer(c: Ctx, axis: Axis, layer: Extract<Layer, { kind: "band" 
   ctx.closePath();
   ctx.fill();
   ctx.restore();
+  });
 }
 
 function drawScatterLayer(c: Ctx, axis: Axis, layer: Extract<Layer, { kind: "scatter" }>): void {
   const { ctx } = c;
+  withClippedAxis(c, axis, () => {
   ctx.save();
   ctx.globalAlpha = layer.alpha ?? 1;
   ctx.fillStyle = layer.color;
@@ -265,6 +270,7 @@ function drawScatterLayer(c: Ctx, axis: Axis, layer: Extract<Layer, { kind: "sca
     ctx.fill();
   }
   ctx.restore();
+  });
 }
 
 function withClippedAxis(c: Ctx, axis: Axis, draw: () => void): void {
@@ -456,6 +462,7 @@ function drawLoglogFitLayer(c: Ctx, axis: Axis, layer: Extract<Layer, { kind: "l
   const { ctx } = c;
   const color = layer.color ?? "#2b6cb0";
   const theoryColor = layer.theoryColor ?? "#c53030";
+  withClippedAxis(c, axis, () => {
   // 实测数据
   const path = clipSeriesToAxis(axis, layerToPixelPath(axis, layer.h, layer.err));
   ctx.save();
@@ -513,6 +520,7 @@ function drawLoglogFitLayer(c: Ctx, axis: Axis, layer: Extract<Layer, { kind: "l
   ctx.fillStyle = theoryColor;
   ctx.fillText(layer.theoryLabel, axis.rect[0] + axis.rect[2] - 8, yTop + c.opts.baseFontSize + 2);
   ctx.restore();
+  });
 }
 
 function drawLayer(c: Ctx, layer: Layer): void {

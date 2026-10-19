@@ -208,7 +208,8 @@ def test_registry_discover_is_idempotent() -> None:
     again = reg.discover()
     # 模块对象每次重新 exec 都是新对象，所以比"身份"没意义；比可序列化的内容
     assert [e.manifest.to_json() for e in first.values()] == [e.manifest.to_json() for e in again.values()]
-    assert reg.ids() == ["0.0", "1.2"]
+    plan = load_chapter_yaml(ROOT)
+    assert set(reg.ids()) == {"0.0", *plan}
     assert [e.id for e in reg.all()] == reg.ids()
 
 
@@ -249,7 +250,9 @@ def test_iter_viz_yields_every_pair() -> None:
     pairs = list(reg.iter_viz())
     assert ("0.0", "oscillator_regimes") in pairs
     assert ("1.2", "spy_ordering") in pairs
-    assert len(pairs) == 6  # 0.0 两个 + 1.2 四个
+    plan = load_chapter_yaml(ROOT)
+    expected = 2 + sum(int(v.get("viz", 0) or 0) for v in plan.values())
+    assert len(pairs) == expected, f"0.0 的 2 个 viz + 28 章计划共 {expected} 个，实际 {len(pairs)}"
 
 
 # --------------------------------------------------------------------------- #

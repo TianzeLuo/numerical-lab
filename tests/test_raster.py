@@ -500,6 +500,26 @@ def test_render_line_breaks_at_nan():
     assert mask[70:290, 70:90].any() and mask[70:290, 430:450].any()
 
 
+def test_render_clips_line_to_axis_rect():
+    """y 远在窗外的折线段不能画到轴外（标题/角标/相邻面板上）。"""
+    axis = make_axis(grid=False, xticks=[0.0, 1.0], yticks=[0.0, 1.0])
+    scene = make_scene([line_layer([0.5, 0.5, 0.6], [0.5, 100.0, 0.5])], axes=[axis], title="", badges=[])
+    arr = pixels(scene, validate=False)
+    assert not ink(arr, (70, 0, 450, 58)).any(), "窗外的折线段必须被裁在轴框内"
+    assert ink(arr, (70, 70, 450, 290)).any(), "窗内的折线段仍要画出来"
+
+
+def test_render_clips_scatter_to_axis_rect():
+    axis = make_axis(grid=False, xticks=[0.0, 1.0], yticks=[0.0, 1.0])
+    scene = make_scene(
+        [{"kind": "scatter", "axes": "main", "x": [0.5, 0.5], "y": [0.5, 100.0],
+          "r": 4.0, "color": "#dd6b20"}],
+        axes=[axis], title="", badges=[],
+    )
+    arr = pixels(scene, validate=False)
+    assert not ink(arr, (70, 0, 450, 58)).any()
+
+
 def test_render_empty_line_layer_is_blank_inside_axis():
     axis = make_axis(grid=False)
     arr = pixels(make_scene([line_layer([], [])], axes=[axis]))
@@ -634,6 +654,17 @@ def test_render_vertical_axis_label():
     with_label = make_scene([line_layer([0, 1], [0, 1])], axes=[make_axis(ylabel="位移 x")])
     without = make_scene([line_layer([0, 1], [0, 1])], axes=[make_axis(ylabel="")])
     assert not np.array_equal(pixels(with_label), pixels(without))
+
+
+def test_vertical_axis_label_is_centered_on_axis():
+    """旋转文本必须按逐字字格求总高；按横排宽度估会把标签整体上移半段。"""
+    axis = make_axis(grid=False, xticks=[], yticks=[], ylabel="abcdef")
+    arr = pixels(make_scene([], axes=[axis], title="", badges=[]), validate=False)
+    mask = ink(arr, (0, 40, 20, 280))
+    ys, _xs = np.where(mask)
+    assert ys.size > 0, "y 轴名必须画出来"
+    center = (ys.min() + ys.max()) / 2.0
+    assert abs(center - (axis["rect"][1] + axis["rect"][3] / 2.0)) <= 6.0
 
 
 def test_render_log_axis_labels_present():

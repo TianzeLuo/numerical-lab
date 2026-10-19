@@ -435,7 +435,9 @@ def load_manifest(raw: Mapping[str, Any], *, where: str = "") -> ChapterManifest
                 time=time,
                 required_aux=tuple(v["requiredAux"]),
                 axes=axes,
-                pitfalls=v["pitfalls"],
+                # 画布上的 pitfalls 面板没有 markdown 解析器：留着 ** 会原样画出两个星号。
+                # 只清洗这一段（description/theory 还供书稿渲染），长度校验仍按原文做。
+                pitfalls=v["pitfalls"].replace("**", ""),
                 theory=tuple(v["theory"]),
                 description=v.get("description", ""),
                 badges=tuple(v.get("badges", ())),

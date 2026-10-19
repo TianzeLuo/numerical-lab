@@ -194,6 +194,16 @@ test("clampParam：int/float/enum/bool 的边界与类型归一", () => {
   assert.equal(clampParam(en, "z"), "b");
   assert.equal(clampParam(en, 123), "b");
 
+  // 数字 enum（Re=100、400、1000 这类离散档位）：<select> 提交的是字符串，
+  // 但返回给后端/请求的必须是 manifest 里的数字原值。
+  const numEnum = param({ name: "re", type: "enum", default: 1000, options: [100, 400, 1000] });
+  assert.equal(clampParam(numEnum, "400"), 400, "字符串选择要还原成数字");
+  assert.equal(clampParam(numEnum, 100), 100);
+  assert.equal(clampParam(numEnum, "999"), 1000, "非法档位回默认值");
+  const numSpecs = describeControls({ ...heat, params: [numEnum] } as VizSpecJson);
+  assert.deepEqual(numSpecs[0].options, ["100", "400", "1000"], "UI 选项按显示文本给出");
+  assert.equal(numSpecs[0].value, 1000, "控件当前值是数字");
+
   const flag = param({ name: "f", type: "bool", default: false });
   assert.equal(clampParam(flag, true), true);
   assert.equal(clampParam(flag, "true"), true);

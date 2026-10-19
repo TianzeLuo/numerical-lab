@@ -716,8 +716,12 @@ const real = existsSync(REAL_DIR)
 
 function realFrame(viz: string, last = false): Frame {
   const dir = new URL(`${viz}/`, REAL_DIR);
-  const files = readdirSync(dir).filter((f) => f.endsWith(".nlf")).sort();
-  return decodeNlf(readFileSync(new URL(last ? files[files.length - 1] : files[0], dir)));
+  const frames = readdirSync(dir)
+    .filter((f) => f.endsWith(".nlf"))
+    .map((f) => decodeNlf(readFileSync(new URL(f, dir))));
+  // 文件名排序会把 t0.2 排在 t0 前面（字典序），"首帧"必须按帧内 meta.t 取。
+  frames.sort((a, b) => Number(a.meta["t"] ?? 0) - Number(b.meta["t"] ?? 0));
+  return frames[last ? frames.length - 1 : 0] as Frame;
 }
 
 test("真实帧：夹具与 build_frame 产物的字段集合一致（字段名/单位/标签不漂）", real, async () => {

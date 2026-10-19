@@ -183,6 +183,29 @@ def test_analyse_accepts_a_report_matching_the_declaration() -> None:
             continue
         names = run_asserts.declared_tests(decl)
         items = [rec(fn, kind, chapter=cid, nodeid=f"tests/{cid}/test_x.py::{fn}") for fn, kind in names.items()]
+        # 一个测试函数可以登记多条断言记录（例如参数化扫描），所以 min_counts 说的是
+        # **记录数**而不是函数数；这里按声明补足同类记录，模拟真实报告。
+        for kind, minimum in (decl.get("min_counts") or {}).items():
+            k = str(kind).upper()
+            have = sum(1 for item in items if str(item.get("kind", "")).upper() == k)
+            need = int(minimum) - have
+            if need <= 0:
+                continue
+            candidates = list(names)
+            if not candidates:
+                continue
+            # 同一个测试函数可以登记多种类别的记录（如 assert_order 顺带登记 B 类对照），
+            # 所以补记录时复用任一已声明函数即可；类别核对只看"声明类别 ∈ 实测类别集合"。
+            for i in range(need):
+                items.append(
+                    rec(
+                        candidates[0],
+                        k,
+                        label=f"l{i + 2}",
+                        chapter=cid,
+                        nodeid=f"tests/{cid}/test_x.py::{candidates[0]}",
+                    )
+                )
         chapters[cid] = fake_report(items, chapter=cid)["chapters"][cid]
     result = run_asserts.analyse(ROOT, {"chapters": chapters})
     assert result["ok"], result["problems"]
@@ -343,8 +366,14 @@ def test_structure_check_catches_missing_input_target(tmp_path: pathlib.Path) ->
 
 
 def test_asserts_table_generated_for_real_chapter() -> None:
-    report = json.loads((ROOT / "dist" / "reports" / "assertions.json").read_text(encoding="utf-8"))
-    made = build_book.write_asserts_table(ROOT, "0.0", report)
+    # 用 0.0 的真实声明合成一份报告：不依赖"本次会话刚好跑过 0.0"，
+    # 也不去读磁盘上那份可能被单章测试覆盖的旧报告。
+    decl = run_asserts.load_asserts_decl(ROOT, "0.0")
+    assert decl is not None
+    names = run_asserts.declared_tests(decl)
+    items = [rec(fn, kind, chapter="0.0", nodeid=f"tests/0.0/test_smoke.py::{fn}") for fn, kind in names.items()]
+    report = fake_report(items, chapter="0.0")
+    made = build_book.write_asserts_table(ROOT, "0.0", report, dry_run=True)
     assert made is not None
     path, _changed = made
     assert path.exists()

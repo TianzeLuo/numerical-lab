@@ -303,7 +303,10 @@ def write_asserts_table(
     # 生成前先查字形：附表是 notes.tex 的正文，印出来才报"缺字形"就晚了
     # （这条不是拒绝写文件——写还是要写，问题由 check_structure 报给 G9）。
     old = out.read_text(encoding="utf-8") if out.exists() else None
-    changed = old != text
+    # 报告时间戳每次 pytest 都会变；把它算进"内容漂移"会让 G9 永远红。
+    # 表格内容（行数/理论值/实测值）才是要守的东西，时间戳只做展示。
+    ts = re.compile(r"（生成时间 [^）]*）")
+    changed = old is None or ts.sub("（生成时间）", old) != ts.sub("（生成时间）", text)
     if changed and not dry_run:
         out.write_text(text, encoding="utf-8", newline="\n")
     return out, changed

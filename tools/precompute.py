@@ -115,7 +115,10 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         missing = [c for c in explicit if c not in set(registry.ids())]
         if missing:
             registry.discover()
-            raise RegistryError(f"指定章节无法加载：{', '.join(missing)}")
+            known = ", ".join(registry.ids()) or "（空）"
+            raise RegistryError(
+                f"未知章节 {', '.join(missing)}（不存在或模块/MANIFEST 无法加载）；注册表里有：{known}"
+            )
     chapters: list[str] = list(args.chapter) if args.chapter else registry.ids()
     unknown = [c for c in chapters if c not in set(registry.ids())]
     if unknown:

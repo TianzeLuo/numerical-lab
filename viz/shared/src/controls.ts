@@ -91,10 +91,14 @@ export function clampParam(param: ParamSpecJson, value: unknown): ParamValue {
     return typeof param.default === "boolean" ? param.default : false;
   }
   if (param.type === "enum") {
+    // 选项可以是数字（Re=1000 这类离散档位）。UI 的 <select> 只能提交字符串，
+    // 这里按显示文本匹配后**返回 manifest 里的原值**，否则后端会拒绝 "1000"。
     const options = param.options ?? [];
     const text = typeof value === "string" ? value : typeof value === "number" || typeof value === "boolean" ? String(value) : "";
-    if (options.includes(text)) return text;
-    if (typeof param.default === "string" && options.includes(param.default)) return param.default;
+    const hit = options.find((o) => String(o) === text);
+    if (hit !== undefined) return hit;
+    const def = options.find((o) => String(o) === String(param.default));
+    if (def !== undefined) return def;
     return options[0] ?? "";
   }
   const raw = typeof value === "number" ? value : typeof value === "string" ? Number(value) : Number.NaN;
@@ -195,7 +199,7 @@ export function describeControls(viz: VizSpecJson, params?: ParamValues): Contro
       max,
       step: finiteOrNull(param.step),
       unit: param.unit ?? "",
-      options: [...(param.options ?? [])],
+      options: (param.options ?? []).map(String),
       critical,
       criticalNote: param.criticalNote ?? "",
       criticalMarks: marks,
@@ -273,7 +277,7 @@ export function mountControls(
         const el = document.createElement("option");
         el.value = option;
         el.textContent = option;
-        el.selected = option === spec.value;
+        el.selected = option === String(spec.value);
         select.appendChild(el);
       }
       select.addEventListener("change", () => commit(select.value));

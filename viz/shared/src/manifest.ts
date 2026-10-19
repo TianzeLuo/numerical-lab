@@ -22,7 +22,7 @@ export interface ParamSpecJson {
   max?: number;
   step?: number;
   unit?: string;
-  options?: string[];
+  options?: Array<string | number>;
   /** 理论临界值（规则 6：显式给出，没有就写 `[]`）。 */
   critical: number[];
   criticalNote?: string;
