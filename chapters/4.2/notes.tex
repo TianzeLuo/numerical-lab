@@ -694,7 +694,7 @@ Burgers 激波速度 & $(u_L+u_R)/2$ & 相对差 $1.4\times10^{-5}$\\
 本章的 4 个可视化只做搬运，不在 \texttt{server/chapters/4.2.py} 里另写一份数学。
 
 \paragraph{两条被"对拍"抓出来的工具层错误。}
-其一，\texttt{limiters.__all__} 里列了 \texttt{limiter\_values} 而那个函数根本没写——
+其一，\texttt{limiters.\_\_all\_\_} 里列了 \texttt{limiter\_values} 而那个函数根本没写——
 \texttt{import *} 会当场 \texttt{ImportError}，但直接 \texttt{import} 模块不报错，
 静态检查也看不见；现在它被补成一个带掩码的薄封装，并加了
 \texttt{test\_all\_declared\_names\_resolve} 把两边的 \texttt{\_\_all\_\_} 一起核。
