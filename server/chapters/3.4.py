@@ -181,14 +181,14 @@ MANIFEST: dict[str, Any] = {
             "axes": [
                 {
                     "id": "main",
-                    "autoscaled": True,
-                    "title": "轨迹族 u(x; s_j) 与真解",
+                    "autoscaled": False,
+                    "title": "打靶轨迹族（真解窗口）",
                     "ylabel": "u",
                 },
                 {
                     "id": "aux",
                     "autoscaled": False,
-                    "title": "右端打靶残差 |F(s_j)| = |u(b;s_j) - beta|（对数轴）",
+                    "title": "右端打靶残差 |F(s_j)|（对数轴）",
                     "ylabel": "|F|",
                     "scale": "log",
                 },
@@ -265,7 +265,7 @@ MANIFEST: dict[str, Any] = {
                 {
                     "id": "aux",
                     "autoscaled": False,
-                    "title": "误差 vs N：双对数（代数收敛是直线）+ 真实边界残差",
+                    "title": "双对数误差与边界残差",
                     "ylabel": "误差 / 边界残差",
                     "scale": "log",
                 },
@@ -414,7 +414,7 @@ MANIFEST: dict[str, Any] = {
                 {
                     "id": "aux",
                     "autoscaled": False,
-                    "title": "行和残差 |D_N·1| 与奇异值谱（对数轴）",
+                    "title": "行和残差与奇异值谱（对数）",
                     "ylabel": "残差 / sigma",
                     "scale": "log",
                 },
