@@ -781,7 +781,7 @@ MANIFEST: dict[str, Any] = {
                 },
                 {
                     "id": "error", "autoscaled": False, "scale": "log",
-                    "title": "回溯解误差（对数轴，掩码标无效）",
+                    "title": "回溯解误差（对数轴，掩码点断开）",
                     "ylabel": "|u - u_exact|",
                 },
             ],

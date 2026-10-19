@@ -65,13 +65,14 @@ export interface RightStack {
  * （18px）在上，28+18=46 才是"标题不压上一块的轴名"的最小间距。
  * 文字区不足 3 行时返回 `textTop: undefined`，由调用方写降级而不是叠字。
  */
-export function rightStack(L: ColumnsLayout, errorH = 84, residualH = 62): RightStack {
+export function rightStack(L: ColumnsLayout, errorH = 72, residualH = 52): RightStack {
   const error: Rect = [L.rightX, L.topY, L.rightW, Math.max(60, errorH)];
+  // 56px：上一块的 xlabel 带（底 28）与下一块的标题带（顶 18）之间再留 10px 呼吸。
   const residual: Rect = [
     L.rightX,
-    error[1] + error[3] + 46,
+    error[1] + error[3] + 56,
     L.rightW,
-    Math.max(56, residualH),
+    Math.max(50, residualH),
   ];
   const textTop = residual[1] + residual[3] + XL_LABEL_BAND + 6;
   return { error, residual, textTop: textTop <= L.floor - 3 * 15 ? textTop : undefined };
@@ -83,12 +84,19 @@ export function rightStack(L: ColumnsLayout, errorH = 84, residualH = 62): Right
  * 从左列让出宽度到 340px；窄画布保持共享版式（宁可少写字也不压图）。
  */
 export function widenRightColumn(L: ColumnsLayout, width: number, target = 380): ColumnsLayout {
-  if (width < 760 || !L.columns) return L;
+  if (width < 820 || !L.columns) return L;
   const contentWidth = width - L.left - 24;
-  const rightW = Math.max(L.rightW, Math.min(target, contentWidth - 56 - 300));
-  const leftW = contentWidth - 56 - rightW;
-  if (leftW < 300 || rightW <= L.rightW) return L;
-  return { ...L, leftW, rightW, rightX: L.left + leftW + 56 };
+  // 右列轴的 y 轴名在轴左 56px、刻度再占 35px；列间距必须 ≥100px，
+  // 否则右列的刻度会压进左列图里（4.3 的旧基线就是这样）。
+  const gap = 100;
+  let rightW = Math.max(L.rightW, Math.min(target, contentWidth - gap - 300));
+  let leftW = contentWidth - gap - rightW;
+  if (leftW < 300) {
+    rightW = Math.max(L.rightW, contentWidth - gap - 300);
+    leftW = contentWidth - gap - rightW;
+  }
+  if (leftW < 280 || rightW <= L.rightW) return L;
+  return { ...L, leftW, rightW, rightX: L.left + leftW + gap };
 }
 
 export interface Wave {

@@ -115,13 +115,9 @@ export const conservationLedgerModel: SceneModel = (frame, opts) => {
   const rhSpeed = metaNumber(frame, "rh_speed");
   const speedGod = metaNumber(frame, "speed_godunov");
   const speedAdv = metaNumber(frame, "speed_advective");
-  const speedRelGod = metaNumber(frame, "speed_rel_err_godunov");
-  const speedRelAdv = metaNumber(frame, "speed_rel_err_advective");
   const entropyGod = metaNumber(frame, "entropy_production_godunov");
   const entropyAdv = metaNumber(frame, "entropy_production_advective");
   const bc = stringOf(frame, "bc");
-  const readingNote = stringOf(frame, "reading_note");
-  const speedNote = stringOf(frame, "speed_note");
 
   const scene = sceneShell(frame, opts, {
     chapter: CHAPTER,
@@ -228,7 +224,7 @@ export const conservationLedgerModel: SceneModel = (frame, opts) => {
     lineLayer("shock", series([t, t], [-0.05, 1.05], pal.marker, { width: 1.1, label: "当前 t" })),
   );
 
-  // —— 图例 ——
+  // —— 图例（只留在左列面板内；右列账本轴图例并入说明末行） ——
   scene.texts.push(
     ...legendBlock(
       L.left + 6,
@@ -241,14 +237,7 @@ export const conservationLedgerModel: SceneModel = (frame, opts) => {
       L.left + 6,
       shockRect[1] + shockRect[3] - 21,
       L.leftW,
-      "蓝=守恒波前（斜率→RH 0.5）　红虚=非守恒（原地不动）　灰虚=RH 线　红实=当前 t 竖线",
-      pal.muted,
-    ),
-    ...legendBlock(
-      defectRect[0] + 6,
-      defectRect[1] + 6,
-      defectRect[2],
-      "账本残差 |M-M0+(out-in)|；红虚=非守恒",
+      "蓝=守恒波前　红虚=非守恒　灰虚=RH　红实=t",
       pal.muted,
     ),
   );
@@ -286,22 +275,16 @@ export const conservationLedgerModel: SceneModel = (frame, opts) => {
       `贴地板步数 G/M/A = ${countMask(maskGod)} / ${countMask(maskMuscl)} / ${countMask(maskAdv)}`,
     );
     if (rhSpeed !== undefined) {
-      const rel =
-        speedRelGod !== undefined || speedRelAdv !== undefined
-          ? `（相对 G ${formatNumber(speedRelGod ?? 0, 2)} / A ${formatNumber(speedRelAdv ?? 0, 2)}）`
-          : "";
       lines.push(
         `激波速度 RH ${formatNumber(rhSpeed, 3)}` +
           (speedGod !== undefined ? `　G ${formatNumber(speedGod, 6)}` : "") +
-          (speedAdv !== undefined ? `　A ${formatNumber(speedAdv, 2)}` : "") +
-          rel,
+          (speedAdv !== undefined ? `　A ${formatNumber(speedAdv, 2)}` : ""),
       );
     }
     if (entropyGod !== undefined && entropyAdv !== undefined) {
       lines.push(`熵产 G ${formatNumber(entropyGod, 3)}　A ${formatNumber(entropyAdv, 3)}`);
     }
-    if (speedNote !== undefined) lines.push(`速度：${speedNote}`);
-    if (readingNote !== undefined) lines.push(`读图：${readingNote}`);
+    lines.push("红虚=非守恒；灰虚=RH 线；红实=当前 t；蓝/绿=两条守恒支路。");
     scene.texts.push(...textBlock(L.rightX, textTop, L.floor, lines, pal.muted, unitBudget(L.rightW), "top"));
   } else {
     degraded.push("画布过窄：右列说明未排下，关键数字见角标与 pitfalls 面板");
@@ -315,8 +298,7 @@ export const conservationLedgerModel: SceneModel = (frame, opts) => {
   const status = [
     `bc=${bc ?? "?"}`,
     `t=${formatNumber(t, 3)}`,
-    defectGodMeta !== undefined ? `残差 G ${formatNumber(defectGodMeta, 2)}` : "",
-    defectAdvMeta !== undefined ? `A ${formatNumber(defectAdvMeta, 2)}` : "",
+    defectGodMeta !== undefined ? `G 残差 ${formatNumber(defectGodMeta, 2)}` : "",
     speedGod !== undefined ? `s=${formatNumber(speedGod, 4)}` : "",
   ].filter((s) => s !== "");
   scene.badges.push(placeBadge(badge("status", status.join("；"), 8, 8), SLOT.status, width));

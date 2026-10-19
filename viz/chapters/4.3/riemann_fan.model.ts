@@ -114,15 +114,12 @@ export const riemannFanModel: SceneModel = (frame, opts) => {
 
   const degraded: string[] = [];
   const t = metaNumber(frame, "t") ?? opts.t;
-  const tRequested = metaNumber(frame, "t_requested") ?? opts.t;
   const tClamped = (metaNumber(frame, "t_clamped") ?? 0) > 0.5;
   const pStar = metaNumber(frame, "p_star");
   const uStar = metaNumber(frame, "u_star");
   const rhoStarL = metaNumber(frame, "rho_star_l");
   const rhoStarR = metaNumber(frame, "rho_star_r");
   const contactX = metaNumber(frame, "contact_x");
-  const sLeft = metaNumber(frame, "s_left");
-  const sRight = metaNumber(frame, "s_right");
   const vacuum = metaNumber(frame, "vacuum");
   const l1Rho = metaNumber(frame, "l1_rho");
   const l1U = metaNumber(frame, "l1_u");
@@ -140,9 +137,6 @@ export const riemannFanModel: SceneModel = (frame, opts) => {
   const limiter = stringOf(frame, "limiter");
   const leftWave = stringOf(frame, "left_wave");
   const rightWave = stringOf(frame, "right_wave");
-  const schemeNote = stringOf(frame, "scheme_note");
-  const waveNote = stringOf(frame, "wave_note");
-  const theoryNote = stringOf(frame, "theory_note");
 
   const scene = sceneShell(frame, opts, {
     chapter: CHAPTER,
@@ -245,7 +239,7 @@ export const riemannFanModel: SceneModel = (frame, opts) => {
     scene.layers.push(scatterLayer("residual", [residualTime[0] as number], [residualMass[0] as number], { r: 2.8, color: pal.curves[2] }));
   }
 
-  // —— 图例 ——
+  // —— 图例（只留在左列三块面板内；右列误差轴图例并入说明末行） ——
   scene.texts.push(
     ...legendBlock(
       L.left + 6,
@@ -268,20 +262,6 @@ export const riemannFanModel: SceneModel = (frame, opts) => {
       "红=激波　绿=接触　灰点=稀疏边界",
       pal.muted,
     ),
-    ...legendBlock(
-      right.error[0] + 6,
-      right.error[1] + 6,
-      right.error[2],
-      exactOk ? "蓝=rho 绿=u 橙=p（贴地板点断开）" : "t=0：自相似解未定义，误差整条不画",
-      exactOk ? pal.muted : pal.warn,
-    ),
-    ...legendBlock(
-      right.residual[0] + 6,
-      right.residual[1] + 6,
-      right.residual[2],
-      `橙=质量账本残差（${countMask(residualMask)} 步贴 1e-17 地板）`,
-      pal.muted,
-    ),
   );
 
   // —— 右列文字 ——
@@ -291,44 +271,48 @@ export const riemannFanModel: SceneModel = (frame, opts) => {
     ]);
     degraded.push(...head.degraded);
     const lines: string[] = [];
-    lines.push(`${problem ?? "?"}　${scheme ?? "?"}+${limiter ?? "?"}　${head.text}`);
+    lines.push(`${problem ?? "?"}`);
     lines.push(
-      `t=${formatNumber(t, 4)}（请求 ${formatNumber(tRequested, 4)}${tClamped ? "，t=0 自相似解未定义" : ""}）`,
+      `${scheme ?? "?"}+${limiter ?? "?"}　${head.text}　t=${formatNumber(t, 4)}` +
+        (pStar !== undefined && !(problem ?? "").includes("p*=") ? `　p*=${formatNumber(pStar, 5)}` : "") +
+        (uStar !== undefined ? `　u*=${formatNumber(uStar, 5)}` : ""),
     );
-    if (pStar !== undefined && uStar !== undefined) {
-      lines.push(`星区 p*=${formatNumber(pStar, 6)}　u*=${formatNumber(uStar, 6)}`);
-    }
     if (exactOk && l1Rho !== undefined && l1U !== undefined && l1P !== undefined) {
       lines.push(
         `L1 rho/u/p = ${formatNumber(l1Rho, 4)} / ${formatNumber(l1U, 4)} / ${formatNumber(l1P, 4)}`,
       );
     } else if (!exactOk) {
-      lines.push("t=0：误差整条无效（不是“数值解精确到零”）");
+      lines.push("t=0：自相似解未定义，误差整条无效（不是精确到零）");
     }
     if (minRho !== undefined && minP !== undefined) {
       lines.push(
-        `min rho ${formatNumber(minRho, 4)}　min p ${formatNumber(minP, 4)}（必须为正）` +
+        `min rho ${formatNumber(minRho, 4)}　min p ${formatNumber(minP, 4)}（须为正）` +
           (maxDefect !== undefined ? `　账本 ${formatNumber(maxDefect, 2)}` : ""),
       );
     }
-    if (entropyRatio !== undefined) lines.push(`激波两侧熵比 p/rho^gamma ${formatNumber(entropyRatio, 4)}（激波上增大）`);
-    if (rhoStarL !== undefined && rhoStarR !== undefined) {
-      lines.push(`rho*L/R=${formatNumber(rhoStarL, 5)} / ${formatNumber(rhoStarR, 5)}（接触处密度跳）`);
+    if (entropyRatio !== undefined || (rhoStarL !== undefined && rhoStarR !== undefined)) {
+      lines.push(
+        (entropyRatio !== undefined ? `激波熵比 ${formatNumber(entropyRatio, 4)}` : "") +
+          (rhoStarL !== undefined && rhoStarR !== undefined
+            ? `　rho*L/R ${formatNumber(rhoStarL, 5)} / ${formatNumber(rhoStarR, 5)}`
+            : ""),
+      );
     }
     if (leftWave !== undefined || rightWave !== undefined) {
       lines.push(
-        `波型 左 ${leftWave ?? "?"} / 右 ${rightWave ?? "?"}${vacuum === 1 ? "（真空）" : ""}` +
+        `左/右波 ${waveCn(leftWave)} / ${waveCn(rightWave)}${vacuum === 1 ? "（真空）" : ""}` +
           (contactX !== undefined ? `　接触 x=${formatNumber(contactX, 3)}` : ""),
       );
     }
-    if (sLeft !== undefined && sRight !== undefined) {
-      lines.push(`HLLC 波速 s_L/s_R=${formatNumber(sLeft, 3)} / ${formatNumber(sRight, 3)}`);
-    }
     const nClip = countMask(overflowMask);
-    if (nClip > 0) lines.push(`${nClip} 个点被显示窗口截断（overflow_mask=1）`);
-    if (schemeNote !== undefined) lines.push(schemeNote);
-    if (waveNote !== undefined) lines.push(`波型：${waveNote}`);
-    if (theoryNote !== undefined) lines.push(`理论：${theoryNote}`);
+    if (nClip > 0) lines.push(`${nClip} 点被显示窗口截断（overflow_mask=1）`);
+    lines.push("橙=精确 蓝=数值；误差按 rho/u/p 分色。");
+    const nResidualFloor = countMask(residualMask);
+    lines.push(
+      "右下橙=账本残差" +
+        (nResidualFloor > 0 ? `（${nResidualFloor} 步地板）` : "") +
+        "。",
+    );
     scene.texts.push(...textBlock(L.rightX, right.textTop, L.floor, lines, pal.muted, unitBudget(L.rightW), "top"));
   } else {
     degraded.push("画布过窄：右列说明未排下，关键数字见角标与 pitfalls 面板");
@@ -337,14 +321,14 @@ export const riemannFanModel: SceneModel = (frame, opts) => {
   // —— 角标 ——
   scene.badges.push(placeBadge(badge("source", sourceBadge(scene.dataSource).text, 8, 8), SLOT.source, width));
   scene.badges.push(
-    placeBadge(badge("autoscale", "坐标轴：rho/u/p/误差固定窗口；账本残差轴自适应（对数）", 8, 26), SLOT.axisMode, width),
+    placeBadge(badge("autoscale", "坐标轴：rho/u/p/误差固定；残差轴自适应", 8, 26), SLOT.axisMode, width),
   );
+  const shortProblem = (problem ?? "?").split(/[：:]/)[0] ?? "?";
   const status = [
-    `${problem ?? "?"} ${scheme ?? "?"}+${limiter ?? "?"}`,
-    `t=${formatNumber(t, 3)}${tClamped ? "（t=0）" : ""}`,
+    `${shortProblem} ${scheme ?? "?"}+${limiter ?? "?"}`,
+    `t=${formatNumber(t, 3)}`,
     pStar !== undefined ? `p*=${formatNumber(pStar, 4)}` : "",
-    exactOk && l1Rho !== undefined ? `L1 rho ${formatNumber(l1Rho, 3)}` : "误差无效",
-    minRho !== undefined ? `min rho ${formatNumber(minRho, 3)}` : "",
+    exactOk && l1Rho !== undefined ? `L1rho ${formatNumber(l1Rho, 3)}` : "误差无效",
   ].filter((s) => s !== "");
   scene.badges.push(placeBadge(badge("status", status.join("；"), 8, 8), SLOT.status, width));
   const degradedNode = degradedBadge(degraded, SLOT.degraded, width);
@@ -368,4 +352,11 @@ export const riemannFanModel: SceneModel = (frame, opts) => {
 function lastFinite(a: ArrayLike<number>): number | undefined {
   for (let i = a.length - 1; i >= 0; i -= 1) if (Number.isFinite(a[i])) return a[i];
   return undefined;
+}
+
+function waveCn(name: string | undefined): string {
+  if (name === "rarefaction") return "稀疏波";
+  if (name === "shock") return "激波";
+  if (name === "contact") return "接触";
+  return name ?? "?";
 }

@@ -77,14 +77,12 @@ export const characteristicsModel: SceneModel = (frame, opts) => {
   const sliceT = requireArray(frame, "slice_t");
   const profileX = requireArray(frame, "profile_x");
   const profileU = requireArray(frame, "profile_u");
-  const profileClipped = requireArray(frame, "profile_u_clipped");
   const profileExact = requireArray(frame, "profile_exact");
   const exactValid = requireArray(frame, "exact_valid");
   const error = requireArray(frame, "error_abs");
   const errorMask = requireArray(frame, "error_floor_mask");
   const residualTime = requireArray(frame, "residual_time");
   const residualMass = requireArray(frame, "residual_mass");
-  const residualMask = requireArray(frame, "residual_floor_mask");
   const pitfalls = requirePitfalls(frame);
 
   const nLines = Math.min(lineX0.length, lineU0.length, lineXEnd.length);
@@ -117,9 +115,6 @@ export const characteristicsModel: SceneModel = (frame, opts) => {
   const errorL1 = metaNumber(frame, "error_l1");
   const errorMax = metaNumber(frame, "error_max");
   const profileName = stringOf(frame, "profile");
-  const readingNote = stringOf(frame, "reading_note");
-  const maskNote = stringOf(frame, "mask_note");
-  const theoryNote = stringOf(frame, "theory_note");
 
   const scene = sceneShell(frame, opts, {
     chapter: CHAPTER,
@@ -231,7 +226,6 @@ export const characteristicsModel: SceneModel = (frame, opts) => {
   }
 
   // —— 误差与账本残差 ——
-  const nErrorValid = countMask(errorMask) < errorMask.length;
   if (drawExact) {
     const segments = segmentedSeries(profileX, error, pal.residual, {
       width: 1.8,
@@ -249,35 +243,14 @@ export const characteristicsModel: SceneModel = (frame, opts) => {
     scene.layers.push(scatterLayer("residual", [residualTime[0]], [residualMass[0]], { r: 2.8, color: pal.curves[2] }));
   }
 
-  // —— 图例 ——
+  // —— 图例（只留在剖面面板内；(x,t) 平面的配色改在右列说明里给出） ——
   scene.texts.push(
-    ...legendBlock(
-      L.left + 6,
-      planeRect[1] + 6,
-      L.leftW,
-      `蓝=u0>0　橙=u0<0　红点=交点　红实=当前 t　橙虚=t_b`,
-      pal.muted,
-    ),
     ...legendBlock(
       L.left + 6,
       profileRect[1] + 6,
       L.leftW,
       drawExact ? "蓝=数值解　橙=回溯精确解　灰虚=u=0" : "蓝=数值解（回溯解多值：参照无效，不画）",
       drawExact ? pal.muted : pal.warn,
-    ),
-    ...legendBlock(
-      right.error[0] + 6,
-      right.error[1] + 6,
-      right.error[2],
-      drawExact && nErrorValid ? "紫=逐点误差；地板点断开" : "参照无效：误差整条不画",
-      drawExact && nErrorValid ? pal.muted : pal.warn,
-    ),
-    ...legendBlock(
-      right.residual[0] + 6,
-      right.residual[1] + 6,
-      right.residual[2],
-      `橙=质量账本残差（${countMask(residualMask)} 步贴 1e-17 地板）`,
-      pal.muted,
     ),
   );
 
@@ -292,21 +265,19 @@ export const characteristicsModel: SceneModel = (frame, opts) => {
     lines.push(`${profileName ?? "?"} 初值　${head.text}　t=${formatNumber(t, 4)} / 视窗 ${formatNumber(T_VIEW, 3)}`);
     if (tBreakClosed !== undefined && tBreakScan !== undefined) {
       lines.push(
-        `破散：闭式 ${formatNumber(tBreakClosed, 8)}　扫描 ${formatNumber(tBreakScan, 8)}` +
+        `t_b 闭式/扫描 ${formatNumber(tBreakClosed, 8)} / ${formatNumber(tBreakScan, 8)}` +
           (tBreakScanRel !== undefined ? `（相对 ${formatNumber(tBreakScanRel, 2)}）` : ""),
       );
     }
-    if (tBreakLines !== undefined) lines.push(`特征线首个交点 ${formatNumber(tBreakLines, 8)}（离散线间距的代价）`);
+    if (tBreakLines !== undefined) lines.push(`离散线首交 ${formatNumber(tBreakLines, 8)}（线间距的代价）`);
     if (drawExact && errorL1 !== undefined && errorMax !== undefined) {
       lines.push(`误差 L1 ${formatNumber(errorL1, 3)}　max ${formatNumber(errorMax, 3)}`);
     } else if (!exactOk) {
-      lines.push(
-        `t>t_b：回溯解多值${tBreakScan !== undefined ? `（t_b=${formatNumber(tBreakScan, 5)}）` : ""}，误差参照无效`,
-      );
+      lines.push(`t>t_b 回溯解多值${tBreakScan !== undefined ? `（t_b=${formatNumber(tBreakScan, 5)}）` : ""}：误差参照无效`);
     }
     if (nCrossing !== undefined && nDiverging !== undefined) {
       lines.push(
-        `相交 ${Math.round(nCrossing)} 对 / 发散 ${Math.round(nDiverging)} 对` +
+        `相交 ${Math.round(nCrossing)} / 发散 ${Math.round(nDiverging)} 对` +
           (firstPair !== undefined ? `　首对 #${Math.round(firstPair)}` : "") +
           (xBreak !== undefined ? ` @x=${formatNumber(xBreak, 3)}` : ""),
       );
@@ -317,15 +288,10 @@ export const characteristicsModel: SceneModel = (frame, opts) => {
           (minU !== undefined && maxU !== undefined
             ? `　u∈[${formatNumber(minU, 3)}, ${formatNumber(maxU, 3)}]`
             : "") +
-          (maxDefect !== undefined ? `　账本 ${formatNumber(maxDefect, 2)}` : ""),
+          (maxDefect !== undefined ? `　账本 ${formatNumber(maxDefect, 2)}` : "")
       );
     }
-    const nProfileClipped = countMask(profileClipped);
-    if (nProfileClipped > 0) lines.push(`${nProfileClipped} 个剖面点被显示窗口截断（profile_u_clipped=1）`);
-    if (maskNote !== undefined) lines.push(`掩码：${maskNote}`);
-    if (theoryNote !== undefined) lines.push(`理论：${theoryNote}`);
-    if (readingNote !== undefined) lines.push(`读图：${readingNote}`);
-    lines.push(`特征线只对凸通量是直线；凹通量（traffic）上两类波的角色互换。`);
+    lines.push("紫=误差 橙=账本；蓝/橙=u0 正负；红点=交点，红实=t。");
     scene.texts.push(...textBlock(L.rightX, right.textTop, L.floor, lines, pal.muted, unitBudget(L.rightW), "top"));
   } else {
     degraded.push("画布过窄：右列说明未排下，关键数字见角标与 pitfalls 面板");
@@ -334,7 +300,7 @@ export const characteristicsModel: SceneModel = (frame, opts) => {
   // —— 角标 ——
   scene.badges.push(placeBadge(badge("source", sourceBadge(scene.dataSource).text, 8, 8), SLOT.source, width));
   scene.badges.push(
-    placeBadge(badge("autoscale", "坐标轴：(x,t) 平面/剖面/误差固定窗口；账本残差轴自适应", 8, 26), SLOT.axisMode, width),
+    placeBadge(badge("autoscale", "坐标轴：平面/剖面/误差固定；残差轴自适应", 8, 26), SLOT.axisMode, width),
   );
   const status = [
     `${profileName ?? "?"} A=${formatNumber(amplitude ?? 0, 3)}`,

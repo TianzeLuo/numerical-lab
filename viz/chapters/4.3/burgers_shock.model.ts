@@ -87,7 +87,6 @@ export const burgersShockModel: SceneModel = (frame, opts) => {
   const errorMask = requireArray(frame, "error_floor_mask");
   const residualTime = requireArray(frame, "residual_time");
   const residualMass = requireArray(frame, "residual_mass");
-  const residualMask = requireArray(frame, "residual_floor_mask");
   const pitfalls = requirePitfalls(frame);
 
   const n = Math.min(
@@ -132,7 +131,6 @@ export const burgersShockModel: SceneModel = (frame, opts) => {
   const limiterNote = stringOf(frame, "limiter_note");
   const ic = stringOf(frame, "ic");
   const bc = stringOf(frame, "bc");
-  const readingNote = stringOf(frame, "reading_note");
 
   const rhSpeed = metaNumber(frame, "rh_speed");
   const speedMeasured = metaNumber(frame, "speed_measured");
@@ -143,18 +141,14 @@ export const burgersShockModel: SceneModel = (frame, opts) => {
   const massIn = metaNumber(frame, "mass_in_cum");
   const massOut = metaNumber(frame, "mass_out_cum");
   const maxDefect = metaNumber(frame, "max_defect");
-  const relDefect = metaNumber(frame, "rel_defect");
   const entropyProduction = metaNumber(frame, "entropy_production");
   const tv0 = metaNumber(frame, "tv0");
   const tvEnd = metaNumber(frame, "tv_end");
-  const maxU = metaNumber(frame, "max_u");
-  const minU = metaNumber(frame, "min_u");
   const maxJump = metaNumber(frame, "max_jump");
   const errorL1 = metaNumber(frame, "error_l1");
   const errorMax = metaNumber(frame, "error_max");
   const exactBreak = metaNumber(frame, "exact_t_break");
   const exactOk = (metaNumber(frame, "exact_valid") ?? 0) > 0.5;
-  const nClipped = metaNumber(frame, "n_clipped");
 
   const scene = sceneShell(frame, opts, {
     chapter: CHAPTER,
@@ -230,7 +224,6 @@ export const burgersShockModel: SceneModel = (frame, opts) => {
   );
 
   // —— 误差：只在参照有效且未触地板处画；无效时不画整条 ——
-  const nErrorValid = countMask(errorMask) < errorMask.length;
   const errSegments = segmentedSeries(cellX, error, pal.residual, {
     width: 1.8,
     accept: (_v, i) => (errorMask[i] ?? 0) < 0.5,
@@ -264,20 +257,6 @@ export const burgersShockModel: SceneModel = (frame, opts) => {
       "橙=左界面　绿=右界面　蓝柱=净流入 -(F_out-F_in)",
       pal.muted,
     ),
-    ...legendBlock(
-      right.error[0] + 6,
-      right.error[1] + 6,
-      right.error[2],
-      nErrorValid ? "紫=逐点误差；贴 1e-17 地板/参照无效的点不画" : "参照无效：误差曲线整条不画",
-      nErrorValid ? pal.muted : pal.warn,
-    ),
-    ...legendBlock(
-      right.residual[0] + 6,
-      right.residual[1] + 6,
-      right.residual[2],
-      `橙=质量账本残差（${countMask(residualMask)} 步贴 1e-17 地板）`,
-      pal.muted,
-    ),
   );
 
   // —— 右列文字 ——
@@ -295,49 +274,40 @@ export const burgersShockModel: SceneModel = (frame, opts) => {
     lines.push(`${head.text}　t=${formatNumber(t, 4)}（请求 ${formatNumber(tRequested, 4)}）`);
     if (speedMeasured !== undefined && rhSpeed !== undefined) {
       lines.push(
-        `激波速度 ${formatNumber(speedMeasured, 6)} vs RH ${formatNumber(rhSpeed, 3)}` +
-          (speedRelErr !== undefined ? `（相对 ${formatNumber(speedRelErr, 2)}，r² ${formatNumber(speedR2 ?? 0, 4)}）` : ""),
+        `s=${formatNumber(speedMeasured, 5)} vs RH ${formatNumber(rhSpeed, 3)}` +
+          (speedRelErr !== undefined ? `（${formatNumber(speedRelErr, 2)}，r² ${formatNumber(speedR2 ?? 0, 4)}）` : ""),
       );
     } else if (rhSpeed !== undefined) {
-      lines.push(`RH 参考速度 ${formatNumber(rhSpeed, 4)}（本帧未给出拟合读数）`);
+      lines.push(`RH 参考速度 ${formatNumber(rhSpeed, 3)}（本帧无拟合读数）`);
     }
     if (mass0 !== undefined && massEnd !== undefined) {
       lines.push(
-        `质量 ${formatNumber(mass0, 5)} → ${formatNumber(massEnd, 5)}` +
+        `M ${formatNumber(mass0, 4)}→${formatNumber(massEnd, 4)}` +
           (massIn !== undefined && massOut !== undefined
-            ? `（流入 ${formatNumber(massIn, 3)}，流出 ${formatNumber(massOut, 3)}）`
-            : ""),
-      );
-    }
-    if (maxDefect !== undefined) {
-      lines.push(
-        `账本残差 ${formatNumber(maxDefect, 3)}` +
-          (relDefect !== undefined ? `（相对 ${formatNumber(relDefect, 2)}）` : ""),
+            ? `（入 ${formatNumber(massIn, 3)} / 出 ${formatNumber(massOut, 3)}）`
+            : "") +
+          (maxDefect !== undefined ? `；残差 ${formatNumber(maxDefect, 2)}` : ""),
       );
     }
     if (errorL1 !== undefined && errorMax !== undefined && exactOk) {
-      lines.push(`误差 L1 ${formatNumber(errorL1, 3)}　max ${formatNumber(errorMax, 3)}`);
+      lines.push(`误差 L1 ${formatNumber(errorL1, 3)}；max ${formatNumber(errorMax, 3)}`);
     } else if (!exactOk) {
       lines.push(
-        `参照无效${exactBreak !== undefined ? `（t_b=${formatNumber(exactBreak, 5)}）` : ""}：误差曲线不画`,
+        `参照无效${exactBreak !== undefined ? `（t_b=${formatNumber(exactBreak, 4)}）` : ""}：误差整条不画`,
       );
     }
     if (entropyProduction !== undefined) {
       lines.push(
-        `熵产 ${formatNumber(entropyProduction, 3)}` + (entropyProduction > 0 ? "（正：违反熵条件）" : ""),
+        `熵产 ${formatNumber(entropyProduction, 2)}` +
+          (entropyProduction > 0 ? "（正：违反熵条件）" : "") +
+          (tv0 !== undefined && tvEnd !== undefined
+            ? `；TV ${formatNumber(tv0, 3)}→${formatNumber(tvEnd, 3)}`
+            : ""),
       );
     }
-    if (tv0 !== undefined && tvEnd !== undefined) {
-      lines.push(
-        `TV ${formatNumber(tv0, 5)} → ${formatNumber(tvEnd, 5)}` +
-          (maxJump !== undefined ? `　maxJump ${formatNumber(maxJump, 4)}` : "") +
-          (minU !== undefined && maxU !== undefined ? `　u∈[${formatNumber(minU, 3)}, ${formatNumber(maxU, 3)}]` : ""),
-      );
-    }
-    if (nClipped !== undefined && nClipped > 0) lines.push(`显示裁剪 ${Math.round(nClipped)} 个单元（见 overflow）`);
     const nFluxClipped = countMask(fluxClipped);
-    if (nFluxClipped > 0) lines.push(`${nFluxClipped} 个界面通量被截到 ±${FLUX_WINDOW[1]}（flux_clipped=1）`);
-    if (readingNote !== undefined) lines.push(`读图：${readingNote}`);
+    if (nFluxClipped > 0) lines.push(`${nFluxClipped} 个通量点被截到 ±${FLUX_WINDOW[1]}（mask=1）`);
+    lines.push("紫=误差（掩码外不画）；橙=账本残差（地板 1e-17）。");
     scene.texts.push(...textBlock(L.rightX, right.textTop, L.floor, lines, pal.muted, unitBudget(L.rightW), "top"));
   } else {
     degraded.push("画布过窄：右列说明未排下，关键数字见角标与 pitfalls 面板");
@@ -347,18 +317,18 @@ export const burgersShockModel: SceneModel = (frame, opts) => {
   scene.badges.push(placeBadge(badge("source", sourceBadge(scene.dataSource).text, 8, 8), SLOT.source, width));
   scene.badges.push(
     placeBadge(
-      badge("autoscale", "坐标轴：解/通量/误差固定窗口；账本残差轴自适应（对数）", 8, 26),
+      badge("autoscale", "坐标轴：解/通量/误差固定；残差轴自适应", 8, 26),
       SLOT.axisMode,
       width,
     ),
   );
   if (cfl !== undefined) scene.badges.push(placeBadge(criticalBadge("cfl", cfl, CFL_CRITICAL), SLOT.critical, width));
   const status = [
-    schemeCn ?? scheme ?? "?",
+    scheme ?? schemeCn ?? "?",
     `t=${formatNumber(t, 3)}`,
     speedMeasured !== undefined ? `s=${formatNumber(speedMeasured, 5)}` : "",
     errorL1 !== undefined && exactOk ? `L1=${formatNumber(errorL1, 3)}` : "误差参照无效",
-    maxJump !== undefined ? `maxJump=${formatNumber(maxJump, 3)}` : "",
+    maxJump !== undefined ? `J=${formatNumber(maxJump, 3)}` : "",
   ].filter((s) => s !== "");
   scene.badges.push(placeBadge(badge("status", status.join("；"), 8, 8), SLOT.status, width));
   const degradedNode = degradedBadge(degraded, SLOT.degraded, width);
