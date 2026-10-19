@@ -946,11 +946,11 @@ MANIFEST: dict[str, Any] = {
             "requiredAux": ["residual", "symmetry_residual"],
             "axes": [
                 {"id": "matrix", "autoscaled": False,
-                 "title": "全局刚度阵 K_k（窗口固定：只显示已定型元素，见 entry_pending）", "ylabel": "自由度 j"},
-                {"id": "local", "autoscaled": True, "title": "当前单元的局部矩阵 ke（自动缩放）",
+                 "title": "全局刚度阵 K_k（固定窗口，灰=未定型）", "ylabel": "自由度 i"},
+                {"id": "local", "autoscaled": True, "title": "当前单元矩阵 ke（色标自适应）",
                  "ylabel": "局部自由度"},
                 {"id": "residuals", "autoscaled": False,
-                 "title": "装配一致性残差与对称性残差（对数纵轴，地板 1e-17）", "ylabel": "max|ΔK|",
+                 "title": "残差与主元比（对数，地板 1e-17）", "ylabel": "max|ΔK|",
                  "scale": "log"},
             ],
             "pitfalls": (
@@ -1020,9 +1020,9 @@ MANIFEST: dict[str, Any] = {
             "requiredAux": ["error", "error_energy_scan"],
             "axes": [
                 {"id": "deformed", "autoscaled": True,
-                 "title": "变形后的构型（自动缩放：看形状，不是看绝对量级）", "ylabel": "位移"},
+                 "title": "变形后的构型（自动缩放）", "ylabel": "位移"},
                 {"id": "scan", "autoscaled": False,
-                 "title": "扫载荷位置的能量误差与节点误差（对数纵轴，地板 1e-17）", "ylabel": "误差",
+                 "title": "扫载荷位置的误差（对数，地板 1e-17）", "ylabel": "误差",
                  "scale": "log"},
             ],
             "pitfalls": (
@@ -1079,11 +1079,11 @@ MANIFEST: dict[str, Any] = {
             "time": {"mode": "none"},
             "requiredAux": ["error", "error_p"],
             "axes": [
-                {"id": "ladder", "autoscaled": False, "title": "误差 vs 自由度（双对数，地板 1e-17）",
+                {"id": "ladder", "autoscaled": False, "title": "误差 vs 自由度（双对数）",
                  "ylabel": "误差", "scale": "log"},
-                {"id": "vs_p", "autoscaled": False, "title": "误差 vs p（半对数：指数收敛应当是直线）",
+                {"id": "vs_p", "autoscaled": False, "title": "误差 vs p（半对数）",
                  "ylabel": "误差", "scale": "log"},
-                {"id": "condition", "autoscaled": True, "title": "约化刚度阵条件数 vs p（自动缩放）",
+                {"id": "condition", "autoscaled": True, "title": "条件数 vs p（自动缩放）",
                  "ylabel": "cond", "scale": "log"},
             ],
             "pitfalls": (
@@ -1133,12 +1133,12 @@ MANIFEST: dict[str, Any] = {
             "time": {"mode": "scrub", "tMax": 1.0, "dt": 0.1, "label": "加密层数 ℓ"},
             "requiredAux": ["element_eta", "error"],
             "axes": [
-                {"id": "mesh", "autoscaled": False, "title": "当前网格与逐单元指示子（窗口固定 0–1）",
-                 "ylabel": "x"},
+                {"id": "mesh", "autoscaled": False, "title": "当前网格与指示子 η_K（固定 0–1）",
+                 "ylabel": "η_K 归一"},
                 {"id": "indicator", "autoscaled": False,
-                 "title": "η_K 与真误差（对数纵轴，地板 1e-17）", "ylabel": "误差/指示子", "scale": "log"},
+                 "title": "η_K 与真误差（对数，地板 1e-17）", "ylabel": "误差/指示子", "scale": "log"},
                 {"id": "history", "autoscaled": False,
-                 "title": "误差 vs 自由度：自适应与一致加密（双对数）", "ylabel": "能量误差", "scale": "log"},
+                 "title": "能量误差 vs 自由度（双对数）", "ylabel": "能量误差", "scale": "log"},
             ],
             "pitfalls": (
                 "第一，指示子不是一个常数：效率指数总量在 1.24–1.92 之间逐层摆动，"

@@ -9,20 +9,20 @@
         {
           "autoscaled": false,
           "id": "matrix",
-          "title": "全局刚度阵 K_k（窗口固定：只显示已定型元素，见 entry_pending）",
-          "ylabel": "自由度 j"
+          "title": "全局刚度阵 K_k（固定窗口，灰=未定型）",
+          "ylabel": "自由度 i"
         },
         {
           "autoscaled": true,
           "id": "local",
-          "title": "当前单元的局部矩阵 ke（自动缩放）",
+          "title": "当前单元矩阵 ke（色标自适应）",
           "ylabel": "局部自由度"
         },
         {
           "autoscaled": false,
           "id": "residuals",
           "scale": "log",
-          "title": "装配一致性残差与对称性残差（对数纵轴，地板 1e-17）",
+          "title": "残差与主元比（对数，地板 1e-17）",
           "ylabel": "max|ΔK|"
         }
       ],
@@ -102,14 +102,14 @@
         {
           "autoscaled": true,
           "id": "deformed",
-          "title": "变形后的构型（自动缩放：看形状，不是看绝对量级）",
+          "title": "变形后的构型（自动缩放）",
           "ylabel": "位移"
         },
         {
           "autoscaled": false,
           "id": "scan",
           "scale": "log",
-          "title": "扫载荷位置的能量误差与节点误差（对数纵轴，地板 1e-17）",
+          "title": "扫载荷位置的误差（对数，地板 1e-17）",
           "ylabel": "误差"
         }
       ],
@@ -237,21 +237,21 @@
           "autoscaled": false,
           "id": "ladder",
           "scale": "log",
-          "title": "误差 vs 自由度（双对数，地板 1e-17）",
+          "title": "误差 vs 自由度（双对数）",
           "ylabel": "误差"
         },
         {
           "autoscaled": false,
           "id": "vs_p",
           "scale": "log",
-          "title": "误差 vs p（半对数：指数收敛应当是直线）",
+          "title": "误差 vs p（半对数）",
           "ylabel": "误差"
         },
         {
           "autoscaled": true,
           "id": "condition",
           "scale": "log",
-          "title": "约化刚度阵条件数 vs p（自动缩放）",
+          "title": "条件数 vs p（自动缩放）",
           "ylabel": "cond"
         }
       ],
@@ -340,21 +340,21 @@
         {
           "autoscaled": false,
           "id": "mesh",
-          "title": "当前网格与逐单元指示子（窗口固定 0–1）",
-          "ylabel": "x"
+          "title": "当前网格与指示子 η_K（固定 0–1）",
+          "ylabel": "η_K 归一"
         },
         {
           "autoscaled": false,
           "id": "indicator",
           "scale": "log",
-          "title": "η_K 与真误差（对数纵轴，地板 1e-17）",
+          "title": "η_K 与真误差（对数，地板 1e-17）",
           "ylabel": "误差/指示子"
         },
         {
           "autoscaled": false,
           "id": "history",
           "scale": "log",
-          "title": "误差 vs 自由度：自适应与一致加密（双对数）",
+          "title": "能量误差 vs 自由度（双对数）",
           "ylabel": "能量误差"
         }
       ],
