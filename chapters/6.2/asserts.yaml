@@ -1,0 +1,181 @@
+# 6.2 章断言清单（真源：`tests/6.2/` 下的两个文件）
+#
+# 本章审计的是产出链路本身，所以断言全部是 B 类不变量：
+#   * 核心层（test_packaging.py）：帧数/时长公式、GIF 厘秒量化、最近邻的 h/2 上界、
+#     线性插值的 O(h²) 状态误差、序号抽稀的时间失真、截断账本、拓扑序与最长链、
+#     all 展开、TeX 注释/重复标签/附表行计数。
+#   * 帧层（test_frames.py）：三页默认帧有限可装、帧数组与核心逐位一致、
+#     三种取样的失败模式互不掩盖、目录帧与 yaml 展开图一致、讲义矩阵与磁盘一致。
+#
+# 本章不设 A/C 类：它不产生"随 h 收敛"的新离散格式，核心问题是**账本是否闭合**。
+# 每条断言都给出一个"看起来成功但实际不成立"的反例（如 24 fps→25 fps、序号抽稀）。
+chapter: "6.2"
+title: 交互式教材打包与视频导出
+required_kinds: [B]
+
+min_counts:
+  B: 18
+
+tests:
+  # ---------------------------------------------------------------- 导出时间轴
+  - name: test_export_frame_count_and_time_bounds
+    kind: B
+    what: >-
+      5 档 fps × 3 种取样共 15 组：n=floor(fps·span)+1；frame_t 严格递增且不越界；
+      名义/播放总时长与 delay_cs 精确一致
+    theory: >-
+      帧数由时间跨度与请求帧率唯一决定；GIF 的播放总时长是 n·delay_cs/100，
+      两个时长必须分开记账，不能用一个"大约 4 秒"代替
+
+  - name: test_gif_centisecond_quantization
+    kind: B
+    what: >-
+      12/24/25/30/60 fps 的 delay_cs 分别为 8/4/4/3/2；实际帧率 12.5/25/25/33.33/50；
+      25 fps 每帧漂移 0，24 fps 每帧 −1/600 s
+    theory: >-
+      GIF 的 delay 字段单位是 1/100 s，delay_cs=max(1,round(100/fps))；
+      只有能整除 100 的帧率才无漂移，其余帧率按厘秒四舍五入改写
+
+  - name: test_nearest_timing_error_half_step_bound
+    kind: B
+    what: >-
+      非均匀源时间轴（9 个快照）上，5 档 fps 的最近邻内容时刻误差最大 0.5 s，
+      恰等于上界 hmax/2=0.5（hmax=1.0；打平时取靠前的快照）
+    theory: >-
+      最近邻把每一帧量化到最近的源快照，误差落在该快照的半格 Voronoi 区间内，
+      因此被 max(h)/2 界住；这个界与 fps 无关，只由源时间轴决定
+
+  - name: test_linear_sampling_is_time_exact_and_state_second_order
+    kind: B
+    what: >-
+      linear 模式的内容时刻误差 ≤1e-15；状态误差 ≤0.0121·hmax²（logistic 的
+      |y''|max/8=0.0121）；且优于最近邻 4 倍以上
+    theory: >-
+      按物理时间线性插值时内容时刻是精确的，剩下的只有插值误差：
+      |y−L_h y| ≤ (h²/8)·max|y''|，h 为相邻快照间距
+
+  - name: test_decimation_distorts_time_on_nonuniform_sources
+    kind: B
+    what: >-
+      同一 9 点非均匀轴上，decimate 的时间误差 1.55 s，是最近邻 0.5 s 的 3.1 倍；
+      源下标单调且末帧取到源末点
+    theory: >-
+      按序号等距抽稀只保证"帧数对"，不保证"时刻对"；非均匀步长下快照序号与
+      物理时间不是线性关系，时间误差不再有界
+
+  - name: test_frame_budget_truncation_is_reported
+    kind: B
+    what: >-
+      budget=10 时实出 10 帧、raw=97、截断 87 帧；末帧 t=0.375 s，明显早于 t_end=4 s
+    theory: >-
+      帧数上限是硬约束；截断必须让 truncated=True 并记下被丢掉的帧数，
+      不能把"短一点的视频"当成"完整视频"
+
+  # ---------------------------------------------------------------- 目录依赖图
+  - name: test_topological_order_respects_catalog_dependencies
+    kind: B
+    what: >-
+      28 章、67 条边；拓扑序包含全部章、0 环、0 条逆序边；6.2（deps=all）排在最后
+    theory: >-
+      拓扑序要求每条依赖边 u→v 中 u 在 v 之前；deps: [all] 展开为清单中位于其前的
+      所有章，不含自身
+
+  - name: test_dependency_layers_and_longest_chain
+    kind: B
+    what: >-
+      9 层、max depth=8；最长链 9 章：1.1→1.2→1.4→1.5→4.1→4.2→4.3→6.1→6.2；
+      分层是全部章的划分，链上相邻项确有依赖边
+    theory: >-
+      depth(v)=1+max depth(dep)；最长链长度=max depth+1。层数不是章节号跨度，
+      而是依赖关系的实际长度
+
+  - name: test_resolve_dependencies_expands_all_and_flags_bad_edges
+    kind: B
+    what: >-
+      all 在 1.3 上展开为 (1.1,1.2)；重复依赖去重；未知依赖 9.9 与自依赖 1.3
+      各报一条问题，不进入依赖边
+    theory: >-
+      图构建前必须先做 all 展开与合法性校验；静默丢弃未知依赖会让目录图"看起来
+      没有环"，实际是图不完整
+
+  # ---------------------------------------------------------------- TeX 审计
+  - name: test_tex_crossrefs_ignore_comments_and_count_table_rows
+    kind: B
+    what: >-
+      \label/\ref/\eqref/\input 各按出现顺序提取；注释里的 3 个命令全部忽略；
+      重复 label 检出；附表正文 3 行（表头/注释不算）
+    theory: >-
+      注释里的命令不是依赖；附表行以 A/B/C & 开头，行数必须与断言报告的条数
+      对应，而不是与 asserts.yaml 的测试函数数对应
+
+  # ---------------------------------------------------------------- 帧级证据
+  - name: test_all_frames_finite_packable_and_declare_aux
+    kind: B
+    what: >-
+      三页默认帧的 40+ 个数组全部有限；meta 无 NaN/Inf；pack_frame 的 JSON 头
+      无 Infinity；requiredAux 全部命中
+    theory: >-
+      NLF 契约要求帧可以无异常装帧；任何非有限值都必须走占位+掩码+说明，
+      而不是直接进 meta
+
+  - name: test_export_frame_matches_core_bitwise
+    kind: B
+    what: >-
+      8 个导出数组与直接调用 integrate_adaptive+export_plan 的结果逐位相等；
+      n=97、delay=4 cs、max|Δt|=0.41841 s、GIF 漂移 0.16 s
+    theory: >-
+      帧只能搬运核心结果；任何"帧里再算一遍"都会引入第二套时间轴。
+      逐位对拍是装配层唯一的可信证明
+
+  - name: test_sampling_modes_expose_distinct_failure_modes
+    kind: B
+    what: >-
+      linear 的时间误差 ≤1e-15；decimate 的时间误差 >2×nearest；linear 的状态误差
+      小于 decimate 的 1/4；25 fps 的 GIF 漂移为 0，24 fps 为 0.16 s
+    theory: >-
+      三种取样对应三种不同的失效：内容时刻有界抖动、内容时刻失真、状态插值误差；
+      GIF 帧率是第四条独立的账，不能用一个"导出成功"覆盖
+
+  - name: test_catalog_frame_matches_dependency_graph
+    kind: B
+    what: >-
+      节点 28、边 67；四项错误全 0；焦点 4.3 的祖先闭包 8 章、9 条边；
+      最长链 9 章；chapter_ids 与 yaml 顺序一致
+    theory: >-
+      目录图的每一个节点/边都必须能从 docs/chapters.yaml 展开得到；
+      闭包大小是"选中一章时真正需要先构建的章数"
+
+  - name: test_catalog_part_and_focus_masks
+    kind: B
+    what: >-
+      part=IV 高亮 6 个节点、全部 28 章时全高亮；焦点 4.3 的焦点掩码恰有 1 个 1
+    theory: >-
+      高亮是掩码不是删除：未选中的节点仍要显示（否则会掩盖跨部依赖）；
+      焦点章与祖先闭包是两种不同颜色/层级
+
+  - name: test_book_frame_reflects_filesystem
+    kind: B
+    what: >-
+      28 章 × 6 项的每个 0/1 格子都由 notes/附表/报告条数/引用/输入/字形/pitfalls
+      独立复算；0 处不一致；总问题数与 meta 相同
+    theory: >-
+      审计页不许自证：矩阵必须与磁盘上的实际文件一一对应，
+      附表行数对 asserts_report.md 的条数，而不是对测试函数数
+
+  - name: test_book_part_filter_and_sorting
+    kind: B
+    what: >-
+      part=I 精确筛出 1.1..1.5 五章；fail 排序下问题数非增；两页章集合一致；
+      n_issues 等于 error_y 之和
+    theory: >-
+      筛选只改变展示范围，不改变每章的证据；排序只改变行序，
+      问题总数必须守恒
+
+  - name: test_manifest_contract
+    kind: B
+    what: >-
+      3 页 id 固定；每页至少 2 个参数、pitfalls ≥60 字、axes 显式 autoscaled；
+      fps 的 critical=[25] 且 criticalNote 说明厘秒量化
+    theory: >-
+      防误导规则 4/6/7 在 manifest 层的硬约束：自适应轴要标注、临界值要给出、
+      每个可视化要有"它会怎样骗你"的说明

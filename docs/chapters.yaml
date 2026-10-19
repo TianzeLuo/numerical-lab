@@ -70,7 +70,7 @@ chapters:
 
   # ---------- Part VI 综合与产出 ----------
   - {id: "6.1", title: 二维综合仿真, part: VI, deps: ["4.1", "4.2", "4.3", "4.4", "4.5", "4.6"], viz: 4, difficulty: very_high, burn: 3, modules: [numcore/apps], asserts: [A, B]}
-  - {id: "6.2", title: 交互式教材打包与视频导出, part: VI, deps: [all], viz: 3, difficulty: mid, burn: 2, modules: [tools, viz/site], asserts: [B]}
+  - {id: "6.2", title: 交互式教材打包与视频导出, part: VI, deps: [all], viz: 3, difficulty: mid, burn: 2, modules: [tools, viz/site, numcore/apps/packaging.py], asserts: [B]}
 
 milestones:
   - {id: M0, name: 骨架, exit: 假章节跑通全流程（核心→渲染→断言→导出）}

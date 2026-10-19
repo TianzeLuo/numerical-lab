@@ -1,0 +1,189 @@
+// 本文件由 tools/gen_manifests.py 从章节模块的 MANIFEST 生成，请勿手改。
+import type { ChapterManifestJson } from "../../shared/src/manifest.js";
+
+/** 交互式教材打包与视频导出 */
+export const manifest: ChapterManifestJson = {
+  "chapter": "6.2",
+  "part": "VI",
+  "summary": "把 28 章组织成可导航、可导出、可编译的产品：目录依赖图决定构建顺序，视频导出的内容时刻与 GIF 播放时刻必须分开记账，讲义构建则逐章核对引用闭合、附表行数、输入文件与字形风险。三个页面都在审计「看起来成功」背后的可测量不变量。",
+  "title": "交互式教材打包与视频导出",
+  "vizzes": [
+    {
+      "axes": [
+        {
+          "autoscaled": false,
+          "id": "main",
+          "title": "依赖图（按最长路径分层）",
+          "ylabel": "层内序号",
+        },
+        {
+          "autoscaled": false,
+          "id": "error",
+          "title": "依赖图的错误计数（应为 0）",
+          "ylabel": "计数",
+        },
+      ],
+      "dataSource": "backend",
+      "description": "节点是章、边是前置依赖，按最长路径分层。选中某一章会高亮它的祖先闭包；选中某一部会高亮该部的节点。副图是环、未知依赖、自依赖、目录漂移四项错误计数（都应为 0）。侧栏报最长关键路径与闭包大小。",
+      "id": "catalog_nav",
+      "params": [
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": "all",
+          "label": "高亮分部",
+          "name": "part",
+          "options": ["all", "I", "II", "III", "IV", "V", "VI"],
+          "type": "enum",
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": "4.3",
+          "label": "焦点章（高亮其前置闭包）",
+          "name": "focus",
+          "options": ["all", "1.1", "1.2", "1.3", "1.4", "1.5", "2.1", "2.2", "2.3", "2.4", "2.5", "2.6", "3.1", "3.2", "3.3", "3.4", "3.5", "4.1", "4.2", "4.3", "4.4", "4.5", "4.6", "5.1", "5.2", "5.3", "5.4", "6.1", "6.2"],
+          "type": "enum",
+        },
+      ],
+      "pitfalls": "目录顺序不是构建顺序：章节号只反映写作计划，真正能编译的前提是依赖已就位。把 3.4 放在 2.3 前面会缺正交多项式，把 6.1 放在 4.x 前面会缺四个求解器。第二：``deps: [all]`` 不是「依赖所有章」的字面意思，本章把它展开为「清单里排在它前面的所有章」，否则 6.2 会依赖自己。第三：没有环 ≠ 顺序唯一；同层节点按清单顺序稳定排序，换实现若用集合遍历，构建顺序会漂移。第四：图的边数不等于依赖条目数——``all`` 会展开成 27 条边。",
+      "requiredAux": ["error"],
+      "theory": ["拓扑序：每条边 u→v 中 u 必须排在 v 前；同层按清单顺序稳定排序", "分层深度 depth(v)=1+max depth(u)，最长链是关键路径（不是章节号顺序）", "deps: [all] 展开为清单中排在它前面的所有章，不包含自身"],
+      "time": {
+        "label": "t",
+        "mode": "none",
+      },
+      "title": "目录与依赖：28 章的构建顺序",
+    },
+    {
+      "axes": [
+        {
+          "autoscaled": false,
+          "id": "main",
+          "scale": "log",
+          "title": "自适应步长 h(t) 与导出帧",
+          "ylabel": "步长 h（对数）",
+        },
+        {
+          "autoscaled": false,
+          "id": "error",
+          "title": "时间误差：内容时刻 / GIF 播放时刻",
+          "ylabel": "误差（s）",
+        },
+      ],
+      "dataSource": "backend",
+      "description": "源时间轴来自自适应 dopri5（非均匀步长）。把 logistic 轨迹按固定 fps 重采样：主图是源步长与导出帧的位置，副图是内容时刻误差（最近邻/线性/序号抽稀）与 GIF 厘秒量化造成的播放漂移。侧栏把名义帧数、实际帧数、截断、stall、状态误差与 delay_cs 分开报。",
+      "id": "export_timeline",
+      "params": [
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": 1e-05,
+          "label": "自适应容差 tol",
+          "name": "tol",
+          "options": [
+            0.001,
+            1e-05,
+            1e-07,
+          ],
+          "type": "enum",
+        },
+        {
+          "critical": [
+            25.0,
+          ],
+          "criticalNote": "25 fps 是 GIF 厘秒量化能精确表示的一档（4 cs）；24/30/60 都会被改写。",
+          "default": 24,
+          "label": "请求帧率 fps",
+          "name": "fps",
+          "options": [
+            12,
+            24,
+            25,
+            30,
+            60,
+          ],
+          "type": "enum",
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": "nearest",
+          "label": "取样方式",
+          "name": "sampling",
+          "options": ["nearest", "linear", "decimate"],
+          "type": "enum",
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": 240,
+          "label": "帧数上限",
+          "name": "budget",
+          "options": [
+            120,
+            240,
+          ],
+          "type": "enum",
+        },
+      ],
+      "pitfalls": "「视频能播」不等于「时间轴对」。内容时刻与播放时刻是两本账：最近邻取样把每帧量化到源快照，误差有半个源步长的上界；按序号抽稀则在非均匀步长下把物理时间拉弯。第二：GIF 的 delay 是整数厘秒，24 fps 请求被写成 4 cs，实际播放 25 fps，60 fps 被写成 2 cs，实际只有 50 fps；误差随帧号线性累积，长时间片尾会明显快/慢。第三：帧数上限截断不是「短一点」——它直接改变导出的时间跨度，必须在账本里报出来。第四：最近邻内容误差小，不代表画面不抖；同一快照被连续显示多帧（stall）是另一条独立的量。",
+      "requiredAux": ["error"],
+      "theory": ["帧数 = floor(fps·(t_end−t_0)) + 1；超过上限时如实截断", "GIF delay_cs = max(1, round(100/fps))，实际 fps = 100/delay_cs", "最近邻内容误差 ≤ 半个源步长；GIF 播放误差随帧号线性累积"],
+      "time": {
+        "label": "t",
+        "mode": "none",
+      },
+      "title": "视频导出：帧数、时长与两本时间账",
+    },
+    {
+      "axes": [
+        {
+          "autoscaled": false,
+          "id": "main",
+          "title": "逐章构建检查（1=通过，0=缺）",
+          "ylabel": "章",
+        },
+        {
+          "autoscaled": false,
+          "id": "error",
+          "title": "每章问题数（0..6）",
+          "ylabel": "问题数",
+        },
+      ],
+      "dataSource": "backend",
+      "description": "逐章检查六件事：notes 存在且含定理、asserts_table 行数与 asserts.yaml 声明一致、引用在章内闭合、\\input 目标存在、notes+附表无 xelatex 无字形风险字符、pitfalls ≥800 字。热图行=章、列=检查项；副图是每章的问题数。",
+      "id": "book_build",
+      "params": [
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": "all",
+          "label": "分部筛选",
+          "name": "part",
+          "options": ["all", "I", "II", "III", "IV", "V", "VI"],
+          "type": "enum",
+        },
+        {
+          "critical": [],
+          "criticalNote": "",
+          "default": "topo",
+          "label": "排序",
+          "name": "sort",
+          "options": ["catalog", "topo", "fail"],
+          "type": "enum",
+        },
+      ],
+      "pitfalls": "「编译通过」不是「书对」：xelatex 对缺字形只吞字、不报错，未定义引用也要两遍编译才稳定；附表的行数如果与 asserts.yaml 声明不一致，PDF 里就是旧数字。第二：引用必须在单章内闭合，因为 G9 逐章编译；跨章 \\eqref 在合并本里能过，单章编译会失败。第三：注释里的 ``\\input``/``\\ref`` 不算依赖，先剔注释再计数。第四：6 列检查里任何一格为 0 都不能靠「其它列全绿」抵消；问题数按章统计，不是全局平均。",
+      "requiredAux": ["error"],
+      "theory": ["附表行数必须等于 asserts_report.md 的断言条数（纸面与机器同源）", "引用在单章内闭合；\\input 目标必须存在（注释中的命令不算）", "notes+附表不含 xelatex 无字形风险字符；pitfalls ≥800 字"],
+      "time": {
+        "label": "t",
+        "mode": "none",
+      },
+      "title": "讲义构建：引用、附表与字形审计",
+    },
+  ],
+};
+
+export default manifest;

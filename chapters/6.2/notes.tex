@@ -1,0 +1,375 @@
+% 6.2 章 · 交互式教材打包与视频导出
+% 三个页面分别审计：目录依赖图、视频导出的两本时间账、讲义构建的逐章闭包。
+% 所有数字都来自 tests/6.2/ 与对当前仓库的实际扫描；附表由断言报告生成。
+
+\numlabchapter{交互式教材打包与视频导出}{6.2}
+
+\section{这一章要解决什么}
+
+前面 27 章各自解决了“一个数值问题怎么算”。本章换一个对象：把 28 章组织成
+\textbf{可导航的目录}、\textbf{可播放的视频}与\textbf{可编译的讲义}，并只问一件事：
+\[
+  \text{“产物能打开/能播放/能编译”}
+  \quad\stackrel{?}{\Longrightarrow}\quad
+  \text{“它的账本闭合”}.
+\]
+三个页面各给一条独立的证据链：
+
+\begin{enumerate}
+  \item \textbf{目录}（\texttt{catalog\_nav}）：28 章的依赖图不是章节号排序；
+        按最长路径分 9 层，67 条边，关键路径
+        $1.1\to1.2\to1.4\to1.5\to4.1\to4.2\to4.3\to6.1\to6.2$。
+        焦点 4.3 的前置闭包是 8 章 / 9 条边。
+  \item \textbf{导出}（\texttt{export\_timeline}）：视频有\textbf{两本时间账}。内容时刻
+        由取样方式决定（最近邻有 $h/2$ 上界，序号抽稀没有），播放时刻被 GIF 的整数
+        厘秒 delay 改写：24 fps 请求实际按 25 fps 播放，4 秒片尾漂移 $0.16$ s。
+  \item \textbf{讲义}（\texttt{book\_build}）：28 章 × 6 项检查——笔记、附表行数、
+        引用闭合、输入存在、字形风险、pitfalls。任何一个“编译通过”都必须能拆成
+        168 个可复查的格子。
+\end{enumerate}
+
+记号：$f_{\rm fps}$ 是请求帧率；$d$ 是 GIF 的 delay（单位 $1/100$ s）；
+$\tau_j=t_0+j/f_{\rm fps}$ 是第 $j$ 帧的名义时刻；$t_i$ 是自适应源时间轴的接受步时刻；
+$h=\max_i(t_{i+1}-t_i)$ 是最大源步长；$L_h y$ 是相邻源快照的分段线性插值。
+
+\section{目录：依赖图与构建顺序}\label{sec:catalog}
+
+\subsection{从清单到 DAG}
+
+清单文件 \texttt{docs/chapters.yaml} 给每章一个 \texttt{deps} 列表。本章把
+\begin{itemize}
+  \item 普通依赖原样保留；
+  \item \texttt{all} 展开为\textbf{清单中排在它前面的所有章}（不含自身）；
+  \item 未知依赖、自依赖记入问题列表，绝不悄悄丢边；
+  \item 重复依赖去重，保持首次出现的顺序。
+\end{itemize}
+展开后得到一个有向图 $G=(V,E)$，$|V|=28$、$|E|=67$。边 $u\to v$ 的语义是
+“$u$ 必须先构建”。6.2 的 \texttt{deps: [all]} 因此得到 27 条入边，而不是 28 条。
+
+\begin{theorem}[拓扑序的存在性]\label{thm:topo}
+有限有向图存在拓扑序，当且仅当它无环；若用 Kahn 算法（每次取入度为 0 的节点）
+并在候选集中按清单 rank 取最小，得到的拓扑序是\textbf{唯一确定}的。
+\end{theorem}
+
+\begin{proof}
+若图有环 $v_1\to v_2\to\cdots\to v_k\to v_1$，环上每个节点都有一条来自环内的入边，
+任何线性顺序都无法让所有边指向前方，故不存在拓扑序。
+
+反之，无环有限图必有入度为 0 的节点：否则从任一节点沿入边反向走，有限图必重复，
+形成环。Kahn 删除该节点及其出边后余图仍无环，归纳即得拓扑序。候选集用清单 rank
+排序消除了实现相关的任意性；同层节点因此按清单顺序稳定出现。
+\end{proof}
+
+\begin{theorem}[最长路径分层]\label{thm:depth}
+令 $\mathrm{depth}(v)=0$（无前置）或 $1+\max_{u\to v}\mathrm{depth}(u)$，则
+\begin{enumerate}
+  \item $\mathrm{depth}(u)<\mathrm{depth}(v)$ 对每条边 $u\to v$ 成立；
+  \item 按 $\mathrm{depth}$ 分层是一个划分，层数 $=1+\max_v\mathrm{depth}(v)$；
+  \item 最长链的长度 $=1+\max_v\mathrm{depth}(v)$。
+\end{enumerate}
+\end{theorem}
+
+\begin{proof}
+第一条由定义直接得到：$\mathrm{depth}(v)\ge 1+\mathrm{depth}(u)>\mathrm{depth}(u)$。
+第二条因为每点有唯一深度，层间不交、并为全集。第三条对最长链
+$v_0\to\cdots\to v_L$ 有 $\mathrm{depth}(v_{i+1})\ge\mathrm{depth}(v_i)+1$，
+故 $L\le\max\mathrm{depth}$；反过来从最大深度节点沿取得最大值的父节点回溯，
+每一步深度减 1，得到长度 $1+\max\mathrm{depth}$ 的链。
+\end{proof}
+
+实测：9 层、最大深度 8；最长链 9 章，正是
+$1.1\to1.2\to1.4\to1.5\to4.1\to4.2\to4.3\to6.1\to6.2$。
+最宽的一层有 9 章（$2.x$ 与 $3.x$ 的一部分落在深度 2）。
+
+\subsection{层内重心排序}
+
+拓扑分层只决定“第几列”，不决定“同一列里的上下顺序”。为了让边少交叉，
+实现做 3 轮重心排序：
+\[
+  \text{pos}(v)\leftarrow \frac{1}{|\mathcal N(v)|}
+  \sum_{u\in\mathcal N(v)}\text{pos}(u),
+\]
+其中 $\mathcal N(v)$ 先取父节点（上行），再取子节点（下行）；同重心按清单 rank
+打破平局。排序只改\textbf{显示坐标}，不改边、拓扑序与深度。这样同一份清单每次
+渲染得到同一张图，不会因集合遍历顺序变化而漂移。
+
+\begin{table}[htbp]
+\centering
+\caption{目录依赖图的实测账本（\texttt{tests/6.2/test\_frames.py}）}
+\begin{tabular}{ll}
+\toprule
+量 & 实测 \\
+\midrule
+章数 / 边数 & 28 / 67 \\
+层数 / 最大深度 & 9 / 8 \\
+最长关键路径 & 9 章（末位 6.2）\\
+最宽一层 & 9 章 \\
+焦点 4.3 的祖先闭包 & 8 章 / 9 条边 \\
+错误计数（环/未知/自依赖/缺模块） & $0/0/0/0$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{高亮与“不删除”}
+
+选分部或焦点时，未选中的节点仍然画出，只是变灰；否则跨部依赖会被藏起来。
+图中共 28 个节点，默认只给高亮闭包中的章号标签——28 个标签会在 9 层里互相压。
+\texttt{focus=all} 且不筛分部时才标全图；这既保留了“整体可导航”，又避免默认视图
+被标签淹没。
+
+\section{视频导出：内容时刻与播放时刻}\label{sec:export}
+
+\subsection{非均匀源时间轴}
+
+导出页的源不是一条均匀网格，而是 logistic 方程
+\[
+  y'=y(1-y),\qquad y(0)=\tfrac12,\qquad t\in[0,4]
+\]
+的 dopri5 自适应积分。每个接受步给出一个快照 $(t_i,y_i)$；快照间距由误差控制律
+决定，天然非均匀。默认 $\mathrm{tol}=10^{-5}$ 时只有 \textbf{7 步 / 8 个接受点}，
+$h\in[0.05,0.8444]$，最大/最小步长比 $16.9$。这个比值正是“按序号抽稀”会出错的
+根源。
+
+\subsection{帧数、边界与截断}
+
+\begin{theorem}[导出帧数]\label{thm:frames}
+设源跨度 $T=t_1-t_0>0$，请求帧率 $f>0$。取
+\[
+  n=\left\lfloor fT\right\rfloor+1,\qquad
+  \tau_j=t_0+\frac{j}{f},\quad j=0,\dots,n-1,
+\]
+则 $\tau_{n-1}\le t_1$ 且 $n$ 是满足该条件的最大帧数加一；若帧数上限为 $K$，
+实出 $\min(n,K)$ 帧，并必须显式记录 $n-K$ 帧被截断。
+\end{theorem}
+
+\begin{proof}
+$\tau_{n-1}=t_0+(n-1)/f\le t_0+T=t_1$ 由 $n-1\le fT$ 得。若 $n+1$ 帧，
+则 $\tau_n=t_0+n/f>t_0+T$（因为 $n>fT$），越界。故 $n$ 是最大合法帧数。
+上限 $K$ 只改变输出长度，不改变 $\tau_j$ 的定义；截断必须作为状态报出，
+否则“视频短了”会被误读为“数值只算到这里”。
+\end{proof}
+
+默认 $T=4$、$f=24$ 得 $n=97$。60 fps 需 241 帧，而上限 240 时实出 240 帧，
+\texttt{truncated=1}、末帧提前一个名义帧间隔。
+
+\subsection{三种取样的三个不同误差}
+
+\paragraph{最近邻：内容时刻有界。}
+记 $\tau$ 为名义时刻，$t_j$ 为最近源时刻。因为源时刻把区间切成间距不超过 $h$ 的
+格子，$\tau$ 必落在某个格内，到最近端点的距离不超过半格：
+\begin{equation}
+  |t_j-\tau|\le \frac{h}{2}.
+\end{equation}
+在 9 点非均匀测试轴上，实测最大误差为 $0.5$ s，恰等于 $h_{\max}/2=0.5$（打平时取
+靠前快照）；默认自适应源上为 $0.4184$ s（$h_{\max}=0.8444$）。
+
+\paragraph{线性插值：内容时刻精确，状态误差 $O(h^2)$。}
+在相邻快照 $[t_i,t_{i+1}]$ 上，$L_h y$ 是 $y$ 的线性插值：
+\begin{theorem}[线性插值误差]\label{thm:linear}
+若 $y\in C^2$，则对 $\tau\in[t_i,t_{i+1}]$，
+\[
+  |y(\tau)-L_h y(\tau)|\le \frac{h_i^2}{8}\max_{[t_i,t_{i+1}]}|y''|.
+\]
+\end{theorem}
+
+\begin{proof}
+令 $e=y-L_h y$。$e$ 在两端为 0；设 $|e|$ 在内部点 $\xi$ 取最大，则 $e'(\xi)=0$。
+对 $e$ 在 $\xi$ 处用带余项的插值误差公式，或直接对 $y$ 在 $t_i,t_{i+1}$ 上做
+Hermite 插值：存在 $\eta$ 使
+$e(\xi)=\frac{( \xi-t_i)(\xi-t_{i+1})}{2}y''(\eta)$。
+$|(\xi-t_i)(\xi-t_{i+1})|\le h_i^2/4$，故 $|e|\le h_i^2\max|y''|/8$。
+\end{proof}
+
+logistic 的 $y''=y(1-y)(1-2y)$，$\max|y''|=0.0962$，所以
+$|e|\le0.0121h^2$。默认源 $h_{\max}=0.8444$ 给出界 $8.63\times10^{-3}$，
+实测 $8.39\times10^{-3}$；比最近邻的状态误差 $8.63\times10^{-2}$ 小一个数量级。
+但 fps 再高也不能消除它：$h$ 由源求解器决定，不由导出帧率决定。
+
+\paragraph{序号抽稀：结构全对，时间全错。}
+按序号等距取 $n$ 个快照时，源下标严格单调、末帧也覆盖源末点，看起来“结构完全正确”；
+但非均匀步长下序号与物理时间不是线性关系。同一 9 点轴上，序号抽稀的时间误差为
+$1.55$ s，是最近邻 $0.5$ s 的 $3.1$ 倍。默认自适应源上为 $1.1167$ s，而最近邻只有
+$0.4184$ s。这个反例说明：\textbf{帧数正确、下标正确、末帧正确，仍然可能时间全错}。
+
+\begin{table}[htbp]
+\centering
+\caption{三种取样在默认自适应源上的实测（24 fps，tol $=10^{-5}$）}
+\begin{tabular}{lrrr}
+\toprule
+取样 & 内容 max$|\Delta t|$ / s & 状态 max$|\Delta y|$ & 同源保持帧数 \\
+\midrule
+最近邻 & 0.4184 & $8.63\times10^{-2}$ & 89 \\
+线性插值 & $0$（$\le10^{-15}$） & $8.39\times10^{-3}$ & 0 \\
+序号抽稀 & 1.1167 & $2.30\times10^{-1}$ & 89 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{GIF 的厘秒量化}
+
+导出视频的最后一公里是 GIF 的 delay 字段：它是整数厘秒，不能表示任意帧率。
+
+\begin{theorem}[GIF 播放漂移]\label{thm:gif}
+设请求帧率 $f$，取
+\[
+  d=\max\!\left(1,\operatorname{round}\!\left(\frac{100}{f}\right)\right),
+  \qquad f_{\rm act}=\frac{100}{d}.
+\]
+第 $j$ 帧的播放时刻为 $t_0+jd/100$，名义时刻为 $t_0+j/f$，故累计漂移
+\[
+  \Delta_j=j\left(\frac{d}{100}-\frac1f\right).
+\]
+若实际帧数 $n=\lfloor fT\rfloor+1$，片尾（第 $n-1$ 帧）漂移为
+$(n-1)(d/100-1/f)$。$f=25$ 时 $d=4$、$\Delta_j\equiv0$；其余帧率一般不为零。
+\end{theorem}
+
+\begin{proof}
+播放器把每帧显示 $d$ 个厘秒，$j$ 个间隔共 $jd/100$ 秒；名义时间按 $1/f$ 秒间隔累积。
+两式相减即得。$f=25$ 时 $100/f=4$ 为整数，$d=4$，两个间隔都等于 $0.04$ s。
+\end{proof}
+
+\begin{table}[htbp]
+\centering
+\caption{请求帧率与 GIF 实际播放（4 秒跨度，未截断）}
+\begin{tabular}{rrrrr}
+\toprule
+请求 $f$ & delay $d$/cs & 实际 $f_{\rm act}$ & 片尾漂移 / s & 方向 \\
+\midrule
+12 & 8 & 12.50 & $-0.16$ & 播放更快 \\
+24 & 4 & 25.00 & $-0.16$ & 播放更快 \\
+25 & 4 & 25.00 & $0$ & 精确 \\
+30 & 3 & 33.33 & $-0.40$ & 播放更快 \\
+60 & 2 & 50.00 & $+0.80$ & 播放更慢 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+所以状态栏必须同时报“请求 24 fps / delay 4 cs / 实际 25 fps / 片尾漂移 0.16 s”。
+只写“24 fps”是把请求值冒充实际值。
+
+\subsection{stall：有界误差也会看起来卡顿}
+
+最近邻取样时，若源快照间距大于帧间隔，同一个快照会被连续显示多帧。默认配置下
+97 帧里有 \textbf{89 帧与前一帧同源}，最长连续保持 $0.7917$ s。时间误差仍被
+$h/2$ 界住，但画面是一串台阶。线性插值可以消除 stall（实测 0 帧），代价是状态误差
+变成 $O(h^2)$；两者的账不能互相抵消。
+
+\begin{table}[htbp]
+\centering
+\caption{自适应容差对导出账本的影响（24 fps，最近邻）}
+\begin{tabular}{rrrrr}
+\toprule
+tol & 接受点 & $h_{\max}$ & 内容 max$|\Delta t|$/s & 状态 max$|\Delta y|$ \\
+\midrule
+$10^{-3}$ & 6 & 1.7048 & 0.8382 & $1.40\times10^{-1}$ \\
+$10^{-5}$ & 8 & 0.8444 & 0.4184 & $8.63\times10^{-2}$ \\
+$10^{-7}$ & 15 & 0.4366 & 0.1998 & $4.27\times10^{-2}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+容差越小，源快照越密，内容时刻与状态误差都下降；但帧率不变时，播放漂移完全不变
+（它只由 delay 决定）。这也是两条账必须分开报的直接证据。
+
+\section{讲义构建：引用、附表与字形}\label{sec:book}
+
+\subsection{六项检查}
+
+对每一章，\texttt{book\_build} 计算一个 6 维布尔向量：
+\begin{enumerate}
+  \item \textbf{笔记}：\texttt{notes.tex} 存在且至少含一个定理环境；
+  \item \textbf{附表}：\texttt{asserts\_table.tex} 存在，且行数等于
+        \texttt{asserts\_report.md} 的断言条数；
+  \item \textbf{引用}：所有 \texttt{ref}/\texttt{eqref} 的 label 在本章内存在，
+        且无重复 label；
+  \item \textbf{输入}：所有 \texttt{input}/\texttt{include} 的目标文件存在；
+  \item \textbf{字形}：notes 与附表（剔除注释后）不含 xelatex 无字形风险字符；
+  \item \textbf{陷阱}：\texttt{pitfalls.md} 至少 800 字。
+\end{enumerate}
+28 章 × 6 项 = 168 个格子；热图行=章、列=检查项，副图把每章的问题数
+$6-\sum_j v_{ij}$ 画成点。行 0 在热图的 y-min，因此前端必须把显示行翻转——这是
+热图契约最容易写反的地方。
+
+\subsection{引用闭包与单章编译}
+
+解析器只接受未转义 \texttt{\%} 之前的正文；注释里的 \texttt{ref}、\texttt{input}、
+\texttt{label} 都不算依赖。每章的 label 集合必须在\textbf{本章内}闭合，因为 G9 是
+逐章编译：合并本里能解析的跨章 \texttt{eqref}，在单章 wrapper 里会变成 undefined。
+实测 28 章的未定义引用、重复 label、缺输入文件都是 0；这是一条结构性事实，不是
+“编译没报错”的推断。
+
+\subsection{附表行数：报告条数，不是测试函数数}
+
+断言附表由 \texttt{tools/build\_book.py} 从 \texttt{dist/reports/assertions.json}
+生成，一行对应一条\textbf{断言记录}；而 \texttt{asserts.yaml} 声明的是\textbf{测试
+函数}。一个测试函数可以登记多条断言：1.1 章的 27 个测试函数产生 31 条记录；
+1.5 章的 24 个函数产生 71 条记录。因此正确的对账是
+\[
+  \#\{\text{附表正文行}\}=\#\{\text{报告记录}\},
+\]
+而不是等于测试函数数。把两者混为一谈会让“附表过期”被误报或漏报。
+
+\subsection{字形风险：编译成功也可能吞字}
+
+xelatex 遇到字体里没有的码位时只打印 \texttt{Missing character}，\textbf{不会让
+编译失败}；PDF 里那一个字就消失了。本章用与 G9 相同的白名单扫描 notes 与附表，
+并先剔除注释：ASCII、CJK、希腊字母与已验证的数学符号之外，任何字符都记为风险。
+当前 28 章的扫描结果是 \textbf{0 个风险字符}。这条检查必须在生成 PDF 之前做，
+不能等看日志。
+
+\subsection{实测账本}
+
+在 6.2 章与全仓报告重新生成后，28 章 × 6 项的 168 个格子全部为 1。审计同时给出：
+标签 539、引用 445、输入 28、定理 284、附表 3201 行、报告 3201 条；字形风险 0。
+这些数字会随章节增删而变，所以页面每次重新扫描磁盘，不读旧报告缓存。
+
+\begin{table}[htbp]
+\centering
+\caption{讲义审计的实测账本（28 章）}
+\begin{tabular}{lll}
+\toprule
+检查 & 证据 & 实测 \\
+\midrule
+笔记 & 定理环境数 & 284 \\
+附表 & 行数 = 报告条数 & 3201 = 3201 \\
+引用 & 未定义 / 重复 label & $0$ / $0$ \\
+输入 & 缺文件数 & $0$ \\
+字形 & 风险字符数 & $0$ \\
+陷阱 & 不足 800 字的章数 & $0$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{如何读这三张图}
+
+\paragraph{目录页}
+先看左边：层号是依赖深度，不是章节号；蓝色高亮边是焦点章的祖先闭包。再看右侧：
+关键路径与闭包大小。最后看副图：四项错误计数应全为 0；若不为 0，先修图再看布局。
+
+\paragraph{导出页}
+主图的 x 是名义帧时刻，y 是所用源快照的步长（对数）。红圈表示这一帧与前一帧同源
+（stall）。副图两条误差：蓝线是内容时刻误差（有界锯齿），橙虚线是 GIF 播放漂移
+（随帧号线性累积）。侧栏把请求帧率、delay、实际帧率、截断、状态误差分栏报。
+把 fps 从 24 切到 25，播放漂移应变为 0；把取样从最近邻切到线性，蓝线应贴零而状态
+误差仍在；切到序号抽稀，蓝线会出现大跳变。
+
+\paragraph{讲义页}
+热图 1=通过、0=缺；行 0 在底，所以显示行要翻转。红点表示这一章至少有一项失败；
+侧栏给出失败章与列名。把排序切到 fail，问题章会被顶到前面；分部筛选只改变显示行，
+不改变问题总数。
+
+\section{常见陷阱}
+
+\begin{itemize}
+  \item 目录按章节号排序，或把 \texttt{all} 字面展开成全部章（6.2 会依赖自己）。
+  \item 高亮时删除未选节点，导致跨部依赖消失；或给 28 个节点全打标签，图不可读。
+  \item 用 \texttt{ceil} 算帧数，或超过上限后静默截断。
+  \item 把 24 fps 的请求值当成 GIF 实际帧率；只有 25 fps 这类整除 100 的帧率零漂移。
+  \item 最近邻误差有界就认为画面平滑；stall 是另一条独立的账。
+  \item 按序号抽稀后看到“下标单调、末帧覆盖”就认为时间轴正确。
+  \item 用 \texttt{asserts.yaml} 的测试函数数核对附表行数（1.1 章是 27 vs 31）。
+  \item 编译通过就认为字形完整；缺字形是静默的。
+  \item 把注释里的 \texttt{ref}/\texttt{input} 算成依赖；单章编译会拆穿跨章引用。
+\end{itemize}
+
+\input{chapters/6.2/asserts_table}
