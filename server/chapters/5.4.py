@@ -114,21 +114,20 @@ MANIFEST: dict[str, Any] = {
                     "criticalNote": "",
                 },
             ],
-            "time": {"mode": "scrub", "tMax": 4096.0, "dt": 64.0, "label": "已铺开的点数 k"},
+            "time": {"mode": "scrub", "tMax": 2048.0, "dt": 64.0, "label": "已铺开的点数 k"},
             "requiredAux": ["error"],
             "axes": [
                 {
                     "id": "main",
                     "autoscaled": False,
-                    "title": "点集（单位正方形；MC 圆点 / Sobol 方块 / 格点十字）",
+                    "title": "点集（单位正方形；蓝=MC / 橙=Sobol / 绿=格点）",
                     "ylabel": "x_2",
                 },
                 {
                     "id": "aux",
                     "autoscaled": True,
-                    "title": "误差 vs N（双对数）与 1/sqrt(N) 参考线",
-                    "ylabel": "|I_hat - I| 或 RMSE",
-                    "scale": "log",
+                    "title": "log10 误差 vs N 与 1/sqrt(N) 参考线",
+                    "ylabel": "log10|I_hat - I| 或 log10 RMSE",
                 },
             ],
             "pitfalls": (
@@ -220,9 +219,8 @@ MANIFEST: dict[str, Any] = {
                 {
                     "id": "aux",
                     "autoscaled": True,
-                    "title": "|密度差| 与 Q-Q 对照",
-                    "ylabel": "|p_hat - p_ref|",
-                    "scale": "log",
+                    "title": "log10|密度差|（逐 bin）",
+                    "ylabel": "log10|p_hat - p_ref|",
                 },
             ],
             "pitfalls": (
@@ -407,16 +405,14 @@ MANIFEST: dict[str, Any] = {
                 {
                     "id": "main",
                     "autoscaled": True,
-                    "title": "逐阶系数 RMS（对数）与衰减参考线",
-                    "ylabel": "rms_|alpha|=k |c_alpha|",
-                    "scale": "log",
+                    "title": "log10 逐阶系数 RMS 与衰减参考线",
+                    "ylabel": "log10 rms_|alpha|=k |c_alpha|",
                 },
                 {
                     "id": "aux",
                     "autoscaled": True,
-                    "title": "截断阶数 vs 误差（训练 / 留出 / 外推）",
-                    "ylabel": "相对 L2 误差",
-                    "scale": "log",
+                    "title": "log10 误差 vs 截断阶数（训练 / 留出）",
+                    "ylabel": "log10 相对 L2 误差",
                 },
             ],
             "pitfalls": (
@@ -853,9 +849,9 @@ def _output_hist(params: Mapping[str, Any], t: float) -> Frame:
         model=model,
         model_label=mc.model_label(model),
         ref_kind=(
-            "精确卷积（独立同分布输入之和的闭式密度）"
+            "精确卷积（独立同分布之和的闭式密度）"
             if data["ref_kind"] == "exact"
-            else "CLT 正态近似（同均值同方差的正态密度，不是真密度）"
+            else "CLT 近似，不是真值（同均值同方差正态）"
         ),
         note=(
             f"输出：均值 {m['mean']:+.4f}、标准差 {m['std']:.4f}、偏度 {m['skewness']:+.3f}、"

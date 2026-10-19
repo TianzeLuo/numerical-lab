@@ -9,15 +9,14 @@
         {
           "autoscaled": false,
           "id": "main",
-          "title": "点集（单位正方形；MC 圆点 / Sobol 方块 / 格点十字）",
+          "title": "点集（单位正方形；蓝=MC / 橙=Sobol / 绿=格点）",
           "ylabel": "x_2"
         },
         {
           "autoscaled": true,
           "id": "aux",
-          "scale": "log",
-          "title": "误差 vs N（双对数）与 1/sqrt(N) 参考线",
-          "ylabel": "|I_hat - I| 或 RMSE"
+          "title": "log10 误差 vs N 与 1/sqrt(N) 参考线",
+          "ylabel": "log10|I_hat - I| 或 log10 RMSE"
         }
       ],
       "dataSource": "backend",
@@ -86,7 +85,7 @@
         "dt": 64.0,
         "label": "已铺开的点数 k",
         "mode": "scrub",
-        "tMax": 4096.0
+        "tMax": 2048.0
       },
       "title": "点集填充对决：MC / Sobol / 格点 / 张量格点"
     },
@@ -101,9 +100,8 @@
         {
           "autoscaled": true,
           "id": "aux",
-          "scale": "log",
-          "title": "|密度差| 与 Q-Q 对照",
-          "ylabel": "|p_hat - p_ref|"
+          "title": "log10|密度差|（逐 bin）",
+          "ylabel": "log10|p_hat - p_ref|"
         }
       ],
       "dataSource": "backend",
@@ -277,16 +275,14 @@
         {
           "autoscaled": true,
           "id": "main",
-          "scale": "log",
-          "title": "逐阶系数 RMS（对数）与衰减参考线",
-          "ylabel": "rms_|alpha|=k |c_alpha|"
+          "title": "log10 逐阶系数 RMS 与衰减参考线",
+          "ylabel": "log10 rms_|alpha|=k |c_alpha|"
         },
         {
           "autoscaled": true,
           "id": "aux",
-          "scale": "log",
-          "title": "截断阶数 vs 误差（训练 / 留出 / 外推）",
-          "ylabel": "相对 L2 误差"
+          "title": "log10 误差 vs 截断阶数（训练 / 留出）",
+          "ylabel": "log10 相对 L2 误差"
         }
       ],
       "dataSource": "backend",

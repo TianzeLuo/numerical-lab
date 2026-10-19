@@ -1,6 +1,6 @@
 % 本文件由 tools/build_book.py 从 dist/reports/assertions.json 生成，请勿手改。
 \begin{longtable}{@{}p{0.06\textwidth}p{0.32\textwidth}p{0.22\textwidth}p{0.16\textwidth}@{}}
-\caption{章节 5.4 数值断言（生成时间 2026-10-18T18:30:41-0400）}\\
+\caption{章节 5.4 数值断言（生成时间 2026-10-19T16:08:50-0400）}\\
 \toprule
 类别 & 断言 & 理论值 & 实测值 \\
 \midrule
@@ -22,7 +22,7 @@ A & 独立/相关两种情形下的和与判据布尔 & 独立：sum S\_i <=\all
 A & 过拟合区的三个字段 + 训练/留出误差 & underdetermined=\allowbreak{}True；under\_flag =\allowbreak{} (\allowbreak{}n\_basis > 8) 逐点成立；训练 <=\allowbreak{} 1e-14 且留出 > 0.1 & underdetermined=\allowbreak{}True，欠定阶数 5，训练 4.49e-16，留出 4.855e-01，外推 1.392e+03(\allowbreak{}放大 2.87e+03 倍) \checkmark \\
 A & poly4 的 exact\_\allowbreak{}at\_\allowbreak{}order / 掩码 / 当前阶误差 & exact\_at\_order =\allowbreak{} 4；p<4 时 log10(\allowbreak{}err) >=\allowbreak{} -1.1；当前阶误差 <=\allowbreak{} 1e-12；掩码全 1 & exact\_at\_order=\allowbreak{}4，log10 误差曲线 [ -0.36  -0.89  -1.05 -14.6  -14.75 -14.38 -14.4  -14.45 -13.73 -13.81
  -13.41 -13.78]，掩码取值 [1.]，当前留出误差 1.651e-14 \checkmark \\
-A & 三种输入分布下 ref\_\allowbreak{}is\_\allowbreak{}exact / KS 对照 & 正态+线性：exact=\allowbreak{}True 且两个 KS 相差 <=\allowbreak{} 2e-3(\allowbreak{}精确参考就是正态)；均匀+线性：精确三角密度，ks\_to\_normal >=\allowbreak{} 3 * ks\_to\_ref；指数+线性：没有精确参考，exact=\allowbreak{}False 且 ref\_kind 里写明是 CLT 近似 & 正态：exact=\allowbreak{}True，ks\_ref=\allowbreak{}0.0064，ks\_normal=\allowbreak{}0.0054；均匀：exact=\allowbreak{}True，ks\_ref=\allowbreak{}0.0029，ks\_normal=\allowbreak{}0.0190；指数：exact=\allowbreak{}False，ref\_kind=\allowbreak{}'CLT 正态近似(\allowbreak{}同均值同方差的正态密度，不是真' \checkmark \\
+A & 三种输入分布下 ref\_\allowbreak{}is\_\allowbreak{}exact / KS 对照 & 正态+线性：exact=\allowbreak{}True 且两个 KS 相差 <=\allowbreak{} 2e-3(\allowbreak{}精确参考就是正态)；均匀+线性：精确三角密度，ks\_to\_normal >=\allowbreak{} 3 * ks\_to\_ref；指数+线性：没有精确参考，exact=\allowbreak{}False 且 ref\_kind 里写明是 CLT 近似 & 正态：exact=\allowbreak{}True，ks\_ref=\allowbreak{}0.0064，ks\_normal=\allowbreak{}0.0054；均匀：exact=\allowbreak{}True，ks\_ref=\allowbreak{}0.0029，ks\_normal=\allowbreak{}0.0190；指数：exact=\allowbreak{}False，ref\_kind=\allowbreak{}'CLT 近似，不是真值(\allowbreak{}同均值同方差正态)' \checkmark \\
 A & 四处数组与核心调用的逐位/对数一致性 & 点集与指数逐位相等(\allowbreak{}差 =\allowbreak{} 0)；计数和 =\allowbreak{} N；误差对数差 <=\allowbreak{} 1e-12 & 点集差 0.0e+00，指数差 0.0e+00，计数和 20000，误差 log10 差 0.000e+00(\allowbreak{}帧的曲线来自同一个 pce.error\_vs\_order 调用) \checkmark \\
 A & norm\_\allowbreak{}ppf 与 verify.stats 的最大偏差 + cdf 往返 + 端点行为 & 偏差 =\allowbreak{} 0(\allowbreak{}同一有理逼近)、\allowbreak{}往返 <=\allowbreak{} 1e-8、\allowbreak{}端点为 $\pm$inf & 偏差 0.000e+00，往返 2.465e-10，ppf(\allowbreak{}0)=\allowbreak{}-inf，ppf(\allowbreak{}1)=\allowbreak{}inf \checkmark \\
 A & 四种分布的一阶/二阶矩与支撑集 & |mean| <=\allowbreak{} 0.02、\allowbreak{}|std-1| <=\allowbreak{} 0.02 & uniform: mean=\allowbreak{}-0.0009 std=\allowbreak{}1.0006 range=\allowbreak{}[-1.73,\allowbreak{}1.73]；normal: mean=\allowbreak{}+0.0000 std=\allowbreak{}1.0011 range=\allowbreak{}[-4.49,\allowbreak{}4.43]；beta: mean=\allowbreak{}-0.0023 std=\allowbreak{}0.9992 range=\allowbreak{}[-1.79,\allowbreak{}4.08]；exponential: mean=\allowbreak{}-0.0010 std=\allowbreak{}0.9979 range=\allowbreak{}[-1.00,\allowbreak{}12.74]；beta 偏度 0.593(\allowbreak{}Beta(\allowbreak{}2,\allowbreak{}5) 解析偏度 0.596) \checkmark \\
