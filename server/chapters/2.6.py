@@ -117,7 +117,7 @@ MANIFEST: dict[str, Any] = {
             'requiredAux': ['error'],
             'axes': [
                 {'id': 'tree', 'autoscaled': False, 'title': '系数树（近似 / 细节，按层）',
-                 'ylabel': '系数值', 'scale': 'linear'},
+                 'ylabel': '层基线 + 系数（显示坐标）', 'scale': 'linear'},
                 {'id': 'recon', 'autoscaled': False, 'title': '逐层重构（当前层）',
                  'ylabel': 'x', 'scale': 'linear'},
                 {'id': 'error', 'autoscaled': True, 'title': '重构误差 |x_hat - x|',

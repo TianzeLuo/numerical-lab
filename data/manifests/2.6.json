@@ -10,7 +10,7 @@
           "autoscaled": false,
           "id": "tree",
           "title": "系数树（近似 / 细节，按层）",
-          "ylabel": "系数值"
+          "ylabel": "层基线 + 系数（显示坐标）"
         },
         {
           "autoscaled": false,
