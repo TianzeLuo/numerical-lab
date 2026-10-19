@@ -154,7 +154,7 @@ def _assertions_section(root: pathlib.Path, report: dict[str, Any] | None) -> li
     lines.append(f"- 实测条数：{t.get('total', 0)}（A {t.get('A', 0)} / B {t.get('B', 0)} / C {t.get('C', 0)}）")
     lines.append(f"- 通过 {t.get('passed', 0)}，失败 {t.get('failed', 0)}，未登记实测值 {t.get('unmeasured', 0)}")
     lines.append("- 每章实测条数：" + "、".join(
-        f"{cid} {sum(v for v in (blk.get('counts') or {}).values())}"
+        f"{cid} {len(blk.get('items') or [])}"
         for cid, blk in sorted((report.get("chapters") or {}).items())
     ))
     lines.append("")
