@@ -272,14 +272,21 @@ MANIFEST: dict[str, Any] = {
                 {
                     "id": "lcurve",
                     "autoscaled": True,
-                    "title": "L 曲线：(log10||x_lambda||, log10||A x_lambda - b||/||b||)",
-                    "ylabel": "log10 相对残差",
+                    "title": "L 曲线（横=log10||x||，纵=log10 残差）",
+                    "ylabel": "log10 残差",
                 },
                 {
                     "id": "error",
                     "autoscaled": True,
-                    "title": "真误差与 GCV 随 lambda",
-                    "ylabel": "||x_lambda - x*||/||x*|| 与 GCV/lambda",
+                    "title": "真误差随 λ（对数轴）",
+                    "ylabel": "相对误差",
+                    "scale": "log",
+                },
+                {
+                    "id": "picard",
+                    "autoscaled": True,
+                    "title": "Picard：系数 vs σ",
+                    "ylabel": "log|u_i^T b|",
                     "scale": "log",
                 },
             ],
@@ -394,7 +401,7 @@ MANIFEST: dict[str, Any] = {
                 {
                     "id": "filters",
                     "autoscaled": False,
-                    "title": "滤波因子 f_i 随奇异值 sigma_i",
+                    "title": "滤波因子 f_i 随模态下标 i（奇异值递减）",
                     "ylabel": "f_i（0 到 1）",
                 },
                 {
@@ -503,14 +510,26 @@ MANIFEST: dict[str, Any] = {
                     "criticalNote": "",
                 },
             ],
-            "time": {"mode": "scrub", "tMax": 150.0, "dt": 1.0, "fps": 30, "label": "迭代 k"},
+            "time": {"mode": "scrub", "tMax": 60.0, "dt": 1.0, "fps": 30, "label": "迭代 / 截断阶 k"},
             "requiredAux": ["error", "residual"],
             "axes": [
-                {"id": "image", "autoscaled": False, "title": "幻影 / 数据 / 重建 / 误差图", "ylabel": "像素"},
+                {
+                    "id": "image",
+                    "autoscaled": False,
+                    "title": "四联热图：真解 / 数据 / 重建 / 误差（独立色标）",
+                    "ylabel": "像素",
+                },
                 {
                     "id": "history",
                     "autoscaled": True,
                     "title": "误差随迭代步（或截断阶 k）",
+                    "ylabel": "相对误差",
+                    "scale": "log",
+                },
+                {
+                    "id": "lambda_sweep",
+                    "autoscaled": True,
+                    "title": "误差随 λ（两端失败）",
                     "ylabel": "相对误差",
                     "scale": "log",
                 },
@@ -599,7 +618,7 @@ MANIFEST: dict[str, Any] = {
                 {
                     "id": "decomposition",
                     "autoscaled": True,
-                    "title": "偏差^2、方差与总误差随 lambda",
+                    "title": "偏差²、方差与总误差随 λ（对数轴）",
                     "ylabel": "平方误差量级",
                     "scale": "log",
                 },
@@ -1253,13 +1272,20 @@ def _bias_variance_frame(params: Mapping[str, Any], t: float) -> Frame:
     hi_mask = lam >= float(prob.s[0]) * 10.0
     slope_lo = _loglog_slope(lam[lo_mask], ana.variance[lo_mask], skip=0)
     slope_hi = _loglog_slope(lam[hi_mask], ana.variance[hi_mask], skip=0)
-    # 逐点局部斜率（给副轴），用中心差分
-    loc = np.zeros(lam.size, dtype=float)
+    # 逐点局部斜率（给副轴），用中心差分。方差与 MSE 是两条不同的曲线：
+    # 副轴的标题承诺的是**方差**的斜率（理论 0 与 -4 两段），不能拿 MSE 的斜率冒充。
     xl = np.log10(lam)
-    yl = np.log10(np.maximum(ana.mse, np.finfo(float).tiny))
-    for i in range(1, lam.size - 1):
-        loc[i] = (yl[i + 1] - yl[i - 1]) / (xl[i + 1] - xl[i - 1])
-    loc[0], loc[-1] = loc[1], loc[-2]
+
+    def _local_log_slope(y: np.ndarray) -> np.ndarray:
+        yl = np.log10(np.maximum(np.asarray(y, dtype=float), np.finfo(float).tiny))
+        out = np.zeros(lam.size, dtype=float)
+        for i in range(1, lam.size - 1):
+            out[i] = (yl[i + 1] - yl[i - 1]) / (xl[i + 1] - xl[i - 1])
+        out[0], out[-1] = out[1], out[-2]
+        return out
+
+    loc = _local_log_slope(ana.mse)
+    loc_var = _local_log_slope(ana.variance)
 
     fr = Frame(chapter="5.2", viz="bias_variance", kind="frame")
     fr.add("log10_lam", np.log10(lam), unit="", label="lg(lambda)")
@@ -1274,6 +1300,7 @@ def _bias_variance_frame(params: Mapping[str, Any], t: float) -> Frame:
     fr.add("error_rel_mc", _floored(np.sqrt(mc.mse_mc), LOG_FLOOR), unit="", label="实测相对误差（蒙特卡洛）")
     fr.add("dof", ana.dof, unit="", label="有效自由度")
     fr.add("local_slope", loc, unit="", label="d lg(mse) / d lg(lambda)")
+    fr.add("local_slope_variance", loc_var, unit="", label="d lg(variance) / d lg(lambda)")
 
     err_lo = float(np.sqrt(ana.mse[0]))
     err_hi = float(np.sqrt(ana.mse[-1]))

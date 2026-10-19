@@ -1,6 +1,6 @@
 % 本文件由 tools/build_book.py 从 dist/reports/assertions.json 生成，请勿手改。
 \begin{longtable}{@{}p{0.06\textwidth}p{0.32\textwidth}p{0.22\textwidth}p{0.16\textwidth}@{}}
-\caption{章节 5.2 数值断言（生成时间 2026-10-18T18:22:32-0400）}\\
+\caption{章节 5.2 数值断言（生成时间 2026-10-19T17:44:22-0400）}\\
 \toprule
 类别 & 断言 & 理论值 & 实测值 \\
 \midrule
@@ -68,8 +68,9 @@ B & bias\_\allowbreak{}variance/error\_\allowbreak{}rel\_\allowbreak{}analytic �
 B & bias\_\allowbreak{}variance/error\_\allowbreak{}rel\_\allowbreak{}mc 全有限 & 0 个非有限值 & 0 \checkmark \\
 B & bias\_\allowbreak{}variance/dof 全有限 & 0 个非有限值 & 0 \checkmark \\
 B & bias\_\allowbreak{}variance/local\_\allowbreak{}slope 全有限 & 0 个非有限值 & 0 \checkmark \\
-A & 四个可视化的数组数 / 构建耗时 / JSON 合法性 & pack\_frame 要求 meta 只有 number/\allowbreak{}bool/\allowbreak{}null、\allowbreak{}数组全有限、\allowbreak{}字符串走 strings & lcurve\_tradeoff: 17 数组 /\allowbreak{} 44 meta /\allowbreak{} 0.01s；filter\_shapes: 16 数组 /\allowbreak{} 30 meta /\allowbreak{} 0.04s；image\_deconvolution: 11 数组 /\allowbreak{} 27 meta /\allowbreak{} 0.26s；bias\_variance: 12 数组 /\allowbreak{} 27 meta /\allowbreak{} 0.05s(\allowbreak{}最慢 0.26s) \checkmark \\
-A & 参数角点 + t 端点的帧数与最慢单帧耗时 / 非有限 meta 数 & 奇异状态必须变成可显示的值(\allowbreak{}None + strings 说明)，不能是 NaN/\allowbreak{}Inf & 67 帧全部通过 pack\_frame；最慢单帧 0.44s；非有限 meta 0 个 \checkmark \\
+B & bias\_\allowbreak{}variance/local\_\allowbreak{}slope\_\allowbreak{}variance 全有限 & 0 个非有限值 & 0 \checkmark \\
+A & 四个可视化的数组数 / 构建耗时 / JSON 合法性 & pack\_frame 要求 meta 只有 number/\allowbreak{}bool/\allowbreak{}null、\allowbreak{}数组全有限、\allowbreak{}字符串走 strings & lcurve\_tradeoff: 17 数组 /\allowbreak{} 44 meta /\allowbreak{} 0.01s；filter\_shapes: 16 数组 /\allowbreak{} 30 meta /\allowbreak{} 0.04s；image\_deconvolution: 11 数组 /\allowbreak{} 27 meta /\allowbreak{} 0.23s；bias\_variance: 13 数组 /\allowbreak{} 27 meta /\allowbreak{} 0.04s(\allowbreak{}最慢 0.23s) \checkmark \\
+A & 参数角点 + t 端点的帧数与最慢单帧耗时 / 非有限 meta 数 & 奇异状态必须变成可显示的值(\allowbreak{}None + strings 说明)，不能是 NaN/\allowbreak{}Inf & 67 帧全部通过 pack\_frame；最慢单帧 0.40s；非有限 meta 0 个 \checkmark \\
 A & 帧 meta 与内核重算的最大相对差 & 帧的每个读数都由内核函数直接给出，帧层不做第二套计算 & max rel diff =\allowbreak{} 0.000e+00；log10\_lam\_oracle: -1.8；log10\_lam\_lcurve: -3.13333；log10\_lam\_gcv: -2.33333；error\_oracle: 0.00772735 \checkmark \\
 A & 同自由度(dof = k\_\allowbreak{}TSVD)下的三方误差与赢家 & 形状不同不等于精度不同：必须在同一条自由度轴上比误差 & matched\_dof =\allowbreak{} 8；tsvd 0.00350，tikhonov 0.00283，landweber 0.09240 \checkmark \\
 A & 误差-自由度曲线的形状：TSVD 是离散点、Tikhonov 是连续曲线 & TSVD 的自由度只能取整数 k；Tikhonov 的 lambda 连续 =\allowbreak{}> 自由度连续 & TSVD 曲线 20 点(\allowbreak{}自由度 1..20)；Tikhonov 曲线 61 点(\allowbreak{}自由度 0.01..19.99) \checkmark \\
@@ -89,20 +90,20 @@ B & image\_\allowbreak{}deconvolution 提供 requiredAux=error & $\le$ 3 & 1 \ch
 B & image\_\allowbreak{}deconvolution 提供 requiredAux=residual & $\le$ 2 & 1 \checkmark \\
 B & bias\_\allowbreak{}variance 提供 requiredAux=error & $\le$ 2 & 1 \checkmark \\
 B & lcurve\_\allowbreak{}tradeoff 的 theory 条数 & $\le$ 3 & 1 \checkmark \\
-B & lcurve\_\allowbreak{}tradeoff 的 pitfalls 长度 & $\le$ 363 & 60 \checkmark \\
+B & lcurve\_\allowbreak{}tradeoff 的 pitfalls 长度 & $\le$ 359 & 60 \checkmark \\
 B & lcurve\_\allowbreak{}tradeoff 的 pitfalls 含数字 & $\le$ 32 & 1 \checkmark \\
 B & lcurve\_\allowbreak{}tradeoff/log10\_\allowbreak{}lam 的 criticalNote 非空 & $\le$ 120 & 1 \checkmark \\
 B & filter\_\allowbreak{}shapes 的 theory 条数 & $\le$ 3 & 1 \checkmark \\
-B & filter\_\allowbreak{}shapes 的 pitfalls 长度 & $\le$ 311 & 60 \checkmark \\
+B & filter\_\allowbreak{}shapes 的 pitfalls 长度 & $\le$ 307 & 60 \checkmark \\
 B & filter\_\allowbreak{}shapes 的 pitfalls 含数字 & $\le$ 10 & 1 \checkmark \\
 B & filter\_\allowbreak{}shapes/log10\_\allowbreak{}lam 的 criticalNote 非空 & $\le$ 87 & 1 \checkmark \\
 B & filter\_\allowbreak{}shapes/omega\_\allowbreak{}rel 的 criticalNote 非空 & $\le$ 157 & 1 \checkmark \\
 B & image\_\allowbreak{}deconvolution 的 theory 条数 & $\le$ 3 & 1 \checkmark \\
-B & image\_\allowbreak{}deconvolution 的 pitfalls 长度 & $\le$ 275 & 60 \checkmark \\
+B & image\_\allowbreak{}deconvolution 的 pitfalls 长度 & $\le$ 271 & 60 \checkmark \\
 B & image\_\allowbreak{}deconvolution 的 pitfalls 含数字 & $\le$ 14 & 1 \checkmark \\
 B & image\_\allowbreak{}deconvolution/blur\_\allowbreak{}sigma 的 criticalNote 非空 & $\le$ 95 & 1 \checkmark \\
 B & bias\_\allowbreak{}variance 的 theory 条数 & $\le$ 3 & 1 \checkmark \\
-B & bias\_\allowbreak{}variance 的 pitfalls 长度 & $\le$ 268 & 60 \checkmark \\
+B & bias\_\allowbreak{}variance 的 pitfalls 长度 & $\le$ 264 & 60 \checkmark \\
 B & bias\_\allowbreak{}variance 的 pitfalls 含数字 & $\le$ 16 & 1 \checkmark \\
 B & bias\_\allowbreak{}variance/log10\_\allowbreak{}lam 的 criticalNote 非空 & $\le$ 68 & 1 \checkmark \\
 B & lcurve\_\allowbreak{}tradeoff/log10\_\allowbreak{}lam critical >= min & $\le$ 0 & 0 \checkmark \\
@@ -117,7 +118,7 @@ B & image\_\allowbreak{}deconvolution/blur\_\allowbreak{}sigma critical >= min &
 B & image\_\allowbreak{}deconvolution/blur\_\allowbreak{}sigma critical <= max & $\le$ 0 & 0 \checkmark \\
 B & bias\_\allowbreak{}variance/log10\_\allowbreak{}lam critical >= min & $\le$ 0 & 0 \checkmark \\
 B & bias\_\allowbreak{}variance/log10\_\allowbreak{}lam critical <= max & $\le$ 0 & 0 \checkmark \\
-C & 最贵参数组合下的单帧耗时 & 交互式可视化要求单帧 <=\allowbreak{} 5s(\allowbreak{}预算)，帧层不得有隐藏的 O(\allowbreak{}n\textasciicircum{}3) 重算 & lcurve\_tradeoff 0.01s；filter\_shapes 0.05s；image\_deconvolution 0.56s；bias\_variance 0.28s(\allowbreak{}最慢 0.56s) \checkmark \\
+C & 最贵参数组合下的单帧耗时 & 交互式可视化要求单帧 <=\allowbreak{} 5s(\allowbreak{}预算)，帧层不得有隐藏的 O(\allowbreak{}n\textasciicircum{}3) 重算 & lcurve\_tradeoff 0.01s；filter\_shapes 0.04s；image\_deconvolution 0.50s；bias\_variance 0.31s(\allowbreak{}最慢 0.50s) \checkmark \\
 A & 曲率拐点下标(本模块 vs 1.3 lcurve\_\allowbreak{}corner) & 同一离散曲率公式(\allowbreak{}相邻三点中心差分)=\allowbreak{}> 下标必须逐位相同 & noise=\allowbreak{}1e-2: 37 vs 37；noise=\allowbreak{}1e-3: 29 vs 29；noise=\allowbreak{}1e-4: 22 vs 22；noise=\allowbreak{}1e-5: 14 vs 14；noise=\allowbreak{}1e-6: 4 vs 4 \checkmark \\
 A & 三个拐点判据的 lambda 极差 / 下标跨度 & 曲率、\allowbreak{}两段直线交点、\allowbreak{}离散二阶差分是三个不同启发式，没有理由给出同一个数 & kappa=\allowbreak{}1e3: lambda 极差 681 倍、\allowbreak{}下标跨度 34(\allowbreak{}曲率 idx 5，两段直线 idx 39，二阶差分 idx 26)；kappa=\allowbreak{}1e4: lambda 极差 126 倍、\allowbreak{}下标跨度 21(\allowbreak{}曲率 idx 20，两段直线 idx 41，二阶差分 idx 32)；kappa=\allowbreak{}1e5: lambda 极差 33 倍、\allowbreak{}下标跨度 13(\allowbreak{}曲率 idx 24，两段直线 idx 31，二阶差分 idx 37)；kappa=\allowbreak{}1e6: lambda 极差 40 倍、\allowbreak{}下标跨度 12(\allowbreak{}曲率 idx 29，两段直线 idx 41，二阶差分 idx 40)；kappa=\allowbreak{}1e7: lambda 极差 63 倍、\allowbreak{}下标跨度 12(\allowbreak{}曲率 idx 33，两段直线 idx 45，二阶差分 idx 42) \checkmark \\
 A & 无约束 vs 有约束两段直线拟合：一致组数 / 最大偏离倍数(18 组配置) & 无约束时段越短拟合残差越小 =\allowbreak{}> 切点无规律漂移；约束把切点限制在 [25\%,\allowbreak{} 75\%] 且交点必须落在包围盒内 & 一致 7/\allowbreak{}18 组；其余偏离最大 125.9 倍(\allowbreak{}中位 1.39) \checkmark \\
