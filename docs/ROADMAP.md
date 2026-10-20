@@ -33,7 +33,7 @@
 | 115 个交互可视化 | ✅ 115 / 115 | `docs/PROGRESS.md`：`115 / 115`（模板章另有 `2 / 2`） |
 | 数值断言 | ✅ 3212 条（A 720 / B 2273 / C 219）全绿 | `make asserts` 输出；`dist/reports/assertions.json` |
 | 双实现对拍 | ✅ 15 个 case / 4088 个点 | `make parity` 输出 → `dist/reports/parity.json` 的 `n_cases` / `n_points` |
-| 视觉回归基线 | ✅ 502 张（29 章、全部场景，0 缺基线） | `make visual` 输出：`ok 502 · 不一致 0 · 缺基线 0` |
+| 视觉回归基线 | ✅ 497 张（29 章、全部场景，0 缺基线） | `make visual` 输出：`ok 497 · 不一致 0 · 缺基线 0` |
 | 讲义 | ✅ 合并本 1466 页，未定义引用 0、缺字形 0 | `make book` 输出；`dist/book/book.pdf` |
 | **M1 – M6** | ✅ 全部完成 | `docs/PROGRESS.md` 的章节状态表 28 章全为 `✅` |
 

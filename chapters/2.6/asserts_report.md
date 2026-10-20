@@ -131,8 +131,8 @@
 | B | 本章 4 个可视化 | 4 | 4 | ±(0·\|t\|+0) | ✅ |
 | B | viz id 不重复 | 4 | 4 | ±(0·\|t\|+0) | ✅ |
 | B | decomp_tree dataSource = backend | 1 | 1 | ±(0·\|t\|+0) | ✅ |
-| B | decomp_tree pitfalls 非空 | ≤ 1.00000e+09 | 134 | +0 | ✅ |
-| B | decomp_tree pitfalls 长度 >= 60 字 | ≤ 134 | 60 | +0 | ✅ |
+| B | decomp_tree pitfalls 非空 | ≤ 1.00000e+09 | 140 | +0 | ✅ |
+| B | decomp_tree pitfalls 长度 >= 60 字 | ≤ 140 | 60 | +0 | ✅ |
 | B | decomp_tree theory 至少 1 条 | ≤ 4 | 1 | +0 | ✅ |
 | B | decomp_tree.tree 显式声明 autoscaled | 1 | 1 | ±(0·\|t\|+0) | ✅ |
 | B | decomp_tree.recon 显式声明 autoscaled | 1 | 1 | ±(0·\|t\|+0) | ✅ |
@@ -144,21 +144,21 @@
 | B | decomp_tree.signal options 至少 2 个 | ≤ 6 | 2 | +0 | ✅ |
 | B | decomp_tree.n default >= min | ≤ 256 | 64 | +0 | ✅ |
 | B | decomp_tree.n default <= max | ≤ 1024 | 256 | +0 | ✅ |
-| B | decomp_tree.n critical 有解释 | ≤ 52 | 1 | +0 | ✅ |
+| B | decomp_tree.n critical 有解释 | ≤ 60 | 1 | +0 | ✅ |
 | B | decomp_tree.n critical 256 >= min | ≤ 256 | 64 | +0 | ✅ |
 | B | decomp_tree.n critical 256 <= max | ≤ 1024 | 256 | +0 | ✅ |
 | B | decomp_tree.wavelet 默认值在 options 内 | ≤ 1 | 1 | +0 | ✅ |
 | B | decomp_tree.wavelet options 至少 2 个 | ≤ 5 | 2 | +0 | ✅ |
 | B | decomp_tree.level default >= min | ≤ 4 | 1 | +0 | ✅ |
 | B | decomp_tree.level default <= max | ≤ 6 | 4 | +0 | ✅ |
-| B | decomp_tree.level critical 有解释 | ≤ 77 | 1 | +0 | ✅ |
+| B | decomp_tree.level critical 有解释 | ≤ 93 | 1 | +0 | ✅ |
 | B | decomp_tree.level critical 4 >= min | ≤ 4 | 1 | +0 | ✅ |
 | B | decomp_tree.level critical 4 <= max | ≤ 6 | 4 | +0 | ✅ |
 | B | decomp_tree.mode 默认值在 options 内 | ≤ 1 | 1 | +0 | ✅ |
 | B | decomp_tree.mode options 至少 2 个 | ≤ 3 | 2 | +0 | ✅ |
 | B | time_scale_map dataSource = backend | 1 | 1 | ±(0·\|t\|+0) | ✅ |
-| B | time_scale_map pitfalls 非空 | ≤ 1.00000e+09 | 138 | +0 | ✅ |
-| B | time_scale_map pitfalls 长度 >= 60 字 | ≤ 138 | 60 | +0 | ✅ |
+| B | time_scale_map pitfalls 非空 | ≤ 1.00000e+09 | 153 | +0 | ✅ |
+| B | time_scale_map pitfalls 长度 >= 60 字 | ≤ 153 | 60 | +0 | ✅ |
 | B | time_scale_map theory 至少 1 条 | ≤ 4 | 1 | +0 | ✅ |
 | B | time_scale_map.scale 显式声明 autoscaled | 1 | 1 | ±(0·\|t\|+0) | ✅ |
 | B | time_scale_map.stft 显式声明 autoscaled | 1 | 1 | ±(0·\|t\|+0) | ✅ |
@@ -177,17 +177,17 @@
 | B | time_scale_map.wavelet options 至少 2 个 | ≤ 3 | 2 | +0 | ✅ |
 | B | time_scale_map.level default >= min | ≤ 4 | 2 | +0 | ✅ |
 | B | time_scale_map.level default <= max | ≤ 5 | 4 | +0 | ✅ |
-| B | time_scale_map.level critical 有解释 | ≤ 66 | 1 | +0 | ✅ |
+| B | time_scale_map.level critical 有解释 | ≤ 74 | 1 | +0 | ✅ |
 | B | time_scale_map.level critical 5 >= min | ≤ 5 | 2 | +0 | ✅ |
 | B | time_scale_map.level critical 5 <= max | ≤ 5 | 5 | +0 | ✅ |
 | B | time_scale_map.stft_window default >= min | ≤ 32 | 8 | +0 | ✅ |
 | B | time_scale_map.stft_window default <= max | ≤ 64 | 32 | +0 | ✅ |
-| B | time_scale_map.stft_window critical 有解释 | ≤ 71 | 1 | +0 | ✅ |
+| B | time_scale_map.stft_window critical 有解释 | ≤ 83 | 1 | +0 | ✅ |
 | B | time_scale_map.stft_window critical 16 >= min | ≤ 16 | 8 | +0 | ✅ |
 | B | time_scale_map.stft_window critical 16 <= max | ≤ 64 | 16 | +0 | ✅ |
 | B | denoise_threshold dataSource = backend | 1 | 1 | ±(0·\|t\|+0) | ✅ |
-| B | denoise_threshold pitfalls 非空 | ≤ 1.00000e+09 | 162 | +0 | ✅ |
-| B | denoise_threshold pitfalls 长度 >= 60 字 | ≤ 162 | 60 | +0 | ✅ |
+| B | denoise_threshold pitfalls 非空 | ≤ 1.00000e+09 | 165 | +0 | ✅ |
+| B | denoise_threshold pitfalls 长度 >= 60 字 | ≤ 165 | 60 | +0 | ✅ |
 | B | denoise_threshold theory 至少 1 条 | ≤ 4 | 1 | +0 | ✅ |
 | B | denoise_threshold.signals 显式声明 autoscaled | 1 | 1 | ±(0·\|t\|+0) | ✅ |
 | B | denoise_threshold.curves 显式声明 autoscaled | 1 | 1 | ±(0·\|t\|+0) | ✅ |
@@ -206,7 +206,7 @@
 | B | denoise_threshold.sigma default <= max | ≤ 0.6 | 0.3 | +0 | ✅ |
 | B | denoise_threshold.lam default >= min | ≤ 0.28 | 0 | +0 | ✅ |
 | B | denoise_threshold.lam default <= max | ≤ 1.6 | 0.28 | +0 | ✅ |
-| B | denoise_threshold.lam critical 有解释 | ≤ 114 | 1 | +0 | ✅ |
+| B | denoise_threshold.lam critical 有解释 | ≤ 126 | 1 | +0 | ✅ |
 | B | denoise_threshold.lam critical 0.28 >= min | ≤ 0.28 | 0 | +0 | ✅ |
 | B | denoise_threshold.lam critical 0.28 <= max | ≤ 1.6 | 0.28 | +0 | ✅ |
 | B | denoise_threshold.lam critical 1 >= min | ≤ 1 | 0 | +0 | ✅ |
@@ -218,8 +218,8 @@
 | B | denoise_threshold.level default >= min | ≤ 4 | 1 | +0 | ✅ |
 | B | denoise_threshold.level default <= max | ≤ 6 | 4 | +0 | ✅ |
 | B | vanishing_moments dataSource = backend | 1 | 1 | ±(0·\|t\|+0) | ✅ |
-| B | vanishing_moments pitfalls 非空 | ≤ 1.00000e+09 | 139 | +0 | ✅ |
-| B | vanishing_moments pitfalls 长度 >= 60 字 | ≤ 139 | 60 | +0 | ✅ |
+| B | vanishing_moments pitfalls 非空 | ≤ 1.00000e+09 | 154 | +0 | ✅ |
+| B | vanishing_moments pitfalls 长度 >= 60 字 | ≤ 154 | 60 | +0 | ✅ |
 | B | vanishing_moments theory 至少 1 条 | ≤ 4 | 1 | +0 | ✅ |
 | B | vanishing_moments.poly 显式声明 autoscaled | 1 | 1 | ±(0·\|t\|+0) | ✅ |
 | B | vanishing_moments.ratio 显式声明 autoscaled | 1 | 1 | ±(0·\|t\|+0) | ✅ |
@@ -234,7 +234,7 @@
 | B | vanishing_moments.wavelet options 至少 2 个 | ≤ 5 | 2 | +0 | ✅ |
 | B | vanishing_moments.degree default >= min | ≤ 3 | 0 | +0 | ✅ |
 | B | vanishing_moments.degree default <= max | ≤ 6 | 3 | +0 | ✅ |
-| B | vanishing_moments.degree critical 有解释 | ≤ 83 | 1 | +0 | ✅ |
+| B | vanishing_moments.degree critical 有解释 | ≤ 100 | 1 | +0 | ✅ |
 | B | vanishing_moments.degree critical 4 >= min | ≤ 4 | 0 | +0 | ✅ |
 | B | vanishing_moments.degree critical 4 <= max | ≤ 6 | 4 | +0 | ✅ |
 | B | vanishing_moments.n default >= min | ≤ 256 | 64 | +0 | ✅ |
@@ -1012,8 +1012,8 @@
 - **本章 4 个可视化**：|实测−理论| = 0，容差 rtol=0, atol=0
 - **viz id 不重复**：|实测−理论| = 0，容差 rtol=0, atol=0
 - **decomp_tree dataSource = backend**：|实测−理论| = 0，容差 rtol=0, atol=0
-- **decomp_tree pitfalls 非空**：松弛 rtol=0, atol=0，余量 = 1.00000e+09；134 字（要求 >= 60）
-- **decomp_tree pitfalls 长度 >= 60 字**：松弛 rtol=0, atol=0，余量 = 74
+- **decomp_tree pitfalls 非空**：松弛 rtol=0, atol=0，余量 = 1.00000e+09；140 字（要求 >= 60）
+- **decomp_tree pitfalls 长度 >= 60 字**：松弛 rtol=0, atol=0，余量 = 80
 - **decomp_tree theory 至少 1 条**：松弛 rtol=0, atol=0，余量 = 3
 - **decomp_tree.tree 显式声明 autoscaled**：|实测−理论| = 0，容差 rtol=0, atol=0
 - **decomp_tree.recon 显式声明 autoscaled**：|实测−理论| = 0，容差 rtol=0, atol=0
@@ -1025,21 +1025,21 @@
 - **decomp_tree.signal options 至少 2 个**：松弛 rtol=0, atol=0，余量 = 4
 - **decomp_tree.n default >= min**：松弛 rtol=0, atol=0，余量 = 192
 - **decomp_tree.n default <= max**：松弛 rtol=0, atol=0，余量 = 768
-- **decomp_tree.n critical 有解释**：松弛 rtol=0, atol=0，余量 = 51
+- **decomp_tree.n critical 有解释**：松弛 rtol=0, atol=0，余量 = 59
 - **decomp_tree.n critical 256 >= min**：松弛 rtol=0, atol=0，余量 = 192
 - **decomp_tree.n critical 256 <= max**：松弛 rtol=0, atol=0，余量 = 768
 - **decomp_tree.wavelet 默认值在 options 内**：松弛 rtol=0, atol=0，余量 = 0
 - **decomp_tree.wavelet options 至少 2 个**：松弛 rtol=0, atol=0，余量 = 3
 - **decomp_tree.level default >= min**：松弛 rtol=0, atol=0，余量 = 3
 - **decomp_tree.level default <= max**：松弛 rtol=0, atol=0，余量 = 2
-- **decomp_tree.level critical 有解释**：松弛 rtol=0, atol=0，余量 = 76
+- **decomp_tree.level critical 有解释**：松弛 rtol=0, atol=0，余量 = 92
 - **decomp_tree.level critical 4 >= min**：松弛 rtol=0, atol=0，余量 = 3
 - **decomp_tree.level critical 4 <= max**：松弛 rtol=0, atol=0，余量 = 2
 - **decomp_tree.mode 默认值在 options 内**：松弛 rtol=0, atol=0，余量 = 0
 - **decomp_tree.mode options 至少 2 个**：松弛 rtol=0, atol=0，余量 = 1
 - **time_scale_map dataSource = backend**：|实测−理论| = 0，容差 rtol=0, atol=0
-- **time_scale_map pitfalls 非空**：松弛 rtol=0, atol=0，余量 = 1.00000e+09；138 字（要求 >= 60）
-- **time_scale_map pitfalls 长度 >= 60 字**：松弛 rtol=0, atol=0，余量 = 78
+- **time_scale_map pitfalls 非空**：松弛 rtol=0, atol=0，余量 = 1.00000e+09；153 字（要求 >= 60）
+- **time_scale_map pitfalls 长度 >= 60 字**：松弛 rtol=0, atol=0，余量 = 93
 - **time_scale_map theory 至少 1 条**：松弛 rtol=0, atol=0，余量 = 3
 - **time_scale_map.scale 显式声明 autoscaled**：|实测−理论| = 0，容差 rtol=0, atol=0
 - **time_scale_map.stft 显式声明 autoscaled**：|实测−理论| = 0，容差 rtol=0, atol=0
@@ -1058,17 +1058,17 @@
 - **time_scale_map.wavelet options 至少 2 个**：松弛 rtol=0, atol=0，余量 = 1
 - **time_scale_map.level default >= min**：松弛 rtol=0, atol=0，余量 = 2
 - **time_scale_map.level default <= max**：松弛 rtol=0, atol=0，余量 = 1
-- **time_scale_map.level critical 有解释**：松弛 rtol=0, atol=0，余量 = 65
+- **time_scale_map.level critical 有解释**：松弛 rtol=0, atol=0，余量 = 73
 - **time_scale_map.level critical 5 >= min**：松弛 rtol=0, atol=0，余量 = 3
 - **time_scale_map.level critical 5 <= max**：松弛 rtol=0, atol=0，余量 = 0
 - **time_scale_map.stft_window default >= min**：松弛 rtol=0, atol=0，余量 = 24
 - **time_scale_map.stft_window default <= max**：松弛 rtol=0, atol=0，余量 = 32
-- **time_scale_map.stft_window critical 有解释**：松弛 rtol=0, atol=0，余量 = 70
+- **time_scale_map.stft_window critical 有解释**：松弛 rtol=0, atol=0，余量 = 82
 - **time_scale_map.stft_window critical 16 >= min**：松弛 rtol=0, atol=0，余量 = 8
 - **time_scale_map.stft_window critical 16 <= max**：松弛 rtol=0, atol=0，余量 = 48
 - **denoise_threshold dataSource = backend**：|实测−理论| = 0，容差 rtol=0, atol=0
-- **denoise_threshold pitfalls 非空**：松弛 rtol=0, atol=0，余量 = 1.00000e+09；162 字（要求 >= 60）
-- **denoise_threshold pitfalls 长度 >= 60 字**：松弛 rtol=0, atol=0，余量 = 102
+- **denoise_threshold pitfalls 非空**：松弛 rtol=0, atol=0，余量 = 1.00000e+09；165 字（要求 >= 60）
+- **denoise_threshold pitfalls 长度 >= 60 字**：松弛 rtol=0, atol=0，余量 = 105
 - **denoise_threshold theory 至少 1 条**：松弛 rtol=0, atol=0，余量 = 3
 - **denoise_threshold.signals 显式声明 autoscaled**：|实测−理论| = 0，容差 rtol=0, atol=0
 - **denoise_threshold.curves 显式声明 autoscaled**：|实测−理论| = 0，容差 rtol=0, atol=0
@@ -1087,7 +1087,7 @@
 - **denoise_threshold.sigma default <= max**：松弛 rtol=0, atol=0，余量 = 0.3
 - **denoise_threshold.lam default >= min**：松弛 rtol=0, atol=0，余量 = 0.28
 - **denoise_threshold.lam default <= max**：松弛 rtol=0, atol=0，余量 = 1.32
-- **denoise_threshold.lam critical 有解释**：松弛 rtol=0, atol=0，余量 = 113
+- **denoise_threshold.lam critical 有解释**：松弛 rtol=0, atol=0，余量 = 125
 - **denoise_threshold.lam critical 0.28 >= min**：松弛 rtol=0, atol=0，余量 = 0.28
 - **denoise_threshold.lam critical 0.28 <= max**：松弛 rtol=0, atol=0，余量 = 1.32
 - **denoise_threshold.lam critical 1 >= min**：松弛 rtol=0, atol=0，余量 = 1
@@ -1099,8 +1099,8 @@
 - **denoise_threshold.level default >= min**：松弛 rtol=0, atol=0，余量 = 3
 - **denoise_threshold.level default <= max**：松弛 rtol=0, atol=0，余量 = 2
 - **vanishing_moments dataSource = backend**：|实测−理论| = 0，容差 rtol=0, atol=0
-- **vanishing_moments pitfalls 非空**：松弛 rtol=0, atol=0，余量 = 1.00000e+09；139 字（要求 >= 60）
-- **vanishing_moments pitfalls 长度 >= 60 字**：松弛 rtol=0, atol=0，余量 = 79
+- **vanishing_moments pitfalls 非空**：松弛 rtol=0, atol=0，余量 = 1.00000e+09；154 字（要求 >= 60）
+- **vanishing_moments pitfalls 长度 >= 60 字**：松弛 rtol=0, atol=0，余量 = 94
 - **vanishing_moments theory 至少 1 条**：松弛 rtol=0, atol=0，余量 = 3
 - **vanishing_moments.poly 显式声明 autoscaled**：|实测−理论| = 0，容差 rtol=0, atol=0
 - **vanishing_moments.ratio 显式声明 autoscaled**：|实测−理论| = 0，容差 rtol=0, atol=0
@@ -1115,7 +1115,7 @@
 - **vanishing_moments.wavelet options 至少 2 个**：松弛 rtol=0, atol=0，余量 = 3
 - **vanishing_moments.degree default >= min**：松弛 rtol=0, atol=0，余量 = 3
 - **vanishing_moments.degree default <= max**：松弛 rtol=0, atol=0，余量 = 3
-- **vanishing_moments.degree critical 有解释**：松弛 rtol=0, atol=0，余量 = 82
+- **vanishing_moments.degree critical 有解释**：松弛 rtol=0, atol=0，余量 = 99
 - **vanishing_moments.degree critical 4 >= min**：松弛 rtol=0, atol=0，余量 = 4
 - **vanishing_moments.degree critical 4 <= max**：松弛 rtol=0, atol=0，余量 = 2
 - **vanishing_moments.n default >= min**：松弛 rtol=0, atol=0，余量 = 192
