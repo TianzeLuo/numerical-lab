@@ -24,7 +24,7 @@ export const manifest: ChapterManifestJson = {
         },
       ],
       "dataSource": "backend",
-      "description": "受迫 Duffing 振子在 (p1, p2) = (线性刚度, 阻尼) 平面上的终端能量 J = |y(T)|^2/2 等高线，叠上逐点的**伴随梯度方向**（归一化箭头）与中心差分方向；第三张图给出两者的 log10 相对误差。小振幅下共振脊在 p1 = omega^2 = 1 附近，阻尼把它压平，三次项把它掰弯。",
+      "description": "受迫 Duffing 振子在 $(p_1,p_2)$ =（线性刚度, 阻尼）平面上的终端能量 $J=\\|y(T)\\|^2/2$ 等高线，叠上逐点的**伴随梯度方向**（归一化箭头）与中心差分方向；第三张图给出两者的 $\\log_{10}$ 相对误差。小振幅下共振脊在 $p_1=\\omega^2=1$ 附近，阻尼把它压平，三次项把它掰弯。",
       "id": "gradient_field",
       "params": [
         {
@@ -32,7 +32,7 @@ export const manifest: ChapterManifestJson = {
           "critical": [
             1.0,
           ],
-          "criticalNote": "小振幅、小阻尼时受迫振子的响应峰在 p1 = omega^2 = 1（激励频率 omega=1）。跨过它，终端能量的量级会变几个数量级——截面上的等高线会从'一条脊'变成'一片坡'。",
+          "criticalNote": "小振幅、小阻尼时受迫振子的响应峰在 $p_1=\\omega^2=1$（激励频率 $\\omega=1$）。跨过它，终端能量的量级会变几个数量级——截面上的等高线会从'一条脊'变成'一片坡'。",
           "default": 1.0,
           "label": "线性刚度 p1（共振脊在 p1 = omega^2）",
           "max": 1.6,
@@ -57,7 +57,7 @@ export const manifest: ChapterManifestJson = {
           "critical": [
             0.0,
           ],
-          "criticalNote": "p3=0 时振子线性，共振处的响应幅值 ~ F/(2*zeta) 可以很大，而且**连续伴随与离散伴随的差会退到舍入级**（非线性正是两者分开的来源）。越过这条线往右，脊被非线性掰弯、梯度方向在脊两侧翻转。",
+          "criticalNote": "$p_3=0$ 时振子线性，共振处的响应幅值 $\\sim F/(2\\zeta)$ 可以很大，而且**连续伴随与离散伴随的差会退到舍入级**（非线性正是两者分开的来源）。越过这条线往右，脊被非线性掰弯、梯度方向在脊两侧翻转。",
           "default": 0.05,
           "label": "三次项 p3（p3=0 退化成线性振子）",
           "max": 0.4,
@@ -100,9 +100,9 @@ export const manifest: ChapterManifestJson = {
           "type": "int",
         },
       ],
-      "pitfalls": "把箭头的长度当成'灵敏度大小'会直接读反：这里画的是归一化方向，长度按对数压缩，靠近共振脊时梯度范数跨好几个量级，若不压缩就会只剩一根箭头。更要命的是'等高线密 = 灵敏度大'：等高线的疏密是 |grad J| 的倒数，但方向箭头的含义是'往哪儿调参数'，两者只有在参数同量纲时才可比；p1 与 p2 量纲不同（刚度 vs 阻尼），跨参数的比较必须换成绩效弹性 (dJ/dp_j)(p_j/J)。",
+      "pitfalls": "把箭头的长度当成'灵敏度大小'会直接读反：这里画的是归一化方向，长度按对数压缩，靠近共振脊时梯度范数跨好几个量级，若不压缩就会只剩一根箭头。更要命的是'等高线密 = 灵敏度大'：等高线的疏密是 $\\|\\nabla J\\|$ 的倒数，但方向箭头的含义是'往哪儿调参数'，两者只有在参数同量纲时才可比；$p_1$ 与 $p_2$ 量纲不同（刚度 vs 阻尼），跨参数的比较必须换成绩效弹性 $\\frac{\\partial J}{\\partial p_j}\\frac{p_j}{J}$。",
       "requiredAux": ["error"],
-      "theory": ["伴随梯度是离散目标函数 J_h 的精确梯度：与中心差分的差只受 eps 的截断/舍入权衡限制", "终端能量的灵敏度方向就是伴随变量在 t=T 处的值：mu(T) = (dJ/dy(T))^T = y(T)", "受迫振子的响应峰在 p1 = omega^2 附近，阻尼把峰值压到 ~ F/(2*zeta)，非线性项使峰位随幅值移动"],
+      "theory": ["伴随梯度是离散目标函数 $J_h$ 的精确梯度：与中心差分的差只受 $\\varepsilon$ 的截断/舍入权衡限制", "终端能量的灵敏度方向就是伴随变量在 $t=T$ 处的值：$\\mu(T)=\\left(\\frac{\\partial J}{\\partial y(T)}\\right)^T=y(T)$", "受迫振子的响应峰在 $p_1=\\omega^2$ 附近，阻尼把峰值压到 $\\sim F/(2\\zeta)$，非线性项使峰位随幅值移动"],
       "time": {
         "label": "t",
         "mode": "none",
@@ -125,7 +125,7 @@ export const manifest: ChapterManifestJson = {
         },
       ],
       "dataSource": "backend",
-      "description": "一维热方程 u_t = alpha*u_xx + 源项，目标 J = w^T u(T)（w 是以 obs_center 为中心的钟形观测）。伴随变量 mu 从 mu(T) = w 出发沿反向时间 tau = T - t 演化：主图给出 mu(x, tau) 的场，副图给出实测宽度 sqrt(Var) 与连续律 sqrt(sigma_0^2 + 2*alpha*tau) 的对照、以及质心漂移。扩散到 Dirichlet 壁之后宽度律失效，被污染的行用掩码标出。",
+      "description": "一维热方程 $u_t=\\alpha u_{xx}$ 加源项，目标 $J=w^T u(T)$（$w$ 是以 obs_center 为中心的钟形观测）。伴随变量 $\\mu$ 从 $\\mu(T)=w$ 出发沿反向时间 $\\tau=T-t$ 演化：主图给出 $\\mu(x,\\tau)$ 的场，副图给出实测宽度 $\\sqrt{\\mathrm{Var}}$ 与连续律 $\\sqrt{\\sigma_0^2+2\\alpha\\tau}$ 的对照、以及质心漂移。扩散到 Dirichlet 壁之后宽度律失效，被污染的行用掩码标出。",
       "id": "influence_field",
       "params": [
         {
@@ -193,9 +193,9 @@ export const manifest: ChapterManifestJson = {
           "type": "enum",
         },
       ],
-      "pitfalls": "把'影响场在反向扩散'读成'峰值在往回跑'是错的：纯扩散下伴随场的质心严格不动（实测漂移 1e-16），长的是宽度。另一个坑是把扩散到边界之后的宽度继续套sigma^2 = sigma_0^2 + 2*alpha*tau：Dirichlet 壁会吸收影响场，实测宽度比连续律小 1%（tau=0.2、sigma_0=0.05），图上用掩码标出被污染的行，读到掩码以外就该停。",
+      "pitfalls": "把'影响场在反向扩散'读成'峰值在往回跑'是错的：纯扩散下伴随场的质心严格不动（实测漂移 1e-16），长的是宽度。另一个坑是把扩散到边界之后的宽度继续套$\\sigma^2=\\sigma_0^2+2\\alpha\\tau$：Dirichlet 壁会吸收影响场，实测宽度比连续律小 1%（$\\tau=0.2$、$\\sigma_0=0.05$），图上用掩码标出被污染的行，读到掩码以外就该停。",
       "requiredAux": ["error"],
-      "theory": ["正向抛物型问题的伴随是**反向**抛物型：把 tau = T - t 倒过来就是正向热方程，所以它是适定的", "高斯初值在纯扩散下保持高斯：Var(tau) = sigma_0^2 + 2*alpha*tau，质心不动", "离散伴随要解 M^T（Dirichlet 的恒等行让 M 不对称）；用 M 代替 M^T 会在边界层出错"],
+      "theory": ["正向抛物型问题的伴随是**反向**抛物型：把 $\\tau=T-t$ 倒过来就是正向热方程，所以它是适定的", "高斯初值在纯扩散下保持高斯：$\\mathrm{Var}(\\tau)=\\sigma_0^2+2\\alpha\\tau$，质心不动", "离散伴随要解 $M^T$（Dirichlet 的恒等行让 $M$ 不对称）；用 $M$ 代替 $M^T$ 会在边界层出错"],
       "time": {
         "dt": 0.02,
         "fps": 30,
@@ -223,14 +223,14 @@ export const manifest: ChapterManifestJson = {
         },
       ],
       "dataSource": "backend",
-      "description": "同一个 eps 扫描上画两条曲线：中心差分与单侧差分的相对误差。左边下降段是截断误差（中心差分 ~ eps^2、单侧 ~ eps），右边上升段是舍入误差（~ u/eps），谷底就是**实测最优** eps。副轴给出代价三点：参数个数 k=2/8/32 时伴随一次梯度与有限差分 2k 次正演的求值次数/求解次数对比。",
+      "description": "同一个 $\\varepsilon$ 扫描上画两条曲线：中心差分与单侧差分的相对误差。左边下降段是截断误差（中心差分 $\\sim\\varepsilon^2$、单侧 $\\sim\\varepsilon$），右边上升段是舍入误差（$\\sim u/\\varepsilon$），谷底就是**实测最优** $\\varepsilon$。副轴给出代价三点：参数个数 $k=2/8/32$ 时伴随一次梯度与有限差分 $2k$ 次正演的求值次数/求解次数对比。",
       "id": "gradient_check",
       "params": [
         {
           "critical": [
             0.0001,
           ],
-          "criticalNote": "下界抬到 1e-4 就把整个窗口挪到 V 形的**右侧**（只剩截断段）：误差随 eps 单调上升，'最优 eps'落在端点上——那时 meta 里的 eps_opt_* 必须是 null、*_interior 必须是 false。窗口没盖住谷底就没有'最优'可言。",
+          "criticalNote": "下界抬到 $10^{-4}$ 就把整个窗口挪到 V 形的**右侧**（只剩截断段）：误差随 $\\varepsilon$ 单调上升，'最优 $\\varepsilon$'落在端点上——那时 meta 里的 eps_opt_* 必须是 null、*_interior 必须是 false。窗口没盖住谷底就没有'最优'可言。",
           "default": 1e-16,
           "label": "扫描下界 eps",
           "max": 0.0001,
@@ -244,7 +244,7 @@ export const manifest: ChapterManifestJson = {
           "critical": [
             1e-06,
           ],
-          "criticalNote": "扫到 1e-6 量级（中心差分的理论最优 eps ~ u^(1/3) = 4.8e-6）才盖住 V 形的谷底；上界小于它时曲线只有下降段，meta 里的最优 eps 会落在端点上，那种情形下'更小更准'是**扫描窗口的假象**而不是结论。",
+          "criticalNote": "扫到 $10^{-6}$ 量级（中心差分的理论最优 $\\varepsilon\\sim u^{1/3}=4.8\\times10^{-6}$）才盖住 V 形的谷底；上界小于它时曲线只有下降段，meta 里的最优 $\\varepsilon$ 会落在端点上，那种情形下'更小更准'是**扫描窗口的假象**而不是结论。",
           "default": 0.1,
           "label": "扫描上界 eps",
           "max": 0.1,
@@ -296,9 +296,9 @@ export const manifest: ChapterManifestJson = {
           "type": "enum",
         },
       ],
-      "pitfalls": "V 形曲线的两段不能只看形状：截断段与舍入段的斜率必须分别拟合出来（实测中心差分 +1.99 / -1.00，单侧差分 +0.99 / -0.99），而'最优 eps'必须落在扫描区间内部才有意义——落在端点说明窗口没盖住 V 形，此时 meta 里的最优 eps 与斜率都该当 null 读。'eps 越小越准'在这里被直接否掉：实测最优点在 eps~1e-6（中心差分），再小三个数量级误差反而涨 100 倍。",
+      "pitfalls": "V 形曲线的两段不能只看形状：截断段与舍入段的斜率必须分别拟合出来（实测中心差分 +1.99 / -1.00，单侧差分 +0.99 / -0.99），而'最优 $\\varepsilon$'必须落在扫描区间内部才有意义——落在端点说明窗口没盖住 V 形，此时 meta 里的最优 $\\varepsilon$ 与斜率都该当 null 读。'$\\varepsilon$ 越小越准'在这里被直接否掉：实测最优点在 $\\varepsilon\\approx10^{-6}$（中心差分），再小三个数量级误差反而涨 100 倍。",
       "requiredAux": ["error"],
-      "theory": ["中心差分的截断误差 ~ eps^2、舍入误差 ~ u/eps，最优 eps ~ u^(1/3)；单侧差分对应 u^(1/2)", "离散伴随一次求解给出全部 k 个偏导：代价与参数个数无关（有限差分要 2k 次正演）", "伴随法不免费：需要整条正向轨迹（或分块检查点重算），存储/重算的账要单独记"],
+      "theory": ["中心差分的截断误差 $\\sim\\varepsilon^2$、舍入误差 $\\sim u/\\varepsilon$，最优 $\\varepsilon\\sim u^{1/3}$；单侧差分对应 $u^{1/2}$", "离散伴随一次求解给出全部 $k$ 个偏导：代价与参数个数无关（有限差分要 $2k$ 次正演）", "伴随法不免费：需要整条正向轨迹（或分块检查点重算），存储/重算的账要单独记"],
       "time": {
         "label": "t",
         "mode": "none",
@@ -322,7 +322,7 @@ export const manifest: ChapterManifestJson = {
         },
       ],
       "dataSource": "backend",
-      "description": "相平面上同屏播放两条轨迹：正向 y(t) 从 0 走到播放头，伴随 mu(t) 从 T 倒着走回播放头，两者在播放头相遇。播放头处给出 mu 的方向（脉冲响应：Delta J ≈ mu^T delta）并用有限差分验证，残差写进 sensitivity_residual。副轴画 |y| 与 |mu| 随时间的走向。",
+      "description": "相平面上同屏播放两条轨迹：正向 $y(t)$ 从 0 走到播放头，伴随 $\\mu(t)$ 从 $T$ 倒着走回播放头，两者在播放头相遇。播放头处给出 $\\mu$ 的方向（脉冲响应：$\\Delta J\\approx\\mu^T\\delta$）并用有限差分验证，残差写进 sensitivity_residual。副轴画 $\\|y\\|$ 与 $\\|\\mu\\|$ 随时间的走向。",
       "id": "forward_adjoint_playback",
       "params": [
         {
@@ -330,7 +330,7 @@ export const manifest: ChapterManifestJson = {
           "critical": [
             1.0,
           ],
-          "criticalNote": "p1 = omega^2 = 1 是共振脊：跨过它，正向轨迹的振幅与伴随轨迹的走向同时换相，播放头处的灵敏度箭头会翻向。",
+          "criticalNote": "$p_1=\\omega^2=1$ 是共振脊：跨过它，正向轨迹的振幅与伴随轨迹的走向同时换相，播放头处的灵敏度箭头会翻向。",
           "default": 1.0,
           "label": "线性刚度 p1",
           "max": 1.6,
@@ -344,7 +344,7 @@ export const manifest: ChapterManifestJson = {
           "critical": [
             0.0,
           ],
-          "criticalNote": "p2=0 是**流向分界**：p2>0 时正向流收缩，伴随往回走也跟着衰减（实测 |mu(0)|/|mu(T)| = 0.25）；p2<0 时正向流扩张，伴随往回走**放大**（同一个比值 >1）。'伴随往回走会放大'这句话只在一半的参数区间成立，过零时它掉头——播放头上 |mu| 的斜率会整体换号。",
+          "criticalNote": "$p_2=0$ 是**流向分界**：$p_2>0$ 时正向流收缩，伴随往回走也跟着衰减（实测 $\\|\\mu(0)\\|/\\|\\mu(T)\\|=0.25$）；$p_2<0$ 时正向流扩张，伴随往回走**放大**（同一个比值 $>1$）。'伴随往回走会放大'这句话只在一半的参数区间成立，过零时它掉头——播放头上 $\\|\\mu\\|$ 的斜率会整体换号。",
           "default": 0.08,
           "label": "阻尼 p2（可以为负：负阻尼 = 泵浦）",
           "max": 0.4,
@@ -357,7 +357,7 @@ export const manifest: ChapterManifestJson = {
           "critical": [
             0.0,
           ],
-          "criticalNote": "p3=0 时振子线性：正向轨迹退化成单频衰减，反向伴随也退化成同频衰减，两者在相平面上变成一对相似椭圆；p3>0 之后出现倍频与相移，伴随轨迹的形状不再与正向轨迹相似（这正是连续/离散伴随分开的来源）。",
+          "criticalNote": "$p_3=0$ 时振子线性：正向轨迹退化成单频衰减，反向伴随也退化成同频衰减，两者在相平面上变成一对相似椭圆；$p_3>0$ 之后出现倍频与相移，伴随轨迹的形状不再与正向轨迹相似（这正是连续/离散伴随分开的来源）。",
           "default": 0.05,
           "label": "三次项 p3",
           "max": 0.4,
@@ -389,9 +389,9 @@ export const manifest: ChapterManifestJson = {
           "type": "int",
         },
       ],
-      "pitfalls": "把伴随轨迹与正向轨迹画在同一张相平面上很好看，但两者活在不同的空间里：y 是状态，mu 是余状态（对偶空间）。有意义的定量陈述只有一条：mu(t) 的第 i 个分量是 J 对 y_i(t) 的敏感度，即 Delta J ≈ mu(t)^T delta。另一处容易读错的是'伴随往回走会发散'：那是正向收缩的镜像（实测 |mu(0)|/|mu(T)| = 34 倍），不是数值不稳定——把步长加密它不变，把阻尼调大它变小。",
+      "pitfalls": "把伴随轨迹与正向轨迹画在同一张相平面上很好看，但两者活在不同的空间里：$y$ 是状态，$\\mu$ 是余状态（对偶空间）。有意义的定量陈述只有一条：$\\mu(t)$ 的第 $i$ 个分量是 $J$ 对 $y_i(t)$ 的敏感度，即 $\\Delta J\\approx\\mu(t)^T\\delta$。另一处容易读错的是'伴随往回走会发散'：那是正向收缩的镜像（实测 $\\|\\mu(0)\\|/\\|\\mu(T)\\|=34$ 倍），不是数值不稳定——把步长加密它不变，把阻尼调大它变小。",
       "requiredAux": ["residual"],
-      "theory": ["伴随变量 mu(t) 是终端目标对状态的敏感度：Delta J ≈ mu(t)^T delta（一阶）", "离散伴随反向递推 mu_n = (dPhi_n/dy_n)^T mu_{n+1}，起点 mu_N = (dg/dy_N)^T", "正向收缩越快，反向伴随放大越猛：|mu(0)|/|mu(T)| 是正向压缩率的倒数"],
+      "theory": ["伴随变量 $\\mu(t)$ 是终端目标对状态的敏感度：$\\Delta J\\approx\\mu(t)^T\\delta$（一阶）", "离散伴随反向递推 $\\mu_n=\\left(\\frac{\\partial\\Phi_n}{\\partial y_n}\\right)^T\\mu_{n+1}$，起点 $\\mu_N=\\left(\\frac{\\partial g}{\\partial y_N}\\right)^T$", "正向收缩越快，反向伴随放大越猛：$\\|\\mu(0)\\|/\\|\\mu(T)\\|$ 是正向压缩率的倒数"],
       "time": {
         "dt": 0.02,
         "fps": 30,

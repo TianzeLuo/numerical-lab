@@ -88,7 +88,6 @@ import {
   specTitle,
   splitColumns,
   textBlock,
-  theoryOf,
   unitBudget,
 } from "./common.js";
 
@@ -296,8 +295,7 @@ export const rombergTableModel: SceneModel = (frame, opts) => {
   orderLines.push(
     `外推的代价：最后一列 Σ|c_i| = ${fmtOpt(coefAbsSum, 8)}（Σc_i = ${fmtOpt(coefSum, 4)}），绝对值之和有界 ⇒ 噪声只放大近 2 倍`,
   );
-  const theory = theoryOf(VIZ);
-  if (theory.length >= 3) orderLines.push(theory[2] as string);
+  orderLines.push("外推系数绝对值之和：Σ|c_i|=1、Σ|c_i|→1.9692603（有界，噪声不会被无限放大）");
   if (funcSmooth !== undefined && funcSmooth < 0.5) {
     orderLines.push("f=|x|：折点在偶数层的节点上，梯形法从第 2 层起逐段精确——这时「列阶」没有意义（帧如实不给阶）");
   }

@@ -5,7 +5,7 @@ import type { ChapterManifestJson } from "../../shared/src/manifest.js";
 export const manifest: ChapterManifestJson = {
   "chapter": "5.2",
   "part": "V",
-  "summary": "病态性与奇异值衰减、Tikhonov 与谱滤波因子、L 曲线与广义交叉验证、TSVD、迭代正则化与早停、全变差、偏差-方差分解——以及「最优 lambda 是按什么准则最优」这一句必须被实测数字钉死的话。",
+  "summary": "病态性与奇异值衰减、Tikhonov 与谱滤波因子、L 曲线与广义交叉验证、TSVD、迭代正则化与早停、全变差、偏差-方差分解——以及「最优 $\\lambda$ 是按什么准则最优」这一句必须被实测数字钉死的话。",
   "title": "反问题与正则化",
   "vizzes": [
     {
@@ -32,7 +32,7 @@ export const manifest: ChapterManifestJson = {
         },
       ],
       "dataSource": "backend",
-      "description": "在 (log||x_lambda||, log||A x_lambda - b||/||b||) 平面上画出 L 曲线，拖动 lambda 时解与残差同步移动；同一张图上标出 oracle（知道真解）、L 曲线三个拐点判据、GCV、偏差原则各自挑出的 lambda，并把「用错判据误差放大多少倍」写进 meta。副轴是解的真误差随 lambda 的曲线。把 Picard 档位从 satisfied 拖到 violated，可以看到正则化本身什么时候失效。",
+      "description": "在 $(\\log\\|x_\\lambda\\|,\\log\\|A x_\\lambda-b\\|/\\|b\\|)$ 平面上画出 L 曲线，拖动 $\\lambda$ 时解与残差同步移动；同一张图上标出 oracle（知道真解）、L 曲线三个拐点判据、GCV、偏差原则各自挑出的 $\\lambda$，并把「用错判据误差放大多少倍」写进 meta。副轴是解的真误差随 $\\lambda$ 的曲线。把 Picard 档位从 satisfied 拖到 violated，可以看到正则化本身什么时候失效。",
       "id": "lcurve_tradeoff",
       "params": [
         {
@@ -59,7 +59,7 @@ export const manifest: ChapterManifestJson = {
           "critical": [
             0.0,
           ],
-          "criticalNote": "lambda = 1 = sigma_1（谱的上端）时所有滤波因子都不超过 1/2，解被系统性压小；越过它继续加大 lambda，滤波因子按 1/lambda^2 收缩，解趋向 0、误差重新升到 ||x*||——这一侧已经不是「在滤噪」了。",
+          "criticalNote": "$\\lambda=1=\\sigma_1$（谱的上端）时所有滤波因子都不超过 $1/2$，解被系统性压小；越过它继续加大 $\\lambda$，滤波因子按 $1/\\lambda^2$ 收缩，解趋向 $0$、误差重新升到 $\\|x^*\\|$——这一侧已经不是「在滤噪」了。",
           "default": -2.0,
           "label": "lg(lambda) 当前正则参数",
           "max": 4.0,
@@ -87,9 +87,9 @@ export const manifest: ChapterManifestJson = {
           "type": "enum",
         },
       ],
-      "pitfalls": "「最优 lambda」必须说清是按什么准则最优：这一页同时给出 oracle（知道真解，现实中拿不到）、L 曲线拐点、GCV 与偏差原则四个数，实测（κ=1e6、噪声 1e-3）L 曲线比 oracle 小 22 倍、GCV 大 4.6 倍，误差分别放大 21 倍与 6.7 倍——只看一条曲线上的拐点，看到的既不是真误差最小点，也不是同一个数。更糟的是「拐点」本身没有唯一判据：最大曲率、两段直线拟合交点、离散二阶差分三个判据给出的 lambda 实测可以差 5--1000 倍（18 组配置测下来最小 5 倍、最大 1200 倍）；两段直线拟合若不加「每段至少 25% 的点 + 交点在包围盒内」这两条约束，实测在 18 组里有 9 组会跳到另一个答案（最大偏 126 倍）——它不是坏在端点，是根本不给同一个数。",
+      "pitfalls": "「最优 $\\lambda$」必须说清是按什么准则最优：这一页同时给出 oracle（知道真解，现实中拿不到）、L 曲线拐点、GCV 与偏差原则四个数，实测（$\\kappa=10^6$、噪声 $10^{-3}$）L 曲线比 oracle 小 22 倍、GCV 大 4.6 倍，误差分别放大 21 倍与 6.7 倍——只看一条曲线上的拐点，看到的既不是真误差最小点，也不是同一个数。更糟的是「拐点」本身没有唯一判据：最大曲率、两段直线拟合交点、离散二阶差分三个判据给出的 $\\lambda$ 实测可以差 $5$--$1000$ 倍（18 组配置测下来最小 5 倍、最大 1200 倍）；两段直线拟合若不加「每段至少 25% 的点 + 交点在包围盒内」这两条约束，实测在 18 组里有 9 组会跳到另一个答案（最大偏 126 倍）——它不是坏在端点，是根本不给同一个数。",
       "requiredAux": ["error"],
-      "theory": ["Tikhonov 的滤波因子 f_i = s_i^2/(s_i^2+lambda^2)：lambda 是平方参数，半功率点恰在 s_i = lambda", "L 曲线的拐点是启发式判据；离散 Picard 条件（|u_i^T b| 比 s_i 衰减更快）才是「截断有意义」的前提", "GCV(lambda) = ||A x_lambda - b||^2 / (m - sum_i f_i)^2 只用 A 与 b，不需要噪声水平；偏差原则需要噪声水平，但只说「残差降到噪声尺度」"],
+      "theory": ["Tikhonov 的滤波因子 $f_i=s_i^2/(s_i^2+\\lambda^2)$：$\\lambda$ 是平方参数，半功率点恰在 $s_i=\\lambda$", "L 曲线的拐点是启发式判据；离散 Picard 条件（$|u_i^T b|$ 比 $s_i$ 衰减更快）才是「截断有意义」的前提", "$\\mathrm{GCV}(\\lambda)=\\|A x_\\lambda-b\\|^2/(m-\\sum_i f_i)^2$ 只用 $A$ 与 $b$，不需要噪声水平；偏差原则需要噪声水平，但只说「残差降到噪声尺度」"],
       "time": {
         "label": "t",
         "mode": "none",
@@ -113,7 +113,7 @@ export const manifest: ChapterManifestJson = {
         },
       ],
       "dataSource": "backend",
-      "description": "同一条奇异值轴上画三条滤波因子：TSVD（理想低通，1 到 0 的台阶）、Tikhonov（平滑过渡，过渡带宽度由 lambda 控制）、Landweber（由迭代步数控制的渐进过渡）。TV 只能给探针读数（它不是谱滤波）。副轴把「同样自由度下谁更准」画出来：三条误差-自由度曲线 + 匹配点。把 omega_rel 拖过 2，Landweber 当场发散（滤波因子跑出 [0,1]）。",
+      "description": "同一条奇异值轴上画三条滤波因子：TSVD（理想低通，$1$ 到 $0$ 的台阶）、Tikhonov（平滑过渡，过渡带宽度由 $\\lambda$ 控制）、Landweber（由迭代步数控制的渐进过渡）。TV 只能给探针读数（它不是谱滤波）。副轴把「同样自由度下谁更准」画出来：三条误差-自由度曲线 + 匹配点。把 omega_rel 拖过 $2$，Landweber 当场发散（滤波因子跑出 $[0,1]$）。",
       "id": "filter_shapes",
       "params": [
         {
@@ -140,7 +140,7 @@ export const manifest: ChapterManifestJson = {
           "critical": [
             0.0,
           ],
-          "criticalNote": "lambda = sigma_1 是平滑过渡带刚好压住整个谱的位置：越过它以后每一条 f_i 都小于 1/2，曲线整体贴到 0，「滤波形状」的差别被压平（这时解已接近 0）。",
+          "criticalNote": "$\\lambda=\\sigma_1$ 是平滑过渡带刚好压住整个谱的位置：越过它以后每一条 $f_i$ 都小于 $1/2$，曲线整体贴到 $0$，「滤波形状」的差别被压平（这时解已接近 $0$）。",
           "default": -2.0,
           "label": "lg(lambda) Tikhonov 参数",
           "max": 3.0,
@@ -174,7 +174,7 @@ export const manifest: ChapterManifestJson = {
             1.0,
             2.0,
           ],
-          "criticalNote": "omega_rel = 1 是最快收敛点（omega = 1/sigma_1^2，最慢模态一步压到 0）；omega_rel = 2 是**发散线**：omega >= 2/sigma_1^2 时 |1 - omega s_1^2| >= 1，迭代值指数增长，滤波因子跑出 [0,1]——图上那一段是夹住的占位值。",
+          "criticalNote": "$\\omega_{\\mathrm{rel}}=1$ 是最快收敛点（$\\omega=1/\\sigma_1^2$，最慢模态一步压到 $0$）；$\\omega_{\\mathrm{rel}}=2$ 是**发散线**：$\\omega\\ge2/\\sigma_1^2$ 时 $|1-\\omega s_1^2|\\ge1$，迭代值指数增长，滤波因子跑出 $[0,1]$——图上那一段是夹住的占位值。",
           "default": 1.0,
           "label": "步长 omega / (1/sigma_1^2)",
           "max": 2.5,
@@ -193,9 +193,9 @@ export const manifest: ChapterManifestJson = {
           "type": "enum",
         },
       ],
-      "pitfalls": "把 TV 画成第四条滤波曲线就是在撒谎：全变差不是谱滤波，没有滤波因子。这里的 TV 曲线是探针读数——用 b = u_i 逐个探出来的有效因子，实测把探针换成 b = (u_1+u_n)/sqrt(2)，同一个下标上的读数就变（差 0.4 量级），非对角泄漏也不为 0。另一条：ω 拖过 2/σ_1^2 之后 Landweber 当场发散，滤波因子跑出 [0,1] 区间，图上那一段是被夹到边界并打上掩码的占位值，不是「滤波器变平了」。最后，「同样自由度下谁更准」不是「形状不同」的同义词：实测 TSVD 在中低自由度往往更准，而 Tikhonov 在自由度接近满秩时反超——这条必须看两条误差曲线，不能看形状。",
+      "pitfalls": "把 TV 画成第四条滤波曲线就是在撒谎：全变差不是谱滤波，没有滤波因子。这里的 TV 曲线是探针读数——用 $b=u_i$ 逐个探出来的有效因子，实测把探针换成 $b=(u_1+u_n)/\\sqrt{2}$，同一个下标上的读数就变（差 $0.4$ 量级），非对角泄漏也不为 $0$。另一条：$\\omega$ 拖过 $2/\\sigma_1^2$ 之后 Landweber 当场发散，滤波因子跑出 $[0,1]$ 区间，图上那一段是被夹到边界并打上掩码的占位值，不是「滤波器变平了」。最后，「同样自由度下谁更准」不是「形状不同」的同义词：实测 TSVD 在中低自由度往往更准，而 Tikhonov 在自由度接近满秩时反超——这条必须看两条误差曲线，不能看形状。",
       "requiredAux": ["error"],
-      "theory": ["TSVD 滤波因子是阶跃 1{i<=k}：理想低通，截止处没有过渡带；Tikhonov 是 s^2/(s^2+lambda^2)：过渡带宽约一个 lambda 的十倍程", "Landweber 的滤波因子 1-(1-omega s^2)^k 在 0 < omega < 2/sigma_1^2 时单调上升到 1，omega 越大越快、越过 2/sigma_1^2 发散", "有效自由度 sum_i f_i：TSVD 是 k，Tikhonov 由 lambda 决定——「同样自由度」是两种方法唯一公平的比较轴"],
+      "theory": ["TSVD 滤波因子是阶跃 $\\mathbf{1}\\{i\\le k\\}$：理想低通，截止处没有过渡带；Tikhonov 是 $s^2/(s^2+\\lambda^2)$：过渡带宽约一个 $\\lambda$ 的十倍程", "Landweber 的滤波因子 $1-(1-\\omega s^2)^k$ 在 $0<\\omega<2/\\sigma_1^2$ 时单调上升到 $1$，$\\omega$ 越大越快、越过 $2/\\sigma_1^2$ 发散", "有效自由度 $\\sum_i f_i$：TSVD 是 $k$，Tikhonov 由 $\\lambda$ 决定——「同样自由度」是两种方法唯一公平的比较轴"],
       "time": {
         "label": "t",
         "mode": "none",
@@ -226,7 +226,7 @@ export const manifest: ChapterManifestJson = {
         },
       ],
       "dataSource": "backend",
-      "description": "24x24 幻影经可分离高斯模糊 + 噪声，四类方法重建：Tikhonov、TSVD、Landweber、TV。拖噪声水平看解什么时候被噪声吞掉，拖迭代步看半收敛（误差先降后升）；把算子换成简化平行束 CT，还能看到角度不够时 A 秩亏、误差地板由零空间决定。副轴是误差随迭代步 / 截断阶的历史。",
+      "description": "$24\\times24$ 幻影经可分离高斯模糊 + 噪声，四类方法重建：Tikhonov、TSVD、Landweber、TV。拖噪声水平看解什么时候被噪声吞掉，拖迭代步看半收敛（误差先降后升）；把算子换成简化平行束 CT，还能看到角度不够时 $A$ 秩亏、误差地板由零空间决定。副轴是误差随迭代步 / 截断阶的历史。",
       "id": "image_deconvolution",
       "params": [
         {
@@ -242,7 +242,7 @@ export const manifest: ChapterManifestJson = {
           "critical": [
             2.4,
           ],
-          "criticalNote": "sigma 越过 2.4 左右时一维模糊矩阵的最小奇异值跌破 1e-8，二维条件数越过 1e16——噪声 1e-3 之下**没有任何 lambda** 能把最小模态救回来，图上只剩平滑区域。",
+          "criticalNote": "$\\sigma$ 越过 $2.4$ 左右时一维模糊矩阵的最小奇异值跌破 $10^{-8}$，二维条件数越过 $10^{16}$——噪声 $10^{-3}$ 之下**没有任何 $\\lambda$** 能把最小模态救回来，图上只剩平滑区域。",
           "default": 2.0,
           "label": "模糊宽度 sigma（blur 用）",
           "max": 4.0,
@@ -302,9 +302,9 @@ export const manifest: ChapterManifestJson = {
           "type": "int",
         },
       ],
-      "pitfalls": "「正则化让图更清楚」不是结论：lambda 太小解被噪声吞掉（κ=1e6 时噪声 1e-3 被放大到1e3 量级），lambda 太大图像被抹平到只剩均值；两条失败路径在图上都看得见。Landweber/TV 还多一条半收敛：误差先降后升，最优迭代步 k* 只能靠早停拿到，而最终的残差比 k* 处更小——残差小不等于解准。CT 侧相反地会骗人一次：角度够多时这个尺寸的投影矩阵条件数只有 250（良态），而角度减到 8 条时 A 秩亏，误差地板由零空间决定——此时把噪声拖到 0，误差仍然停在 0.10，那不是噪声问题，是算子本身丢了信息。",
+      "pitfalls": "「正则化让图更清楚」不是结论：$\\lambda$ 太小解被噪声吞掉（$\\kappa=10^6$ 时噪声 $10^{-3}$ 被放大到$10^3$ 量级），$\\lambda$ 太大图像被抹平到只剩均值；两条失败路径在图上都看得见。Landweber/TV 还多一条半收敛：误差先降后升，最优迭代步 $k^*$ 只能靠早停拿到，而最终的残差比 $k^*$ 处更小——残差小不等于解准。CT 侧相反地会骗人一次：角度够多时这个尺寸的投影矩阵条件数只有 250（良态），而角度减到 8 条时 $A$ 秩亏，误差地板由零空间决定——此时把噪声拖到 $0$，误差仍然停在 $0.10$，那不是噪声问题，是算子本身丢了信息。",
       "requiredAux": ["error", "residual"],
-      "theory": ["可分离模糊的二维奇异值是 s_i s_j：二维条件数是一维条件数的平方，这正是「图像反卷积比一维难得多」的定量来源", "Landweber 的迭代解等于滤波因子 1-(1-omega s_i^2)^k 的谱滤波：k 起正则参数的作用，early stopping 就是选择 k", "TV 的先验是有界变差（分片常数），因此它在分片常数的幻影上比 L2 先验更合适；但目标函数非光滑，解不对应任何滤波因子"],
+      "theory": ["可分离模糊的二维奇异值是 $s_i s_j$：二维条件数是一维条件数的平方，这正是「图像反卷积比一维难得多」的定量来源", "Landweber 的迭代解等于滤波因子 $1-(1-\\omega s_i^2)^k$ 的谱滤波：$k$ 起正则参数的作用，early stopping 就是选择 $k$", "TV 的先验是有界变差（分片常数），因此它在分片常数的幻影上比 $L^2$ 先验更合适；但目标函数非光滑，解不对应任何滤波因子"],
       "time": {
         "dt": 1.0,
         "fps": 30,
@@ -331,7 +331,7 @@ export const manifest: ChapterManifestJson = {
         },
       ],
       "dataSource": "backend",
-      "description": "lambda 网格上画三条曲线：偏差^2、方差、以及它们的和（期望总误差）；解析式与蒙特卡洛实测并列（同一批噪声样本）。最优 lambda 处标出，并给出 lambda->0（噪声接管）与 lambda->∞（解被压成 0）两侧的失败数字，以及方差在两侧的对数-对数斜率（理论 0 与 -4）。把 Picard 档位拖到 violated，可以看到「没有中间最小值」是什么样子。",
+      "description": "$\\lambda$ 网格上画三条曲线：$\\text{偏差}^2$、方差、以及它们的和（期望总误差）；解析式与蒙特卡洛实测并列（同一批噪声样本）。最优 $\\lambda$ 处标出，并给出 $\\lambda\\to0$（噪声接管）与 $\\lambda\\to\\infty$（解被压成 $0$）两侧的失败数字，以及方差在两侧的对数-对数斜率（理论 $0$ 与 $-4$）。把 Picard 档位拖到 violated，可以看到「没有中间最小值」是什么样子。",
       "id": "bias_variance",
       "params": [
         {
@@ -358,7 +358,7 @@ export const manifest: ChapterManifestJson = {
           "critical": [
             0.0,
           ],
-          "criticalNote": "lambda = sigma_1 之后偏差^2已经吃掉总误差的一半以上（解被压向 0），继续往右是「方差很小、但答案根本不是解」的区域。",
+          "criticalNote": "$\\lambda=\\sigma_1$ 之后 $\\text{偏差}^2$ 已经吃掉总误差的一半以上（解被压向 $0$），继续往右是「方差很小、但答案根本不是解」的区域。",
           "default": -2.0,
           "label": "lg(lambda) 当前点",
           "max": 4.0,
@@ -387,9 +387,9 @@ export const manifest: ChapterManifestJson = {
           "type": "enum",
         },
       ],
-      "pitfalls": "「偏差与方差此消彼长」这句话本身是对的，但它常被读成「正则化让结果更准」——不是：lambda->∞ 时方差趋于 0 而偏差^2趋于 ||x*||^2，总误差回到 100%；lambda->0 时偏差趋于 0 而方差按 lambda^(-4) 只在地板之外才开始下降，总误差被噪声接管。所以「总误差最小」只在中间存在，而且那个点是按真解定义的 oracle——曲线上的最低点不是你能算出来的量。实测（κ=1e4、噪声 1e-3）解析与蒙特卡洛两条总误差曲线的最小点相差不到 2 个网格点，但用 L 曲线拐点会偏出 10 倍以上。",
+      "pitfalls": "「偏差与方差此消彼长」这句话本身是对的，但它常被读成「正则化让结果更准」——不是：$\\lambda\\to\\infty$ 时方差趋于 $0$ 而 $\\text{偏差}^2$ 趋于 $\\|x^*\\|^2$，总误差回到 100%；$\\lambda\\to0$ 时偏差趋于 $0$ 而方差按 $\\lambda^{-4}$ 只在地板之外才开始下降，总误差被噪声接管。所以「总误差最小」只在中间存在，而且那个点是按真解定义的 oracle——曲线上的最低点不是你能算出来的量。实测（$\\kappa=10^4$、噪声 $10^{-3}$）解析与蒙特卡洛两条总误差曲线的最小点相差不到 2 个网格点，但用 L 曲线拐点会偏出 10 倍以上。",
       "requiredAux": ["error"],
-      "theory": ["E||x_lambda - x*||^2 = ||E x_lambda - x*||^2 + tr(Cov x_lambda)，两项分别是偏差^2与方差", "白噪声总范数 delta 时 Var = (delta^2/m) sum_i (f_i/s_i)^2；lambda >> sigma_1 时 f_i ~ s_i^2/lambda^2，方差按 lambda^(-4) 下降", "最优 lambda 由 d/dlambda (偏差^2+方差) = 0 给出，只依赖真解与噪声水平，两者在现实中都拿不到——这就是 oracle 与 GCV/L 曲线的差"],
+      "theory": ["$\\mathbb{E}\\|x_\\lambda-x^*\\|^2=\\|\\mathbb{E}x_\\lambda-x^*\\|^2+\\operatorname{tr}(\\operatorname{Cov}x_\\lambda)$，两项分别是 $\\text{偏差}^2$ 与方差", "白噪声总范数 $\\delta$ 时 $\\operatorname{Var}=(\\delta^2/m)\\sum_i(f_i/s_i)^2$；$\\lambda\\gg\\sigma_1$ 时 $f_i\\sim s_i^2/\\lambda^2$，方差按 $\\lambda^{-4}$ 下降", "最优 $\\lambda$ 由 $d/d\\lambda(\\text{偏差}^2+\\text{方差})=0$ 给出，只依赖真解与噪声水平，两者在现实中都拿不到——这就是 oracle 与 GCV/L 曲线的差"],
       "time": {
         "label": "t",
         "mode": "none",

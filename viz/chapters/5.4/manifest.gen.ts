@@ -5,7 +5,7 @@ import type { ChapterManifestJson } from "../../shared/src/manifest.js";
 export const manifest: ChapterManifestJson = {
   "chapter": "5.4",
   "part": "V",
-  "summary": "蒙特卡洛的 1/sqrt(N) 与置信区间、拟蒙特卡洛与随机化误差估计、Sobol' 方差分解（含相关输入下的不唯一性）、多项式混沌代理模型：每个结论都配上它的实测数字与失效边界。",
+  "summary": "蒙特卡洛的 $1/\\sqrt{N}$ 与置信区间、拟蒙特卡洛与随机化误差估计、Sobol' 方差分解（含相关输入下的不唯一性）、多项式混沌代理模型：每个结论都配上它的实测数字与失效边界。",
   "title": "不确定性量化与全局敏感性",
   "vizzes": [
     {
@@ -24,7 +24,7 @@ export const manifest: ChapterManifestJson = {
         },
       ],
       "dataSource": "backend",
-      "description": "单位正方形里同时铺开 MC、Sobol'、秩一格点三种点集（张量格点只出现在误差曲线里），时间轴是已铺开的点数 k；右下角是同一被积函数上四种方法的误差-N 双对数曲线，参考线是 sigma/sqrt(N)。开关 randomize 决定误差棒是否存在：关掉它，确定性点集的“复制标准差”恒为 0。",
+      "description": "单位正方形里同时铺开 MC、Sobol'、秩一格点三种点集（张量格点只出现在误差曲线里），时间轴是已铺开的点数 $k$；右下角是同一被积函数上四种方法的误差-$N$ 双对数曲线，参考线是 $\\sigma/\\sqrt{N}$。开关 randomize 决定误差棒是否存在：关掉它，确定性点集的“复制标准差”恒为 0。",
       "id": "point_fill",
       "params": [
         {
@@ -65,9 +65,9 @@ export const manifest: ChapterManifestJson = {
           "type": "int",
         },
       ],
-      "pitfalls": "左图「点看起来更均匀」不等于积分更准：均匀性要用偏差 D*_N 量，而收敛率要用误差-N 斜率量，两者在本页都有数可读。右下角的误差棒只在 randomize=True 时存在——关掉随机化后确定性点集的“复制”逐位相同，标准差恒等于 0，而真实误差仍可能是 1e-3 量级；把 0 读成「误差很小」是本页最容易犯的错。另外参考线 sigma/sqrt(N) 只对 MC 是理论曲线，对 QMC 它只是一条标度参照。",
+      "pitfalls": "左图「点看起来更均匀」不等于积分更准：均匀性要用偏差 $D_N^{\\ast}$ 量，而收敛率要用误差-N 斜率量，两者在本页都有数可读。右下角的误差棒只在 randomize=True 时存在——关掉随机化后确定性点集的“复制”逐位相同，标准差恒等于 0，而真实误差仍可能是 $10^{-3}$ 量级；把 0 读成「误差很小」是本页最容易犯的错。另外参考线 $\\sigma/\\sqrt{N}$ 只对 MC 是理论曲线，对 QMC 它只是一条标度参照。",
       "requiredAux": ["error"],
-      "theory": ["MC 的均方根误差 = sigma/sqrt(N)（sigma^2 = Var f），双对数斜率 -1/2", "Koksma-Hlawka：|I_hat - I| <= V(f) D*_N；Sobol' 的 D*_N = O((log N)^d/N)", "随机化 QMC：数字移位/线性置乱保持网性质，R 个复制的样本标准差给出可用的误差估计"],
+      "theory": ["MC 的均方根误差 $=\\sigma/\\sqrt{N}$（$\\sigma^2=\\mathrm{Var}(f)$），双对数斜率 $-1/2$", "Koksma-Hlawka：$|\\hat{I}-I|\\le V(f)D_N^{\\ast}$；Sobol' 的 $D_N^{\\ast}=O((\\log N)^d/N)$", "随机化 QMC：数字移位/线性置乱保持网性质，$R$ 个复制的样本标准差给出可用的误差估计"],
       "time": {
         "dt": 64.0,
         "label": "已铺开的点数 k",
@@ -92,7 +92,7 @@ export const manifest: ChapterManifestJson = {
         },
       ],
       "dataSource": "backend",
-      "description": "从输入分布（均匀/正态/Beta/指数）抽 n 个样本，过前向模型得到输出样本，画直方图密度并与参考密度逐点比较；副轴是 |密度差| 与 Q-Q 对照。参考密度能写出闭式时用精确卷积，否则用同均值同方差的正态（CLT）近似——是哪一种由 strings.ref_kind 说明。",
+      "description": "从输入分布（均匀/正态/Beta/指数）抽 $n$ 个样本，过前向模型得到输出样本，画直方图密度并与参考密度逐点比较；副轴是 $|\\text{密度差}|$ 与 Q-Q 对照。参考密度能写出闭式时用精确卷积，否则用同均值同方差的正态（CLT）近似——是哪一种由 strings.ref_kind 说明。",
       "id": "output_hist",
       "params": [
         {
@@ -147,9 +147,9 @@ export const manifest: ChapterManifestJson = {
           "type": "int",
         },
       ],
-      "pitfalls": "直方图的形状由 bin 数决定：bin 太少看不出结构（偏差 O(h^2)），bin 太多每个 bin 只剩几个样本（方差 O(1/sqrt(Nh))）——副轴那条 U 形曲线就是这个权衡的实测。第二条更隐蔽：参考密度是正态近似时，图上「密度差」里同时包含抽样误差与 CLT 自己的偏差，把整条差曲线都说成蒙特卡洛误差是错的；右偏模型（quadratic/stiff）上 KS 距离实测是正态模型的好几倍。",
+      "pitfalls": "直方图的形状由 bin 数决定：bin 太少看不出结构（偏差 $O(h^2)$），bin 太多每个 bin 只剩几个样本（方差 $O(1/\\sqrt{Nh})$）——副轴那条 U 形曲线就是这个权衡的实测。第二条更隐蔽：参考密度是正态近似时，图上「密度差」里同时包含抽样误差与 CLT 自己的偏差，把整条差曲线都说成蒙特卡洛误差是错的；右偏模型（quadratic/stiff）上 KS 距离实测是正态模型的好几倍。",
       "requiredAux": ["error"],
-      "theory": ["核/直方图密度估计的偏差-方差权衡：MISE ~ h^4 + 1/(Nh)，最优 h ~ N^(-1/5)", "中心极限定理：Y 的标准化分布在 n 大时趋近正态，但收敛速度由偏度与峰度决定", "全方差公式：Var(Y) = E[Var(Y|X)] + Var(E[Y|X])（第 3 页的分解就从这里来）"],
+      "theory": ["核/直方图密度估计的偏差-方差权衡：$\\mathrm{MISE}\\sim h^4+1/(Nh)$，最优 $h\\sim N^{-1/5}$", "中心极限定理：$Y$ 的标准化分布在 $n$ 大时趋近正态，但收敛速度由偏度与峰度决定", "全方差公式：$\\mathrm{Var}(Y)=E[\\mathrm{Var}(Y|X)]+\\mathrm{Var}(E[Y|X])$（第 3 页的分解就从这里来）"],
       "time": {
         "label": "t",
         "mode": "none",
@@ -172,7 +172,7 @@ export const manifest: ChapterManifestJson = {
         },
       ],
       "dataSource": "backend",
-      "description": "pick-freeze（Saltelli/Jansen）估计一阶与总效应指数并给 bootstrap 区间；副轴是同一函数在 N = 2^6..2^12 上的估计漂移（估计量本身有偏的证据）。rho != 0 且模型支持相关输入时，同时给出条件方差口径与乘积测度口径两套分解。",
+      "description": "pick-freeze（Saltelli/Jansen）估计一阶与总效应指数并给 bootstrap 区间；副轴是同一函数在 $N=2^6,\\ldots,2^{12}$ 上的估计漂移（估计量本身有偏的证据）。$\\rho\\ne0$ 且模型支持相关输入时，同时给出条件方差口径与乘积测度口径两套分解。",
       "id": "sobol_bars",
       "params": [
         {
@@ -200,7 +200,7 @@ export const manifest: ChapterManifestJson = {
           "critical": [
             0.0,
           ],
-          "criticalNote": "rho = 0 是方差分解唯一性的边界：输入独立时 sum S_i <= 1 <= sum S_Ti 且分解唯一；rho != 0 时“一阶指数”至少有两种口径（条件方差 / 乘积测度），sum S_i 可以大于 1（实测 rho=0.5 的双线性模型 sum = 1.49）。",
+          "criticalNote": "$\\rho=0$ 是方差分解唯一性的边界：输入独立时 $\\sum_i S_i\\le1\\le\\sum_i S_{T_i}$ 且分解唯一；$\\rho\\ne0$ 时“一阶指数”至少有两种口径（条件方差 / 乘积测度），$\\sum_i S_i$ 可以大于 1（实测 $\\rho=0.5$ 的双线性模型 $\\sum_i S_i=1.49$）。",
           "default": 0.0,
           "label": "输入相关系数 rho",
           "max": 0.8,
@@ -219,9 +219,9 @@ export const manifest: ChapterManifestJson = {
           "type": "enum",
         },
       ],
-      "pitfalls": "sum S_i <= 1 <= sum S_Ti 是判据而不是恒等式：有限样本下估计量有偏，副轴那条漂移曲线就是偏差本身（Ishigami 在 N=64 与 N=4096 上的 sum S_i 相差 0.29）。更危险的是相关输入：rho != 0 时方差分解不再唯一，条件方差口径的 sum S_i 可以到 1.5 甚至更高，而这并不违反任何定理——违反的是「输入独立」这个前提。把bar的高度当成「重要性」之前，先确认你要的是哪一种口径。",
+      "pitfalls": "$\\sum_i S_i\\le1\\le\\sum_i S_{T_i}$ 是判据而不是恒等式：有限样本下估计量有偏，副轴那条漂移曲线就是偏差本身（Ishigami 在 $N=64$ 与 $N=4096$ 上的 $\\sum_i S_i$ 相差 0.29）。更危险的是相关输入：$\\rho\\ne0$ 时方差分解不再唯一，条件方差口径的 $\\sum_i S_i$ 可以到 1.5 甚至更高，而这并不违反任何定理——违反的是「输入独立」这个前提。把bar的高度当成「重要性」之前，先确认你要的是哪一种口径。",
       "requiredAux": ["error"],
-      "theory": ["Sobol-Hoeffding 分解：独立输入下 Var(Y) = sum_alpha V_alpha，S_i = V_i/V <= 1 <= S_Ti", "pick-freeze 估计量（Saltelli 2010 / Jansen 1999）的偏差是 O(1/N)，不是无偏的", "相关输入下 Var(E[Y|X_i])/V 之和可以大于 1：全方差公式只对单个变量成立"],
+      "theory": ["Sobol-Hoeffding 分解：独立输入下 $\\mathrm{Var}(Y)=\\sum_\\alpha V_\\alpha$，$S_i=V_i/V\\le1\\le S_{T_i}$", "pick-freeze 估计量（Saltelli 2010 / Jansen 1999）的偏差是 $O(1/N)$，不是无偏的", "相关输入下 $\\mathrm{Var}(E[Y|X_i])/V$ 之和可以大于 1：全方差公式只对单个变量成立"],
       "time": {
         "label": "t",
         "mode": "none",
@@ -244,7 +244,7 @@ export const manifest: ChapterManifestJson = {
         },
       ],
       "dataSource": "backend",
-      "description": "左：逐阶系数的 RMS（对数轴）与指数衰减参考线；右：截断阶数 p 从 1 到 12 时训练误差与留出集误差两条曲线（含欠定过拟合区），以及外推倍率扫描曲线。fit=projection 时用 Gauss 求积，fit=regression 时用最小二乘（样本不够会过拟合）。",
+      "description": "左：逐阶系数的 RMS（对数轴）与指数衰减参考线；右：截断阶数 $p$ 从 1 到 12 时训练误差与留出集误差两条曲线（含欠定过拟合区），以及外推倍率扫描曲线。fit=projection 时用 Gauss 求积，fit=regression 时用最小二乘（样本不够会过拟合）。",
       "id": "pce_spectrum",
       "params": [
         {
@@ -300,7 +300,7 @@ export const manifest: ChapterManifestJson = {
           "critical": [
             1.0,
           ],
-          "criticalNote": "1.0 是训练区间的边界：小于等于它时报告的是同一测度上的留出误差；大于它就是在训练支撑集之外评估，多项式混沌对此**没有任何保证**（实测 exp 外推 2 倍时误差放大 709 倍，Runge 放大 1.5e4 倍）。",
+          "criticalNote": "1.0 是训练区间的边界：小于等于它时报告的是同一测度上的留出误差；大于它就是在训练支撑集之外评估，多项式混沌对此**没有任何保证**（实测 exp 外推 2 倍时误差放大 709 倍，Runge 放大 $1.5\\times10^4$ 倍）。",
           "default": 1.0,
           "label": "外推倍率（1 = 不外推）",
           "max": 2.0,
@@ -310,9 +310,9 @@ export const manifest: ChapterManifestJson = {
           "type": "float",
         },
       ],
-      "pitfalls": "训练误差到 1e-16 什么也不能说明：n_train=8、p=10 时训练误差 4e-16 而留出误差 0.45（相差 1e15 倍），这就是过拟合区的样子——它只出现在「基规模超过样本数」之后，而那一区在图上并不显眼。第二条：外推。多项式混沌在训练区间之外没有收敛保证，exp 外推 2 倍误差放大 709 倍、Runge 放大 1.5e4 倍；只有像 poly4 那样被精确表示的函数才能外推，而那不是代理模型的功劳。",
+      "pitfalls": "训练误差到 $10^{-16}$ 什么也不能说明：$n_{\\mathrm{train}}=8$、$p=10$ 时训练误差 $4\\times10^{-16}$ 而留出误差 0.45（相差 $10^{15}$ 倍），这就是过拟合区的样子——它只出现在「基规模超过样本数」之后，而那一区在图上并不显眼。第二条：外推。多项式混沌在训练区间之外没有收敛保证，exp 外推 2 倍误差放大 709 倍、Runge 放大 $1.5\\times10^4$ 倍；只有像 poly4 那样被精确表示的函数才能外推，而那不是代理模型的功劳。",
       "requiredAux": ["error"],
-      "theory": ["gPC 投影：c_alpha = E[f phi_alpha]，正交归一基下 E[f]=c_0、Var[f]=sum_{alpha>0} c_alpha^2", "解析函数在 Legendre 基下的系数按几何速率衰减；有折点（|x|）时只按 p^(-3/2) 衰减", "Gauss 求积的精确性：n_q = p+1 个节点对次数 <= p 的多项式给出精确投影系数"],
+      "theory": ["gPC 投影：$c_\\alpha=E[f\\phi_\\alpha]$，正交归一基下 $E[f]=c_0$、$\\mathrm{Var}[f]=\\sum_{\\alpha>0}c_\\alpha^2$", "解析函数在 Legendre 基下的系数按几何速率衰减；有折点（$|x|$）时只按 $p^{-3/2}$ 衰减", "Gauss 求积的精确性：$n_q=p+1$ 个节点对次数 $\\le p$ 的多项式给出精确投影系数"],
       "time": {
         "label": "t",
         "mode": "none",

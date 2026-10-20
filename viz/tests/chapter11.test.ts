@@ -92,6 +92,7 @@ interface Override {
   meta?: Record<string, MetaValue>;
   dropMeta?: string[];
   dropStrings?: string[];
+  strings?: Record<string, string>;
   critical?: Record<string, number | number[]>;
   pitfalls?: string;
 }
@@ -104,7 +105,10 @@ async function frameFor(viz: string, over: Override = {}): Promise<Frame> {
   const dropStr = new Set(over.dropStrings ?? []);
   const arrays = def.arrays.filter((a) => !drop.has(a.name)).map((a) => ({ ...a, data: over.arrays?.[a.name] ?? a.data }));
   const meta = Object.fromEntries(Object.entries(def.meta).filter(([k]) => !dropMeta.has(k)));
-  const strings = Object.fromEntries(Object.entries(def.strings).filter(([k]) => !dropStr.has(k)));
+  const strings = {
+    ...Object.fromEntries(Object.entries(def.strings).filter(([k]) => !dropStr.has(k))),
+    ...(over.strings ?? {}),
+  };
   return makeFrame(viz, { arrays, meta: { ...meta, ...over.meta }, strings, critical: over.critical ?? def.critical }, over.pitfalls);
 }
 
@@ -125,15 +129,10 @@ const degradedText = (scene: Scene): string =>
 
 const FLOAT_ZOOM: FrameDef = {
   arrays: [
-    A("offset", seq(-10, 10, 21), "ulp", "距中心的 ulp 偏移"),
-    A("value", seq(0.3 - 1e-16, 0.3 + 1e-16, 21), "1", "可表示数（真实 double）"),
-    A("spacing_ratio", fill(21, 1), "1", "间距 / ulp(center)"),
-    A("boundary_offset", seq(-10, 10, 21), "ulp", "距最近的 2 的幂的 ulp 偏移"),
-    A("boundary_value", seq(0.25 - 1e-16, 0.25 + 1e-16, 21), "1", "2 的幂附近的可表示数"),
-    A("boundary_spacing_ratio", gen(21, (i) => (i < 10 ? 0.5 : 1)), "1", "间距 / ulp(2 的幂)：跨过它减半"),
-    A("center_offset", [0], "ulp", "放大中心"), A("center_y", [0], "1", "放大中心"),
-    A("landing_offset", [1], "ulp", "0.1+0.2 的落点"), A("landing_y", [1], "1", "0.1+0.2 的落点"),
-    A("ideal_offset", [0], "ulp", "数学上的 0.3"), A("ideal_y", [1], "1", "数学上的 0.3"),
+    A("offset", seq(-8, 8, 17), "ulp", "距窗口中心的距离（单位：窗口中心的 ulp）"),
+    A("value", gen(17, (i) => 0.3 + (i - 8) * 5.551115123125783e-17), "1", "可表示的 double"),
+    A("center_offset", [0], "ulp", "窗口中心"), A("center_y", [0.5], "1", "窗口中心"),
+    A("special_offset", [1], "ulp", "0.1+0.2 的实际值"), A("special_y", [0.5], "1", "0.1+0.2 的实际值"),
     A("k_grid", seq(0, 64, 65), "1", "累加次数 k"),
     A("residual", gen(65, (i) => Math.max(5.551115123125783e-18, (i + 1) * 1.05e-16)), "1", "与数学值 k/10 的残差"),
     A("residual_sum_only", gen(65, (i) => Math.max(5.551115123125783e-18, (i + 1) * 1.1e-16)), "1", "与 k·fl(0.1) 的残差"),
@@ -142,19 +141,22 @@ const FLOAT_ZOOM: FrameDef = {
     A("residual_mark", [6.75e-15], "1", "当前位置的残差"), A("k_mark", [64], "1", "当前位置的累加次数"),
   ],
   meta: {
-    big_plus_one: 1e16, big_plus_one_unchanged: true, boundary: 0.25, boundary_spacing_max: 1, boundary_spacing_min: 0.5,
-    boundary_ulps: 21, center: 0.3, center_log10: -1, ideal_in_window: true, ideal_ulps: 0, k: 64, landing_in_window: true,
-    landing_ulps: 1, mantissa: 3, n_points: 21, residual_0102_03: 5.551115123125783e-17, residual_0102_03_ulps: 1,
-    residual_exact_zero_steps: 3, residual_floor: 5.551115123125783e-18, residual_floor_min: 5.551115123125783e-18,
-    residual_sum_only_exact_zero_steps: 4, residual_sum_only_mark: 7.105427357601002e-15, spacing_center: 5.551115123125783e-17,
-    spacing_max: 1, spacing_min: 1, t: 64, window_hi: 0.3 + 1e-16, window_lo: 0.3 - 1e-16, window_ulps: 21, zoom_log10: 1.3,
+    center: 0.3, focus_kind: 0, k: 64, n_points: 17, residual_0102_03: 5.551115123125783e-17,
+    residual_0102_03_ulps: 1, residual_exact_zero_steps: 3, residual_floor: 5.551115123125783e-18,
+    residual_floor_min: 5.551115123125783e-18, residual_sum_only_exact_zero_steps: 4,
+    residual_sum_only_mark: 7.105427357601002e-15, spacing_center: 5.551115123125783e-17,
+    spacing_below: 5.551115123125783e-17, spacing_above: 5.551115123125783e-17,
+    spacing_below_units: 1, spacing_above_units: 1, spacing_ratio: 1, special_ulps: 1, t: 64, window_ulps: 8,
   },
   strings: {
-    big_note: "1e16 + 1 = 1e16：ulp(1e16) = 2，加 1 落在中点被 ties-to-even 舍回",
-    exact_center: "0.2999999999999999888977698", exact_landing: "0.3000000000000000444089209",
-    marker_note: "红点是 0.1+0.2 的真实落点：它落在 0.3 的上一个 double",
-    note: "0.1+0.2 落在中心之上 1 个 ulp；ulp(center)=5.551e-17，窗口共 21 个可表示数",
-    zero_note: "副轴是对数轴：残差恰好为 0 的步数被地板 u/2·|k/10| 抬起显示，不能读成「误差不为零」。",
+    focus: "sum",
+    center_label: "0.3 的最近 double",
+    special_label: "0.1+0.2 的实际值（比 0.3 大 1 个 ulp）",
+    exact_center: "0.2999999999999999888977698",
+    exact_special: "0.3000000000000000444089209",
+    note: "0.1+0.2 存在 0.3 右边相邻的一个 double 上，两者相差 1 个 ulp。",
+    spacing_note: "在同一个二进制区间内，所有相邻 double 的距离相同。",
+    zero_note: "副轴是对数轴：残差恰好为 0 的步数被地板抬起显示，不能读成「误差不为零」。",
   },
   critical: {},
 };
@@ -337,6 +339,48 @@ test("1.1/float_zoom：960px 说明文字只占右栏，不压绘图区；480px 
       assert.ok(axis.rect[1] + axis.rect[3] + 28 < band[1], `${label} 的 ${axis.id} 轴与 pitfalls 面板之间放不下 xlabel`);
     }
   }
+});
+
+test("1.1/float_zoom：圆点全在横轴内；0.25 边界模式用左右两个括号讲清疏密", async () => {
+  const scene = sceneOf(await frameFor("float_zoom"));
+  const axis = axisOf(scene, "ladder");
+  for (const layer of scene.layers) {
+    if (layer.kind !== "scatter" || layer.axes !== "ladder") continue;
+    for (let i = 0; i < layer.x.length; i += 1) {
+      const x = layer.x[i] as number;
+      assert.ok(x >= axis.xlim[0] && x <= axis.xlim[1], `圆点 x=${x} 跑到轴外`);
+    }
+  }
+  assert.equal(scene.overflow.flag, false, "默认窗口不应触发“溢出”");
+
+  const boundary = await frameFor("float_zoom", {
+    drop: ["special_offset", "special_y"],
+    arrays: {
+      offset: [-4, -3.5, -3, -2.5, -2, -1.5, -1, -0.5, 0, 1, 2, 3, 4],
+      value: seq(0.25 - 8e-17, 0.25 + 8e-17, 13),
+    },
+    meta: {
+      window_ulps: 4,
+      focus_kind: 1,
+      special_ulps: null,
+      spacing_ratio: 2,
+      spacing_below: 2.7755575615628914e-17,
+      spacing_above: 5.551115123125783e-17,
+    },
+    strings: { focus: "boundary", center_label: "2 的幂边界 0.25", special_label: "", exact_special: "" },
+  });
+  const boundaryScene = sceneOf(boundary);
+  assert.deepEqual(validateScene(boundaryScene), []);
+  const labels = boundaryScene.layers
+    .filter((l) => l.kind === "line" && l.axes === "ladder")
+    .flatMap((l) => (l.kind === "line" ? l.series.map((s) => s.label ?? "") : []));
+  assert.ok(labels.some((text) => text.includes("左侧相邻间距")), "左侧要有一格的间距标注");
+  assert.ok(labels.some((text) => text.includes("右侧相邻间距")), "右侧要有一格的间距标注");
+  assert.equal(
+    boundaryScene.layers.filter((l) => l.kind === "scatter" && l.label?.includes("0.1+0.2")).length,
+    0,
+    "边界模式不应画 0.1+0.2 的红点",
+  );
 });
 
 // --------------------------------------------------------------------------- //

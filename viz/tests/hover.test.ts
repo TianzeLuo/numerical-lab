@@ -67,6 +67,19 @@ test("hover：散点、柱、热图与向量场各自给出可读数值", () => 
   assert.equal(dot?.label, "采样点");
   assert.equal(dot?.shape, "point");
 
+  const numberLine = baseScene();
+  numberLine.layers.push(
+    scatterLayer("main", [0.3], [0.5], {
+      label: "可表示的 double",
+      notes: ["精确值 0.29999999999999999"],
+      hideY: true,
+    }),
+  );
+  const [nx, ny] = at(numberLine, 0.3, 0.5);
+  const point = hoverAt(numberLine, nx, ny);
+  assert.equal(point?.detail, "精确值 0.29999999999999999");
+  assert.equal(point?.yText, "", "一维数轴没有有意义的纵坐标");
+
   const bars = baseScene();
   bars.layers.push(barsLayer("main", [0.75], [0.6], { width: 0.16, label: "分箱计数", errors: [0.05] }));
   const [bx, by] = at(bars, 0.75, 0.3);

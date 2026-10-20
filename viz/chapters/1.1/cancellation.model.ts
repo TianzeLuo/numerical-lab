@@ -15,7 +15,7 @@
  * | 8 | scatter | `error` | `roundoff` 贴地板的点（全部 31 个：这就是「恒为 0」的样子） |
  *
  * 角标槽位（固定，见 `SLOT`）：0 来源 / 1 主轴固定 0..16 / 2 副轴自适应 / 3 临界（`input_digits`
- * 的 15.95 = log10(2^53)）/ 4 状态（note + Sterbenz + 时间轴口径）/ 5 前端预览 / 6 溢出 /
+ * 的 15.95 = log10(2^53)）/ 4 状态（note + Sterbenz）/ 5 前端预览 / 6 溢出 /
  * 7 降级说明。
  *
  * 几条刻意的决定
@@ -23,16 +23,13 @@
  * 1. **主轴固定 `[0, 16]`，刻度只落在整数上**：manifest 声明 `autoscaled: false`，
  *    标题写着"剩余有效位数（固定 0..16）"。定死之后"每抵消 10 倍少一位"就是一条**斜率 −1
  *    的直线**，不需要看图例；`xticks`/`yticks` 都按整数位给（这条轴只能整位读）。
- *    注意曲线本身是**先验估计**（`log10(|a−b|/(δ_in·M))`，帧里是连续值），
- *    "整数"是**读法**不是数据的量化——文本里写清这一点（pitfalls 2b）。
+ *    曲线本身是先验估计（帧里是连续值），"整数"是读法而不是数据的量化。
  * 2. **副轴上要有三条线，尤其是那条"贴地板"的**：爆炸的是**输入自带**的误差
  *    （`error`），理论上界是 `error_theory`，而减法自身的舍入误差 `roundoff` 恒为 0
  *    （Sterbenz 引理）——后端把它抬到地板 `u/2` 才画得出来。三条同屏、颜色区分，
  *    "减法不稳定"这条都市传说在图上当场被反驳。
- * 3. **时间轴 t 不进入本 viz 的计算**：帧的数据（数组与 meta）只由 a、b、input_digits、
- *    perturb_ulps 决定——实测 t=0 与 t=16 两帧的数组**逐位相同**（见交付说明里的
- *    "发现的 Python 层问题"）。所以模型把游标画在**实测**损失位数 `meta.loss_mark`
- *    上，而不是请求的 `opts.t`；文本里如实写明这条口径，不假装拖动时间轴换了数据。
+ * 3. **没有时间轴**：帧只由 a、b、input_digits、perturb_ulps 决定。游标画在
+ *    `meta.loss_mark` 给出的当前损失位数上；页面只提供参数控件，不假装拖动时间会换数据。
  * 4. **`degenerate` 如实说明**：b 与 a 完全相等时后端取相邻的 1 个 ulp 代替并置
  *    `meta.degenerate`，否则 `log(0)` 会让整张图消失。模型把它写进状态角标与文本。
  */
@@ -43,7 +40,6 @@ import type { Frame } from "../../shared/src/frame.js";
 import {
   applyOverflow,
   canvasSize,
-  clamp,
   criticalOf,
   dataSourceOf,
   degradedBadge,
@@ -183,7 +179,8 @@ export const cancellationModel: SceneModel = (frame, opts) => {
   const tLo = tRange[0];
   const tHi = tRange[1];
   const mainAxis = makeAxis("digits", mainRect, {
-    xlim: [Math.min(0, Math.floor(tLo)), Math.max(DIGITS_LIM[1], Math.ceil(tHi))],
+    // 左右各留一点余量：当前损失位数贴到 t=16 时，红色圆点不会压在右边框上被裁掉。
+    xlim: [Math.min(0, Math.floor(tLo)) - 0.4, Math.max(DIGITS_LIM[1], Math.ceil(tHi)) + 0.4],
     ylim: DIGITS_LIM,
     // 这条轴名在显示层的 HTML 面板说明里由标题给出；画在画布上会撞到下方说明带。
     xlabel: "",
@@ -217,15 +214,20 @@ export const cancellationModel: SceneModel = (frame, opts) => {
   });
   scene.axes.push(mainAxis, auxAxis);
 
-  // —— 图层 1：游标（画在**实测**损失位数上；t 不驱动本帧的数据，见文件头第 3 条）——
-  const tNow = lossMark ?? clamp(opts.t, mainAxis.xlim[0], mainAxis.xlim[1]);
-  scene.layers.push(
-    lineLayer(
-      "digits",
-      series([tNow, tNow], DIGITS_LIM, pal.cursor, { width: 1, dash: [3, 3], label: "当前损失位数" }),
-    ),
-    lineLayer("error", series([tNow, tNow], auxAxis.ylim, pal.cursor, { width: 1, dash: [3, 3] })),
-  );
+  // —— 游标：位置由当前 a、b 决定（不存在的 t 不猜）——
+  if (lossMark !== undefined) {
+    scene.layers.push(
+      lineLayer(
+        "digits",
+        series([lossMark, lossMark], DIGITS_LIM, pal.cursor, {
+          width: 1,
+          dash: [3, 3],
+          label: "当前 a、b 对应的损失位数",
+        }),
+      ),
+      lineLayer("error", series([lossMark, lossMark], auxAxis.ylim, pal.cursor, { width: 1, dash: [3, 3] })),
+    );
+  }
 
   // —— 图层 2：先验剩余有效位数（斜率 −1 的直线）——
   const digitsSeries = segmentedSeries(lossGrid, digitsRemaining, pal.curves[0] ?? "#2b6cb0", {
@@ -326,10 +328,13 @@ export const cancellationModel: SceneModel = (frame, opts) => {
         (condSubtraction === undefined ? "" : `（减法条件数 ${formatNumber(condSubtraction, 4)}）`),
     );
   }
-  legend.push("横轴=损失位数 t = log10(M/|a−b|)　纵轴=剩余有效位数（固定 0..16，刻度按整数位读；纵轴是先验估计，不是对某一次计算的误差测量）");
   legend.push(
-    "时间轴口径：t 不进入本帧的计算（实测 t=0 与 t=16 两帧的数组逐位相同）——" +
-      `游标画在**实测**损失位数 ${lossMark === undefined ? "（缺 loss_mark）" : formatNumber(lossMark, 4)} 上，不假装 t 就是它`,
+    "横轴 = 损失位数 t（抵消掉多少个十进制位）　纵轴 = 剩余有效位数（先验估计，范围 0..16）",
+  );
+  legend.push(
+    lossMark === undefined
+      ? "帧缺 loss_mark：不画当前游标（不拿请求时刻冒充损失位数）"
+      : `虚线游标由当前 a、b 决定：t=${formatNumber(lossMark, 4)}。这张图没有时间轴，改参数才换数据。`,
   );
   scene.texts.push(...textBlock(mainRect[0] + 6, textTop(mainRect), textBottom(mainRect), legend, pal.muted, mainBudget, "bottom"));
 
@@ -391,7 +396,7 @@ export const cancellationModel: SceneModel = (frame, opts) => {
     countNonFinite(roundoff);
   applyOverflow(scene, nBad, { slot: SLOT.overflow, width });
   if (frameOverflow) {
-    const note2 = [scene.overflow.note, "帧 meta.overflow=true：放大后的相对误差已经 > 1（结果一位有效数字都不剩）"]
+    const note2 = [scene.overflow.note, "放大后的相对误差已经超过 100%：相减后连一位有效数字都没有剩下。"]
       .filter((s) => s.length > 0)
       .join("；");
     scene.overflow = { flag: true, note: note2 };

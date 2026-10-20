@@ -1134,7 +1134,10 @@ def validate_scene(scene: Any) -> list[str]:
                 issues.append(f"徽标类型未知：{b.get('kind')!r}")
             if not b.get("text"):
                 issues.append("徽标文本不得为空")
-        issues.extend(_badge_layout_issues(s, badges))
+        # `chrome.badges=false` 的显示场景不把角标画上画布（HTML 负责），
+        # 画布坐标校验对它没有意义。
+        if (s.get("chrome") or {}).get("badges", True) is not False:
+            issues.extend(_badge_layout_issues(s, badges))
     issues.extend(_text_deco_issues(s))
 
     overflow = s.get("overflow")

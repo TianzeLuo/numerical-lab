@@ -71,7 +71,20 @@ export interface BandSpec {
 export type Layer =
   | { kind: "line"; axes: string; series: LineSeries[] }
   | { kind: "band"; axes: string; band: BandSpec }
-  | { kind: "scatter"; axes: string; x: ArrayLike<number>; y: ArrayLike<number>; r: number; color: string; label?: string; alpha?: number }
+  | {
+      kind: "scatter";
+      axes: string;
+      x: ArrayLike<number>;
+      y: ArrayLike<number>;
+      r: number;
+      color: string;
+      label?: string;
+      alpha?: number;
+      /** 逐点补充说明（例如该可表示浮点数的精确十进制），悬停时显示。 */
+      notes?: readonly string[];
+      /** 一维示意行（数轴、格点）没有有意义的纵坐标时，悬停只显示横坐标。 */
+      hideY?: boolean;
+    }
   | {
       kind: "heat";
       axes: string;
@@ -516,7 +529,10 @@ export function validateScene(scene: unknown): string[] {
       h: BADGE_BOX_H,
       ok: Number.isFinite(Number(b.x)) && Number.isFinite(Number(b.y)),
     }));
-    for (const box of boxes) {
+    // 网页显示层设 chrome.badges=false：角标不画在画布上，而由 HTML 自己排版。
+    // 这时再拿画布坐标校验“越界/重叠”只会制造假错误（窄屏尤其明显）。
+    const badgesVisible = s.chrome?.badges !== false;
+    if (badgesVisible) for (const box of boxes) {
       const label = String(box.b.text ?? "").slice(0, 16);
       if (!box.ok) {
         issues.push(`徽标 ${label}… 坐标非有限`);
@@ -702,9 +718,20 @@ export function scatterLayer(
   axes: string,
   x: ArrayLike<number>,
   y: ArrayLike<number>,
-  opts: { r?: number; color?: string; label?: string; alpha?: number } = {},
+  opts: { r?: number; color?: string; label?: string; alpha?: number; notes?: readonly string[]; hideY?: boolean } = {},
 ): Layer {
-  return { kind: "scatter", axes, x, y, r: opts.r ?? 2.5, color: opts.color ?? "#4c78a8", label: opts.label, alpha: opts.alpha };
+  return {
+    kind: "scatter",
+    axes,
+    x,
+    y,
+    r: opts.r ?? 2.5,
+    color: opts.color ?? "#4c78a8",
+    label: opts.label,
+    alpha: opts.alpha,
+    ...(opts.notes === undefined ? {} : { notes: opts.notes }),
+    ...(opts.hideY === true ? { hideY: true } : {}),
+  };
 }
 
 export function heatLayer(

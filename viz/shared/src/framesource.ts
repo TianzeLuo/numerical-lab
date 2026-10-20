@@ -442,12 +442,13 @@ export function wsChapterUrl(baseUrl: string | undefined, chapter: string): stri
 }
 
 /**
- * L2 单帧 URL：`/api/chapter/<id>/frame?viz=..&params=<base64url json>&t=<%.6g>`。
+ * L2 单帧 URL：`/api/chapter/<id>/frame?viz=..&params=<base64url json>&t=<精确值>`。
  *
  * ⚠ `&t=` 是**本实现补上的**：PROTOCOLS §3 的表里 `/frame` 没有 `t` 参数，但 `time.mode`
  * 为 `scrub`/`stream` 的 viz 在降级到 L2 之后必须能取指定时刻的帧，否则时间轴就是死的。
- * 时刻写法与 L3 文件名一致（`%.6g`），便于服务端做同一套缓存键。已在交付汇报里提请注意，
- * 待 PROTOCOLS 补齐。
+ * 时刻**不能**用 `%.6g`：例如时间上限 6.2831853 会被写成 6.28319，反而超出服务端上限
+ * （3.2 章真踩过，表现为拖到末尾突然「取不到帧」）。这里用 JS 的最短往返写法，
+ * 服务端按 float 解析；L3 文件名仍由 `formatPyG(..., 6)` 单独负责。
  */
 export function restFrameUrl(
   baseUrl: string | undefined,
@@ -459,7 +460,7 @@ export function restFrameUrl(
 ): string {
   return (
     `${trimBase(baseUrl)}/api/chapter/${encodeURIComponent(chapter)}/frame` +
-    `?viz=${encodeURIComponent(viz)}&params=${encodeParams(params, opts)}&t=${formatPyG(t, 6)}`
+    `?viz=${encodeURIComponent(viz)}&params=${encodeParams(params, opts)}&t=${encodeURIComponent(String(t))}`
   );
 }
 
@@ -481,7 +482,7 @@ export function restFramesUrl(
   const count = Math.max(1, Math.round(Number.isFinite(n) ? n : 1));
   return (
     `${trimBase(baseUrl)}/api/chapter/${encodeURIComponent(chapter)}/frames` +
-    `?viz=${encodeURIComponent(viz)}&params=${encodeParams(params)}&t=${formatPyG(t, 6)}&n=${count}`
+    `?viz=${encodeURIComponent(viz)}&params=${encodeParams(params)}&t=${encodeURIComponent(String(t))}&n=${count}`
   );
 }
 
@@ -599,6 +600,7 @@ export class ChapterFrameSource {
   #tickTimer: unknown = null;
   #inflightTimer: unknown = null;
   #retryTimer: unknown = null;
+  #heartbeatTimer: unknown = null;
 
   constructor(opts: FrameSourceOptions) {
     this.#chapter = opts.chapter;
@@ -811,12 +813,38 @@ export class ChapterFrameSource {
     if (this.#frames !== undefined) time["frames"] = this.#frames;
     this.#send({ type: "subscribe", chapter: this.#chapter, viz: this.#viz, params: this.#params, time });
     this.#setStatus("ws", `L1 WebSocket 已连接（${url}）：实时计算，参数可连续拖动`, 1);
+    this.#startHeartbeat();
     return true;
+  }
+
+  /**
+   * WebSocket 空闲心跳。服务端把「30 s 没有收到任何控制消息」当作超时并关闭连接；
+   * 页面停留、只悬停读图时，客户端本来不会再发消息。每 10 s 发一个 `ping`
+   * （服务端回 `pong`）把连接保持住，避免读到一半突然掉回 REST。
+   */
+  #startHeartbeat(): void {
+    this.#stopHeartbeat();
+    // 固定 10 s：后端空闲阈值是 30 s，这个频率留了 3 倍余量；与单帧请求超时无关。
+    const interval = 10_000;
+    const beat = (): void => {
+      this.#heartbeatTimer = null;
+      if (this.#disposed || !this.#wsOpen) return;
+      this.#send({ type: "ping", t: this.#now() });
+      this.#heartbeatTimer = this.#setTimer(beat, interval);
+    };
+    this.#heartbeatTimer = this.#setTimer(beat, interval);
+  }
+
+  #stopHeartbeat(): void {
+    if (this.#heartbeatTimer === null) return;
+    this.#clearTimer(this.#heartbeatTimer);
+    this.#heartbeatTimer = null;
   }
 
   #onWsClosed(ev: unknown): void {
     this.#wsOpen = false;
     this.#ws = null;
+    this.#stopHeartbeat();
     if (this.#disposed) return;
     const detail = closeEventText(ev);
     const reason = detail === "" ? "连接被关闭" : `连接被关闭（${detail}）`;
@@ -1345,6 +1373,7 @@ export class ChapterFrameSource {
       this.#tickTimer = null;
     }
     this.#clearInflightTimer();
+    this.#stopHeartbeat();
     if (this.#retryTimer !== null) {
       this.#clearTimer(this.#retryTimer);
       this.#retryTimer = null;

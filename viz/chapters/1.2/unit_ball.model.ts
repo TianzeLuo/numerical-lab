@@ -77,6 +77,7 @@ import {
   lineLayer,
   makeAxis,
   overflowBadge,
+  pitfallsBand,
   previewBadge,
   scatterLayer,
   series,
@@ -206,7 +207,11 @@ export const unitBallModel: SceneModel = (frame, opts) => {
   // 为什么不用 `columnsLayout`：它的左列高度是 `stackedPanels` 的主面板高度
   // （`mainShare` 缺省 0.56 → 960×600 下只有 211px），单位圆会被挤成一个小方块。
   // 这里直接拿内容区的 top/bottom 自己算方形，**圆必须看起来是圆的**（见文件头第 1 条）。
-  const base = stackedPanels(width, height);
+  // 底部 pitfalls 的文案长度会变：把内容底边抬到它的上方，再给轴下说明留 42px。
+  // 不这么做时，改一段长文案就会让最后一行说明压进 pitfalls 面板（规则 8 会当场拒绝）。
+  const band = pitfallsBand({ canvas: { w: width, h: height }, pitfalls });
+  const footer = band === null ? 102 : Math.max(102, height - band[1] + 42);
+  const base = stackedPanels(width, height, { footer });
   const side = Math.max(110, Math.floor(Math.min(base.bottom - base.top, base.contentWidth * 0.5)));
   const mainRect: Rect = [base.left, base.top, side, side];
   // 右列留出它自己的 y 轴刻度与 ylabel（render2d 把 ylabel 画在轴左侧 42px 处）。

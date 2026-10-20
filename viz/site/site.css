@@ -843,6 +843,15 @@ math[display="block"] {
   line-height: 1.6;
 }
 
+.nl-glossary-item dd p {
+  display: inline;
+  margin: 0;
+}
+
+.nl-glossary-item dd math {
+  font-size: 1.02em;
+}
+
 .chapter-meta {
   display: flex;
   flex-wrap: wrap;
@@ -1468,6 +1477,45 @@ html[data-theme="dark"] .nl-btn-primary:hover {
   overflow-wrap: anywhere;
 }
 
+.nl-figure-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  padding: 9px 15px 8px;
+  border-top: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-size: 11px;
+  line-height: 1.65;
+}
+
+.nl-figure-note-label {
+  flex: none;
+  margin-top: 1px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-family: var(--mono);
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.nl-figure-note-text {
+  min-width: 0;
+}
+
+.nl-figure-note-text p {
+  margin: 0;
+}
+
+.nl-figure-note-text math {
+  font-size: 1.02em;
+}
+
 .nl-source-note {
   margin: 0;
   padding: 9px 15px;
@@ -1553,6 +1601,8 @@ html[data-theme="dark"] .nl-btn-primary:hover {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  max-width: 100%;
+  min-width: 0;
   padding: 3px 7px;
   border-radius: 6px;
   background: var(--surface-2);
@@ -1561,16 +1611,17 @@ html[data-theme="dark"] .nl-btn-primary:hover {
   line-height: 1.5;
 }
 
+/* 图例文字不截断：它承担“这条线/这个点是什么”的说明，省略号会把关键信息吃掉。
+   太长的标签在条目内折行，而不是变成不可读的省略文本。 */
 .nl-legend-text {
-  max-width: 32ch;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  max-width: 38ch;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 @media (max-width: 760px) {
   .nl-legend-text {
-    max-width: 25ch;
+    max-width: 100%;
   }
 }
 
@@ -1648,7 +1699,13 @@ html[data-theme="dark"] .nl-btn-primary:hover {
   display: flex;
   flex-wrap: wrap;
   gap: 5px;
-  padding: 5px 15px 8px;
+  padding: 7px 15px 2px;
+}
+
+.nl-chart-top + .nl-badge-row {
+  border-bottom: 1px solid var(--line);
+  padding: 8px 15px;
+  background: var(--surface-2);
 }
 
 .nl-state-chip {
@@ -1950,6 +2007,13 @@ html[data-theme="dark"] .nl-btn-primary:hover {
   line-height: 1.5;
 }
 
+.nl-control-value-box {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  gap: 3px;
+}
+
 .nl-control-value {
   flex: none;
   padding: 1px 6px;
@@ -1962,9 +2026,49 @@ html[data-theme="dark"] .nl-btn-primary:hover {
   white-space: nowrap;
 }
 
+.nl-control-value-input {
+  width: 9.5ch;
+  min-width: 7ch;
+  max-width: 15ch;
+  padding: 2px 6px;
+  text-align: right;
+  line-height: 1.35;
+  outline: none;
+  transition: border-color 0.16s, background-color 0.16s, box-shadow 0.16s;
+}
+
+.nl-control-value-input:hover {
+  border-color: var(--line-strong);
+  background: var(--surface);
+}
+
+.nl-control-value-input:focus {
+  border-color: var(--accent);
+  background: var(--surface);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.nl-control-unit {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 9.5px;
+  white-space: nowrap;
+}
+
 .nl-slider-wrap {
   position: relative;
   margin: 10px 0 1px;
+}
+
+.nl-range-limits {
+  display: flex;
+  justify-content: space-between;
+  margin-top: -2px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 8.5px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.4;
 }
 
 .nl-marks {
@@ -2030,13 +2134,22 @@ html[data-theme="dark"] .nl-btn-primary:hover {
   cursor: pointer;
 }
 
-.nl-control-more p {
-  margin: 6px 0 0;
+.nl-control-more-body {
+  margin-top: 6px;
   padding: 8px 9px;
   border-radius: 7px;
   background: var(--surface-2);
   color: var(--ink-2);
   font-size: 9.8px;
+  line-height: 1.65;
+}
+
+.nl-control-more-body p {
+  margin: 0;
+}
+
+.nl-control-more-body p + p {
+  margin-top: 6px;
 }
 
 .nl-segmented {
@@ -3220,52 +3333,7 @@ html[data-theme="dark"] .nl-btn-primary:hover {
 }
 
 @media (max-width: 430px) {
-  .nl-glossary {
-  margin: 16px 0 0;
-  padding: 12px 14px 11px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--surface-2) 72%, transparent);
-}
-
-.nl-glossary-title {
-  margin: 0;
-  color: var(--muted);
-  font-family: var(--mono);
-  font-size: 8.5px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-}
-
-.nl-glossary-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-  gap: 7px 22px;
-  margin: 9px 0 0;
-}
-
-.nl-glossary-item {
-  display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
-  gap: 2px 8px;
-  align-items: baseline;
-}
-
-.nl-glossary-item dt {
-  color: var(--ink);
-  font-size: 11px;
-  font-weight: 650;
-  white-space: nowrap;
-}
-
-.nl-glossary-item dd {
-  margin: 0;
-  color: var(--muted);
-  font-size: 10.5px;
-  line-height: 1.6;
-}
-
-.chapter-meta {
+  .chapter-meta {
     gap: 5px;
   }
 

@@ -15,6 +15,7 @@
  */
 
 import { governingCritical } from "./manifest.js";
+import { renderRichText } from "./math.js";
 import type { BeyondDirection, ParamSpecJson, ParamType, VizSpecJson } from "./manifest.js";
 import type { ParamValue, ParamValues } from "./share.js";
 
@@ -294,10 +295,46 @@ export function mountControls(
     label.className = "nl-control-label";
     label.textContent = spec.label;
     label.htmlFor = `nl-${viz.id}-${spec.name}`;
-    const output = document.createElement("output");
-    output.className = "nl-control-value";
-    head.append(label, output);
+    const valueBox = document.createElement("span");
+    valueBox.className = "nl-control-value-box";
+
+    // 数值参数直接给可编辑输入框：滑轨适合快速扫范围，尾数/相邻 ulp 这类
+    // 需要很多有效数字的值只能靠键入。输入框与滑轨共用同一份 `current`，
+    // 键入走 clampParam，非法输入恢复为上一次的值，不会把 NaN 发给后端。
+    const editable = spec.type === "int" || spec.type === "float";
+    const editor: HTMLInputElement | null = editable ? document.createElement("input") : null;
+    let output: HTMLElement;
+    if (editor !== null) {
+      editor.type = "text";
+      editor.inputMode = "decimal";
+      editor.spellcheck = false;
+      editor.autocomplete = "off";
+      editor.className = "nl-control-value nl-control-value-input";
+      editor.id = label.htmlFor;
+      editor.setAttribute("aria-label", `${spec.label}：可直接输入精确数值`);
+      output = editor;
+    } else {
+      const textOut = document.createElement("output");
+      textOut.className = "nl-control-value";
+      output = textOut;
+    }
+    if (editor !== null) editor.setAttribute("aria-describedby", `${label.htmlFor}-note`);
+    valueBox.append(output);
+    if (spec.unit !== "") {
+      valueBox.append(Object.assign(document.createElement("span"), {
+        className: "nl-control-unit",
+        textContent: spec.unit,
+      }));
+    }
+    // 枚举与开关的状态已经由分段按钮 / 开关本身显示，右上角再重复一遍只是噪声。
+    if (!editable) valueBox.hidden = true;
+    head.append(label, valueBox);
     row.append(head);
+
+    const showText = (text: string): void => {
+      if (editor !== null) editor.value = text;
+      else output.textContent = text;
+    };
 
     const commit = (raw: unknown): void => {
       const value = clampParam(param, raw);
@@ -318,6 +355,8 @@ export function mountControls(
         btn.type = "button";
         btn.className = "nl-segment";
         btn.textContent = option;
+        btn.title = option;
+        btn.setAttribute("aria-label", `${spec.label}：${option}`);
         btn.addEventListener("click", () => {
           const value = clampParam(param, option);
           current[spec.name] = value;
@@ -334,9 +373,9 @@ export function mountControls(
           btn.classList.toggle("is-active", on);
           btn.setAttribute("aria-pressed", on ? "true" : "false");
         }
-        output.textContent = String(value);
+        showText(String(value));
       };
-      output.textContent = String(spec.value);
+      showText(String(spec.value));
     } else if (spec.type === "bool") {
       const wrap = document.createElement("label");
       wrap.className = "nl-switch";
@@ -364,22 +403,22 @@ export function mountControls(
         const on = value === true;
         input.checked = on;
         state.textContent = on ? "开启" : "关闭";
-        output.textContent = on ? "开" : "关";
+        showText(on ? "开" : "关");
       };
-      output.textContent = spec.value === true ? "开" : "关";
+      showText(spec.value === true ? "开" : "关");
     } else {
       const kind = inputKind(spec);
       const trackWrap = document.createElement("div");
       trackWrap.className = "nl-slider-wrap";
 
       const input = document.createElement("input");
-      input.id = label.htmlFor;
       input.className = kind === "range" ? "nl-range" : "nl-number";
       input.type = kind;
       if (spec.min !== null) input.min = String(spec.min);
       if (spec.max !== null) input.max = String(spec.max);
       input.step = String(stepOf(spec));
       input.value = String(spec.value);
+      input.setAttribute("aria-label", `${spec.label}（滑轨）`);
       input.setAttribute("aria-describedby", `${label.htmlFor}-note`);
       trackWrap.append(input);
 
@@ -411,6 +450,17 @@ export function mountControls(
       }
       row.append(trackWrap);
 
+      if (kind === "range" && spec.min !== null && spec.max !== null) {
+        const limits = document.createElement("div");
+        limits.className = "nl-range-limits";
+        limits.setAttribute("aria-hidden", "true");
+        limits.append(
+          Object.assign(document.createElement("span"), { textContent: numberText(spec.min) }),
+          Object.assign(document.createElement("span"), { textContent: numberText(spec.max) }),
+        );
+        row.append(limits);
+      }
+
       const note = document.createElement("p");
       note.className = "nl-control-note";
       note.id = `${label.htmlFor}-note`;
@@ -424,8 +474,9 @@ export function mountControls(
         more.className = "nl-control-more";
         const summary = document.createElement("summary");
         summary.textContent = "这个临界值意味着什么";
-        const body = document.createElement("p");
-        body.textContent = spec.criticalNote;
+        const body = document.createElement("div");
+        body.className = "nl-control-more-body";
+        body.innerHTML = renderRichText(spec.criticalNote);
         more.append(summary, body);
         row.append(more);
       }
@@ -437,14 +488,50 @@ export function mountControls(
         commit(value);
       });
 
+      if (editor !== null) {
+        editor.addEventListener("focus", () => editor.select());
+        editor.addEventListener("change", () => {
+          const raw = editor.value.trim();
+          const parsed = raw === "" ? Number.NaN : Number(raw);
+          if (!Number.isFinite(parsed)) {
+            setVisual(current[spec.name] ?? spec.value);
+            return;
+          }
+          const value = clampParam(param, parsed);
+          setVisual(value);
+          commit(value);
+        });
+        editor.addEventListener("keydown", (ev) => {
+          if (ev.key === "Enter") {
+            ev.preventDefault();
+            editor.blur();
+          } else if (ev.key === "Escape") {
+            ev.preventDefault();
+            setVisual(current[spec.name] ?? spec.value);
+            editor.blur();
+          } else if (ev.key === "ArrowUp" || ev.key === "ArrowDown") {
+            ev.preventDefault();
+            const now = Number(current[spec.name]);
+            if (!Number.isFinite(now)) return;
+            const delta = stepOf(spec) * (ev.key === "ArrowUp" ? 1 : -1);
+            const value = clampParam(param, now + delta);
+            setVisual(value);
+            commit(value);
+          }
+        });
+      }
+
       setVisual = (value) => {
         const numeric = typeof value === "number" ? value : Number(value);
         if (!(typeof value === "number") || !Number.isFinite(value)) {
-          output.textContent = String(value);
+          showText(String(value));
           return;
         }
         input.value = String(value);
-        output.textContent = unitText(value, spec.unit);
+        // 输入框保留完整往返写法（例如 0.999999、1e-12），不用 6 位有效数字截断；
+        // 参数值本身仍由 clampParam 校验，显示不改变数值。
+        showText(String(value));
+        if (editor !== null) editor.title = unitText(value, spec.unit);
         const pct = pctOf(spec, numeric);
         if (pct !== null) input.style.setProperty("--fill", `${pct.toFixed(3)}%`);
         const governing = governingCritical(param, numeric);
@@ -495,9 +582,13 @@ export function mountControls(
   reset.addEventListener("click", resetAll);
   const hint = document.createElement("span");
   hint.className = "nl-controls-hint";
-  hint.textContent = specs.some((s) => s.critical.length > 0)
-    ? "滑轨上的细线标出理论临界值，点击可直接跳过去。"
-    : "调整参数后，图形会立即重画。";
+  const numeric = specs.some((s) => s.type === "int" || s.type === "float");
+  hint.textContent = [
+    numeric ? "滑轨用于快速扫范围；右侧数字框可直接键入精确值，↑↓ 微调。" : "",
+    specs.some((s) => s.critical.length > 0) ? "滑轨上的细线标出理论临界值，点击可直接跳过去。" : "",
+  ]
+    .filter((line) => line !== "")
+    .join(" ");
   foot.append(reset, hint);
   root.append(foot);
 

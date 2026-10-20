@@ -170,10 +170,11 @@ export const resolutionModel: SceneModel = (frame, opts) => {
   const thrAxis = makeAxis("threshold", thrRect, {
     xlim: [spanRange[0], spanRange[1]],
     ylim: [-0.25, 1.25],
-    xlabel: "观测点数 N（T 固定 = 1）",
+    xlabel: "观测点数 N（对数轴；T 固定 = 1）",
     ylabel: axisYlabel(VIZ, "threshold", "可分辨（1/0）"),
     title: axisTitle(VIZ, "threshold", "能否分辨 vs 观测长度"),
     autoscaled: axisAutoscaled(VIZ, "threshold"),
+    xscale: "log",
     xticks: thinTicks(spanN, 4),
   });
 
@@ -185,10 +186,11 @@ export const resolutionModel: SceneModel = (frame, opts) => {
     xlim: [spanRange[0], spanRange[1]],
     ylim: errYlim,
     yscale: "log",
-    xlabel: "观测点数 N（与左侧同一段）",
+    xlabel: "观测点数 N（对数轴；水平线是当前误差，不是随 N 扫描）",
     ylabel: axisYlabel(VIZ, "error", "max|delta|"),
-    title: axisTitle(VIZ, "error", "|FFT − DFT|"),
+    title: axisTitle(VIZ, "error", "当前 N 的 |FFT − DFT| 水平（对数）"),
     autoscaled: true,
+    xscale: "log",
     xticks: thinTicks(spanN, 4),
   });
   scene.axes.push(specAxis, thrAxis, errAxis);
@@ -268,13 +270,26 @@ export const resolutionModel: SceneModel = (frame, opts) => {
   }
 
   // —— 图层 7：对拍误差（requiredAux）——
-  const errSeries = segmentedSeries(indexOf(error.length), absOf(error), pal.residual, {
-    width: 1.4,
-    accept: (v) => v > 0,
-    label: "|FFT − DFT|",
-  });
-  if (errSeries.length > 0) scene.layers.push(lineLayer("error", errSeries));
-  else degraded.push("帧 error 没有 >0 的有限值：对数副轴画不出任何点");
+  // 帧里的 error 是「当前 N 的 max|FFT−DFT|」铺满 N 点，不是随 N 扫描的曲线。
+  // 按 0..N−1 的样本序号画会整段跑出以 N 为横轴的坐标区（真报过溢出）；这里画成
+  // 一条明确的误差水平线，并在当前 N 处标一个点。
+  const errLevelRaw = maxError ?? (error.length > 0 ? Number(error[0]) : Number.NaN);
+  if (Number.isFinite(errLevelRaw) && errLevelRaw > 0) {
+    scene.layers.push(
+      lineLayer("error", series([spanRange[0], spanRange[1]], [errLevelRaw, errLevelRaw], pal.residual, {
+        width: 1.4,
+        dash: [5, 4],
+        label: "当前 N 的 |FFT−DFT| 水平（不随 N 扫描）",
+      })),
+    );
+    if (n !== undefined) {
+      scene.layers.push(
+        scatterLayer("error", [n], [errLevelRaw], { r: 3.8, color: pal.marker, label: "当前 N 的对拍误差" }),
+      );
+    }
+  } else {
+    degraded.push("帧 error / max_error 没有 >0 的有限值：对数副轴画不出误差水平");
+  }
 
   // —— 文本：面板内只放"身份行"，长句子全部进底部横条 ——
   const summary = paramSummary(frame, opts, [
@@ -374,11 +389,6 @@ export const resolutionModel: SceneModel = (frame, opts) => {
 // --------------------------------------------------------------------------- //
 // 局部工具
 // --------------------------------------------------------------------------- //
-
-/** `0…n−1` 的整数序列（误差曲线是"逐点"的，横轴就是样本序号）。 */
-function indexOf(n: number): number[] {
-  return Array.from({ length: n }, (_, i) => i);
-}
 
 /** 从 `values` 里取前 `count` 个采样点当刻度（它们本身不是整值，niceTicks 会对不上）。 */
 function thinTicks(values: ArrayLike<number>, count: number): number[] {

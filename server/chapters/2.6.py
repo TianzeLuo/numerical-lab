@@ -100,15 +100,15 @@ MANIFEST: dict[str, Any] = {
                  'critical': [], 'criticalNote': ''},
                 {'name': 'n', 'label': '样本数 n', 'type': 'int', 'min': 64, 'max': 1024,
                  'default': 256, 'critical': [256.0],
-                 'criticalNote': 'n 决定层数的天花板：第 j 层的系数个数约为 n/2^j，'
-                                 '层数越过 log2(n) 就没有系数可分了。'},
+                 'criticalNote': '$n$ 决定层数的天花板：第 $j$ 层的系数个数约为 $n/2^j$，'
+                                 '层数越过 $\\log_2n$ 就没有系数可分了。'},
                 {'name': 'wavelet', 'label': '小波', 'type': 'enum',
                  'options': list(WAVELET_OPTIONS), 'default': 'db4',
                  'critical': [], 'criticalNote': ''},
                 {'name': 'level', 'label': '分解层数 J', 'type': 'int', 'min': 1, 'max': 6,
                  'default': 4, 'critical': [4.0],
-                 'criticalNote': '最粗近似的系数个数 ≈ n/2^J；J=4（n=256、db4）时只剩 18 个，'
-                                 '已与滤波器长度 L=8 同量级——再往下分，"近似"几乎全是延拓的产物。'},
+                 'criticalNote': '最粗近似的系数个数 $\\approx n/2^J$；$J=4$（$n=256$、db4）时只剩 $18$ 个，'
+                                 '已与滤波器长度 $L=8$ 同量级——再往下分，"近似"几乎全是延拓的产物。'},
                 {'name': 'mode', 'label': '边界延拓', 'type': 'enum',
                  'options': list(MODE_OPTIONS), 'default': 'symmetric',
                  'critical': [], 'criticalNote': ''},
@@ -123,14 +123,14 @@ MANIFEST: dict[str, Any] = {
                 {'id': 'error', 'autoscaled': True, 'title': '重构误差 |x_hat - x|',
                  'ylabel': 'max|delta|', 'scale': 'log'},
             ],
-            'pitfalls': '系数树的横轴是"系数下标"，不是时间：第 j 层的一个系数对应 2^j 个样本，'
-                        '把各层的分支画成等宽会把最粗那层放大 2^J 倍。另一个更常见的误读是'
+            'pitfalls': '系数树的横轴是"系数下标"，不是时间：第 $j$ 层的一个系数对应 $2^j$ 个样本，'
+                        '把各层的分支画成等宽会把最粗那层放大 $2^J$ 倍。另一个更常见的误读是'
                         '"细节系数小 = 这层没信息"——细节系数小也可能只是这一层被边界延拓主导：'
                         '本页每帧都报出边界系数占比，读图前先看它。',
-            'theory': ['多分辨分析：V_J 嵌套、L2 = clos(∪ V_j) 且 ∩ V_j = {0}',
-                       '二尺度方程 phi(t) = sqrt2 sum h_j phi(2t-j)',
-                       '完美重构 x = x_J + sum_j w_j（到舍入级）',
-                       '系数个数按 2^j 递减，能量按 |coeff|^2 记账'],
+            'theory': ['多分辨分析：$V_J$ 嵌套、$L^2=\\mathrm{clos}(\\bigcup_jV_j)$ 且 $\\bigcap_jV_j=\\{0\\}$',
+                       '二尺度方程 $\\phi(t)=\\sqrt2\\sum_jh_j\\phi(2t-j)$',
+                       '完美重构 $x=x_J+\\sum_jw_j$（到舍入级）',
+                       '系数个数按 $2^j$ 递减，能量按 $|\\mathrm{coeff}|^2$ 记账'],
         },
         {
             'id': 'time_scale_map',
@@ -148,11 +148,11 @@ MANIFEST: dict[str, Any] = {
                  'critical': [], 'criticalNote': ''},
                 {'name': 'level', 'label': '尺度层数 J', 'type': 'int', 'min': 2, 'max': 5,
                  'default': 4, 'critical': [5.0],
-                 'criticalNote': 'J 层之后每层的时间支撑翻倍：J=5（n=256）时最粗那层只剩 8 个'
+                 'criticalNote': '$J$ 层之后每层的时间支撑翻倍：$J=5$（$n=256$）时最粗那层只剩 $8$ 个'
                                  '独立系数，热力图上会出现明显的横向条纹（那不是信号的纹理）。'},
                 {'name': 'stft_window', 'label': 'STFT 窗长', 'type': 'int', 'min': 8,
                  'max': 64, 'default': 32, 'critical': [16.0],
-                 'criticalNote': '窗长 16 的频率栅格 Δf = 1/16 与 db4 第 2 层的带宽 1/4 同量级；'
+                 'criticalNote': '窗长 $16$ 的频率栅格 $\\Delta f=1/16$ 与 db4 第 $2$ 层的带宽 $1/4$ 同量级；'
                                  '窗长越大时间分辨率越差，而小波是"低频处自动变宽"。'},
             ],
             'time': {'mode': 'none'},
@@ -165,19 +165,19 @@ MANIFEST: dict[str, Any] = {
                 {'id': 'error', 'autoscaled': True, 'title': 'SWT 往返误差',
                  'ylabel': 'max|delta|', 'scale': 'log'},
             ],
-            'pitfalls': '把尺度图的纵轴读成"频率"会低估低频的时间定位能力：第 j 层带宽是 1/2^j，'
-                        '但它的时间支撑也按 2^j 变宽，两个方向的乘积（分辨率元面积）几乎不变。'
+            'pitfalls': '把尺度图的纵轴读成"频率"会低估低频的时间定位能力：第 $j$ 层带宽是 $1/2^j$，'
+                        '但它的时间支撑也按 $2^j$ 变宽，两个方向的乘积（分辨率元面积）几乎不变。'
                         '另外 SWT 的能量比不是常数（本页报出实测值与框架符号的预测值）：'
-                        '拿 |系数|^2 的总和当"能量"会随信号频率漂移。',
+                        '拿 $|\\text{系数}|^2$ 的总和当"能量"会随信号频率漂移。',
             'theory': ['SWT 不抽取：每层系数与信号等长，平移一格系数逐位平移',
-                       '分辨率元：时间支撑 ~ 2^j、带宽 ~ 1/2^j，面积近似守恒',
+                       '分辨率元：时间支撑 $\\sim2^j$、带宽 $\\sim1/2^j$，面积近似守恒',
                        'STFT 固定窗：时间与频率分辨率同时被钉死',
-                       '框架算子符号 S(omega) = 2 + sum_i prod_k |H(2^{k-1}omega)|^2'],
+                       '框架算子符号 $S(\\omega)=2+\\sum_i\\prod_k|H(2^{k-1}\\omega)|^2$'],
         },
         {
             'id': 'denoise_threshold',
             'title': '阈值去噪：偏差-方差',
-            'description': '拖阈值看信号、误差与三条曲线（偏差^2、方差、MSE）；同一 SNR 下软/硬阈值对照。',
+            'description': '拖阈值看信号、误差与三条曲线（$\\text{偏差}^2$、方差、MSE）；同一 SNR 下软/硬阈值对照。',
             'dataSource': 'backend',
             'params': [
                 {'name': 'signal', 'label': '干净信号', 'type': 'enum',
@@ -190,8 +190,8 @@ MANIFEST: dict[str, Any] = {
                  'criticalNote': ''},
                 {'name': 'lam', 'label': '阈值 lambda', 'type': 'float', 'min': 0.0,
                  'max': 1.6, 'step': 0.01, 'default': 0.28, 'critical': [0.28, 1.0],
-                 'criticalNote': '0.28 是默认设置（bumps、sigma=0.3、db4、J=4、软阈值）下'
-                                 '蒙特卡洛实测的 MSE 最优点；1.00 是通用阈值 sigma*sqrt(2 ln n)，'
+                 'criticalNote': '$0.28$ 是默认设置（bumps、$\\sigma=0.3$、db4、$J=4$、软阈值）下'
+                                 '蒙特卡洛实测的 MSE 最优点；$1.00$ 是通用阈值 $\\sigma\\sqrt{2\\ln n}$，'
                                  '越过它偏差项开始主导（实测 MSE 甚至超过不做去噪）。'},
                 {'name': 'rule', 'label': '阈值规则', 'type': 'enum',
                  'options': ['soft', 'hard'], 'default': 'soft',
@@ -214,18 +214,18 @@ MANIFEST: dict[str, Any] = {
             ],
             'pitfalls': '把"看起来更平滑"当成更好：硬阈值留下的 Gibbs 式振铃在图上更"干净"，'
                         '但同一 SNR 下它的 MSE 常高于软阈值（本页两条曲线直接对照）。'
-                        '另一个陷阱是通用阈值 sigma*sqrt(2 ln n)：它保证的是"不留下噪声"'
+                        '另一个陷阱是通用阈值 $\\sigma\\sqrt{2\\ln n}$：它保证的是"不留下噪声"'
                         '而不是"最小 MSE"，实测最优点只有它的一半不到，越过它之后 MSE 反而'
                         '超过完全不去噪。',
-            'theory': ['软阈值是大系数也有偏的收缩：bias = lambda（大系数处）',
+            'theory': ['软阈值是大系数也有偏的收缩：$\\mathrm{bias}=\\lambda$（大系数处）',
                        '硬阈值无偏但不连续，方差更大',
-                       'MSE(lambda) = bias^2(lambda) + var(lambda)',
-                       'MAD 估计 sigma_hat = med(|d_1|)/0.6745'],
+                       '$\\mathrm{MSE}(\\lambda)=\\mathrm{bias}^2(\\lambda)+\\mathrm{var}(\\lambda)$',
+                       'MAD 估计 $\\hat{\\sigma}=\\mathrm{med}(|d_1|)/0.6745$'],
         },
         {
             'id': 'vanishing_moments',
             'title': '消失矩：多项式被细节系数抹平',
-            'description': 'k 次多项式的细节系数（内部 vs 边界）与"内部量级比 / u"随 k 的跳变。',
+            'description': '$k$ 次多项式的细节系数（内部 vs 边界）与"内部量级比 / $u$"随 $k$ 的跳变。',
             'dataSource': 'backend',
             'params': [
                 {'name': 'wavelet', 'label': '小波', 'type': 'enum',
@@ -233,8 +233,8 @@ MANIFEST: dict[str, Any] = {
                  'critical': [], 'criticalNote': ''},
                 {'name': 'degree', 'label': '多项式次数 k', 'type': 'int', 'min': 0, 'max': 6,
                  'default': 3, 'critical': [4.0],
-                 'criticalNote': 'db4 的消失矩阶数 N=4：k <= 3 时内部细节系数贴 u（实测 1e-16），'
-                                 'k = 4 时跳到 1e-5 量级——跨过 4 就是"抹平"与"没抹平"的分界。'},
+                 'criticalNote': 'db4 的消失矩阶数 $N=4$：$k\\le3$ 时内部细节系数贴 $u$（实测 $10^{-16}$），'
+                                 '$k=4$ 时跳到 $10^{-5}$ 量级——跨过 $4$ 就是"抹平"与"没抹平"的分界。'},
                 {'name': 'n', 'label': '样本数 n', 'type': 'int', 'min': 64, 'max': 512,
                  'default': 256, 'critical': [], 'criticalNote': ''},
                 {'name': 'level', 'label': '层数 J', 'type': 'int', 'min': 1, 'max': 5,
@@ -253,13 +253,13 @@ MANIFEST: dict[str, Any] = {
                 {'id': 'error', 'autoscaled': True, 'title': '该模式的往返误差',
                  'ylabel': 'max|delta|', 'scale': 'log'},
             ],
-            'pitfalls': '把"细节系数是 0"当成严格成立：实测内部系数是 u 量级（约 1e-16）而不是 0，'
-                        '对数轴上 0 只能画地板值。更危险的是只看最大值：多项式的边界系数本来就'
-                        '是 O(1)（零延拓把多项式截断了），所以"细节系数最大的是边界那几个"'
+            'pitfalls': '把"细节系数是 $0$"当成严格成立：实测内部系数是 $u$ 量级（约 $10^{-16}$）而不是 $0$，'
+                        '对数轴上 $0$ 只能画地板值。更危险的是只看最大值：多项式的边界系数本来就'
+                        '是 $O(1)$（零延拓把多项式截断了），所以"细节系数最大的是边界那几个"'
                         '并不说明消失矩失效——本页把内部与边界分开报。',
-            'theory': ['N 阶消失矩：sum_j j^m g_j = 0（m < N）',
-                       'deg p < N 的多项式落在 V_J 里，细节系数为 0（到舍入级）',
-                       'deg p >= N 时内部细节系数为 O(1)，与 u 相差若干数量级',
+            'theory': ['$N$ 阶消失矩：$\\sum_jj^mg_j=0$（$m<N$）',
+                       '$\\deg p<N$ 的多项式落在 $V_J$ 里，细节系数为 $0$（到舍入级）',
+                       '$\\deg p\\ge N$ 时内部细节系数为 $O(1)$，与 $u$ 相差若干数量级',
                        '内部/边界必须分开量：延拓方式决定边界系数的大小'],
         },
     ],

@@ -169,14 +169,15 @@ export const adaptiveMeshModel: SceneModel = (frame, opts) => {
   if (levelAxis.length === 0) throw new Error(`帧 ${CHAPTER}/${VIZ} 的 level_axis 为空：没有可画的层`);
   for (const [name, arr] of [
     ["error_adaptive", errA],
-    ["dof_uniform", dofU],
-    ["error_uniform", errU],
     ["effectivity", effectivity],
   ] as const) {
     requireSameLength(levelAxis, arr, `帧数组 level_axis 与 ${name}`);
   }
   requireSameLength(dofA, errA, "帧数组 dof_adaptive 与 error_adaptive");
   requireSameLength(dofA, effectivity, "帧数组 dof_adaptive 与 effectivity");
+  // 一致加密在单元数达到上限时会提前停止（meta.uniform_truncated=true），
+  // 它的数组比 level_axis 短是**如实记录**，不能当成错位拒绝整张图。
+  requireSameLength(dofU, errU, "帧数组 dof_uniform 与 error_uniform");
   for (let i = 0; i < elements.values.length; i += 1) {
     const k = elements.values[i] as number;
     if (!Number.isInteger(k) || k < 0 || k >= meshX.length) {

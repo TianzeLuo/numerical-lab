@@ -79,6 +79,7 @@ import {
   heatLayer,
   lineLayer,
   makeAxis,
+  pitfallsBand,
   previewBadge,
   scatterLayer,
   series,
@@ -193,7 +194,11 @@ export const luHeatmapModel: SceneModel = (frame, opts) => {
   //     而 `render2d.ts` 目前**不画**色标（`drawColorbar` 导出了但 `renderScene` 没调用，
   //     见交付说明）。两种渲染器的画面因此天生不同——留出这条 162px 的过道，
   //     色标就不会压到右列的曲线上；浏览器里这条过道就是空白。
-  const base = stackedPanels(width, height);
+  // 底部 pitfalls 的文案长度会变：把内容底边抬到它的上方，再给轴下说明留 42px。
+  // 不这么做时，改一段长文案就会让最后一行说明压进 pitfalls 面板（规则 8 会当场拒绝）。
+  const band = pitfallsBand({ canvas: { w: width, h: height }, pitfalls });
+  const footer = band === null ? 102 : Math.max(102, height - band[1] + 42);
+  const base = stackedPanels(width, height, { footer });
   // 方形边长：内容高度还要分一条带留给轴下的图例（render2d 的 xlabel 默认画在轴下 29px，
   // 这里把主轴 xlabel 置空、改成图例，所以先扣掉 46px）。
   const side = Math.max(110, Math.floor(Math.min(340, base.bottom - base.top - 46)));

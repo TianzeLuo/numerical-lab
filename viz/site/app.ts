@@ -62,8 +62,17 @@ function soften(text: string): string {
     .trim();
 }
 
+/** 富文本 → 纯文本（浏览器内）：用于标签副标题这类不能放 MathML 的位置。 */
+function plainRichText(text: string): string {
+  const box = document.createElement("div");
+  box.innerHTML = renderRichText(soften(text));
+  return box.textContent ?? "";
+}
+
 function tabSummary(text: string, max = 42): string {
-  const plain = soften(text).replace(/\*\*/g, "").replace(/\s+/g, " ").trim();
+  // 简介里现在大量使用 $...$。标签副标题是纯文本，先渲染成 MathML 再取 textContent，
+  // 这样读者看到的是 κ、n、a 等符号，而不是一对裸露的美元号或 TeX 命令。
+  const plain = plainRichText(text).replace(/\s+/g, " ").trim();
   if (plain === "") return "";
   const end = plain.search(/[。！？]/);
   let first = end >= 0 ? plain.slice(0, end) : plain;
@@ -487,7 +496,9 @@ export async function startSite(root: HTMLElement, opts: { baseUrl?: string } = 
       for (const item of glossary) {
         if (typeof item?.term !== "string" || typeof item?.desc !== "string") continue;
         const row = el("div", { className: "nl-glossary-item" });
-        row.append(el("dt", { text: item.term }), el("dd", { text: item.desc }));
+        const desc = el("dd");
+        desc.innerHTML = renderRichText(soften(item.desc));
+        row.append(el("dt", { text: item.term }), desc);
         list.append(row);
       }
       glossaryBox.append(list);

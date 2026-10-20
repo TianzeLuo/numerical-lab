@@ -926,3 +926,17 @@ test("四个 viz 的 Scene 里没有非有限数", async () => {
     }
   }
 });
+
+test("adaptive_mesh: 一致加密提前停止时数组可以短于 level_axis（不拒整张图）", async () => {
+  const scene = await sceneOf("adaptive_mesh", {
+    arrays: {
+      dof_uniform: [3, 5, 9],
+      error_uniform: [0.9, 0.55, 0.25],
+    },
+    meta: { levels: 3, uniform_truncated: true },
+  });
+  assert.deepEqual(validateScene(scene), []);
+  const hist = lineSeriesOn(scene, "history");
+  assert.ok(hist.some((s) => s.x.length === 4), "自适应仍有 4 层");
+  assert.ok(hist.some((s) => s.x.length === 3), "一致加密提前停止，保留 3 层");
+});

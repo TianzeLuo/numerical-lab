@@ -6,26 +6,43 @@ import { keyMetrics } from "../shared/src/metrics.js";
 test("keyMetrics：1.1 的关键读数按可视化定制，不出现内部字段", () => {
   const chips = keyMetrics(
     {
-      n_points: 21,
+      center: 0.3,
+      spacing_center: 5.551115123125783e-17,
+      k: 64,
       residual_0102_03_ulps: 1,
       residual_0102_03: 5.551115123125783e-17,
-      k: 64,
-      center_log10: -1,
+      spacing_ratio: 1,
+      n_points: 17,
       overflow: false,
     },
     "1.1",
     "float_zoom",
   );
   assert.deepEqual(chips.map((chip) => chip.label), [
-    "窗口内浮点数",
-    "0.1+0.2 与 0.3 相差",
-    "0.1+0.2 的表示误差",
+    "窗口中心",
+    "相邻 double 间距",
     "累加次数",
+    "0.1+0.2 比 0.3 大",
   ]);
-  assert.equal(chips[0]?.value, "21");
-  assert.equal(chips[1]?.value, "1");
-  assert.equal(chips[1]?.unit, "ulp");
-  assert.equal(chips[3]?.value, "64");
+  assert.equal(chips[0]?.value, "0.3");
+  assert.equal(chips[1]?.value, "5.551e-17");
+  assert.equal(chips[2]?.value, "64");
+  assert.equal(chips[3]?.value, "1");
+  assert.equal(chips[3]?.unit, "ulp");
+});
+
+test("keyMetrics：1.1 抵消实验显示损失位数而不是误导性的“剩余上限差”", () => {
+  const chips = keyMetrics(
+    { gap: 1e-6, digits_remaining: 9.3, loss_digits: 6.7, perturbation_amplification: 3.3e-10 },
+    "1.1",
+    "cancellation",
+  );
+  assert.deepEqual(chips.map((chip) => chip.label), [
+    "a 与 b 的差",
+    "剩余有效位",
+    "抵消损失位数 t",
+    "实测相对误差",
+  ]);
 });
 
 test("keyMetrics：同一个 k 在不同实验里有不同含义", () => {

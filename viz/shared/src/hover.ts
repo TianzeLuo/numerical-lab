@@ -189,6 +189,7 @@ function candidateHit(
         if (!Number.isFinite(qx) || !Number.isFinite(qy) || !insideAxis(axis, qx, qy)) continue;
         const dist = Math.hypot(px - qx, py - qy);
         if (dist > bestDist) continue;
+        const note = layer.notes?.[i];
         consider(
           {
             layerIndex,
@@ -201,7 +202,8 @@ function candidateHit(
             px: qx,
             py: qy,
             xText: `${xName} = ${numText(xv)}`,
-            yText: `${yName} = ${numText(yv)}`,
+            yText: layer.hideY === true ? "" : `${yName} = ${numText(yv)}`,
+            ...(note === undefined || note === "" ? {} : { detail: note }),
             shape: "point",
             dash: false,
             axisRect: axis.rect,

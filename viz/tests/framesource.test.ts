@@ -316,6 +316,27 @@ test("L1：WS 连上后 level=ws、不降级，并发出 subscribe（params 走 
   assert.equal(h.fetcher.calls.length, 0, "WS 成功时不该碰 REST");
 });
 
+test("L1：页面空闲时定期发 ping，服务端 30s 空闲超时不会把连接踢掉", async () => {
+  FakeWebSocket.reset();
+  const h = harness();
+  const src = makeSource(h);
+  await src.connect();
+  const ws = FakeWebSocket.last();
+  const heartbeats = h.timers.pending.filter((timer) => timer.ms === 10_000);
+  assert.equal(heartbeats.length, 1, "连接后应登记一个 10 s 心跳定时器");
+  h.clock.advance(10_000);
+  assert.equal(h.timers.runNext(), true);
+  const last = ws.json(ws.sent.length - 1);
+  assert.equal(last["type"], "ping");
+  assert.equal(typeof last["t"], "number");
+  // 心跳会重新登记自己；连接关闭后必须停掉，不能继续往已关闭的 socket 发
+  assert.equal(h.timers.pending.filter((timer) => timer.ms === 10_000).length, 1);
+  ws.drop(1006);
+  await flush();
+  assert.equal(h.timers.pending.filter((timer) => timer.ms === 10_000).length, 0);
+  src.dispose();
+});
+
 test("L1：二进制帧按 frame.meta.t 对齐时间轴（不按到达顺序）", async () => {
   FakeWebSocket.reset();
   const h = harness();
@@ -926,6 +947,14 @@ test("URL 拼装：ws/http 协议映射、相对路径、批量帧端点", () =>
     `http://h:8000/api/chapter/0.0/frame?viz=demo&params=${encodeParams({ r: 0.4 })}&t=0.1`,
   );
   assert.match(restFramesUrl("", "0.0", "demo", { r: 0.4 }, 60, 0.5), /\/frames\?viz=demo&params=.*&t=0\.5&n=60$/);
+});
+
+test("REST URL 的时间保留精确值：%.6g 不得把 tMax 向上舍入到界外", () => {
+  const tMax = 6.2831853;
+  const url = restFrameUrl("http://h:8000", "3.2", "stiff_dilemma", { method: "be" }, tMax);
+  const t = Number(new URL(url).searchParams.get("t"));
+  assert.equal(t, tMax, "线上时间必须与服务端 tMax 逐位一致");
+  assert.ok(t <= tMax, "舍入后的 t 不能大于 tMax（3.2 章拖到末尾曾因 6.28319 > 6.2831853 报 400）");
 });
 
 test("静态帧命中路径会拼上 staticDir（浏览器里就是 /data 前缀）", async () => {

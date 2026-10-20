@@ -164,12 +164,24 @@ export const trustRegionRadiusModel: SceneModel = (frame, opts) => {
   });
   let rate: ReturnType<typeof makeAxis> | undefined;
   if (!narrow) {
+    // ρ_k = 实际下降 / 模型下降。t2 最大 1.5 时接受步可以明显大于 1，
+    // 原来钉死 [-5,2] 会把几个接受点裁到图外（审计实际抓到过）。
+    // 固定窗口仍保留，但上下界按本帧的有效 ρ 扩到至少 [-5,2]。
+    let rhoLo = -5;
+    let rhoHi = 2;
+    for (let i = 0; i < rhoHist.length; i += 1) {
+      if ((rhoOk[i] as number) <= 0.5 || !Number.isFinite(rhoHist[i] as number)) continue;
+      const v = rhoHist[i] as number;
+      rhoLo = Math.min(rhoLo, v - 0.2);
+      rhoHi = Math.max(rhoHi, v + 0.2);
+    }
+    if (t2 !== undefined) rhoHi = Math.max(rhoHi, t2 + 0.2);
     rate = makeAxis("ratio", [rateX, L.botY, rateW, L.botH], {
       xlim: [0, kMax],
-      ylim: [-5, 2],
+      ylim: [rhoLo, rhoHi],
       xlabel: "迭代 k",
       ylabel: "ρ_k",
-      title: "ρ_k（线性）",
+      title: "ρ_k（线性；窗口随本帧 ρ 扩到 [-5,2] 之外）",
       autoscaled: false,
     });
   }

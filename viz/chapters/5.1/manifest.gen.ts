@@ -25,7 +25,7 @@ export const manifest: ChapterManifestJson = {
         },
       ],
       "dataSource": "backend",
-      "description": "同一张等高线上四个方法同时出发：GD（定步长）沿最陡方向来回锯齿，重球动量绕开锯齿，BFGS 用割线信息拐弯，牛顿法一步取直。时间轴是迭代步，副轴是到最优解的距离（半对数）。把 κ 拖大看锯齿变密，把 step_scale 拖过 1 看 GD 直接发散。",
+      "description": "同一张等高线上四个方法同时出发：GD（定步长）沿最陡方向来回锯齿，重球动量绕开锯齿，BFGS 用割线信息拐弯，牛顿法一步取直。时间轴是迭代步，副轴是到最优解的距离（半对数）。把 $\\kappa$ 拖大看锯齿变密，把 step_scale 拖过 $1$ 看 GD 直接发散。",
       "id": "descent_race",
       "params": [
         {
@@ -54,7 +54,7 @@ export const manifest: ChapterManifestJson = {
           "critical": [
             1.0,
           ],
-          "criticalNote": "1.0 就是二次型上的最优定步长 α* = 2/(L+μ)（误差按 (κ-1)/(κ+1) 收缩）。越过它，GD 仍然收敛但更慢；真正发散线是 α = 2/L，即 step_scale = (L+μ)/L = 1 + 1/κ——κ=100 时只有 1.01，所以「稍微大于 1」就已经在发散区。",
+          "criticalNote": "$1.0$ 就是二次型上的最优定步长 $\\alpha^*=2/(L+\\mu)$（误差按 $(\\kappa-1)/(\\kappa+1)$ 收缩）。越过它，GD 仍然收敛但更慢；真正发散线是 $\\alpha=2/L$，即 $\\text{step\\_scale}=(L+\\mu)/L=1+1/\\kappa$——$\\kappa=100$ 时只有 $1.01$，所以「稍微大于 $1$」就已经在发散区。",
           "default": 1.0,
           "label": "GD 步长 / 最优步长 α* = 2/(L+μ)",
           "max": 1.6,
@@ -74,9 +74,9 @@ export const manifest: ChapterManifestJson = {
           "type": "int",
         },
       ],
-      "pitfalls": "半对数图上的「直线」只说明误差按固定因子缩小（线性收敛），曲线突然变陡才是超线性/二次；把两种形状混着读会把 BFGS 说成二次收敛。牛顿法的漂亮直线段只出现在解附近且整步被接受时——把初值拖远、或把 alpha_cap 拖到 1 以下，同一张图立刻变回线性，而图上没有任何东西会提醒你「二次收敛的前提刚刚被破坏」。",
+      "pitfalls": "半对数图上的「直线」只说明误差按固定因子缩小（线性收敛），曲线突然变陡才是超线性/二次；把两种形状混着读会把 BFGS 说成二次收敛。牛顿法的漂亮直线段只出现在解附近且整步被接受时——把初值拖远、或把 $\\alpha_{\\mathrm{cap}}$ 拖到 $1$ 以下，同一张图立刻变回线性，而图上没有任何东西会提醒你「二次收敛的前提刚刚被破坏」。",
       "requiredAux": ["error"],
-      "theory": ["定步长 GD 的误差压缩因子 ρ = max|1 - αλ_i|，最优 α*=2/(L+μ) 时 ρ=(κ-1)/(κ+1)", "重球动量的最优压缩因子是 (√κ-1)/(√κ+1)，迭代数约为 GD 的 1/√κ", "牛顿法在二次型上一步到达驻点（H 正定时就是极小点）"],
+      "theory": ["定步长 GD 的误差压缩因子 $\\rho=\\max|1-\\alpha\\lambda_i|$，最优 $\\alpha^*=2/(L+\\mu)$ 时 $\\rho=(\\kappa-1)/(\\kappa+1)$", "重球动量的最优压缩因子是 $(\\sqrt\\kappa-1)/(\\sqrt\\kappa+1)$，迭代数约为 GD 的 $1/\\sqrt\\kappa$", "牛顿法在二次型上一步到达驻点（$H$ 正定时就是极小点）"],
       "time": {
         "dt": 1.0,
         "fps": 30,
@@ -104,7 +104,7 @@ export const manifest: ChapterManifestJson = {
         },
       ],
       "dataSource": "backend",
-      "description": "同一个各向异性四次型上跑 GD / 动量 / BFGS / 牛顿，画 ‖x_k - x*‖ 随 k 的曲线，并单独给出实测的二次比值 e_{k+1}/e_k^2 与线性比值 e_{k+1}/e_k。牛顿段的直线是线性收敛、向下弯的段才是二次；alpha_cap 一拖到 1 以下，二次段当场消失、比值稳定在 1-alpha_cap。",
+      "description": "同一个各向异性四次型上跑 GD / 动量 / BFGS / 牛顿，画 $\\|x_k-x^*\\|$ 随 $k$ 的曲线，并单独给出实测的二次比值 $e_{k+1}/e_k^2$ 与线性比值 $e_{k+1}/e_k$。牛顿段的直线是线性收敛、向下弯的段才是二次；$\\alpha_{\\mathrm{cap}}$ 一拖到 $1$ 以下，二次段当场消失、比值稳定在 $1-\\alpha_{\\mathrm{cap}}$。",
       "id": "convergence_rates",
       "params": [
         {
@@ -134,7 +134,7 @@ export const manifest: ChapterManifestJson = {
           "critical": [
             0.0,
           ],
-          "criticalNote": "β=0 时问题退化为二次型，牛顿法一步到底——此时图上根本没有「二次收敛的尾巴」可看，meta.newton_quadratic_constant 会写 null 并说明原因。",
+          "criticalNote": "$\\beta=0$ 时问题退化为二次型，牛顿法一步到底——此时图上根本没有「二次收敛的尾巴」可看，meta.newton_quadratic_constant 会写 null 并说明原因。",
           "default": 0.05,
           "label": "四次项系数 β（β=0 退化成二次型）",
           "max": 0.5,
@@ -148,7 +148,7 @@ export const manifest: ChapterManifestJson = {
           "critical": [
             1.0,
           ],
-          "criticalNote": "二次收敛要求解附近**整步** α_k = 1 被接受。α_cap < 1 时每步只能走 α_cap 倍牛顿步，实测退化为线性收敛，因子 ≈ 1 - α_cap（α_cap=0.5 实测 0.5000，α_cap=0.25 实测 0.7511）。",
+          "criticalNote": "二次收敛要求解附近**整步** $\\alpha_k=1$ 被接受。$\\alpha_{\\mathrm{cap}}<1$ 时每步只能走 $\\alpha_{\\mathrm{cap}}$ 倍牛顿步，实测退化为线性收敛，因子 $\\approx1-\\alpha_{\\mathrm{cap}}$（$\\alpha_{\\mathrm{cap}}=0.5$ 实测 $0.5000$，$\\alpha_{\\mathrm{cap}}=0.25$ 实测 $0.7511$）。",
           "default": 1.0,
           "label": "牛顿步长上限 α_cap",
           "max": 1.0,
@@ -168,9 +168,9 @@ export const manifest: ChapterManifestJson = {
           "type": "int",
         },
       ],
-      "pitfalls": "「曲线陡」不等于二次收敛：把纵轴换成对数、横轴仍是迭代数时，任何超线性收敛都会看起来像一条竖直的线。判据只有 e_{k+1}/e_k^2 是否趋于常数，而且窗口右端必须砍掉舍入地板——实测在 e≈3e-29 之后这个比值会反弹成 1.74，把地板当成「超二次收敛」是最典型的假证据。另外 β=0 时牛顿一步到底，图上只剩一个点，什么都说明不了。",
+      "pitfalls": "「曲线陡」不等于二次收敛：把纵轴换成对数、横轴仍是迭代数时，任何超线性收敛都会看起来像一条竖直的线。判据只有 $e_{k+1}/e_k^2$ 是否趋于常数，而且窗口右端必须砍掉舍入地板——实测在 $e\\approx3\\times10^{-29}$ 之后这个比值会反弹成 $1.74$，把地板当成「超二次收敛」是最典型的假证据。另外 $\\beta=0$ 时牛顿一步到底，图上只剩一个点，什么都说明不了。",
       "requiredAux": ["error"],
-      "theory": ["线性收敛：e_{k+1} ≤ ρ e_k；二次收敛：e_{k+1} ≤ C e_k^2（C 与 k 无关）", "牛顿法在解附近且 H 正定、整步被接受时 e_{k+1} ≈ C e_k^2", "四次型 f = 1/2x^TAx + (β/4)‖x‖⁴ 的最优解精确为原点，Hessian 处处正定"],
+      "theory": ["线性收敛：$e_{k+1}\\le\\rho e_k$；二次收敛：$e_{k+1}\\le C e_k^2$（$C$ 与 $k$ 无关）", "牛顿法在解附近且 $H$ 正定、整步被接受时 $e_{k+1}\\approx C e_k^2$", "四次型 $f=\\frac{1}{2}x^T A x+(\\beta/4)\\|x\\|^4$ 的最优解精确为原点，Hessian 处处正定"],
       "time": {
         "label": "t",
         "mode": "none",
@@ -194,7 +194,7 @@ export const manifest: ChapterManifestJson = {
         },
       ],
       "dataSource": "backend",
-      "description": "鞍点 f = 1/2(λ-x₁^2 + λ₊x₂^2)（λ-<0，负曲率方向是 x₁）上，GD 从稳定流形出发会**收敛到鞍点**并停住；扰动只有在负曲率方向 u_min 上有分量时才跑得掉。图中给出扰动轨迹、沿 u_min / 随机方向 / 正交方向的实测逃逸阈值：随机方向的阈值恰好是 u_min 方向的 1/|<u_min,d>| 倍。",
+      "description": "鞍点 $f=\\frac{1}{2}(\\lambda_-x_1^2+\\lambda_+x_2^2)$（$\\lambda_-<0$，负曲率方向是 $x_1$）上，GD 从稳定流形出发会**收敛到鞍点**并停住；扰动只有在负曲率方向 $u_{\\min}$ 上有分量时才跑得掉。图中给出扰动轨迹、沿 $u_{\\min}$ / 随机方向 / 正交方向的实测逃逸阈值：随机方向的阈值恰好是 $u_{\\min}$ 方向的 $1/|\\langle u_{\\min},d\\rangle|$ 倍。",
       "id": "saddle_escape",
       "params": [
         {
@@ -239,9 +239,9 @@ export const manifest: ChapterManifestJson = {
           "type": "int",
         },
       ],
-      "pitfalls": "「加了随机扰动就逃出来了」不是方法有效的证据：逃逸与否只取决于扰动在负曲率方向上的投影。实测沿 u_min 的阈值与解析式 R·(1+|λ-|α)^(-N) 一致；随机方向的阈值是它的 1/|<u_min, d>| 倍。把扰动换成与 u_min 正交的方向，阈值在放大到 1e12 之后仍然找不到——图上看到的「没跑掉」才是真相，而 meta 里那个 null 必须如实说明它是「没测到」而不是 0。",
+      "pitfalls": "「加了随机扰动就逃出来了」不是方法有效的证据：逃逸与否只取决于扰动在负曲率方向上的投影。实测沿 $u_{\\min}$ 的阈值与解析式 $R(1+|\\lambda_-|\\alpha)^{-N}$ 一致；随机方向的阈值是它的 $1/|\\langle u_{\\min},d\\rangle|$ 倍。把扰动换成与 $u_{\\min}$ 正交的方向，阈值在放大到 $10^{12}$ 之后仍然找不到——图上看到的「没跑掉」才是真相，而 meta 里那个 null 必须如实说明它是「没测到」而不是 $0$。",
       "requiredAux": ["residual"],
-      "theory": ["梯度下降在鞍点附近只会沿正曲率方向收缩，负曲率分量按 (1+|λ-|α)^k 增长", "逃逸阈值 δ* = R·(1+|λ-|α)^(-N)（R 邻域半径、N 步数），与实测逐位吻合", "随机方向的有效性由 |<u_min, d>| 决定，阈值与之成反比"],
+      "theory": ["梯度下降在鞍点附近只会沿正曲率方向收缩，负曲率分量按 $(1+|\\lambda_-|\\alpha)^k$ 增长", "逃逸阈值 $\\delta^*=R(1+|\\lambda_-|\\alpha)^{-N}$（$R$ 邻域半径、$N$ 步数），与实测逐位吻合", "随机方向的有效性由 $|\\langle u_{\\min},d\\rangle|$ 决定，阈值与之成反比"],
       "time": {
         "dt": 1.0,
         "fps": 30,
@@ -268,7 +268,7 @@ export const manifest: ChapterManifestJson = {
         },
       ],
       "dataSource": "backend",
-      "description": "Rosenbrock 函数上逐步解信赖域子问题（Steihaug-CG），按 ρ_k = 实际下降/模型下降接受或拒绝这一步，并把 Δ_k 收缩 (×γ₁) 或扩张 (×γ₂)。图上同时给出半径历史、ρ_k、以及半径为 Δ_k 的圆；在 Hessian 不定的起点上还能看到子问题走负曲率方向撞到边界。",
+      "description": "Rosenbrock 函数上逐步解信赖域子问题（Steihaug-CG），按 $\\rho_k=(\\text{实际下降})/(\\text{模型下降})$接受或拒绝这一步，并把 $\\Delta_k$ 收缩 ($\\times\\gamma_1$) 或扩张 ($\\times\\gamma_2$)。图上同时给出半径历史、$\\rho_k$、以及半径为 $\\Delta_k$ 的圆；在 Hessian 不定的起点上还能看到子问题走负曲率方向撞到边界。",
       "id": "trust_region_radius",
       "params": [
         {
@@ -276,7 +276,7 @@ export const manifest: ChapterManifestJson = {
             0.25,
             1.0,
           ],
-          "criticalNote": "收缩阈值 t1=0.25 与扩张阈值必须满足 0<t1<t2<1：t2 ≤ t1 时「收缩」与「扩张」的判据互相打架（同一个 ρ 两头都触发）；t2 ≥ 1 时 ρ_k 几乎不可能超过它（ρ≤1 是二次模型的性质），半径再也不扩张。",
+          "criticalNote": "收缩阈值 $t_1=0.25$ 与扩张阈值必须满足 $0<t_1<t_2<1$：$t_2\\le t_1$ 时「收缩」与「扩张」的判据互相打架（同一个 $\\rho$ 两头都触发）；$t_2\\ge1$ 时 $\\rho_k$ 几乎不可能超过它（$\\rho\\le1$ 是二次模型的性质），半径再也不扩张。",
           "default": 0.75,
           "label": "扩张阈值 t2（ρ>t2 且撞边界才扩张）",
           "max": 1.5,
@@ -316,9 +316,9 @@ export const manifest: ChapterManifestJson = {
           "type": "int",
         },
       ],
-      "pitfalls": "「半径在自适应」这句话本身不是证据：ρ_k>0.75 只在步撞到边界时才扩张，而二次模型上 ρ 恒等于 1——用二次型看这个可视化，半径只会单调长大，一次拒绝都看不到。实测 Rosenbrock 从 (-1.2,1) 出发 22 步里有 3 次拒绝、ρ 出现 -4.25，半径在 0.125 与 1 之间来回；这才是自适应在工作的样子。另外 ρ 为负时若还接受这一步，f 会上升——eta 阈值就是拦它的那道闸。",
+      "pitfalls": "「半径在自适应」这句话本身不是证据：$\\rho_k>0.75$ 只在步撞到边界时才扩张，而二次模型上 $\\rho$ 恒等于 $1$——用二次型看这个可视化，半径只会单调长大，一次拒绝都看不到。实测 Rosenbrock 从 $(-1.2,1)$ 出发 22 步里有 3 次拒绝、$\\rho$ 出现 $-4.25$，半径在 $0.125$ 与 $1$ 之间来回；这才是自适应在工作的样子。另外 $\\rho$ 为负时若还接受这一步，$f$ 会上升——$\\eta$ 阈值就是拦它的那道闸。",
       "requiredAux": ["residual"],
-      "theory": ["ρ_k = (f(x_k) - f(x_k+p_k)) / (m_k(0) - m_k(p_k))，ρ_k>η 才接受", "ρ<t1=0.25 收缩半径、ρ>t2 且 ‖p‖=Δ 扩张半径（0<t1<t2<1）", "Steihaug-CG 遇到负曲率方向时沿该方向走到信赖域边界"],
+      "theory": ["$\\rho_k=\\frac{f(x_k)-f(x_k+p_k)}{m_k(0)-m_k(p_k)}$，$\\rho_k>\\eta$ 才接受", "$\\rho<t_1=0.25$ 收缩半径、$\\rho>t_2$ 且 $\\|p\\|=\\Delta$ 扩张半径（$0<t_1<t_2<1$）", "Steihaug-CG 遇到负曲率方向时沿该方向走到信赖域边界"],
       "time": {
         "dt": 1.0,
         "fps": 30,

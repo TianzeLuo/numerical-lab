@@ -74,11 +74,6 @@ export function axisYScale(id: string, axisId: string): "linear" | "log" {
   return axisSpec(id, axisId)?.scale ?? "linear";
 }
 
-/** manifest 声明的理论条目原文（面板文本里**照登**，不自己改写成数字）。 */
-export function theoryOf(id: string): string[] {
-  return vizSpec(id).theory ?? [];
-}
-
 /** 参数 spec（用于取 `critical` / `options` / `min` / `max`）。 */
 export function paramSpec(id: string, name: string) {
   return vizSpec(id).params.find((p) => p.name === name);

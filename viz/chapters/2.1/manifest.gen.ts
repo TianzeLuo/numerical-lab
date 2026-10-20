@@ -25,7 +25,7 @@ export const manifest: ChapterManifestJson = {
         },
       ],
       "dataSource": "backend",
-      "description": "同一函数、同样多的节点，只换分布：等距节点插值在区间两端剧烈振荡，Chebyshev 节点把误差摊平。时间轴是「已用节点数 k」，主图叠画两种分布的插值多项式，副轴（log）画**整条**误差曲线与严格误差包络。",
+      "description": "同一个函数、同样多的节点，只换节点位置：等距插值在区间两端剧烈振荡，Chebyshev 节点把误差摊平。时间轴是「已经用了多少个节点」，记为 $k$；主图叠画两种节点分布得到的插值曲线，副图用对数纵轴画整条误差曲线，以及由高阶导数估计出的严格误差上界（包络）。",
       "id": "runge_nodes",
       "params": [
         {
@@ -53,7 +53,7 @@ export const manifest: ChapterManifestJson = {
           "critical": [],
           "criticalNote": "",
           "default": 25.0,
-          "label": "Runge 参数 a（奇点距离 1/√a）",
+          "label": "Runge 参数 a（越大，奇点越靠近区间）",
           "max": 49.0,
           "min": 1.0,
           "name": "a",
@@ -61,9 +61,9 @@ export const manifest: ChapterManifestJson = {
           "type": "float",
         },
       ],
-      "pitfalls": "三条都要命。第一：只画最大误差会把 Runge 现象讲反——最大误差是一个数，它的位置在两端；真正的画面是「两端振荡、中间几乎贴住」，所以这里画的是整条误差曲线。第二：对数轴上的 0 是假的——插值误差在节点上恰好等于 0（实测 k=12 时 12 个点），直接取 log 会得到 -inf 并把整条曲线抹掉，所以曲线先夹到地板 u/2=1.11e-16，地板点数写进 meta.n_error_at_floor，真值另存 error_raw。第三：严格误差包络不是紧的：n=12 时等距节点的包络是 4.51e6 而实际误差 3.66，宽松了 1.2e6 倍——包络只是「不会超过」，拿它当误差估计会得到荒谬的结论；换成 exp 后同一公式只宽松 2.5 倍，可见松紧取决于 f 的高阶导数。",
+      "pitfalls": "只看最大误差会把 Runge 现象讲反：最大误差只是一个数，位置在两端；真正的画面是「两端振荡、中间几乎贴住」，所以这里画整条误差曲线。对数轴上的 0 是假的：插值误差在节点上恰好为 $0$（$k=12$ 时有 12 个点），直接取对数会得到 $-\\infty$，所以画图前把 $0$ 抬到显示地板 $u/2\\approx1.11\\times10^{-16}$；贴地板的点会单独标出，不能把它们的数值当成真实误差。严格误差包络不是紧的：$n=12$ 时等距节点的包络约 $4.51\\times10^6$，实际误差只有 $3.66$，宽松了约 $1.2\\times10^6$ 倍。包络只说「不会超过」，拿它当误差估计会得到荒谬的结论；换成 $e^x$ 后同一公式只宽松约 $2.5$ 倍，可见松紧取决于函数的高阶导数。",
       "requiredAux": ["error"],
-      "theory": ["插值误差恒等式：f(x)-p(x) = f^(n+1)(ξ(x))/(n+1)! · ∏(x-x_i)，ξ(x) 未知但界是真的", "Lebesgue 引理：‖f-p‖_∞ ≤ (1+Λ_n)‖f-p*‖_∞，Λ_n = max_x Σ|ℓ_i(x)|", "等距节点的 Λ_n ≈ 2^(n+1)/(e n ln n)；Chebyshev 节点 ≈ (2/π)ln n + 0.9625", "Bernstein 反例（Runge）：f=1/(1+ax²) 在 [-1,1] 上解析，但奇点 1/√a 离实轴太近，等距插值的收敛半径 ρ=1/√a+√(1+1/a)（a=25 时 1.2198）不足以压住 2^n 的增长"],
+      "theory": ["插值误差恒等式：$f(x)-p_n(x)=\\frac{f^{(n+1)}(\\xi(x))}{(n+1)!}\\prod_i(x-x_i)$，其中 $\\xi(x)$ 未知，但这条界仍然成立。", "Lebesgue 引理：$\\|f-p\\|_\\infty\\le(1+\\Lambda_n)\\|f-p^*\\|_\\infty$，其中 $\\Lambda_n=\\max_x\\sum_i|L_i(x)|$，$L_i$ 是 Lagrange 基函数。", "等距节点的 $\\Lambda_n\\approx\\frac{2^{n+1}}{e\\,n\\ln n}$；Chebyshev 节点约为 $\\frac{2}{\\pi}\\ln n+0.9625$。", "Bernstein 反例（Runge）：$f(x)=1/(1+ax^2)$ 在 $[-1,1]$ 上解析，但奇点 $1/\\sqrt a$ 离实轴太近；等距插值的收敛半径 $\\rho=1/\\sqrt a+\\sqrt{1+1/a}$（$a=25$ 时约 $1.2198$）不足以压住 $2^n$ 的增长。"],
       "time": {
         "dt": 1.0,
         "label": "已用节点数 k",
@@ -71,7 +71,7 @@ export const manifest: ChapterManifestJson = {
         "tMax": 40.0,
         "tMaxParam": "n",
       },
-      "title": "Runge 现象：节点分布决定一切",
+      "title": "节点往两端集中：Runge 振荡为什么被压平",
     },
     {
       "axes": [
@@ -90,7 +90,7 @@ export const manifest: ChapterManifestJson = {
         },
       ],
       "dataSource": "backend",
-      "description": "把「发散」变成一个可测量的数：Λ_n = max_x Σ|ℓ_i(x)|。等距节点 2^n 级爆炸（n=30 时 6.60e6），Chebyshev 节点只按 ln n 爬（3.127）。副轴同时画**实测 log-log 斜率**与**理论斜率**，再叠渐近公式的相对偏差。",
+      "description": "把「发散」变成一个可测量的数：$\\Lambda_n=\\max_x\\sum_i|L_i(x)|$，其中 $L_i$ 是插值的基函数。等距节点按约 $2^n$ 爆炸（$n=30$ 时约 $6.6\\times10^6$），Chebyshev 节点只按 $\\ln n$ 增长（约 $3.13$）。副图同时画出实测与理论的 log-log 斜率，再叠上渐近公式的相对偏差。",
       "id": "lebesgue_growth",
       "params": [
         {
@@ -116,9 +116,9 @@ export const manifest: ChapterManifestJson = {
           "type": "int",
         },
       ],
-      "pitfalls": "三条。第一：线性坐标轴上这条曲线毫无信息——等距的 Λ 从 1.25 涨到 6.6e6，前 20 个点会被压成一条贴着 0 的直线，「指数爆炸」四个字只能靠坐标轴自己说；必须用 log 轴，并且把实测斜率和理论斜率同时画出来，否则「看起来在涨」和「按 2^n 在涨」是两件事（实测 n=20 附近等距斜率 12.50 对应理论 12.52，Chebyshev 是 0.2218 对应 0.2219——两个都要能对照）。第二：网格点数 grid 会系统性低估 Λ_n——等距节点的 Λ 峰值挤在离端点 O(n^-2) 宽的薄层里，均匀撒点会漏掉峰；实测 grid 从 2001 加到 20001 时 n=30 的 Λ 还会变。第三：渐近公式不是等式，等距那条在 n=30 时比值 0.853（差 14.8%），n=60 掉到 0.654——把公式当精确值去反推 Λ 会错得离谱。",
+      "pitfalls": "线性坐标轴上几乎读不出这条曲线：等距的 $\\Lambda_n$ 从 $1.25$ 涨到 $6.6\\times10^6$，前 20 个点会被压成贴着 $0$ 的直线。必须用对数轴，并把实测斜率与理论斜率同时画出，否则「看起来在涨」和「按 $2^n$ 在涨」是两件事（$n=20$ 附近等距实测斜率约 $12.50$，理论约 $12.52$；Chebyshev 为 $0.2218$ 对 $0.2219$）。用网格搜索 $\\Lambda_n$ 会系统性低估它：等距节点的峰值挤在离端点约 $O(n^{-2})$ 宽的薄层里，均匀撒点容易漏掉；把网格从 2001 加到 20001，$n=30$ 的读数还会变化。渐近公式不是等式：$n=30$ 时等距公式与实测的比值约 $0.853$（差 $14.8$%），$n=60$ 时降到 $0.654$。把公式当精确值反推 $\\Lambda_n$ 会错得很远。",
       "requiredAux": ["error"],
-      "theory": ["Λ_n = ‖Σ|ℓ_i|‖_∞ ≥ 1，且 Λ_n 是插值算子范数：‖I_n f‖_∞ ≤ Λ_n ‖f‖_∞", "等距节点：Λ_n ~ 2^(n+1)/(e n ln n)（Turetskii/ˇSahin 型渐近）", "Chebyshev 节点：Λ_n = (2/π)ln n + 0.9625 + o(1)，是最优节点（差一个 ln n 因子）", "Erdős–Turán：任何节点集的 Λ_n ≥ (2/π)ln(n+1) - c，所以 ln n 是能拿到的最好量级", "Λ_n·u 是插值值能达到的最好精度尺度：n=50 时等距的 Λ·u=4e-4，比 1e-3 还大"],
+      "theory": ["$\\Lambda_n=\\left\\|\\sum_i|L_i|\\right\\|_\\infty\\ge1$，且 $\\Lambda_n$ 是插值算子的范数：$\\|I_n f\\|_\\infty\\le\\Lambda_n\\|f\\|_\\infty$。", "等距节点：$\\Lambda_n\\sim\\frac{2^{n+1}}{e\\,n\\ln n}$（Turetskii / ˇSahin 型渐近）。", "Chebyshev 节点：$\\Lambda_n=\\frac{2}{\\pi}\\ln n+0.9625+o(1)$，是 $\\ln n$ 量级下的最优节点。", "Erdős–Turán：任何节点集都满足 $\\Lambda_n\\ge\\frac{2}{\\pi}\\ln(n+1)-c$，所以 $\\ln n$ 是最好的可能量级。", "$\\Lambda_n u$ 是插值值能达到的最好精度尺度：$n=50$ 时等距节点上 $\\Lambda_nu\\approx4\\times10^{-4}$，已经比 $10^{-3}$ 还大。"],
       "time": {
         "dt": 1.0,
         "label": "节点数 n",
@@ -126,7 +126,7 @@ export const manifest: ChapterManifestJson = {
         "tMax": 60.0,
         "tMaxParam": "n_max",
       },
-      "title": "Lebesgue 常数：指数爆炸与它的斜率",
+      "title": "Lebesgue 常数：节点分布一变，误差放大为何指数增长",
     },
     {
       "axes": [
@@ -145,7 +145,7 @@ export const manifest: ChapterManifestJson = {
         },
       ],
       "dataSource": "backend",
-      "description": "时间轴是节点分布的连续变形 t（0=等距，1=Chebyshev）。主图看节点怎么挪、多项式怎么跟着变；副轴（log）同时画当前误差曲线、**严格误差包络**与首一乘积 |∏(x-x_i)|，并用小图看 Λ(t) 整体下降（不是严格单调：n=12 实测最大局部回升 0.137）。",
+      "description": "时间轴让节点分布从等距连续变形到 Chebyshev：$t=0$ 是等距，$t=1$ 是 Chebyshev。主图看节点怎样移动、插值曲线怎样跟着变；副图用对数纵轴同时画当前误差、严格误差上界和首一乘积 $\\left|\\prod_i(x-x_i)\\right|$，并展示 $\\Lambda(t)$ 的整体变化（不是严格单调：$n=12$ 时实测有约 $0.137$ 的局部回升）。",
       "id": "error_curve",
       "params": [
         {
@@ -173,7 +173,7 @@ export const manifest: ChapterManifestJson = {
           "critical": [],
           "criticalNote": "",
           "default": 25.0,
-          "label": "Runge 参数 a（function=runge 时生效）",
+          "label": "Runge 参数 a（只在 function=runge 时生效）",
           "max": 49.0,
           "min": 1.0,
           "name": "a",
@@ -181,16 +181,16 @@ export const manifest: ChapterManifestJson = {
           "type": "float",
         },
       ],
-      "pitfalls": "四条。第一：包络不是误差估计——它是严格上界，n=12、f=Runge 时上界 4.51e6、实际 3.66，宽松 1.2e6 倍；换成 exp 同一公式只宽松 2.5 倍。画在一起时容易误以为「误差在包络附近」，实际两者可以差 6 个量级。第二：当包络掉到 u·Λ 以下时它会被违反——exp 在 n=16 时实测误差 1.17e-13 而包络 7.2e-18，因为这时量到的是舍入误差，而包络界只对精确插值误差成立（帧里 meta.tightness_points 只统计包络高于 100u 的点，就是为了不把这个假违反算进紧度）。第三：|∏(x-x_i)| 在节点上是恰好 0，log 轴必须夹地板，否则曲线断成 n 段。第四：变形终点不是「节点变密」，而是把节点按 cos 分布往两端推——中间反而变稀，所以 Λ(t) 整体下降（沿途有 ≤2% 的局部回升，别把它读成严格单调）。",
+      "pitfalls": "包络不是误差估计，而是严格上界：$n=12$、$f$ 取 Runge 时上界约 $4.51\\times10^6$，实际误差只有 $3.66$，宽松了约 $1.2\\times10^6$ 倍；换成 $e^x$ 同一公式只宽松约 $2.5$ 倍。两条线画在一起时容易误以为「误差就在包络附近」，实际可以差 6 个量级。当包络掉到 $u\\Lambda$ 以下时，“实测误差超过包络”并不是异常——此时量到的是舍入误差，而包络界只对精确插值误差成立；所以统计紧度时只比较显著高于 $100u$ 的点。$\\left|\\prod_i(x-x_i)\\right|$ 在节点上恰好为 $0$，对数轴必须夹一个显示地板，否则曲线会断成几段。变形的终点不是「节点变密」，而是按余弦分布把节点推向两端——中间反而变稀；所以 $\\Lambda(t)$ 整体下降，沿途可能有两三个百分点的局部回升，不能读成严格单调。",
       "requiredAux": ["error"],
-      "theory": ["首一 Chebyshev 多项式 T_n/2^(n-1) 的无穷范数最小 = 2^(1-n)（最小最大性质）", "等距节点的首一乘积在两端爆炸：实测 n=12 时 max|∏| = 4.01e-3，是 Chebyshev 的 8.3 倍", "morphed_nodes(n,t) = (1-t)·等距 + t·Chebyshev 的凸组合（在 [0,1] 上按 t 线性插值）", "误差包络：|f-p| ≤ sup|f^(n+1)|/(n+1)! · max|∏(x-x_i)|，等号只在 ξ(x) 取到上确界时成立"],
+      "theory": ["首一 Chebyshev 多项式的无穷范数最小：$\\left\\|T_n/2^{n-1}\\right\\|_\\infty=2^{1-n}$，这是最小最大性质。", "等距节点的首一乘积在两端爆炸：$n=12$ 时实测 $\\max\\left|\\prod_i(x-x_i)\\right|\\approx4.01\\times10^{-3}$，是 Chebyshev 节点的约 $8.3$ 倍。", "变形节点是凸组合：$(1-t)\\,x^{\\text{equi}}_i+t\\,x^{\\text{cheb}}_i$，其中 $t\\in[0,1]$。", "误差包络：$|f-p|\\le\\frac{\\sup|f^{(n+1)}|}{(n+1)!}\\max_x\\left|\\prod_i(x-x_i)\\right|$，等号只在每点都能取到上确界时成立。"],
       "time": {
         "dt": 0.01,
         "label": "节点分布变形 t（0=等距，1=Chebyshev）",
         "mode": "scrub",
         "tMax": 1.0,
       },
-      "title": "误差曲线、包络与节点变形",
+      "title": "拖动节点从等距变成 Chebyshev：误差、包络与首一乘积怎么变",
     },
     {
       "axes": [
@@ -210,7 +210,7 @@ export const manifest: ChapterManifestJson = {
         },
       ],
       "dataSource": "backend",
-      "description": "同一批节点、同一个函数：重心公式的函数值误差、解 Vandermonde 再 Horner 的函数值误差、以及 Vandermonde 解的**系数**误差（真值取有理数精确解，自研 Fraction 高斯消元）。副轴画 κ₁(V) 与参考指数曲线，并保留一直在 u 量级的后向残差。",
+      "description": "同一批节点、同一个函数，比较三条误差通道：重心公式的函数值误差、解 Vandermonde 方程再用 Horner 求值的函数值误差，以及 Vandermonde 解的系数误差（真值由有理数精确消元得到）。副图画条件数 $\\kappa_1(V)$ 与参考指数曲线，并保留一直停在 $u$ 量级的后向残差。",
       "id": "barycentric_vs_vandermonde",
       "params": [
         {
@@ -244,9 +244,9 @@ export const manifest: ChapterManifestJson = {
           "type": "enum",
         },
       ],
-      "pitfalls": "四条。第一：κ(V) 大不等于算得不准——解 Vandermonde 用的是部分主元 LU，它是后向稳定的：实测后向残差从 n=6 到 n=36 一直是 1e-17 量级，而 κ(V) 涨了 1e17 倍。把 κ 当成「误差倍数」会得出「n=30 时结果全错」的结论，而同一帧里函数值误差只有 2.45e-9。第二：真正爆炸的是系数——用有理数精确解做真值，n=30 时系数相对误差 2.69e-4、n=36 时 1.19e0（等距），n=44 时 1.45e1（全部有效位丢光）。系数与函数值是两条互不相干的通道：系数烂掉不影响 [-1,1] 上的取值，因为 Horner 求值时那些大系数会互相抵消。第三：如果把被插函数换成 Runge，两条函数值曲线都会被发散误差（1e0 量级）盖住，「两个算法一样好」的结论在那种设置下毫无意义——这正是本页缺省用 exp 的原因。第四：参考指数曲线只是量级参考（等距实测 log2 κ/n 从 1.53 漂到 1.60，Chebyshev 稳定在 1.261±0.002，对应 1+√2=2.414），不是定理，别当公式用。",
+      "pitfalls": "$\\kappa(V)$ 大不等于算得不准：解 Vandermonde 用的是部分主元 LU，它是后向稳定的——实测后向残差从 $n=6$ 到 $n=36$ 一直在 $10^{-17}$ 量级，而 $\\kappa(V)$ 涨了约 $10^{17}$ 倍。把条件数直接当成误差倍数，会得出「$n=30$ 时结果全错」的错误结论；同一帧里函数值误差只有约 $2.45\\times10^{-9}$。真正失控的是系数：用有理数精确解做真值，$n=30$ 时系数相对误差约 $2.69\\times10^{-4}$，$n=36$ 约 $1.19$，$n=44$ 约 $14.5$（有效位全丢）。系数与函数值走的是两条互不相干的通道：系数坏掉不一定影响区间内的取值，因为 Horner 求值时那些大系数会互相抵消。若把被插函数换成 Runge，函数值会被插值发散误差（约 $10^0$ 量级）盖住，此时比较两个算法毫无意义——这也是本页默认用 $e^x$ 的原因。条件数参考线只给量级：等距实测的 $\\log_2\\kappa/n$ 从 $1.53$ 漂到 $1.60$，Chebyshev 稳定在 $1.261\\pm0.002$，对应 $(1+\\sqrt2)^n$ 的底数约 $2.414$；它是趋势，不是精确公式。",
       "requiredAux": ["error", "residual"],
-      "theory": ["重心公式：p(x) = Σ w_i y_i/(x-x_i) / Σ w_i/(x-x_i)，每点 O(n) 且数值稳定", "未归一化权重 w_i = 1/∏_{j≠i}(x_i-x_j) 满足 (Σ w_i/(x-x_i))·∏(x-x_j) = 1（不是 Σ = 1）", "Vandermonde 系统 Vc=y 的条件数 κ₁(V) 随 n 指数增长：等距约 3^n，Chebyshev 约 (1+√2)^n", "后向稳定 ≠ 前向准确：κ(V)u 是系数相对误差的尺度，而函数值误差的尺度是 Λ_n·u", "插值多项式的单项式系数是病态表示：同一组系数在 Chebyshev 基下良态，换基就是放大 2^n"],
+      "theory": ["重心公式：$p(x)=\\frac{\\sum_i w_i y_i/(x-x_i)}{\\sum_i w_i/(x-x_i)}$，每求一个点只要 $O(n)$ 次运算，数值稳定。", "未归一化权重 $w_i=1/\\prod_{j\\ne i}(x_i-x_j)$ 满足 $\\left(\\sum_i\\frac{w_i}{x-x_i}\\right)\\prod_j(x-x_j)=1$——注意不是 $\\sum_i\\frac{w_i}{x-x_i}=1$。", "Vandermonde 系统 $Vc=y$ 的条件数 $\\kappa_1(V)$ 随 $n$ 指数增长：等距约 $3^n$，Chebyshev 约 $(1+\\sqrt2)^n$。", "后向稳定不等于前向准确：$\\kappa(V)u$ 是系数相对误差的尺度，函数值误差的尺度却是 $\\Lambda_nu$。", "单项式系数是病态的表示：同一多项式换到 Chebyshev 基通常良态，换回单项式基会放大 $2^n$。"],
       "time": {
         "dt": 1.0,
         "label": "节点数 n",
@@ -254,7 +254,7 @@ export const manifest: ChapterManifestJson = {
         "tMax": 36.0,
         "tMaxParam": "n_max",
       },
-      "title": "重心公式 vs 直接解 Vandermonde：三条误差通道",
+      "title": "重心公式与解 Vandermonde：同一个多项式，三条误差通道",
     },
   ],
 };

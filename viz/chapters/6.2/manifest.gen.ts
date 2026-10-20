@@ -48,7 +48,7 @@ export const manifest: ChapterManifestJson = {
       ],
       "pitfalls": "目录顺序不是构建顺序：章节号只反映写作计划，真正能编译的前提是依赖已就位。把 3.4 放在 2.3 前面会缺正交多项式，把 6.1 放在 4.x 前面会缺四个求解器。第二：``deps: [all]`` 不是「依赖所有章」的字面意思，本章把它展开为「清单里排在它前面的所有章」，否则 6.2 会依赖自己。第三：没有环 ≠ 顺序唯一；同层节点按清单顺序稳定排序，换实现若用集合遍历，构建顺序会漂移。第四：图的边数不等于依赖条目数——``all`` 会展开成 27 条边。",
       "requiredAux": ["error"],
-      "theory": ["拓扑序：每条边 u→v 中 u 必须排在 v 前；同层按清单顺序稳定排序", "分层深度 depth(v)=1+max depth(u)，最长链是关键路径（不是章节号顺序）", "deps: [all] 展开为清单中排在它前面的所有章，不包含自身"],
+      "theory": ["拓扑序：每条边 $u\\to v$ 中 $u$ 必须排在 $v$ 前；同层按清单顺序稳定排序", "分层深度 $\\operatorname{depth}(v)=1+\\max\\operatorname{depth}(u)$，最长链是关键路径（不是章节号顺序）", "deps: [all] 展开为清单中排在它前面的所有章，不包含自身"],
       "time": {
         "label": "t",
         "mode": "none",
@@ -129,7 +129,7 @@ export const manifest: ChapterManifestJson = {
       ],
       "pitfalls": "「视频能播」不等于「时间轴对」。内容时刻与播放时刻是两本账：最近邻取样把每帧量化到源快照，误差有半个源步长的上界；按序号抽稀则在非均匀步长下把物理时间拉弯。第二：GIF 的 delay 是整数厘秒，24 fps 请求被写成 4 cs，实际播放 25 fps，60 fps 被写成 2 cs，实际只有 50 fps；误差随帧号线性累积，长时间片尾会明显快/慢。第三：帧数上限截断不是「短一点」——它直接改变导出的时间跨度，必须在账本里报出来。第四：最近邻内容误差小，不代表画面不抖；同一快照被连续显示多帧（stall）是另一条独立的量。",
       "requiredAux": ["error"],
-      "theory": ["帧数 = floor(fps·(t_end−t_0)) + 1；超过上限时如实截断", "GIF delay_cs = max(1, round(100/fps))，实际 fps = 100/delay_cs", "最近邻内容误差 ≤ 半个源步长；GIF 播放误差随帧号线性累积"],
+      "theory": ["帧数 $=\\lfloor\\mathrm{fps}\\cdot(t_{\\mathrm{end}}-t_0)\\rfloor+1$；超过上限时如实截断", "GIF $\\mathrm{delay}_{cs}=\\max(1,\\operatorname{round}(100/\\mathrm{fps}))$，实际 $\\mathrm{fps}=100/\\mathrm{delay}_{cs}$", "最近邻内容误差 $\\le h/2$；GIF 播放误差随帧号线性累积"],
       "time": {
         "label": "t",
         "mode": "none",
@@ -152,7 +152,7 @@ export const manifest: ChapterManifestJson = {
         },
       ],
       "dataSource": "backend",
-      "description": "逐章检查六件事：notes 存在且含定理、asserts_table 行数与 asserts.yaml 声明一致、引用在章内闭合、\\input 目标存在、notes+附表无 xelatex 无字形风险字符、pitfalls ≥800 字。热图行=章、列=检查项；副图是每章的问题数。",
+      "description": "逐章检查六件事：notes 存在且含定理、asserts_table 行数与 asserts.yaml 声明一致、引用在章内闭合、LaTeX 的 input 目标存在、notes+附表无 xelatex 无字形风险字符、pitfalls $\\ge800$ 字。热图行=章、列=检查项；副图是每章的问题数。",
       "id": "book_build",
       "params": [
         {
@@ -174,9 +174,9 @@ export const manifest: ChapterManifestJson = {
           "type": "enum",
         },
       ],
-      "pitfalls": "「编译通过」不是「书对」：xelatex 对缺字形只吞字、不报错，未定义引用也要两遍编译才稳定；附表的行数如果与 asserts.yaml 声明不一致，PDF 里就是旧数字。第二：引用必须在单章内闭合，因为 G9 逐章编译；跨章 \\eqref 在合并本里能过，单章编译会失败。第三：注释里的 ``\\input``/``\\ref`` 不算依赖，先剔注释再计数。第四：6 列检查里任何一格为 0 都不能靠「其它列全绿」抵消；问题数按章统计，不是全局平均。",
+      "pitfalls": "「编译通过」不是「书对」：xelatex 对缺字形只吞字、不报错，未定义引用也要两遍编译才稳定；附表的行数如果与 asserts.yaml 声明不一致，PDF 里就是旧数字。第二：引用必须在单章内闭合，因为 G9 逐章编译；跨章 eqref 引用在合并本里能过，单章编译会失败。第三：注释里的 input/ref 命令不算依赖，先剔注释再计数。第四：6 列检查里任何一格为 0 都不能靠「其它列全绿」抵消；问题数按章统计，不是全局平均。",
       "requiredAux": ["error"],
-      "theory": ["附表行数必须等于 asserts_report.md 的断言条数（纸面与机器同源）", "引用在单章内闭合；\\input 目标必须存在（注释中的命令不算）", "notes+附表不含 xelatex 无字形风险字符；pitfalls ≥800 字"],
+      "theory": ["附表行数必须等于 asserts_report.md 的断言条数（纸面与机器同源）", "引用在单章内闭合；LaTeX 的 input 目标必须存在（注释中的命令不算）", "notes+附表不含 xelatex 无字形风险字符；pitfalls $\\ge800$ 字"],
       "time": {
         "label": "t",
         "mode": "none",

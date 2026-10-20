@@ -30,7 +30,7 @@ export const manifest: ChapterManifestJson = {
         },
       ],
       "dataSource": "backend",
-      "description": "把 f 与它在前 k 个基函数张成的子空间上的投影画在一起（实线=当前 k 维，虚线=目标 n 维），下方同时给出系数向量 c 与误差 f − P_k f。切换基底时子空间不变、投影不变，但 Gram 矩阵的条件数与系数向量会完全变样。",
+      "description": "把 $f$ 与它在前 $k$ 个基函数张成的子空间上的投影画在一起（实线=当前 $k$ 维，虚线=目标 $n$ 维），下方同时给出系数向量 $c$ 与误差 $f-P_kf$。切换基底时子空间不变、投影不变，但 Gram 矩阵的条件数与系数向量会完全变样。",
       "id": "projection",
       "params": [
         {
@@ -57,7 +57,7 @@ export const manifest: ChapterManifestJson = {
             23.0,
             24.0,
           ],
-          "criticalNote": "这条线只对**单项式基**成立：Gram 矩阵的条件数 κ₁(G) 随 n 指数增长，实测 n=22 时 κ≈4.3e15、n=24 时 κ≈2.0e17，在 n≈23 处越过 1/u≈9.0e15。越过它以后解的相对误差可以到 O(1)，但正规方程残差依旧很小——残差小绝不等于解对。Legendre 基（κ=1）与 Chebyshev 基不存在这条线。",
+          "criticalNote": "这条线只对**单项式基**成立：Gram 矩阵的条件数 $\\kappa_1(G)$ 随 $n$ 指数增长，实测 $n=22$ 时 $\\kappa\\approx4.3\\times10^{15}$、$n=24$ 时 $\\kappa\\approx2.0\\times10^{17}$，在 $n\\approx23$ 处越过 $1/u\\approx9.0\\times10^{15}$。越过它以后解的相对误差可以到 $O(1)$，但正规方程残差依旧很小——残差小绝不等于解对。Legendre 基（$\\kappa=1$）与 Chebyshev 基不存在这条线。",
           "default": 12,
           "label": "目标维数 n",
           "max": 24,
@@ -66,9 +66,9 @@ export const manifest: ChapterManifestJson = {
           "type": "int",
         },
       ],
-      "pitfalls": "① 把 L² 最佳逼近当成一致逼近：正交投影最小化的是加权平方误差，它在个别点上的偏差可以远大于 Remez 结果（本页误差曲线的尖峰就是证据）。② 以为“换个基结果就不同”：三个基底张成同一个子空间，投影作为函数是同一个，差别只在系数与条件数；反过来，把“残差小”当成“系数准”也会翻车——单项式基在 n≥23 时 Gram 的条件数越过 1/u，系数已经全是噪声而残差仍然很小。",
+      "pitfalls": "① 把 $L^2$ 最佳逼近当成一致逼近：正交投影最小化的是加权平方误差，它在个别点上的偏差可以远大于 Remez 结果（本页误差曲线的尖峰就是证据）。② 以为“换个基结果就不同”：三个基底张成同一个子空间，投影作为函数是同一个，差别只在系数与条件数；反过来，把“残差小”当成“系数准”也会翻车——单项式基在 $n\\ge23$ 时 Gram 的条件数越过 $1/u$，系数已经全是噪声而残差仍然很小。",
       "requiredAux": ["error"],
-      "theory": ["投影的几何：Gc=b，G_ij=⟨φ_i,φ_j⟩，c 是 f 在正交基下的坐标（笔记定理 6）。", "正交基下 G=I，正规方程的相对误差 ~u·κ(G)；非正交基把 κ 平方放大（笔记定理 6 推论）。"],
+      "theory": ["投影的几何：$Gc=b$，$G_{ij}=\\langle\\varphi_i,\\varphi_j\\rangle$，$c$ 是 $f$ 在正交基下的坐标（笔记定理 6）。", "正交基下 $G=I$，正规方程的相对误差 $\\sim u\\cdot\\kappa(G)$；非正交基把 $\\kappa$ 平方放大（笔记定理 6 推论）。"],
       "time": {
         "dt": 1.0,
         "label": "已展开的基函数个数 k",
@@ -95,7 +95,7 @@ export const manifest: ChapterManifestJson = {
         },
       ],
       "dataSource": "backend",
-      "description": "三条 L² 投影误差曲线画在同一张双对数图上：解析函数（Runge，Bernstein 椭圆有限）呈几何衰减，|x| 尖点呈 n^(−3/2)，sign(x) 跳点呈 n^(−1/2)。每条曲线都同时给出实测拟合线与理论参考线，并把斜率、R²、拟合窗口写进 meta。",
+      "description": "三条 $L^2$ 投影误差曲线画在同一张双对数图上：解析函数（Runge，Bernstein 椭圆有限）呈几何衰减，$|x|$ 尖点呈 $n^{-3/2}$，$\\operatorname{sign}(x)$ 跳点呈 $n^{-1/2}$。每条曲线都同时给出实测拟合线与理论参考线，并把斜率、$R^2$、拟合窗口写进 meta。",
       "id": "convergence_rates",
       "params": [
         {
@@ -120,9 +120,9 @@ export const manifest: ChapterManifestJson = {
           "type": "int",
         },
       ],
-      "pitfalls": "① “误差在 log 轴上看起来是直线”不等于指数收敛：整函数（如 eˣ）的误差在半对数图上会越走越陡，只有当 f 在某个 Bernstein 椭圆 E_ρ 内解析时才有有限的 ρ，理论斜率才等于 −ln ρ。② 用 Gauss 求积算 |x−a| 或 sign(x−a) 的内积却不在折点处切段，求积误差（~1e-3）会直接盖住逼近误差，于是你量到的是求积的错；③ 偶函数的奇次系数恒为 0，误差曲线会呈阶梯状，拿它去拟合斜率会得到偏小的 α。",
+      "pitfalls": "① “误差在 log 轴上看起来是直线”不等于指数收敛：整函数（如 $e^x$）的误差在半对数图上会越走越陡，只有当 $f$ 在某个 Bernstein 椭圆 $E_\\rho$ 内解析时才有有限的 $\\rho$，理论斜率才等于 $-\\ln\\rho$。② 用 Gauss 求积算 $|x-a|$ 或 $\\operatorname{sign}(x-a)$ 的内积却不在折点处切段，求积误差（$\\sim10^{-3}$）会直接盖住逼近误差，于是你量到的是求积的错；③ 偶函数的奇次系数恒为 $0$，误差曲线会呈阶梯状，拿它去拟合斜率会得到偏小的 $\\alpha$。",
       "requiredAux": ["error"],
-      "theory": ["Jackson 型估计：f 有 ν 阶连续导数且 f^(ν) 有界变差 ⇒ 系数 O(k^(−ν−1))、L² 误差 O(n^(−ν−1/2))（笔记定理 5）。", "Bernstein 椭圆：f 在 E_ρ 内解析 ⇒ 误差 O(ρ^(−n))，斜率 −lnρ（笔记定理 5）。"],
+      "theory": ["Jackson 型估计：$f$ 有 $\\nu$ 阶连续导数且 $f^{(\\nu)}$ 有界变差 $\\Rightarrow$ 系数 $O(k^{-\\nu-1})$、$L^2$ 误差 $O(n^{-\\nu-1/2})$（笔记定理 5）。", "Bernstein 椭圆：$f$ 在 $E_\\rho$ 内解析 $\\Rightarrow$ 误差 $O(\\rho^{-n})$，斜率 $-\\ln\\rho$（笔记定理 5）。"],
       "time": {
         "label": "t",
         "mode": "none",
@@ -146,7 +146,7 @@ export const manifest: ChapterManifestJson = {
         },
       ],
       "dataSource": "backend",
-      "description": "Remez 交换算法逐轮的误差曲线（时间轴 = 迭代轮次）与当前交错点标记；虚线是同一阶的 L² 投影误差，用来看“最小二乘”与“最小最大”差在哪里。收敛后交错点个数必须等于 n+2，且各点振幅比 ~1。",
+      "description": "Remez 交换算法逐轮的误差曲线（时间轴 = 迭代轮次）与当前交错点标记；虚线是同一阶的 $L^2$ 投影误差，用来看“最小二乘”与“最小最大”差在哪里。收敛后交错点个数必须等于 $n+2$，且各点振幅比 $\\sim1$。",
       "id": "equioscillation",
       "params": [
         {
@@ -169,9 +169,9 @@ export const manifest: ChapterManifestJson = {
           "type": "int",
         },
       ],
-      "pitfalls": "① 初始交错点选得不好会不收敛：Remez 的收敛依赖“新点集落在旧点集的交错结构里”，把初值取成等距点或随机点，误差曲线会出现多于 n+2 个极值，换点规则随即振荡；② 不能用“交错点集合不再变化”当停机判据——浮点噪声下点集会在两三个状态间循环，其中既有最优解也有误差大一倍的解，必须用 de la Vallée Poussin 下界追平实测最大误差来判定；③ 交错点个数 = n+2 是定理，但如果误差已经掉到舍入地板（例如 eˣ 在 n≥12 时），极值全是噪声，这时“数出 n+2 个点”毫无意义。",
+      "pitfalls": "① 初始交错点选得不好会不收敛：Remez 的收敛依赖“新点集落在旧点集的交错结构里”，把初值取成等距点或随机点，误差曲线会出现多于 $n+2$ 个极值，换点规则随即振荡；② 不能用“交错点集合不再变化”当停机判据——浮点噪声下点集会在两三个状态间循环，其中既有最优解也有误差大一倍的解，必须用 de la Vallée Poussin 下界追平实测最大误差来判定；③ 交错点个数 $=n+2$ 是定理，但如果误差已经掉到舍入地板（例如 $e^x$ 在 $n\\ge12$ 时），极值全是噪声，这时“数出 $n+2$ 个点”毫无意义。",
       "requiredAux": ["error"],
-      "theory": ["Chebyshev 交错定理：p 是最佳一致逼近 ⟺ f−p 在 n+2 个点上符号交替、等幅（笔记定理 4）。", "de la Vallée Poussin 下界：任一 n+2 点交错集的 min|e| ≤ ‖f−p*‖∞（笔记定理 4 推论）。"],
+      "theory": ["Chebyshev 交错定理：$p$ 是最佳一致逼近 $\\Leftrightarrow$ $f-p$ 在 $n+2$ 个点上符号交替、等幅（笔记定理 4）。", "de la Vallée Poussin 下界：任一 $n+2$ 点交错集的 $\\min|e|\\le\\|f-p^*\\|_\\infty$（笔记定理 4 推论）。"],
       "time": {
         "dt": 1.0,
         "label": "Remez 迭代轮次 k",
@@ -197,7 +197,7 @@ export const manifest: ChapterManifestJson = {
         },
       ],
       "dataSource": "backend",
-      "description": "每个阶数画出一族正交多项式的全部零点（分岔图风格），轴上叠加理论密度曲线；同一阶的 Chebyshev 零点（解析闭式）仿射映射后作为对照，下面板画每个根的 Newton 根误差 |p/p′|（log 轴，会触到舍入地板）。",
+      "description": "每个阶数画出一族正交多项式的全部零点（分岔图风格），轴上叠加理论密度曲线；同一阶的 Chebyshev 零点（解析闭式）仿射映射后作为对照，下面板画每个根的 Newton 根误差 $|p/p'|$（log 轴，会触到舍入地板）。",
       "id": "zeros_evolution",
       "params": [
         {
@@ -220,9 +220,9 @@ export const manifest: ChapterManifestJson = {
           "type": "int",
         },
       ],
-      "pitfalls": "① 正交多项式的零点不是等距的：Legendre 与 Chebyshev 的零点都服从反正弦律（靠近端点加密），Laguerre 的零点在 (0,∞) 上向大 x 端逐渐稀疏；把零点画成等距会立刻与图上的 gap 曲线矛盾。② 别用 |p_n(x_k)| 当误差：Laguerre 的 |L_n| 在 n=40 时能到 1e14，残差 1e14 对应的根误差其实只有 1e-14；要么用与多项式尺度无关的Newton 修正量 |p/p′|，要么就明确说明残差是相对什么尺度。",
+      "pitfalls": "① 正交多项式的零点不是等距的：Legendre 与 Chebyshev 的零点都服从反正弦律（靠近端点加密），Laguerre 的零点在 $(0,\\infty)$ 上向大 $x$ 端逐渐稀疏；把零点画成等距会立刻与图上的 gap 曲线矛盾。② 别用 $|p_n(x_k)|$ 当误差：Laguerre 的 $|L_n|$ 在 $n=40$ 时能到 $10^{14}$，残差 $10^{14}$ 对应的根误差其实只有 $10^{-14}$；要么用与多项式尺度无关的Newton 修正量 $|p/p'|$，要么就明确说明残差是相对什么尺度。",
       "requiredAux": ["error"],
-      "theory": ["零点性质：正交多项式的 n 个零点全在正交区间内、互异、且与低一阶的零点交错（笔记定理 1 推论）。", "Gauss 求积节点=正交多项式零点（笔记定理 2）；经验分布收敛到平衡测度（Legendre/Chebyshev 为反正弦律）。"],
+      "theory": ["零点性质：正交多项式的 $n$ 个零点全在正交区间内、互异、且与低一阶的零点交错（笔记定理 1 推论）。", "Gauss 求积节点=正交多项式零点（笔记定理 2）；经验分布收敛到平衡测度（Legendre/Chebyshev 为反正弦律）。"],
       "time": {
         "dt": 1.0,
         "label": "最高阶数 n",

@@ -7,6 +7,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 import { renderRichText, texToMathML } from "../shared/src/math.js";
 
@@ -314,4 +315,154 @@ test("renderRichText：HTML 注入在正文、代码与公式文本里都被转�
 test("renderRichText：富文本输出确定性", () => {
   const text = "**标题**\n\n行内 $x_1$ 与 `code`\n\n$$\\sum_{i=1}^{n} i$$";
   assert.equal(renderRichText(text), renderRichText(text));
+});
+
+
+/* ------------------------------------------------------------------------- */
+/* 站点正文数据中的 $...$：不能有未闭合定界符或未支持命令                     */
+/* ------------------------------------------------------------------------- */
+
+interface GuideTerm {
+  term?: unknown;
+  desc?: unknown;
+}
+interface GuideEntry {
+  intro?: unknown;
+  glossary?: GuideTerm[];
+}
+interface VizProse {
+  id?: unknown;
+  description?: unknown;
+  theory?: unknown;
+  pitfalls?: unknown;
+  params?: Array<{ name?: unknown; criticalNote?: unknown }>;
+}
+interface ChapterManifestProse {
+  chapter?: unknown;
+  summary?: unknown;
+  vizzes?: VizProse[];
+}
+
+const ROOT = process.cwd();
+
+function readJson(rel: string): unknown {
+  return JSON.parse(readFileSync(`${ROOT}/${rel}`, "utf8")) as unknown;
+}
+
+/** 取出所有成对的 `$...$`；未配对的 `$` 单独报告。 */
+function inlineMath(source: string, where: string, errors: string[]): string[] {
+  const out: string[] = [];
+  let i = 0;
+  while (i < source.length) {
+    if (source[i] !== "$") {
+      i += 1;
+      continue;
+    }
+    if (source[i + 1] === "$") {
+      errors.push(`${where}: 出现了 $$ 展示公式定界符；正文公式请用单个 $...$`);
+      i += 2;
+      continue;
+    }
+    const end = source.indexOf("$", i + 1);
+    if (end < 0) {
+      errors.push(`${where}: 未闭合的 $...$`);
+      break;
+    }
+    const body = source.slice(i + 1, end);
+    if (body.trim() === "") errors.push(`${where}: 空的 $...$`);
+    out.push(body);
+    i = end + 1;
+  }
+  return out;
+}
+
+/** 正文里除 $...$ 与 `代码` 外不应再出现 TeX 反斜杠命令（会原样显示在页面上）。 */
+function checkNoBareCommands(source: string, where: string, errors: string[]): void {
+  const plain = source
+    .replace(/\$[^$]*\$/g, "")
+    .replace(/`[^`]*`/g, "")
+    .replace(/\\([\[\](){}])/g, "$1");
+  for (const match of plain.matchAll(/\\[A-Za-z]+/g)) {
+    errors.push(`${where}: 公式外的 TeX 命令 ${match[0]}（会原样显示）`);
+  }
+}
+
+function checkInlineMath(tex: string, where: string, errors: string[]): void {
+  let braces = 0;
+  let left = 0;
+  let right = 0;
+  for (let i = 0; i < tex.length; i += 1) {
+    if (tex[i] === "\\") {
+      let j = i + 1;
+      if (/[A-Za-z]/.test(tex[j] ?? "")) {
+        while (j < tex.length && /[A-Za-z]/.test(tex[j] as string)) j += 1;
+      } else if (j < tex.length) {
+        j += 1;
+      }
+      const name = tex.slice(i + 1, j);
+      if (name === "left") left += 1;
+      else if (name === "right") right += 1;
+      i = j - 1;
+      continue;
+    }
+    if (tex[i] === "{") braces += 1;
+    else if (tex[i] === "}") {
+      braces -= 1;
+      if (braces < 0) {
+        errors.push(`${where}: 多余的 }`);
+        return;
+      }
+    }
+  }
+  if (braces !== 0) errors.push(`${where}: 花括号不平衡（${braces > 0 ? "缺 }" : "多 }"}）`);
+  if (left !== right) errors.push(`${where}: \\left 与 \\right 数量不一致（${left} vs ${right}）`);
+  const html = texToMathML(tex);
+  if (/<mtext>\\/.test(html)) {
+    const shown = /<mtext>(\\[^<]*)<\/mtext>/.exec(html)?.[1] ?? "?";
+    errors.push(`${where}: 渲染器不支持命令 ${shown}（会原样显示在页面上）`);
+  }
+}
+
+test("站点数据：guide intro / glossary 的每个 $...$ 都能完整渲染", () => {
+  const raw = readJson("data/site/guides.json") as { chapters?: Record<string, GuideEntry> };
+  const errors: string[] = [];
+  for (const [chapter, entry] of Object.entries(raw.chapters ?? {})) {
+    const texts: Array<[string, unknown]> = [[`guides.${chapter}.intro`, entry.intro]];
+    for (const [i, item] of (entry.glossary ?? []).entries()) {
+      texts.push([`guides.${chapter}.glossary[${i}].desc`, item.desc]);
+    }
+    for (const [where, value] of texts) {
+      if (typeof value !== "string") continue;
+      checkNoBareCommands(value, where, errors);
+      for (const tex of inlineMath(value, where, errors)) checkInlineMath(tex, where, errors);
+      assert.doesNotThrow(() => renderRichText(value));
+    }
+  }
+  assert.deepEqual(errors, []);
+});
+
+test("站点数据：章节 MANIFEST 的正文公式都能完整渲染", () => {
+  const errors: string[] = [];
+  const index = readJson("data/manifests/index.json") as { chapters?: Array<{ chapter?: string }> };
+  for (const entry of index.chapters ?? []) {
+    if (typeof entry.chapter !== "string") continue;
+    const manifest = readJson(`data/manifests/${entry.chapter}.json`) as ChapterManifestProse;
+    const texts: Array<[string, unknown]> = [[`${entry.chapter}.summary`, manifest.summary]];
+    for (const viz of manifest.vizzes ?? []) {
+      const tag = `${entry.chapter}/${String(viz.id ?? "?")}`;
+      texts.push([`${tag}.description`, viz.description], [`${tag}.pitfalls`, viz.pitfalls]);
+      if (Array.isArray(viz.theory)) {
+        viz.theory.forEach((line, i) => texts.push([`${tag}.theory[${i}]`, line]));
+      }
+      for (const [i, param] of (viz.params ?? []).entries()) {
+        texts.push([`${tag}.params[${i}].criticalNote`, param.criticalNote]);
+      }
+    }
+    for (const [where, value] of texts) {
+      if (typeof value !== "string") continue;
+      checkNoBareCommands(value, where, errors);
+      for (const tex of inlineMath(value, where, errors)) checkInlineMath(tex, where, errors);
+    }
+  }
+  assert.deepEqual(errors, []);
 });

@@ -38,7 +38,7 @@ export const manifest: ChapterManifestJson = {
           "critical": [
             64.0,
           ],
-          "criticalNote": "N·dt = T 决定主瓣宽度 ≈ 1/T = df 栅格；N 再小则基频与二次谐波会并进同一个主瓣。",
+          "criticalNote": "$N\\cdot dt=T$ 决定主瓣宽度 $\\approx1/T=df$ 栅格；$N$ 再小则基频与二次谐波会并进同一个主瓣。",
           "default": 256,
           "label": "观测点数 N",
           "max": 2048,
@@ -50,7 +50,7 @@ export const manifest: ChapterManifestJson = {
           "critical": [
             1.0,
           ],
-          "criticalNote": "pad > 1 只把栅格加密到 df/pad（谱线更光滑）；分辨率仍由 T = N·dt 决定，越过它不会让两个近邻音分开。",
+          "criticalNote": "$pad>1$ 只把栅格加密到 $df/pad$（谱线更光滑）；分辨率仍由 $T=N\\cdot dt$ 决定，越过它不会让两个近邻音分开。",
           "default": 1,
           "label": "补零倍数",
           "max": 8,
@@ -114,9 +114,9 @@ export const manifest: ChapterManifestJson = {
           "type": "float",
         },
       ],
-      "pitfalls": "把 pad 从 1 拖到 8，谱线会明显变光滑、峰也显得更尖，很容易读成「分辨率提高了」；其实主瓣宽度只由 T = N·dt 决定，pad 只是把同一条连续谱采得更密。真正的判据是「两个近邻音之间的谷有没有低于两峰」——pad 变大时这个谷的深度不变。",
+      "pitfalls": "把 pad 从 $1$ 拖到 $8$，谱线会明显变光滑、峰也显得更尖，很容易读成「分辨率提高了」；其实主瓣宽度只由 $T=N\\cdot dt$ 决定，pad 只是把同一条连续谱采得更密。真正的判据是「两个近邻音之间的谷有没有低于两峰」——pad 变大时这个谷的深度不变。",
       "requiredAux": ["error"],
-      "theory": ["DFT 定义 X_k = sum_n x_n exp(-2*pi*i*n*k/N)", "频率栅格 df = 1/(N*dt) = 1/T", "Rayleigh 判据 df_min ≈ 1/T", "FFT 与 O(N^2) DFT 逐点一致到舍入级"],
+      "theory": ["DFT 定义 $X_k=\\sum_nx_n\\exp(-2\\pi i\\,n\\,k/N)$", "频率栅格 $df=1/(N\\cdot dt)=1/T$", "Rayleigh 判据 $df_{\\min}\\approx1/T$", "FFT 与 $O(N^2)$ DFT 逐点一致到舍入级"],
       "time": {
         "label": "t",
         "mode": "none",
@@ -163,7 +163,7 @@ export const manifest: ChapterManifestJson = {
           "critical": [
             0.5,
           ],
-          "criticalNote": "整周期采样（offset = 0）时矩形窗无泄漏；offset 不为 0 就是非整周期，矩形窗旁瓣立刻抬到 -13 dB 量级，越过 0.5 后相邻两条谱线的幅度开始互相颠倒。",
+          "criticalNote": "整周期采样（$offset=0$）时矩形窗无泄漏；$offset$ 不为 $0$ 就是非整周期，矩形窗旁瓣立刻抬到 $-13$ dB 量级，越过 $0.5$ 后相邻两条谱线的幅度开始互相颠倒。",
           "default": 0.25,
           "label": "频率偏移（栅格）",
           "max": 1.0,
@@ -192,9 +192,9 @@ export const manifest: ChapterManifestJson = {
           "type": "enum",
         },
       ],
-      "pitfalls": "把窗从矩形换成 Hann，旁瓣从 -13 dB 掉到 -31 dB，图上看是干净多了；但主瓣宽度同时从 0.89 格涨到 1.44 格——两个本来刚好分得开的近邻音会并成一个包。只报旁瓣改善是片面的：Hann 的相干增益只有 0.4922，白噪声下幅度读数要除以它才对。",
+      "pitfalls": "把窗从矩形换成 Hann，旁瓣从 $-13$ dB 掉到 $-31$ dB，图上看是干净多了；但主瓣宽度同时从 $0.89$ 格涨到 $1.44$ 格——两个本来刚好分得开的近邻音会并成一个包。只报旁瓣改善是片面的：Hann 的相干增益只有 $0.4922$，白噪声下幅度读数要除以它才对。",
       "requiredAux": ["error"],
-      "theory": ["矩形窗峰值旁瓣 -13.26 dB，Hann -31.47 dB（Harris 1978 表 1）", "Hann 主瓣 -3 dB 宽 1.44 格 vs 矩形 0.89 格", "旁瓣渐近包络 |W(f)| ~ f^(-p)：矩形/汉明 p=1、Hann/Blackman p=3"],
+      "theory": ["矩形窗峰值旁瓣 $-13.26$ dB，Hann $-31.47$ dB（Harris 1978 表 1）", "Hann 主瓣 $-3$ dB 宽 $1.44$ 格 vs 矩形 $0.89$ 格", "旁瓣渐近包络 $|W(f)|\\sim f^{-p}$：矩形/汉明 $p=1$、Hann/Blackman $p=3$"],
       "time": {
         "label": "t",
         "mode": "none",
@@ -224,7 +224,7 @@ export const manifest: ChapterManifestJson = {
         },
       ],
       "dataSource": "backend",
-      "description": "逐级点亮蝶形运算：每级的实部/虚部轨迹与逐级残差，最后一级经位反序得 X_k。",
+      "description": "逐级点亮蝶形运算：每级的实部/虚部轨迹与逐级残差，最后一级经位反序得 $X_k$。",
       "id": "butterfly_stages",
       "params": [
         {
@@ -259,7 +259,7 @@ export const manifest: ChapterManifestJson = {
       ],
       "pitfalls": "蝶形图只画连接关系时，任何一张图看起来都对——真正会错的是下标约定：DIT 与 DIF 的块一个隔点、一个连续，位序也有两种写法。本项目用「末行经位反序重排后必须逐点等于 DFT(x)」钉死它，而不是靠图好看。逐级残差量的是「向量化实现 vs 朴素二重循环」，贴地板只说明两种写法一致，不说明数学对——数学对由 DFT 对拍负责。",
       "requiredAux": ["residual"],
-      "theory": ["Cooley-Tukey 分治：X_k = E_k + W_N^k O_k", "N 点 DFT 的蝶形数为 (N/2)*log2(N)", "DIF 末行 = DFT 的位反序置换", "逐级残差贴舍入地板"],
+      "theory": ["Cooley-Tukey 分治：$X_k=E_k+W_N^kO_k$", "$N$ 点 DFT 的蝶形数为 $(N/2)\\log_2N$", "DIF 末行 = DFT 的位反序置换", "逐级残差贴舍入地板"],
       "time": {
         "dt": 0.05,
         "fps": 30,
@@ -298,7 +298,7 @@ export const manifest: ChapterManifestJson = {
           "critical": [
             24.0,
           ],
-          "criticalNote": "N 不小于 N_a+M-1 时循环卷积才等于线性卷积；默认滤波器长 M = 8，所以 N < 15 一定有卷绕，N = 24 已在安全区（参考线给的是含余量的值）。",
+          "criticalNote": "$N$ 不小于 $N_a+M-1$ 时循环卷积才等于线性卷积；默认滤波器长 $M=8$，所以 $N<15$ 一定有卷绕，$N=24$ 已在安全区（参考线给的是含余量的值）。",
           "default": 16,
           "label": "信号长度 N",
           "max": 128,
@@ -335,9 +335,9 @@ export const manifest: ChapterManifestJson = {
           "type": "enum",
         },
       ],
-      "pitfalls": "N 不够大时，循环卷积与线性卷积在前几项上完全一样（卷绕发生在尾部、折回来叠在前面），所以只画滤波结果会看着非常正常；必须把「循环 − 线性」的差单独画出来。另一个陷阱：把补零后的结果当成「更精确的卷积」——补零只让循环卷积等于线性卷积，不改变任何一个乘加。",
+      "pitfalls": "$N$ 不够大时，循环卷积与线性卷积在前几项上完全一样（卷绕发生在尾部、折回来叠在前面），所以只画滤波结果会看着非常正常；必须把「循环 − 线性」的差单独画出来。另一个陷阱：把补零后的结果当成「更精确的卷积」——补零只让循环卷积等于线性卷积，不改变任何一个乘加。",
       "requiredAux": ["error"],
-      "theory": ["循环卷积定理：DFT(a ⊛ b) = DFT(a)·DFT(b)", "N 不小于 N_a+N_b-1 时循环卷积 = 线性卷积", "频域相乘 = 时域循环卷积（不是线性卷积）"],
+      "theory": ["循环卷积定理：$\\operatorname{DFT}(a⊛b)=\\operatorname{DFT}(a)\\cdot\\operatorname{DFT}(b)$", "$N$ 不小于 $N_a+N_b-1$ 时循环卷积等于线性卷积", "频域相乘等于时域循环卷积（不是线性卷积）"],
       "time": {
         "label": "t",
         "mode": "none",
@@ -362,12 +362,12 @@ export const manifest: ChapterManifestJson = {
           "autoscaled": true,
           "id": "error",
           "scale": "log",
-          "title": "|FFT − DFT|",
+          "title": "当前 N 的 |FFT−DFT| 水平（对数）",
           "ylabel": "max|delta|",
         },
       ],
       "dataSource": "backend",
-      "description": "两个近邻音能否分开 vs 观测长度 T；二分实测最小可分辨间隔并与 Rayleigh 判据比对。",
+      "description": "两个近邻音能否分开，取决于观测时长 $T$，补零只让频率栅格更细。左上画出加窗后的两条谱线与实测间隔尺；左下扫过不同的观测点数，标出“分开 / 分不开”的边界；右下是 FFT 与直接 DFT 的对拍误差水平——它只说明谱算对了，不代表两个音能分辨。",
       "id": "resolution",
       "params": [
         {
@@ -384,7 +384,7 @@ export const manifest: ChapterManifestJson = {
           "critical": [
             1.0,
           ],
-          "criticalNote": "pad 只加密栅格：二分实测的最小可分辨间隔随 pad 只动百分之几，而随 T = N·dt 成反比变化——这就是「补零不等于提高分辨率」的可执行判据。",
+          "criticalNote": "pad 只加密栅格：二分实测的最小可分辨间隔随 pad 只动百分之几，而随 $T=N\\cdot dt$ 成反比变化——这就是「补零不等于提高分辨率」的可执行判据。",
           "default": 1,
           "label": "补零倍数",
           "max": 8,
@@ -397,7 +397,7 @@ export const manifest: ChapterManifestJson = {
             1.0,
             1.44,
           ],
-          "criticalNote": "整数格扫描下四个窗的实测边界都是 1.0/T（= Rayleigh 判据；critical 1.0）——因为两音都落在栅格上时，判据只看主瓣宽度与间隔的关系。Hann 的代价要在**半格**位置上才现形：两音取 2.25/T 与 3.75/T 时矩形窗仍可分，Hann 并成一个包（主瓣 1.44 格 > 1.5 格间隔已经贴极限）。",
+          "criticalNote": "整数格扫描下四个窗的实测边界都是 $1.0/T$（= Rayleigh 判据；critical $1.0$）——因为两音都落在栅格上时，判据只看主瓣宽度与间隔的关系。Hann 的代价要在**半格**位置上才现形：两音取 $2.25/T$ 与 $3.75/T$ 时矩形窗仍可分，Hann 并成一个包（主瓣 $1.44$ 格 $>1.5$ 格间隔已经贴极限）。",
           "default": 2.0,
           "label": "两音间隔（周期数/T）",
           "max": 8.0,
@@ -427,9 +427,9 @@ export const manifest: ChapterManifestJson = {
           "type": "enum",
         },
       ],
-      "pitfalls": "把 N 从 64 拖到 4096，峰越来越瘦，很容易说「分辨率提高了」；本页固定 T = N·dt = 1，所以拖 N 只改变采样密度。判据必须用「两峰之间的谷是否低于矮峰」来判，用「峰有多尖」判会得出相反结论。另外峰值位置用抛物线插值可以做到远好于 df 的精度——定位精度与分辨率不是一回事。",
+      "pitfalls": "把 $N$ 从 $64$ 拖到 $4096$，峰越来越瘦，很容易说「分辨率提高了」；本页固定 $T=N\\cdot dt=1$，所以拖 $N$ 只改变采样密度。判据必须用「两峰之间的谷是否低于矮峰」来判，用「峰有多尖」判会得出相反结论。另外峰值位置用抛物线插值可以做到远好于 $df$ 的精度——定位精度与分辨率不是一回事。",
       "requiredAux": ["error"],
-      "theory": ["Rayleigh 判据 df_min ≈ 1/T（整数格扫描下四种窗同值）", "窗的代价只在非栅格（半格）位置上现形：Hann 在 1.5/T 上分不开", "频率栅格 df = 1/(N*dt)（pad 只加密它）", "不确定原理 df*T 不小于 c（矩形窗 c ≈ 0.89）", "峰值插值精度远小于栅格间距"],
+      "theory": ["Rayleigh 判据 $df_{\\min}\\approx1/T$（整数格扫描下四种窗同值）", "窗的代价只在非栅格（半格）位置上现形：Hann 在 $1.5/T$ 上分不开", "频率栅格 $df=1/(N\\cdot dt)$（pad 只加密它）", "不确定原理 $df\\cdot T$ 不小于 $c$（矩形窗 $c\\approx0.89$）", "峰值插值精度远小于栅格间距"],
       "time": {
         "label": "t",
         "mode": "none",

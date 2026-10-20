@@ -206,8 +206,8 @@ const META_LABELS: Readonly<Record<string, MetricSpec>> = {
 
 /** 每个可视化的读数顺序与（必要时）覆盖文案。 */
 const VIZ_METRICS: Readonly<Record<string, readonly string[]>> = {
-  "1.1/float_zoom": ["n_points", "residual_0102_03_ulps", "residual_0102_03", "k"],
-  "1.1/cancellation": ["gap", "digits_remaining", "digits_lost", "perturbation_amplification"],
+  "1.1/float_zoom": ["center", "spacing_center", "k", "residual_0102_03_ulps", "spacing_ratio"],
+  "1.1/cancellation": ["gap", "digits_remaining", "loss_digits", "perturbation_amplification"],
   "1.1/cond_ellipsoid": ["kappa_measured", "kappa_target", "amplification_measured", "forward_error"],
   "1.1/summation_order": ["k", "error_naive", "error_kahan", "bound_naive"],
   "1.2/pivot_strategy": ["rho_max", "forward_max", "n_singular"],
@@ -249,8 +249,21 @@ const VIZ_METRICS: Readonly<Record<string, readonly string[]>> = {
 };
 
 const VIZ_LABELS: Readonly<Record<string, Readonly<Record<string, Partial<MetricSpec>>>>> = {
-  "1.1/float_zoom": { k: { label: "累加次数" }, n_points: { label: "窗口内浮点数" } },
+  "1.1/float_zoom": {
+    k: { label: "累加次数" },
+    n_points: { label: "窗口内浮点数" },
+    center: { label: "窗口中心" },
+    spacing_center: { label: "相邻 double 间距" },
+    spacing_ratio: { label: "右侧 / 左侧间距" },
+    residual_0102_03_ulps: { label: "0.1+0.2 比 0.3 大" },
+  },
   "1.1/summation_order": { k: { label: "当前项数" } },
+  "1.1/cancellation": {
+    gap: { label: "a 与 b 的差" },
+    digits_remaining: { label: "剩余有效位" },
+    loss_digits: { label: "抵消损失位数 t", unit: "位" },
+    perturbation_amplification: { label: "实测相对误差", unit: "" },
+  },
   "3.5/lorenz_butterfly": { eps: { label: "初始差异 ε" }, rate: { label: "实测分离速率" } },
 };
 

@@ -217,15 +217,17 @@ NaN 会在那里当场炸）；单章还可以跑 `python3 tools/precompute.py -
 | GET | `/api/health` | `{"ok": true, "chapters": N, "version": "..."}`|
 | GET | `/api/chapters` | 章节清单（合并 `docs/chapters.yaml` + 进度 + 依赖）|
 | GET | `/api/chapter/<id>/manifest` | 该章全部 viz 的 manifest |
-| GET | `/api/chapter/<id>/frame?viz=..&params=<base64url json>&t=<%.6g>` | 单个 `.nlf`（`Content-Type: application/x-nlf`）|
+| GET | `/api/chapter/<id>/frame?viz=..&params=<base64url json>&t=<精确值>` | 单个 `.nlf`（`Content-Type: application/x-nlf`）|
 | GET | `/api/chapter/<id>/frames?...&n=60` | 多帧流（降级通道）：**只有 `NLFS/1` 一种格式**——长度前缀容器，`Content-Type: application/octet-stream`，见下；**没有 multipart** |
 | GET \| POST | `/api/asserts/<id>` | **只读**返回 `dist/reports/assertions.json` 里该章的记录（**不会跑 pytest**）。报告文件不存在 → **404**；未以 `--allow-write` 启动 → **403** |
 
 `params` 传输：JSON 经 UTF-8 → base64url，避免 URL 编码歧义；也接受 `params_json`（简单调试用）。
 
 `t` **是 `/frame` 的必需语义参数**（缺省 `t=0`）：没有它，L2 降级通道就无法响应时间轴拖动
-（拖动/单步都会拿到同一帧）。数字写法与 L3 文件名一致，用 `%.6g`（`t=0.05`、`t=1.5e-05`）；
-服务端解析后 MUST 与 `TimeSpec.dt` 对齐到最近的整步，并在响应帧的 `meta.t_actual` 里写回**实到时刻**。
+（拖动/单步都会拿到同一帧）。`t` 用**完整精度**（例如 `t=6.2831853`），不能先截成 `%.6g`：
+末位向上舍入会让 `t` 超过 `tMax`（3.2 章真踩过）。服务端解析后 MUST 与 `TimeSpec.dt`
+对齐到最近的整步，并在响应帧的 `meta.t_actual` 里写回**实到时刻**。L3 静态文件名仍用
+`%.6g`，两套写法各自服务于“请求精度”和“缓存键”。
 
 `/frames`（多帧流）格式**已定稿为 NLFS/1**，自描述长度前缀容器，**所有 u32 一律大端**：
 

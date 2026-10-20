@@ -88,17 +88,11 @@ function trimNumber(value: number): string {
   return numberText(value);
 }
 
-/** 去掉 Markdown 记号，用于标题旁的一句话导语。 */
+/** 富文本 → 纯文本（标题旁的一句话导语用；公式先排成 MathML，再取文字，绝不露出 $ 或 TeX 命令）。 */
 function plainText(text: string): string {
-  return text
-    .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
-    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
-    .replace(/\$([^$]*)\$/g, "$1")
-    .replace(/\\\(([^)]*)\\\)/g, "$1")
-    .replace(/\*\*([^*]*)\*\*/g, "$1")
-    .replace(/`([^`]*)`/g, "$1")
-    .replace(/\s+/g, " ")
-    .trim();
+  const holder = document.createElement("div");
+  holder.innerHTML = renderRichText(text);
+  return (holder.textContent ?? "").replace(/\s+/g, " ").trim();
 }
 
 /** 去掉正文里对内部规则编号的引用；这些编号对读者没有意义，也会让语气变得机械。 */
@@ -114,8 +108,9 @@ function soften(text: string): string {
 }
 
 function firstSentence(text: string): string {
-  const sentences = splitSentences(text);
-  return plainText(sentences[0] ?? text);
+  // 先排版再切句：直接在 TeX 源码上按句号切，可能把 $...$ 从中间截断。
+  const sentences = splitSentences(plainText(text));
+  return sentences[0] ?? plainText(text);
 }
 
 function clip(text: string, max: number): string {
@@ -320,6 +315,7 @@ export class VizView {
   #stageError: HTMLElement | null = null;
   #statusEl: HTMLElement | null = null;
   #sourceNote: HTMLElement | null = null;
+  #figureNote: HTMLElement | null = null;
   #metricRow: HTMLElement | null = null;
   #legendRow: HTMLElement | null = null;
   #badgeRow: HTMLElement | null = null;
@@ -620,6 +616,14 @@ export class VizView {
     this.#sourceNote = el("p", { className: "nl-source-note" });
     this.#sourceNote.hidden = true;
 
+    const figureNote = el("div", { className: "nl-figure-note" });
+    figureNote.append(
+      el("span", { className: "nl-figure-note-label", text: "当前参数下" }),
+      el("span", { className: "nl-figure-note-text" }),
+    );
+    figureNote.hidden = true;
+    this.#figureNote = figureNote;
+
     this.#metricRow = el("div", { className: "nl-metrics" });
     this.#metricRow.hidden = true;
     this.#legendRow = el("div", { className: "nl-legend" });
@@ -630,7 +634,20 @@ export class VizView {
     const timeSlot = el("div", { className: "nl-timebar-slot" });
     timeSlot.dataset["role"] = "timebar-slot";
 
-    card.append(top, stage, swipe, hoverHint, this.#sourceNote, this.#metricRow, this.#legendRow, this.#badgeRow, timeSlot);
+    // 越界/临界提示放在画面正上方，而不是图例下方：读到图时第一眼就能看到，
+    // 不必滚到卡片底部才发现「当前参数已经把数据挤出坐标范围」。
+    card.append(
+      top,
+      this.#badgeRow,
+      stage,
+      swipe,
+      hoverHint,
+      figureNote,
+      this.#sourceNote,
+      this.#metricRow,
+      this.#legendRow,
+      timeSlot,
+    );
     this.#bindHover();
     return card;
   }
@@ -761,7 +778,8 @@ export class VizView {
     swatch.style.setProperty("--swatch", hit.color);
     head.append(swatch, el("span", { className: "nl-hover-name", text: hit.label }));
     const values = el("p", { className: "nl-hover-values" });
-    values.append(el("span", { text: hit.xText }), el("span", { text: hit.yText }));
+    if (hit.xText !== "") values.append(el("span", { text: hit.xText }));
+    if (hit.yText !== "") values.append(el("span", { text: hit.yText }));
     const parts: HTMLElement[] = [head, values];
     if (hit.detail !== undefined && hit.detail !== "") {
       parts.push(el("p", { className: "nl-hover-detail", text: hit.detail }));
@@ -1214,15 +1232,16 @@ export class VizView {
       this.#showStageError("暂时取不到这一帧", err.message);
       return;
     }
+    const detail = err.message.length > 180 ? `${err.message.slice(0, 180)}…` : err.message;
     if (this.#sourceNote !== null) {
       this.#sourceNote.hidden = false;
       this.#sourceNote.dataset["tone"] = "warn";
-      this.#sourceNote.textContent = "这个参数组合暂时取不到新帧，画面停在上一帧。";
+      this.#sourceNote.textContent = `这一帧没有取到：${detail} 画面停在上一帧，继续拖动会重新尝试。`;
     }
     const now = performance.now();
     if (now - this.#errorToastAt > 6000) {
       this.#errorToastAt = now;
-      toast("暂时取不到新帧，画面停在上一帧。", "warn");
+      toast(`取帧失败：${detail}`, "warn");
     }
   }
 
@@ -1317,6 +1336,7 @@ export class VizView {
     this.#renderLegend(display);
     this.#renderBadges(display);
     this.#renderGuide(display);
+    this.#renderFigureNote(frame);
     if (this.#figureCaption !== null) {
       const title = display.axes[0]?.title ?? this.#viz.axes[0]?.title ?? this.#viz.title;
       this.#figureCaption.textContent = title;
@@ -1364,6 +1384,23 @@ export class VizView {
       if (chip.unit !== "") item.append(el("span", { className: "nl-metric-unit", text: chip.unit }));
       row.append(item);
     }
+  }
+
+  /** 当前帧的一句话结论：后端 `strings.note`。放在图下方，避免必须滚到阅读区才知道该看什么。 */
+  #renderFigureNote(frame: Frame): void {
+    const box = this.#figureNote;
+    if (box === null) return;
+    const raw = soften(frame.strings["note"] ?? "").trim();
+    const textNode = box.querySelector<HTMLElement>(".nl-figure-note-text");
+    if (textNode === null) return;
+    if (raw === "") {
+      box.hidden = true;
+      return;
+    }
+    const clipped = raw.length > 240 ? `${raw.slice(0, 240)}…` : raw;
+    textNode.innerHTML = renderRichText(clipped);
+    textNode.title = raw;
+    box.hidden = false;
   }
 
   #renderLegend(display: DisplaySceneResult): void {

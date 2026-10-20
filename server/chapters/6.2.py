@@ -68,8 +68,8 @@ _PITFALLS = {
     "book_build": (
         "「编译通过」不是「书对」：xelatex 对缺字形只吞字、不报错，未定义引用也要两遍"
         "编译才稳定；附表的行数如果与 asserts.yaml 声明不一致，PDF 里就是旧数字。"
-        "第二：引用必须在单章内闭合，因为 G9 逐章编译；跨章 \\eqref 在合并本里能过，"
-        "单章编译会失败。第三：注释里的 ``\\input``/``\\ref`` 不算依赖，先剔注释再计数。"
+        "第二：引用必须在单章内闭合，因为 G9 逐章编译；跨章 eqref 引用在合并本里能过，"
+        "单章编译会失败。第三：注释里的 input/ref 命令不算依赖，先剔注释再计数。"
         "第四：6 列检查里任何一格为 0 都不能靠「其它列全绿」抵消；问题数按章统计，"
         "不是全局平均。"
     ),
@@ -129,8 +129,8 @@ MANIFEST: dict[str, Any] = {
             ],
             pitfalls=_PITFALLS["catalog_nav"],
             theory=[
-                "拓扑序：每条边 u→v 中 u 必须排在 v 前；同层按清单顺序稳定排序",
-                "分层深度 depth(v)=1+max depth(u)，最长链是关键路径（不是章节号顺序）",
+                "拓扑序：每条边 $u\\to v$ 中 $u$ 必须排在 $v$ 前；同层按清单顺序稳定排序",
+                "分层深度 $\\operatorname{depth}(v)=1+\\max\\operatorname{depth}(u)$，最长链是关键路径（不是章节号顺序）",
                 "deps: [all] 展开为清单中排在它前面的所有章，不包含自身",
             ],
         ),
@@ -190,9 +190,9 @@ MANIFEST: dict[str, Any] = {
             ],
             pitfalls=_PITFALLS["export_timeline"],
             theory=[
-                "帧数 = floor(fps·(t_end−t_0)) + 1；超过上限时如实截断",
-                "GIF delay_cs = max(1, round(100/fps))，实际 fps = 100/delay_cs",
-                "最近邻内容误差 ≤ 半个源步长；GIF 播放误差随帧号线性累积",
+                "帧数 $=\\lfloor\\mathrm{fps}\\cdot(t_{\\mathrm{end}}-t_0)\\rfloor+1$；超过上限时如实截断",
+                "GIF $\\mathrm{delay}_{cs}=\\max(1,\\operatorname{round}(100/\\mathrm{fps}))$，实际 $\\mathrm{fps}=100/\\mathrm{delay}_{cs}$",
+                "最近邻内容误差 $\\le h/2$；GIF 播放误差随帧号线性累积",
             ],
         ),
         _viz(
@@ -200,8 +200,8 @@ MANIFEST: dict[str, Any] = {
             title="讲义构建：引用、附表与字形审计",
             description=(
                 "逐章检查六件事：notes 存在且含定理、asserts_table 行数与 asserts.yaml "
-                "声明一致、引用在章内闭合、\\input 目标存在、notes+附表无 xelatex 无字形"
-                "风险字符、pitfalls ≥800 字。热图行=章、列=检查项；副图是每章的问题数。"
+                "声明一致、引用在章内闭合、LaTeX 的 input 目标存在、notes+附表无 xelatex 无字形"
+                "风险字符、pitfalls $\\ge800$ 字。热图行=章、列=检查项；副图是每章的问题数。"
             ),
             dataSource="backend",
             params=[
@@ -233,8 +233,8 @@ MANIFEST: dict[str, Any] = {
             pitfalls=_PITFALLS["book_build"],
             theory=[
                 "附表行数必须等于 asserts_report.md 的断言条数（纸面与机器同源）",
-                "引用在单章内闭合；\\input 目标必须存在（注释中的命令不算）",
-                "notes+附表不含 xelatex 无字形风险字符；pitfalls ≥800 字",
+                "引用在单章内闭合；LaTeX 的 input 目标必须存在（注释中的命令不算）",
+                "notes+附表不含 xelatex 无字形风险字符；pitfalls $\\ge800$ 字",
             ],
         ),
     ],
@@ -733,9 +733,9 @@ def _book_build(params: Mapping[str, Any]) -> Frame:
     fr.add("chapter_index", np.arange(n, dtype=float), label="显示行号")
     fr.add("error", issues, label="每章问题数（requiredAux）")
     fr.add("error_y", issues, label="每章问题数")
-    fr.add("labels", labels, label="\\label 数")
+    fr.add("labels", labels, label="LaTeX 标签命令数")
     fr.add("refs", refs, label="\\ref 数")
-    fr.add("inputs", inputs, label="\\input 数")
+    fr.add("inputs", inputs, label="LaTeX 输入命令数")
     fr.add("risky", risky, label="字形风险字符数")
     fr.add("table_rows", table_rows, label="附表行数")
     fr.add("declared", declared, label="报告断言条数")
@@ -799,7 +799,7 @@ def _book_build(params: Mapping[str, Any]) -> Frame:
             if all(rows[c]["pitfall_chars"] >= 800 for c in ids)
             else "pitfalls 不足 800 字：" + "、".join(c for c in ids if rows[c]["pitfall_chars"] < 800)
         ),
-        check_note="列：笔记存在且含定理 / 附表行数=声明 / 章内引用闭合 / \\input 存在 / 无字形风险 / pitfalls≥800 字。",
+        check_note="列：笔记存在且含定理 / 附表行数=声明 / 章内引用闭合 / LaTeX input 目标存在 / 无字形风险 / pitfalls≥800 字。",
     )
     fr.pitfalls = _PITFALLS["book_build"]
     return fr

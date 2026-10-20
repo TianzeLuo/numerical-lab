@@ -2,9 +2,9 @@
 
 四个可视化沿一条主线排开：**浮点网格长什么样 → 误差怎么被放大 → 问题有多难 → 算法能救多少**。
 
-1. ``float_zoom`` —— 数轴放大镜。把数轴放大到 :math:`u` 量级，直接看浮点网格**不均匀**
-   （跨过 2 的幂时间距减半），并标出 ``0.1+0.2`` 的真实落点与 ``0.1+0.2-0.3`` 的残差。
-   时间轴是"``0.1`` 累加 k 次"的残差演化——残差恰好为 0 的点用 :math:`u/2` 量级的地板显示。
+1. ``float_zoom`` —— 数轴放大镜。每个圆点是一个真实存在的 double，横轴是它与窗口中心的
+   距离（单位 ulp）；可切到 0.3 或 2 的幂 0.25，直接看 ``0.1+0.2`` 的落点、相邻间距与
+   跨过 2 的幂时格点变稀。下半图是"``0.1`` 累加 k 次"的残差演化。
 2. ``cancellation`` —— 灾难性抵消。拖 ``a``、``b`` 相互靠近，主轴给"**剩余有效位数的整数计数**"，
    副轴给"输入扰动被放大后的相对误差"爆炸曲线；同时画出**减法本身**的舍入误差（恒为 0，
    Sterbenz 引理）——两条曲线的对比就是这一章最容易被误读的地方。
@@ -74,16 +74,6 @@ def _at_least_one(t: float, n_max: int) -> int:
     return max(1, _step_of(t, n_max))
 
 
-def _decimal_center(mantissa: float, exp10: int) -> float:
-    """按**十进制字面量**取最近的 double。
-
-    为什么不写 ``mantissa * 10.0 ** exp10``：``3.0 * 0.1`` 会先算出
-    ``0.30000000000000004``，于是"放大中心 = 0.3"这件事本身就是错的，
-    ``0.1+0.2`` 的落点会正好落在中心上，图上什么都看不出来。
-    """
-    return float(f"{float(mantissa)!r}e{int(exp10)}")
-
-
 # =========================================================================== #
 # MANIFEST：四个可视化的契约（真源）
 # =========================================================================== #
@@ -99,45 +89,38 @@ MANIFEST: dict[str, Any] = {
         # ------------------------------------------------------------------ #
         {
             "id": "float_zoom",
-            "title": "0.1+0.2 为什么不等于 0.3：放大数轴看舍入",
+            "title": "0.1+0.2 为什么不是 0.3：把数轴放大到最后一个二进制位",
             "description": (
-                "计算机能表示的数并不连续。把数轴放大到相邻两个 double 的距离，就能看到这一点："
-                "这段距离叫一个 ulp（unit in the last place）。上图把相邻浮点数的间距画成阶梯，"
-                "实线以当前参数为中心，虚线跨过最近的 2 的幂；每跨过一次 2 的幂，间距就减半。"
-                "红点是 0.1+0.2 的实际落点与数学上的 0.3，两者相差一个 ulp。"
-                "下图让 0.1 累加 k 次，看结果与 k/10 的差怎样随 k 增大——每一次舍入都会留下一点误差。"
+                "在 0.3 附近，计算机能表示的数不是一条连续的线，而是一串间距相同的格点。"
+                "这段间距叫一个 ulp（最后一位的单位），double 在 0.3 附近约为 $5.55\\times10^{-17}$。"
+                "上图的每个圆点就是一个真实存在的 double，横轴的单位是“窗口中心处的一个 ulp”，"
+                "括号标出相邻两个格点的真实间距；纵轴只有一行，只用来把格点排开，不表示数值大小。"
+                "所谓“0.3”在 double 里其实存成 $0.2999999999999999889\\ldots$（蓝点）；"
+                "$0.1+0.2$ 存成 $0.3000000000000000444\\ldots$（红点），两者正好相邻，所以打印出来只差最后一位。"
+                "把观察位置切到 0.25，还能看到它作为 2 的幂边界，左右两侧的格点疏密不同。"
+                "悬停任意圆点可以读出它完整的 17 位十进制值。"
+                "下图把 0.1 连续加 $k$ 次，画出每一步留下的误差。"
             ),
             "dataSource": "backend",
             "params": [
                 {
-                    "name": "center_log10",
-                    "label": "放大中心（10 的幂）",
+                    "name": "focus",
+                    "label": "观察位置",
+                    "type": "enum",
+                    "options": ["0.3（加法）", "0.25（2 的幂）"],
+                    "default": "0.3（加法）",
+                    "critical": [],
+                    "criticalNote": "",
+                },
+                {
+                    "name": "window_ulps",
+                    "label": "横向半宽（以窗口中心的 ulp 计）",
                     "type": "int",
-                    "min": -16,
-                    "max": 16,
-                    "default": -1,
-                    "critical": [],
-                    "criticalNote": "",
-                },
-                {
-                    "name": "mantissa",
-                    "label": "放大中心的尾数",
-                    "type": "float",
-                    "min": 1.0,
-                    "max": 9.9,
-                    "step": 0.1,
-                    "default": 3.0,
-                    "critical": [],
-                    "criticalNote": "",
-                },
-                {
-                    "name": "zoom_log10",
-                    "label": "放大倍数 log10（显示的相邻浮点数个数）",
-                    "type": "float",
-                    "min": 0.0,
-                    "max": 3.0,
-                    "step": 0.05,
-                    "default": 1.3,
+                    "min": 3,
+                    "max": 32,
+                    "step": 1,
+                    "default": 8,
+                    "unit": "ulp",
                     "critical": [],
                     "criticalNote": "",
                 },
@@ -148,28 +131,28 @@ MANIFEST: dict[str, Any] = {
                 {
                     "id": "ladder",
                     "autoscaled": False,
-                    "title": "窗口内相邻浮点数的间距，以及跨过 2 的幂时的变化",
-                    "ylabel": "间距（ulp）",
+                    "title": "浮点格点：横轴是与窗口中心的距离，每个圆点是一个可表示的 double",
+                    "ylabel": "浮点格点（示意行）",
                 },
                 {
                     "id": "residual",
                     "autoscaled": True,
-                    "title": "0.1 累加 k 次与精确值 k/10 的差",
-                    "ylabel": "残差",
+                    "title": "把 0.1 累加 k 次后，结果与数学值 k/10 的差（对数轴）",
+                    "ylabel": "绝对误差",
                     "scale": "log",
                 },
             ],
             "pitfalls": (
-                "其一：纵轴画的是阶梯，不是连续曲线。每跨过 2 的幂，相邻浮点数的间距减半；"
-                "放大不够时它会看起来像一条水平线，别因此认为浮点网格是均匀的。"
-                "其二：0.1+0.2 与 0.3 差一个 ulp，是二进制表示和舍入的必然结果，不是加法器出错；"
-                "0.1 本身就不能被 double 精确表示。其三：下面一张用对数轴显示残差，"
-                "恰好为 0 的步会被地板抬起，不能把它读成“误差不为零”。"
+                "圆点之间的横向距离才是真实间距；纵轴只是一行示意，不表示大小。"
+                "图里只展示窗口内的几十个 double，窗口外还有无数个——看不见不等于没有。"
+                "0.1+0.2 与 0.3 相差一个 ulp，是二进制舍入的必然结果，不是加法器坏了；"
+                "0.1 和 0.2 自己都不能被 double 精确表示。"
+                "下图是误差的对数轴：误差恰好为 0 的步会被抬到地板高度显示，不能读成“误差不为零”。"
             ),
             "theory": [
-                "fl(x) = x(1+δ)，|δ| ≤ u = 2^-53；ulp(x) 在每个 binade 边界减半（网格不均匀）",
-                "0.1+0.2 = 0.30000000000000004，与 0.3 恰差 1 个 ulp；0.1+0.2−0.3 = 5.55e-17",
-                "累加 k 次 0.1 的残差 ~ k·u/2，误差随项数线性增长（Wilkinson 求和界）",
+                "$\\mathrm{fl}(x)$ 表示离实数 $x$ 最近的 double；相邻两个 double 的距离记作 $\\mathrm{ulp}(x)$，在区间 $[2^e,2^{e+1})$ 内固定为 $2^{e-52}$。",
+                "$\\mathrm{fl}(0.1)+\\mathrm{fl}(0.2)=0.30000000000000004$，而 $0.3$ 的最近 double 是 $0.2999999999999999889\\ldots$；两者相邻，差 $1$ 个 ulp。",
+                "把 0.1 累加 $k$ 次的误差随 $k$ 线性增长，尺度约为 $k\\,u/2$，其中 $u=2^{-53}$ 是单位舍入。",
             ],
         },
         # ------------------------------------------------------------------ #
@@ -177,10 +160,12 @@ MANIFEST: dict[str, Any] = {
             "id": "cancellation",
             "title": "两个相近数相减：有效数字为什么会消失",
             "description": (
-                "把 a 和 b 调得越来越近，再做 a−b。两个数本身都只有约 16 位十进制有效数字；"
-                "相减时前面相同的位互相抵消，剩下的结果很短，输入里很小的误差在结果中就会占很大比例。"
-                "上图数一数还剩多少位可信；下图把放大后的相对误差与理论上界画在一起。"
-                "注意：减法本身通常是精确的，消失的是输入本来就有的精度。"
+                "输入 $a$ 和 $b$ 各自带着一点表示误差。当它们很接近时，$a-b$ 的绝对值很小，"
+                "这点误差在结果里占的比例就会被放大——有效数字一位位消失。"
+                "上图横轴是“抵消了多少个十进制位” $t=\\log_{10}(M/|a-b|)$，纵轴是相减后还剩多少位可信；"
+                "下图用对数纵轴比较实测相对误差、理论上界，以及减法本身的舍入误差。"
+                "关键区别：减法本身通常是精确的（Sterbenz 引理），被放大的是输入原本的误差。"
+                "两个数可以直接键入，例如把 $b$ 设成 $0.9999999999999999$。"
             ),
             "dataSource": "backend",
             "params": [
@@ -190,18 +175,18 @@ MANIFEST: dict[str, Any] = {
                     "type": "float",
                     "min": 0.5,
                     "max": 2.0,
-                    "step": 0.001,
+                    "step": 1e-6,
                     "default": 1.0,
                     "critical": [],
                     "criticalNote": "",
                 },
                 {
                     "name": "b",
-                    "label": "减数 b（拖到与 a 靠近）",
+                    "label": "减数 b（可键入更接近 a 的值）",
                     "type": "float",
                     "min": 0.5,
                     "max": 2.0,
-                    "step": 0.001,
+                    "step": 1e-6,
                     "default": 0.999999,
                     "critical": [],
                     "criticalNote": "",
@@ -215,9 +200,8 @@ MANIFEST: dict[str, Any] = {
                     "default": 16,
                     "critical": [15.95],
                     "criticalNote": (
-                        "d = 15.95 = log10(2^53) 是 binary64 能可靠表达的十进制位数上限；"
-                        "把 d 调到它以下，图上的「剩余位数」与理论上界会同步变差——"
-                        "这就是把「机器单位舍入 u」与「输入有 d 位有效数字」混为一谈的代价。"
+                        "$\\log_{10}(2^{53})=15.95$ 是 binary64 能可靠表达的十进制位数上限；"
+                        "把 d 调到它以下，图上的「剩余位数」与理论上界会同步变差。"
                     ),
                     "beyond": "below",
                 },
@@ -232,33 +216,32 @@ MANIFEST: dict[str, Any] = {
                     "criticalNote": "",
                 },
             ],
-            "time": {"mode": "scrub", "tMax": 16.0, "dt": 0.25, "label": "损失位数 t = log10(M/|a−b|)"},
+            "time": {"mode": "none"},
             "requiredAux": ["error"],
             "axes": [
                 {
                     "id": "digits",
                     "autoscaled": False,
-                    "title": "相减后还剩多少位十进制有效数字（横轴 = 损失位数 t）",
+                    "title": "还剩多少位十进制有效数字（横轴 = 抵消掉多少位，记作 t）",
                     "ylabel": "剩余位数",
                 },
                 {
                     "id": "error",
                     "autoscaled": True,
-                    "title": "结果的相对误差与理论上界（横轴 = 损失位数 t）",
+                    "title": "实测相对误差与理论上界（横轴 = 损失位数 t）",
                     "ylabel": "相对误差",
                     "scale": "log",
                 },
             ],
             "pitfalls": (
-                "其一：相减后误差变大，不代表减法算错了。两个相近数相减在浮点里通常精确，"
-                "真正被放大的是输入本来就带的误差。其二：上图是“还剩几位有效数字”的先验估计，"
-                "不是这一次计算的实测误差；具体误差看下图。其三：把 b 拖到与 a 完全相等时，"
-                "程序会换到相邻的 ulp 以避免取对数；这时的点是退化情况，不能当作一般结论。"
+                "相减后误差变大，不代表减法算错了：两个相近数相减通常精确，真正被放大的是输入本来就带的误差。"
+                "上图是“还剩几位有效数字”的先验估计，不是这一次计算的实测误差；具体误差看下图。"
+                "把 b 调到与 a 完全相等时，程序会改用相邻的一个 ulp，避免取对数；这时标出的点是退化情况，不能当一般结论。"
             ),
             "theory": [
-                "减法的条件数 cond(a−b) = (|a|+|b|)/|a−b|；相对误差 ≤ cond·δ_in",
-                "Sterbenz 引理：b/2 ≤ a ≤ 2b 时 fl(a−b) 精确，误差全部来自输入",
-                "剩余有效位数 ≈ log10(|a−b|/(δ_in·max(|a|,|b|)))，每抵消 10 倍少一位",
+                "减法的条件数 $\\operatorname{cond}(a-b)=\\frac{|a|+|b|}{|a-b|}$；相对误差约被放大同样倍数。",
+                "Sterbenz 引理：当 $b/2\\le a\\le 2b$ 时，$\\mathrm{fl}(a-b)$ 是精确的，误差全部来自输入。",
+                "剩余有效位数约为 $\\log_{10}\\!\\left(|a-b|/(\\delta_{\\mathrm{in}}\\max(|a|,|b|))\\right)$；每抵消 10 倍，少一位。",
             ],
         },
         # ------------------------------------------------------------------ #
@@ -266,10 +249,10 @@ MANIFEST: dict[str, Any] = {
             "id": "cond_ellipsoid",
             "title": "条件数 κ(A)：输入的小误差会被放大多少倍",
             "description": (
-                "解方程 Ax=b 时，条件数 κ(A) 衡量“b 的小扰动会把解 x 放大多少”。"
-                "画面中单位圆经过 A 变成椭圆，长轴与短轴之比就是 κ₂；κ 越大，椭圆越扁，"
-                "解对输入方向越敏感。拖动时间轴改变 κ，观察右端项被扰动后解点的跳动；"
-                "下图比较当前方向上的实测放大倍数与最坏情况的上界 κ。"
+                "解方程 $Ax=b$ 时，条件数 $\\kappa(A)$ 衡量“$b$ 的小扰动会把解 $x$ 放大多少”。"
+                "画面中单位圆经过 $A$ 变成椭圆，长轴与短轴之比就是 $\\kappa_2$；$\\kappa$ 越大，"
+                "椭圆越扁，解对输入方向越敏感。拖动时间轴改变 $\\kappa$，观察右端项被扰动后解点的跳动；"
+                "下图比较当前方向上的实测放大倍数与最坏情况的上界 $\\kappa$。"
             ),
             "dataSource": "backend",
             "params": [
@@ -347,16 +330,15 @@ MANIFEST: dict[str, Any] = {
                 },
             ],
             "pitfalls": (
-                "其一：κ(A) 是最坏情况的上界，不一定在某个具体方向上达到；"
-                "实测放大比低于 κ 是正常的。其二：κ 很大时，单位圆会被拉成很扁的椭圆，"
-                "图中可能冲出显示范围；看不到不等于不存在，状态标签会说明。"
-                "其三：当 κ 接近 1/u≈9×10¹⁵ 时，A 在 double 中已经和奇异矩阵难以区分，"
+                "$\\kappa(A)$ 是最坏情况的上界，不一定在某个具体方向上达到；实测放大比低于 $\\kappa$ 是正常的。"
+                "$\\kappa$ 很大时，单位圆会被拉成很扁的椭圆，图中可能冲出显示范围；看不到不等于不存在，状态标签会说明。"
+                "当 $\\kappa$ 接近 $1/u\\approx9\\times10^{15}$ 时，$A$ 在 double 中已经和奇异矩阵难以区分，"
                 "后面的曲线主要由舍入噪声决定。"
             ),
             "theory": [
-                "单位球在 A 下的像半轴 = σmin/σmax，半轴之比 = κ₂(A) = ‖A‖₂‖A⁻¹‖₂",
-                "前向误差界 ‖Δx‖/‖x‖ ≤ κ(A)·(δA+δb)/(1−κ·δA)，本图 δA = 0",
-                "κ₁/κ₂/κ∞/κ_F 可以相差一个 n 因子，图上必须标注用的是哪个范数",
+                "单位球在 $A$ 下的像，半轴是 $\\sigma_{\\min}$ 与 $\\sigma_{\\max}$，半轴之比为 $\\kappa_2(A)=\\|A\\|_2\\|A^{-1}\\|_2$。",
+                "前向误差界：$\\frac{\\|\\Delta x\\|}{\\|x\\|}\\le\\kappa(A)\\frac{\\delta A+\\delta b}{1-\\kappa\\,\\delta A}$；本图取 $\\delta A=0$。",
+                "$\\kappa_1,\\kappa_2,\\kappa_\\infty,\\kappa_F$ 可以相差一个 $n$ 因子，所以读条件数时必须同时看范数。",
             ],
         },
         # ------------------------------------------------------------------ #
@@ -364,10 +346,10 @@ MANIFEST: dict[str, Any] = {
             "id": "summation_order",
             "title": "加法顺序为什么影响结果：朴素、Kahan、成对与排序",
             "description": (
-                "同样一组数，换个加法顺序，结果可能不同。上图是 big、small、small… 的项序列；"
+                "同样一组数，换个加法顺序，结果可能不同。上图依次列出大项与小项；"
                 "下图比较朴素求和、Kahan 补偿求和、成对求和与排序求和的误差。"
                 "Kahan 把每一步的舍入损失记下来再加回去，所以通常更准；但把它分段并行、"
-                "段间再用朴素加法合并，误差会重新变大。把 small 调小、项数调多，差异最明显。"
+                "段间再用朴素加法合并，误差会重新变大。把小项调小、项数调多，差异最明显。"
             ),
             "dataSource": "backend",
             "params": [
@@ -441,10 +423,10 @@ MANIFEST: dict[str, Any] = {
                 "判断方法是否更好，要看曲线相对理论上界的位置，而不是它离图底多近。"
             ),
             "theory": [
-                "朴素左折叠：|Δ| ≤ n·u·Σ|x_i|（误差随项数线性增长）",
-                "Kahan 补偿：|Δ| ≤ (2u + O(nu²))·Σ|x_i|（与 n、与顺序都无关，但不能分段后朴素合并）",
-                "成对求和：|Δ| ≤ u·⌈log2 n⌉·Σ|x_i|；排序后朴素求和有同量级的界",
-                "并行分段补偿：误差退化为 P·u·Σ|段和|，段间那一次朴素加法是瓶颈",
+                "朴素从左到右相加：$|\\Delta|\\le n\\,u\\sum_i|x_i|$，误差随项数线性增长。",
+                "Kahan 补偿：$|\\Delta|\\le\\left(2u+O(nu^2)\\right)\\sum_i|x_i|$；界与 $n$、与顺序都无关，但不能分段后再朴素合并。",
+                "成对求和：$|\\Delta|\\le u\\lceil\\log_2 n\\rceil\\sum_i|x_i|$；排序后再朴素求和有同量级的界。",
+                "并行分段补偿：误差退化为 $P\\,u\\sum|\\text{段和}|$，段与段之间那一次朴素加法是瓶颈。",
             ],
         },
     ],
@@ -474,21 +456,46 @@ def _norm_key(norm: str) -> Any:
 # =========================================================================== #
 # viz 1：数轴放大镜
 # =========================================================================== #
+#: 观察位置 → (前端文案用的种类, 窗口中心)。两个中心都故意取十进制字面量：
+#: ``0.25`` 恰是 2 的幂，``0.3`` 是 ``0.1+0.2`` 的数学值；后者最近的 double 并不是它本身。
+_FLOAT_FOCUS: dict[str, tuple[str, float]] = {
+    "0.3（加法）": ("sum", 0.3),
+    "0.25（2 的幂）": ("boundary", 0.25),
+}
+
+
 def _float_zoom(params: Mapping[str, Any], t: float) -> Frame:
-    center = _decimal_center(float(params["mantissa"]), int(params["center_log10"]))
-    zoom_log10 = float(params["zoom_log10"])
-    half = max(1, min(2048, int(round(0.5 * (10.0**zoom_log10)))))
-    pts = fp.neighborhood(center, half=half)
-    offsets = np.asarray([fp.signed_ulp_offset(center, float(v)) for v in pts], dtype=float)
+    focus = str(params["focus"])
+    if focus not in _FLOAT_FOCUS:
+        raise ValueError(f"未知观察位置 {focus!r}；可用：{', '.join(_FLOAT_FOCUS)}")
+    kind, center = _FLOAT_FOCUS[focus]
+    radius = max(3, min(32, int(params["window_ulps"])))
     sp_center = fp.spacing(center)
-    spacing_ratio = fp.spacings(pts) / sp_center
-    # 网格不均匀在"2 的幂"处最明显（跨过它间距减半），所以除了用户选的中心，
-    # 再给一条以最近的 2 的幂为中心的梯子：两条梯子横轴都是"距各自中心的 ulp 偏移"。
-    boundary = 2.0 ** float(np.floor(np.log2(abs(center))))
-    bpts = fp.neighborhood(boundary, half=half)
-    boffsets = np.asarray([fp.signed_ulp_offset(boundary, float(v)) for v in bpts], dtype=float)
-    sp_boundary = fp.spacing(boundary)
-    bspacing_ratio = fp.spacings(bpts) / sp_boundary
+
+    # 横坐标不是"第几个 double"，而是**真实距离 / ulp(中心)**。于是 0.25 左側
+    # （间距只有一半）的圆点会以 0.5 的间隔出现，右侧以 1 的间隔出现——格点疏密
+    # 是直接量出来的，不靠两条"间距比"曲线去解释。
+    candidates = fp.neighborhood(center, half=2 * radius + 4)
+    rel = (candidates - center) / sp_center
+    mask = np.abs(rel) <= radius + 1e-12
+    positions = np.asarray(rel[mask], dtype=float)
+    values = np.asarray(candidates[mask], dtype=float)
+
+    prev_value = fp.next_float(center, direction=-1)
+    next_value = fp.next_float(center, direction=1)
+    spacing_center = sp_center
+    spacing_below = fp.spacing(prev_value)
+    spacing_above = fp.spacing(center)
+    below_units = (center - prev_value) / sp_center
+    above_units = (next_value - center) / sp_center
+
+    special: float | None = None
+    special_pos: float | None = None
+    if kind == "sum":
+        special = float(0.1) + float(0.2)
+        special_pos = (special - center) / sp_center
+
+    residual_0102_03 = float((float(0.1) + float(0.2)) - 0.3)
 
     # ---- 时间轴：0.1 累加 k 次的残差（精确值用有理数算） -------------------- #
     k = _step_of(t, ACC_COUNT)
@@ -502,42 +509,14 @@ def _float_zoom(params: Mapping[str, Any], t: float) -> Frame:
     n_exact_zero = int(np.count_nonzero(raw == 0.0))
     n_exact_zero_sum = int(np.count_nonzero(raw_sum == 0.0))
 
-    # ---- 0.1+0.2 的落点：它离 0.3 恰好 1 个 ulp ----------------------------- #
-    landing = float(0.1) + float(0.2)
-    ideal = 0.3
-    lo = float(pts[0])
-    hi = float(pts[-1])
-    in_window = bool(lo <= landing <= hi)
-    ideal_in_window = bool(lo <= ideal <= hi)
-    # 窗口外的落点**没有** ulp 偏移可写：这里写 NaN 会被帧契约拒绝（数组也必须有限，
-    # 而且前端拿到 NaN 会静默丢段）。所以数组里写 0.0 当占位符，同时把
-    # `landing_in_window`/`ideal_in_window` 放进 meta、在 strings 里说明"0 是占位符"。
-    landing_off_meta = float(fp.signed_ulp_offset(center, landing)) if in_window else None
-    ideal_off_meta = float(fp.signed_ulp_offset(center, ideal)) if ideal_in_window else None
-    landing_off = 0.0 if landing_off_meta is None else landing_off_meta
-    ideal_off = 0.0 if ideal_off_meta is None else ideal_off_meta
-    landing_label = "0.1+0.2 的落点" if in_window else "0.1+0.2 的落点（窗口外：占位 0）"
-    ideal_label = "数学上的 0.3" if ideal_in_window else "数学上的 0.3（窗口外：占位 0）"
-    residual_0102_03 = float((float(0.1) + float(0.2)) - 0.3)
-
-    # 1e16 + 1：必须显式说明"图上看起来没变"不是画错
-    big = float(1e16)
-    big_plus_one = big + 1.0
-    big_unchanged = bool(big_plus_one == big)
-
     fr = Frame(chapter="1.1", viz="float_zoom", kind="frame")
-    fr.add("offset", offsets, unit="ulp", label="距中心的 ulp 偏移")
-    fr.add("value", pts, unit="1", label="可表示数（真实 double）")
-    fr.add("spacing_ratio", spacing_ratio, unit="1", label="间距 / ulp(center)")
-    fr.add("boundary_offset", boffsets, unit="ulp", label="距最近的 2 的幂的 ulp 偏移")
-    fr.add("boundary_value", bpts, unit="1", label="2 的幂附近的可表示数")
-    fr.add("boundary_spacing_ratio", bspacing_ratio, unit="1", label="间距 / ulp(2 的幂)：跨过它减半")
-    fr.add("center_offset", np.array([0.0]), unit="ulp", label="放大中心")
-    fr.add("center_y", np.array([0.0]), unit="1", label="放大中心")
-    fr.add("landing_offset", np.array([landing_off]), unit="ulp", label=landing_label)
-    fr.add("landing_y", np.array([1.0]), unit="1", label="0.1+0.2 的落点")
-    fr.add("ideal_offset", np.array([ideal_off]), unit="ulp", label=ideal_label)
-    fr.add("ideal_y", np.array([1.0]), unit="1", label="数学上的 0.3")
+    fr.add("offset", positions, unit="ulp", label="距窗口中心的距离（单位：窗口中心的 ulp）")
+    fr.add("value", values, unit="1", label="可表示的 double（精确值见悬停）")
+    fr.add("center_offset", np.array([0.0]), unit="ulp", label="窗口中心")
+    fr.add("center_y", np.array([0.5]), unit="1", label="窗口中心")
+    if special is not None and special_pos is not None and abs(special_pos) <= radius + 1e-12:
+        fr.add("special_offset", np.array([float(special_pos)]), unit="ulp", label="0.1+0.2 的实际值")
+        fr.add("special_y", np.array([0.5]), unit="1", label="0.1+0.2 的实际值")
     fr.add("k_grid", np.arange(ACC_COUNT + 1, dtype=float), unit="1", label="累加次数 k")
     fr.add("residual", residual, unit="1", label="与数学值 k/10 的残差（精确 0 以 u/2·|k/10| 显示）")
     fr.add("residual_sum_only", residual_sum_only, unit="1", label="纯求和误差：与 k·fl(0.1) 的残差")
@@ -547,27 +526,18 @@ def _float_zoom(params: Mapping[str, Any], t: float) -> Frame:
     fr.add("k_mark", np.array([float(k)]), unit="1", label="当前位置的累加次数")
     fr.set_meta(
         center=center,
-        center_log10=int(params["center_log10"]),
-        mantissa=float(params["mantissa"]),
-        zoom_log10=zoom_log10,
-        n_points=int(pts.size),
-        spacing_center=sp_center,
-        spacing_min=float(np.min(spacing_ratio)),
-        spacing_max=float(np.max(spacing_ratio)),
-        boundary=boundary,
-        boundary_spacing_min=float(np.min(bspacing_ratio)),
-        boundary_spacing_max=float(np.max(bspacing_ratio)),
-        boundary_ulps=half,
-        window_lo=lo,
-        window_hi=hi,
-        window_ulps=half,
-        landing_ulps=landing_off_meta,
-        landing_in_window=in_window,
-        ideal_ulps=ideal_off_meta,
-        ideal_in_window=ideal_in_window,
-        marker_placeholder=0.0,
-        residual_0102_03=residual_0102_03,
-        residual_0102_03_ulps=float(fp.residual_ulps(landing, ideal)),
+        focus_kind=0.0 if kind == "sum" else 1.0,
+        window_ulps=float(radius),
+        n_points=int(values.size),
+        spacing_center=spacing_center,
+        spacing_below=spacing_below,
+        spacing_above=spacing_above,
+        spacing_below_units=float(below_units),
+        spacing_above_units=float(above_units),
+        spacing_ratio=float(spacing_above / spacing_below),
+        special_ulps=special_pos,
+        residual_0102_03=residual_0102_03 if kind == "sum" else None,
+        residual_0102_03_ulps=float(fp.residual_ulps(0.1 + 0.2, 0.3)) if kind == "sum" else None,
         residual_floor=float(residual_floor[k]),
         residual_sum_only_mark=float(residual_sum_only[k]),
         residual_floor_min=float(np.min(residual_floor)),
@@ -575,44 +545,45 @@ def _float_zoom(params: Mapping[str, Any], t: float) -> Frame:
         residual_sum_only_exact_zero_steps=n_exact_zero_sum,
         k=k,
         n_acc_max=ACC_COUNT,
-        big_plus_one=big_plus_one,
-        big_plus_one_unchanged=big_unchanged,
-        overflow=bool(not in_window),
     )
     fr.set_strings(
-        note=_zoom_note(center, sp_center, int(pts.size), landing_off, in_window, k, float(raw[k])),
+        focus=kind,
+        note=_zoom_note(kind, center, spacing_center, spacing_below, spacing_above, k, float(raw[k])),
+        center_label="0.3 的最近 double" if kind == "sum" else "2 的幂边界 0.25",
+        special_label="0.1+0.2 的实际值（大 1 个 ulp）" if kind == "sum" else "",
         exact_center=fp.exact_decimal(center, digits=24),
-        exact_landing=fp.exact_decimal(landing, digits=24),
-        big_note=(
-            "1e16 + 1 = 1e16：ulp(1e16) = 2，加 1 恰好落在两个可表示数的中点，"
-            "ties-to-even 把它舍回偶数格点。图上「看起来没变」不是画错——把放大中心移到 1e16 就能看见间距变成 2。"
+        exact_special=fp.exact_decimal(special, digits=24) if special is not None else "",
+        spacing_note=(
+            "横轴每一格是 ulp(窗口中心) 的长度；在同一个 [2^e,2^(e+1)) 内所有相邻 double 的距离相同。"
+            if kind == "sum"
+            else "0.25 是 2 的幂：它左侧的相邻间距是右侧的一半，所以左半边圆点更密；横轴仍以 ulp(0.25) 为单位。"
         ),
         zero_note=(
-            f"副轴是对数轴：残差恰好为 0 的步数（{n_exact_zero} 步）被地板 u/2·|k/10| 抬起显示，"
+            f"下图是对数轴：残差恰好为 0 的步数（{n_exact_zero} 步）被地板 u/2·|k/10| 抬起显示，"
             "不能读成「误差不为零」。"
-        ),
-        marker_note=(
-            "落点标记（landing_offset / ideal_offset）在**窗口外**时数组里写 0，"
-            "同时 meta.landing_in_window / ideal_in_window 为 false——0 只是占位符，"
-            "不要读成「落点就在放大中心」。帧里不写 NaN：NaN 会在前端静默丢段。"
         ),
     )
     return fr
 
 
 def _zoom_note(
-    center: float, sp: float, n_points: int, landing_off: float, in_window: bool, k: int, raw_k: float
+    kind: str,
+    center: float,
+    sp: float,
+    sp_below: float,
+    sp_above: float,
+    k: int,
+    residual_k: float,
 ) -> str:
-    if not in_window:
+    tail = f"下图当前 k={k} 时，0.1 的累加结果与 k/10 相差 {residual_k:.3e}。"
+    if kind == "boundary":
         return (
-            f"0.1+0.2 的落点不在当前窗口内（窗口只有 {n_points} 个可表示数）——"
-            "「看不见」不等于「不在那里」，把放大中心调到 0.3 再看。"
+            f"0.25 是 2 的幂：左侧 ulp={sp_below:.3e}，右侧 ulp={sp_above:.3e}，"
+            f"右侧间距是左侧的 {sp_above / sp_below:.2f} 倍。{tail}"
         )
-    if abs(landing_off) < 0.5:
-        return f"0.1+0.2 正好落在放大中心上（与中心相差 {abs(landing_off):.0f} 个 ulp）"
     return (
-        f"0.1+0.2 落在中心之上 {landing_off:.0f} 个 ulp；ulp(center)={sp:.3e}，"
-        f"窗口共 {n_points} 个可表示数；k={k} 时 0.1 累加的精确残差是 {raw_k:.3e}"
+        f"窗口中心 0.3 附近每个 double 相距 {sp:.3e}；橙色括号标出相邻两个 double 的一格距离。"
+        f"0.1+0.2 存成中心右侧相邻的那个 double，两者正好相差 1 个 ulp。{tail}"
     )
 
 
@@ -644,7 +615,9 @@ def _cancellation(params: Mapping[str, Any], t: float) -> Frame:
     loss_now = float(np.log10(mag / gap)) if gap > 0.0 else LOSS_MAX
 
     # ---- 损失位数 t 的扫描：输入按最坏方向各推 ulps 个 ulp，实测放大比 ------ #
-    t_grid = np.linspace(1.0, LOSS_MAX, 31)
+    # 从 0 开始：a、b 相距较远时当前点可能落在 t≈0.1，若曲线从 1 才开始，
+    # 标记就会跑到线段左侧（用户看到的“点跑出线外”）。0..16 覆盖参数的全部可能取值。
+    t_grid = np.linspace(0.0, LOSS_MAX, 33)
     digits_grid = np.zeros_like(t_grid)
     error_grid = np.zeros_like(t_grid)
     theory_grid = np.zeros_like(t_grid)
@@ -711,11 +684,11 @@ def _cancellation(params: Mapping[str, Any], t: float) -> Frame:
 def _cancel_note(
     a: float, b: float, gap: float, digits: float, err: float, round_err: float, delta_in: float, degenerate: bool
 ) -> str:
-    head = "a 与 b 完全相等，已用相邻的 1 个 ulp 代替 b。" if degenerate else ""
+    head = "两个数完全相等，已用相邻的一个 ulp 代替 b。" if degenerate else ""
     return (
-        f"{head}a−b = {gap:.6e}，输入不确定度 δ_in = {delta_in:.2e}，"
-        f"先验剩余有效位 {digits:.2f} 位，实测放大后相对误差 {err:.3e}，"
-        f"而减法本身的舍入误差是 {round_err:.1e}"
+        f"{head}两数之差 {gap:.6e}，输入的相对不确定度 {delta_in:.2e}，"
+        f"先验判断还能剩 {digits:.2f} 位有效数字，扰动后的实测相对误差 {err:.3e}，"
+        f"而减法本身产生的舍入误差只有 {round_err:.1e}"
     )
 
 
