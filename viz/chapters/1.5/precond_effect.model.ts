@@ -549,16 +549,11 @@ function axisYlabel(id: string, fallback: string): string {
 }
 
 /**
- * 折线图例标签只在「画得下」时给。
- *
- * 光栅器（`tools/raster.py`）把 series 的 label 画在**曲线末点的右侧**，而画布不裁剪文字：
- * 末点贴着面板右缘时标签会直接冲出画布（Scene 契约里没有「图例」节点，这是渲染器的加法）。
- * 所以这里按末点到轴右端的剩余像素判断，画不下就不给，改由面板文本里的文字图例承担。
+ * 曲线标签现在只进网页的 HTML 图例：显示层会把 label 从图层里取走，
+ * 不在画布末端绘制，所以不必再按剩余像素决定要不要保留。
  */
-function endLabel(xLast: number, xlim: readonly [number, number], panelW: number, label: string): string | undefined {
-  if (!Number.isFinite(xLast) || !(xlim[1] > xlim[0])) return undefined;
-  const room = ((xlim[1] - xLast) / (xlim[1] - xlim[0])) * panelW;
-  return room > textWidthUnits(label) * 7 + 10 ? label : undefined;
+function endLabel(_xLast: number, _xlim: readonly [number, number], _panelW: number, label: string): string {
+  return label;
 }
 
 /** 帧 `meta` 里的真布尔值；缺失/`null`/数字一律 undefined（0/1 不当布尔猜）。 */

@@ -214,7 +214,7 @@ export const qrSchurModel: SceneModel = (frame, opts) => {
 
   const kNow = k === undefined ? nCols - 1 : Math.max(0, Math.min(Math.round(k), nCols - 1));
   scene.layers.push(
-    lineLayer("main", series([kNow, kNow], [-0.5, nRows - 0.5], pal.cursor, { dash: [4, 3], width: 1.4 })),
+    lineLayer("main", series([kNow, kNow], [-0.5, nRows - 0.5], pal.cursor, { dash: [4, 3], width: 1.4, label: "当前步" })),
   );
   requireSameLength(cur, new Float64Array(nRows), "subdiag_current/n−1");
   const idx = Array.from({ length: nRows }, (_, i) => i);
@@ -252,17 +252,18 @@ export const qrSchurModel: SceneModel = (frame, opts) => {
     width: 1.8,
     marker: "o",
     accept: (v) => v > 0,
+    label: "特征值匹配误差",
   });
   if (errSeries.length > 0) scene.layers.push(lineLayer("aux", errSeries));
-  const theorySeries = segmentedSeries(steps, theory, pal.reference, { width: 1.3, dash: [6, 3], accept: (v) => v > 0 });
+  const theorySeries = segmentedSeries(steps, theory, pal.reference, { width: 1.3, dash: [6, 3], accept: (v) => v > 0, label: "理论收敛率" });
   if (theorySeries.length > 0) scene.layers.push(lineLayer("aux", theorySeries));
   scene.layers.push(
-    lineLayer("aux", series([steps[kNow] ?? kNow, steps[kNow] ?? kNow], auxYlim, pal.cursor, { dash: [3, 3], width: 1 })),
+    lineLayer("aux", series([steps[kNow] ?? kNow, steps[kNow] ?? kNow], auxYlim, pal.cursor, { dash: [3, 3], width: 1, label: "当前步" })),
   );
   const markY = mark.length > 0 ? (mark[0] as number) : Number.NaN;
   const markDrawn = Number.isFinite(markY) && markY > 0 ? (atFloor(markY) ? auxYlim[0] : markY) : undefined;
   if (markDrawn !== undefined) {
-    scene.layers.push(scatterLayer("aux", [steps[kNow] ?? kNow], [markDrawn], { r: 4, color: pal.marker }));
+    scene.layers.push(scatterLayer("aux", [steps[kNow] ?? kNow], [markDrawn], { r: 4, color: pal.marker, label: "当前误差" }));
   } else if (mark.length > 0) {
     degraded.push("error_mark 不是有限正值（NaN 或 ≤0）：当前步的标记不画，只在文本里报数");
   }

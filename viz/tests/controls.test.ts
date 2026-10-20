@@ -146,7 +146,8 @@ test("自适应坐标轴提示（规则 1/4）：出现在每个控件的 hints 
   const specs = describeControls(heat);
   assert.equal(specs[0].autoscaled, true);
   assert.ok(specs[0].hints.some((h) => h.includes("自适应")), specs[0].hints.join(" / "));
-  assert.match(autoscaleNote(heat) ?? "", /error/);
+  assert.match(autoscaleNote(heat) ?? "", /纵轴会自动缩放/);
+  assert.doesNotMatch(autoscaleNote(heat) ?? "", /规则\s*[0-9]/); // 面向读者的提示不引用内部规则编号
 
   const fixed: VizSpecJson = { ...heat, axes: heat.axes.map((a) => ({ ...a, autoscaled: false })) };
   assert.equal(autoscaleNote(fixed), null);

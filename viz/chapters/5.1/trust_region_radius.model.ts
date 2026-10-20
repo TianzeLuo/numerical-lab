@@ -185,7 +185,7 @@ export const trustRegionRadiusModel: SceneModel = (frame, opts) => {
     }),
   );
   if (tx.length >= 2) {
-    scene.layers.push(lineLayer("main", { x: tx, y: ty, color: pal.marker, width: 1.9 }));
+    scene.layers.push(lineLayer("main", { x: tx, y: ty, color: pal.marker, width: 1.9, label: "信赖域轨迹" }));
   }
   if (tx.length > 0) {
     const last = tx.length - 1;
@@ -206,17 +206,17 @@ export const trustRegionRadiusModel: SceneModel = (frame, opts) => {
   }
 
   scene.layers.push(
-    lineLayer("aux", { x: prefix(iterations, rHist.length), y: rHist, color: pal.residual, width: 1.8 }),
-    lineLayer("aux", { x: prefix(iterations, gHist.length), y: gHist, color: pal.curves[0] as string, width: 1.6 }),
+    lineLayer("aux", { x: prefix(iterations, rHist.length), y: rHist, color: pal.residual, width: 1.8, label: "信赖域半径 Δ_k" }),
+    lineLayer("aux", { x: prefix(iterations, gHist.length), y: gHist, color: pal.curves[0] as string, width: 1.6, label: "梯度范数 ‖∇f‖" }),
   );
   if (radiusFloor >= (aux.ylim[0] as number) && radiusFloor <= (aux.ylim[1] as number)) {
     scene.layers.push(
-      lineLayer("aux", { x: [aux.xlim[0], aux.xlim[1]], y: [radiusFloor, radiusFloor], color: pal.reference, width: 1, dash: [3, 3] }),
+      lineLayer("aux", { x: [aux.xlim[0], aux.xlim[1]], y: [radiusFloor, radiusFloor], color: pal.reference, width: 1, dash: [3, 3], label: "半径地板" }),
     );
   }
   if (errFloor >= (aux.ylim[0] as number) && errFloor <= (aux.ylim[1] as number)) {
     scene.layers.push(
-      lineLayer("aux", { x: [aux.xlim[0], aux.xlim[1]], y: [errFloor, errFloor], color: pal.warn, width: 1, dash: [2, 4] }),
+      lineLayer("aux", { x: [aux.xlim[0], aux.xlim[1]], y: [errFloor, errFloor], color: pal.warn, width: 1, dash: [2, 4], label: "梯度地板" }),
     );
   }
   if (rHist.length > 0) {

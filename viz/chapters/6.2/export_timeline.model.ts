@@ -186,20 +186,21 @@ export const exportTimelineModel: SceneModel = (frame, opts) => {
       color: pal.muted,
       width: 1.0,
       alpha: 0.75,
+      label: "自适应步长 h(t)",
     }),
   );
   // 红圈先画、蓝点后画：stall 的帧保留一圈红色，普通帧是实心蓝点。
   if (stallX.length > 0) {
-    scene.layers.push(scatterLayer("main", stallX, stallY, { r: 4.0, color: pal.marker, alpha: 0.95 }));
+    scene.layers.push(scatterLayer("main", stallX, stallY, { r: 4.0, color: pal.marker, alpha: 0.95, label: "停滞处" }));
   }
-  scene.layers.push(scatterLayer("main", frameX, frameY, { r: 2.0, color: pal.curves[0] as string, alpha: 0.9 }));
+  scene.layers.push(scatterLayer("main", frameX, frameY, { r: 2.0, color: pal.curves[0] as string, alpha: 0.9, label: "导出帧" }));
 
   const idx = Array.from({ length: n }, (_, j) => j);
   scene.layers.push(
     lineLayer("error", [
-      series([0, Math.max(1, n - 1)], [0, 0], pal.reference, { width: 0.9, dash: [4, 4] }),
-      series(idx, timingError, pal.curves[0] as string, { width: 1.4 }),
-      series(idx, playbackError, pal.exact, { width: 1.8, dash: [6, 3] }),
+      series([0, Math.max(1, n - 1)], [0, 0], pal.reference, { width: 0.9, dash: [4, 4], label: "零误差" }),
+      series(idx, timingError, pal.curves[0] as string, { width: 1.4, label: "内容时刻误差" }),
+      series(idx, playbackError, pal.exact, { width: 1.8, dash: [6, 3], label: "GIF 播放时刻误差" }),
     ]),
   );
 

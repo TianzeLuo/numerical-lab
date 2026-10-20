@@ -236,10 +236,10 @@ export const burgersCascadeModel: SceneModel = (frame, opts) => {
 
   // —— 能谱图层：地板线 → 初值 → k^-2 → 当前 → 地板散点；拟合窗口竖线 ——
   scene.layers.push(
-    lineLayer("spectrum", series([spectrum.xlim[0], spectrum.xlim[1]], [floor, floor], pal.warn, { dash: [3, 3], width: 1 })),
-    lineLayer("spectrum", series(kx, iniY, pal.reference, { dash: [5, 4], width: 1.3 })),
-    lineLayer("spectrum", series(kx, refY, pal.exact, { dash: [6, 3], width: 1.4 })),
-    lineLayer("spectrum", series(kx, nowY, pal.curves[0], { width: 2.2 })),
+    lineLayer("spectrum", series([spectrum.xlim[0], spectrum.xlim[1]], [floor, floor], pal.warn, { dash: [3, 3], width: 1, label: "能谱地板" })),
+    lineLayer("spectrum", series(kx, iniY, pal.reference, { dash: [5, 4], width: 1.3, label: "初始能谱" })),
+    lineLayer("spectrum", series(kx, refY, pal.exact, { dash: [6, 3], width: 1.4, label: "参考能谱" })),
+    lineLayer("spectrum", series(kx, nowY, pal.curves[0], { width: 2.2, label: "当前能谱" })),
   );
   if (fitLo !== undefined && fitHi !== undefined && fitHi > fitLo) {
     for (const kv of [fitLo, fitHi]) {
@@ -275,20 +275,20 @@ export const burgersCascadeModel: SceneModel = (frame, opts) => {
     }
   }
   scene.layers.push(
-    lineLayer("flux", series([fluxAxis.xlim[0], fluxAxis.xlim[1]], [0, 0], pal.reference, { dash: [4, 4], width: 1 })),
-    lineLayer("flux", series(k, flux, pal.curves[0], { width: 2.2 })),
+    lineLayer("flux", series([fluxAxis.xlim[0], fluxAxis.xlim[1]], [0, 0], pal.reference, { dash: [4, 4], width: 1, label: "零通量" })),
+    lineLayer("flux", series(k, flux, pal.curves[0], { width: 2.2, label: "能流 Π(k)" })),
   );
   if (dissipation !== undefined && dissipation > 0 && dissipation <= fluxAxis.ylim[1]) {
     scene.layers.push(
       lineLayer(
         "flux",
-        series([fluxAxis.xlim[0], fluxAxis.xlim[1]], [dissipation, dissipation], pal.exact, { dash: [6, 3], width: 1.2 }),
+        series([fluxAxis.xlim[0], fluxAxis.xlim[1]], [dissipation, dissipation], pal.exact, { dash: [6, 3], width: 1.2, label: "耗散" }),
       ),
     );
   }
   if (kDiss !== undefined && kDiss > 0 && kDiss <= fluxAxis.xlim[1]) {
     scene.layers.push(
-      lineLayer("flux", series([kDiss, kDiss], [fluxAxis.ylim[0], fluxAxis.ylim[1]], pal.reference, { dash: [1, 3], width: 1 })),
+      lineLayer("flux", series([kDiss, kDiss], [fluxAxis.ylim[0], fluxAxis.ylim[1]], pal.reference, { dash: [1, 3], width: 1, label: "耗散波数" })),
     );
   }
   if (fluxPeak >= 0) {
@@ -302,8 +302,8 @@ export const burgersCascadeModel: SceneModel = (frame, opts) => {
 
   // —— 解曲线：初值（灰虚）、当前（蓝）、截断点（红点）+ 激波示踪 ——
   scene.layers.push(
-    lineLayer("solution", series(x, uIni, pal.reference, { dash: [5, 4], width: 1.2 })),
-    lineLayer("solution", series(x, uNow, pal.curves[0], { width: 2.2 })),
+    lineLayer("solution", series(x, uIni, pal.reference, { dash: [5, 4], width: 1.2, label: "初始解" })),
+    lineLayer("solution", series(x, uNow, pal.curves[0], { width: 2.2, label: "当前解" })),
   );
   if (uClipMask !== undefined && uClipMask.length === x.length) {
     const idx: number[] = [];
@@ -359,15 +359,15 @@ export const burgersCascadeModel: SceneModel = (frame, opts) => {
 
   // —— 误差/残差副轴（规则 3）：两条真实曲线 + 地板线 ——
   scene.layers.push(
-    lineLayer("residual", series([residual.xlim[0], residual.xlim[1]], [floor, floor], pal.warn, { dash: [3, 3], width: 1 })),
+    lineLayer("residual", series([residual.xlim[0], residual.xlim[1]], [floor, floor], pal.warn, { dash: [3, 3], width: 1, label: "残差地板" })),
   );
   if (energyErr.length >= 2) {
-    scene.layers.push(lineLayer("residual", series(energyT, energyErr, pal.curves[0], { width: 1.8 })));
+    scene.layers.push(lineLayer("residual", series(energyT, energyErr, pal.curves[0], { width: 1.8, label: "能量收支误差" })));
   } else if (energyErr.length === 1) {
     scene.layers.push(scatterLayer("residual", energyT, energyErr, { r: 3, color: pal.curves[0] }));
   }
   if (budgetRes.length >= 2) {
-    scene.layers.push(lineLayer("residual", series(budgetT, budgetRes, pal.residual, { width: 1.8 })));
+    scene.layers.push(lineLayer("residual", series(budgetT, budgetRes, pal.residual, { width: 1.8, label: "预算残差" })));
   } else if (budgetRes.length === 1) {
     scene.layers.push(scatterLayer("residual", budgetT, budgetRes, { r: 3, color: pal.residual }));
   }

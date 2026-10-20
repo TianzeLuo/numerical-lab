@@ -182,6 +182,16 @@ export interface Scene {
   pitfalls: string;
   /** 规则 5：数据来源（backend / backend+preview / precomputed…）。 */
   dataSource: string;
+  /**
+   * 画布装饰开关。网页把说明文字与徽标移进 HTML 阅读区，画布只保留图形；
+   * 缺省（undefined）表示全部绘制。视觉基线由 `sceneForDisplay` 生成，两个渲染器共用。
+   */
+  chrome?: {
+    title?: boolean;
+    pitfalls?: boolean;
+    badges?: boolean;
+    texts?: boolean;
+  };
 }
 
 // --------------------------------------------------------------------------- //
@@ -929,7 +939,11 @@ export function criticalBadge(
     governing = list.reduce((a, b) => (Math.abs(b) < Math.abs(a) ? b : a), list[0] as number);
     crossed = Math.abs(value) > Math.abs(governing);
   }
-  const shown = list.map((c) => (c === governing ? `${c.toPrecision(4)}*` : c.toPrecision(4))).join(" / ");
+  // 只有一个阈值时不打星号（否则读者找不到星号的解释）；多阈值时星号标出当前最紧的那条。
+  const showStar = list.length > 1;
+  const shown = list
+    .map((c) => (showStar && c === governing ? `${c.toPrecision(4)}*` : c.toPrecision(4)))
+    .join(" / ");
   return {
     kind: "critical",
     text: `${name} = ${value.toPrecision(4)}${opts.unit ?? ""}　理论临界 ${shown}${crossed ? "　⚠ 已越界" : ""}`,

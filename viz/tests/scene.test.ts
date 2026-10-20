@@ -263,7 +263,8 @@ test("criticalBadge 在越过理论临界值时给出警告（方向由调用方
   const inside = criticalBadge("ρ", 0.9, 1.0);
   assert.equal(inside.kind, "critical");
   assert.doesNotMatch(inside.text, /越界/);
-  assert.match(inside.text, /1\.000\*/); // 起支配作用的那条阈值被标星
+  assert.match(inside.text, /1\.000/);
+  assert.doesNotMatch(inside.text, /1\.000\*/); // 只有一条阈值时不打星号（星号无处解释）
   const outside = criticalBadge("Δt", 0.6, [0.5, 0.25]);
   assert.match(outside.text, /理论临界/);
   assert.match(outside.text, /越界/);

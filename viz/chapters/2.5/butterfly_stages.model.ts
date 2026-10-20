@@ -209,19 +209,24 @@ export const butterflyStagesModel: SceneModel = (frame, opts) => {
   for (let s = 0; s < stage; s += 1) {
     const row = new Float64Array(n);
     for (let c = 0; c < n; c += 1) row[c] = snapshotReal[s * valuesReal.cols + c] as number;
-    trails.push(series(idx, row, pal.cursor, { width: 1, dash: [3, 3]}));
+    trails.push(series(idx, row, pal.cursor, { width: 1, dash: [3, 3], label: "前几级轨迹" }));
   }
   if (trails.length > 0) scene.layers.push(lineLayer("trace", trails));
   const curSeries: LineSeries[] = [];
-  const realSeries = segmentedSeries(idx, currentReal, pal.curves[0], { width: 2.2});
+  const realSeries = segmentedSeries(idx, currentReal, pal.curves[0], { width: 2.2, label: "当前级实部 Re X" });
   curSeries.push(...realSeries);
-  const imagSeries = segmentedSeries(idx, currentImag, pal.curves[1], { width: 2.2, dash: [6, 3]});
+  const imagSeries = segmentedSeries(idx, currentImag, pal.curves[1], { width: 2.2, dash: [6, 3], label: "当前级虚部 Im X" });
   curSeries.push(...imagSeries);
   if (curSeries.length > 0) scene.layers.push(lineLayer("trace", curSeries));
   else degraded.push("当前级的实部/虚部没有可绘的有限值：轨迹面板不画曲线");
 
   // —— 图层 4~6：逐级残差 + 数学对拍参照线 ——
-  const resSeries = segmentedSeries(stageIdx, residual, pal.residual, { width: 1.6, marker: "o", accept: (v) => v > 0});
+  const resSeries = segmentedSeries(stageIdx, residual, pal.residual, {
+    width: 1.6,
+    marker: "o",
+    accept: (v) => v > 0,
+    label: "逐级残差",
+  });
   const errLine = absOf(error);
   const errConst = errLine.length > 0 ? (errLine[0] as number) : undefined;
   const refs: LineSeries[] = [];
@@ -231,23 +236,24 @@ export const butterflyStagesModel: SceneModel = (frame, opts) => {
     refs.push(
       series([0.5, Math.max(1.5, levels + 0.5)], [errConst, errConst], pal.exact, {
         width: 1.4,
-        dash: [7, 4]
+        dash: [7, 4],
+        label: "向量化与朴素 DIF 的差",
       }),
     );
   }
   scene.layers.push(lineLayer("residual", refs));
   const resNow = sampleAt(stageIdx, residual, stage);
   if (resNow !== undefined && resNow > 0) {
-    scene.layers.push(scatterLayer("residual", [stage], [resNow], { r: 4, color: pal.marker}));
+    scene.layers.push(scatterLayer("residual", [stage], [resNow], { r: 4, color: pal.marker, label: "当前级" }));
   }
 
   // —— 图层 7~8：位反序谱 ——
-  scene.layers.push(barsLayer("spectrum", idx, spectrumMag, { width: 0.7, color: pal.curves[0]}));
+  scene.layers.push(barsLayer("spectrum", idx, spectrumMag, { width: 0.7, color: pal.curves[0], label: "位反序后的 |X_k|" }));
   const specRefs: LineSeries[] = [];
   if (kBin !== undefined) {
-    specRefs.push(series([kBin, kBin], [0, specAxis.ylim[1]], pal.reference, { dash: [3, 4], width: 1}));
+    specRefs.push(series([kBin, kBin], [0, specAxis.ylim[1]], pal.reference, { dash: [3, 4], width: 1, label: "波数 k 的位置" }));
   }
-  specRefs.push(series([-0.5, n - 0.5], [peak, peak], pal.marker, { dash: [6, 3], width: 1}));
+  specRefs.push(series([-0.5, n - 0.5], [peak, peak], pal.marker, { dash: [6, 3], width: 1, label: "峰值" }));
   scene.layers.push(lineLayer("spectrum", specRefs));
 
   // —— 文本：面板内只放"身份行"，长句子全部进底部横条 ——

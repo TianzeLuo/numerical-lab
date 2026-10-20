@@ -218,34 +218,47 @@ export const leakWindowModel: SceneModel = (frame, opts) => {
     shapeSeries.push(
       series(mAxis, row, r === idx ? pal.curves[0] : pal.reference, {
         width: r === idx ? 2.2 : 1,
-        dash: r === idx ? undefined : [4, 3]
+        dash: r === idx ? undefined : [4, 3],
+        label: r === idx ? "当前窗" : "其它窗",
       }),
     );
   }
   scene.layers.push(lineLayer("shape", shapeSeries));
-  const xwSeries = segmentedSeries(mAxis, xWindowed, pal.exact, { width: 1.2, dash: [5, 4]});
+  const xwSeries = segmentedSeries(mAxis, xWindowed, pal.exact, {
+    width: 1.2,
+    dash: [5, 4],
+    label: "加窗后的信号",
+  });
   if (xwSeries.length > 0) scene.layers.push(lineLayer("shape", xwSeries));
 
   // —— 图层 3~6：dB 谱 + 旁瓣水平线 + 锚点 ——
   const specRefs: LineSeries[] = [];
   if (peakDb !== undefined) {
-    specRefs.push(series([0, specXlim[1]], [peakDb, peakDb], pal.marker, { width: 1.4, dash: [6, 3]}));
+    specRefs.push(series([0, specXlim[1]], [peakDb, peakDb], pal.marker, { width: 1.4, dash: [6, 3], label: "峰值电平" }));
   }
   if (harrisDb !== undefined) {
-    specRefs.push(series([0, specXlim[1]], [harrisDb, harrisDb], pal.exact, { width: 1.2, dash: [2, 3]}));
+    specRefs.push(series([0, specXlim[1]], [harrisDb, harrisDb], pal.exact, { width: 1.2, dash: [2, 3], label: "Harris 旁瓣参考" }));
   }
   if (specRefs.length > 0) scene.layers.push(lineLayer("spec", specRefs));
-  const envSeries = segmentedSeries(envVisible.x, envVisible.y, pal.residual, { width: 1.6, dash: [7, 4]});
+  const envSeries = segmentedSeries(envVisible.x, envVisible.y, pal.residual, {
+    width: 1.6,
+    dash: [7, 4],
+    label: "旁瓣包络",
+  });
   if (envSeries.length > 0) scene.layers.push(lineLayer("spec", envSeries));
-  const specSeries = segmentedSeries(specVisible.x, specVisible.y, pal.curves[0], { width: 1.8});
+  const specSeries = segmentedSeries(specVisible.x, specVisible.y, pal.curves[0], { width: 1.8, label: "加窗谱" });
   if (specSeries.length > 0) scene.layers.push(lineLayer("spec", specSeries));
   else degraded.push("帧 spectrum_db 没有可绘的有限值：谱面板不画曲线");
   if (anchor !== undefined && anchorDb !== undefined && anchor <= specXlim[1]) {
-    scene.layers.push(scatterLayer("spec", [anchor], [anchorDb], { r: 4, color: pal.marker}));
+    scene.layers.push(scatterLayer("spec", [anchor], [anchorDb], { r: 4, color: pal.marker, label: "当前旁瓣锚点" }));
   }
 
   // —— 图层 7：对拍误差（requiredAux）——
-  const errSeries = segmentedSeries(mAxis, absOf(error), pal.residual, { width: 1.4, accept: (v) => v > 0});
+  const errSeries = segmentedSeries(mAxis, absOf(error), pal.residual, {
+    width: 1.4,
+    accept: (v) => v > 0,
+    label: "解析窗谱 vs |FFT| 的差",
+  });
   if (errSeries.length > 0) scene.layers.push(lineLayer("error", errSeries));
   else degraded.push("帧 error 没有 >0 的有限值：对数副轴画不出任何点");
 

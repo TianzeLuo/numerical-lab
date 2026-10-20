@@ -1,0 +1,290 @@
+{
+  "1.1": [
+    {
+      "tex": "\\mathrm{fl}(x)=x(1+\\delta),\\qquad |\\delta|\\le u",
+      "caption": "每个浮点结果都带着不超过 u 的相对误差"
+    },
+    {
+      "tex": "\\kappa(A)=\\|A\\|\\|A^{-1}\\|",
+      "caption": "条件数衡量输入扰动会被放大多少倍"
+    }
+  ],
+  "1.2": [
+    {
+      "tex": "A=LU",
+      "caption": "高斯消元把矩阵拆成两个三角因子"
+    },
+    {
+      "tex": "\\hat{L}\\hat{U}=P(A+\\delta A),\\qquad \\|\\delta A\\|_\\infty\\le c\\cdot n\\cdot\\rho\\cdot u\\cdot\\|A\\|_\\infty",
+      "caption": "算出的三角因子是某个邻近矩阵的精确分解"
+    }
+  ],
+  "1.3": [
+    {
+      "tex": "x_{\\mathrm{LS}}=\\operatorname{argmin}_x\\|Ax-b\\|_2",
+      "caption": "最小二乘在所有残差里挑出最短的那个"
+    },
+    {
+      "tex": "x_{\\mathrm{LS}}=V\\Sigma^{+}U^{\\mathrm{T}}b",
+      "caption": "奇异值分解给出最小二乘的稳定解法"
+    }
+  ],
+  "1.4": [
+    {
+      "tex": "\\operatorname{dist}(v_k,\\operatorname{span}(v_1))\\le C\\left|\\frac{\\lambda_2}{\\lambda_1}\\right|^k",
+      "caption": "幂法收敛快慢由前两个特征值的比值决定"
+    },
+    {
+      "tex": "\\Lambda_\\varepsilon(A)=\\left\\{z:\\sigma_{\\mathrm{min}}(A-zI)\\le\\varepsilon\\right\\}",
+      "caption": "伪谱画出特征值附近会被放大的区域"
+    }
+  ],
+  "1.5": [
+    {
+      "tex": "x^{(k+1)}=Tx^{(k)}+c,\\qquad \\rho(T)<1",
+      "caption": "定常迭代收敛，当且仅当谱半径小于一"
+    },
+    {
+      "tex": "\\|e_k\\|_A\\le2\\left(\\frac{\\sqrt{\\kappa}-1}{\\sqrt{\\kappa}+1}\\right)^k\\|e_0\\|_A,\\qquad \\kappa=\\kappa(M^{-1}A)",
+      "caption": "预条件把有效条件数换小，共轭梯度随之加速"
+    }
+  ],
+  "2.1": [
+    {
+      "tex": "f(x)-p_n(x)=\\frac{f^{(n+1)}(\\xi)}{(n+1)!}\\omega(x)",
+      "caption": "插值误差由高阶导数和节点多项式共同决定"
+    },
+    {
+      "tex": "p_n(x)=\\frac{\\sum_{i=0}^{n}\\frac{w_i}{x-x_i}y_i}{\\sum_{i=0}^{n}\\frac{w_i}{x-x_i}}",
+      "caption": "重心公式把插值求值变成一次加权平均"
+    }
+  ],
+  "2.2": [
+    {
+      "tex": "h_{i-1}M_{i-1}+2(h_{i-1}+h_i)M_i+h_iM_{i+1}=6(\\delta_i-\\delta_{i-1})",
+      "caption": "二阶光滑条件化成关于弯矩的三对角方程"
+    },
+    {
+      "tex": "B_{i,k}(x)=\\frac{x-t_i}{t_{i+k}-t_i}B_{i,k-1}(x)+\\frac{t_{i+k+1}-x}{t_{i+k+1}-t_{i+1}}B_{i+1,k-1}(x)",
+      "caption": "B 样条由低阶基函数递推组合而成"
+    }
+  ],
+  "2.3": [
+    {
+      "tex": "p_{k+1}(x)=(x-\\alpha_k)p_k(x)-\\beta_kp_{k-1}(x)",
+      "caption": "正交多项式只需前两阶就能继续递推"
+    },
+    {
+      "tex": "\\int_I q(x)w(x)\\mathrm{d}x=\\sum_{k=1}^n w_kq(x_k)",
+      "caption": "n 点 Gauss 求积能精确到 2n-1 次"
+    }
+  ],
+  "2.4": [
+    {
+      "tex": "E=C(b-a)h^pf^{(p)}(\\xi)",
+      "caption": "复合求积的误差主项由步长的 p 次幂控制"
+    },
+    {
+      "tex": "T_{k,j+1}=\\frac{4^{j+1}T_{k,j}-T_{k-1,j}}{4^{j+1}-1}",
+      "caption": "Romberg 用两个步长的结果消去低阶误差项"
+    }
+  ],
+  "2.5": [
+    {
+      "tex": "X_k=\\sum_{n=0}^{N-1}x_n\\omega_N^{kn},\\qquad \\omega_N=e^{-2\\pi i/N}",
+      "caption": "DFT 把 N 个样本变成 N 个复指数分量"
+    },
+    {
+      "tex": "X_k=E_k+\\omega_N^kO_k,\\qquad X_{k+N/2}=E_k-\\omega_N^kO_k",
+      "caption": "FFT 把一次长变换拆成两个半长变换"
+    }
+  ],
+  "2.6": [
+    {
+      "tex": "\\phi(t)=\\sqrt{2}\\sum_j h_j\\phi(2t-j)",
+      "caption": "尺度函数是自身压缩平移副本的叠加"
+    },
+    {
+      "tex": "|H(\\omega)|^2+|H(\\omega+\\pi)|^2=2",
+      "caption": "正交镜像滤波器让分解后能够完美重构"
+    }
+  ],
+  "3.1": [
+    {
+      "tex": "y_{n+1}=y_n+h\\sum_{i=1}^{s}b_ik_i,\\qquad k_i=f\\left(t_n+c_ih,y_n+h\\sum_{j=1}^{s}a_{ij}k_j\\right)",
+      "caption": "Runge-Kutta 用多个斜率采样拼出一步"
+    },
+    {
+      "tex": "\\|y_1-y(t_0+h)\\|=\\mathcal{O}(h^{p+1}),\\qquad \\operatorname{max}_{t\\le T}\\|y_h(t)-y(t)\\|=\\mathcal{O}(h^p)",
+      "caption": "局部误差高一阶，累积到终点只退一阶"
+    }
+  ],
+  "3.2": [
+    {
+      "tex": "R(z)=1+\\sum_{j\\ge1}(b^{\\mathrm{T}}A^{j-1}\\mathbf{1})z^j",
+      "caption": "显式 RK 的稳定函数由 Butcher 表决定"
+    },
+    {
+      "tex": "R(z)=\\frac{1+z/2}{1-z/2},\\qquad |R(z)|\\le1\\quad(\\operatorname{Re}z\\le0)",
+      "caption": "梯形法的放大因子在左半平面始终不超过一"
+    }
+  ],
+  "3.3": [
+    {
+      "tex": "M^{\\mathrm{T}}JM=J",
+      "caption": "辛映射保持相空间的面积与哈密顿结构"
+    },
+    {
+      "tex": "-\\frac{h^2}{4}\\le\\frac{H_n-H_0}{H_0}\\le0",
+      "caption": "Verlet 的能量误差被锁在一条有界窄带里"
+    }
+  ],
+  "3.4": [
+    {
+      "tex": "\\frac{u_{i+1}-2u_i+u_{i-1}}{h^2}+p_i\\frac{u_{i+1}-u_{i-1}}{2h}+q_iu_i=r_i",
+      "caption": "中心差商把二阶边值问题变成三对角系统"
+    },
+    {
+      "tex": "D_{ij}=\\frac{c_i}{c_j}\\frac{(-1)^{i+j}}{x_i-x_j}",
+      "caption": "Chebyshev 谱方法用一个矩阵精确求导"
+    }
+  ],
+  "3.5": [
+    {
+      "tex": "\\lambda_i=\\operatorname{lim}_{t\\to\\infty}\\frac{1}{t}\\operatorname{log}\\sigma_i(t)",
+      "caption": "李雅普诺夫指数把轨道分离速度变成一个数"
+    },
+    {
+      "tex": "\\rho_H=\\frac{\\sigma(\\sigma+\\beta+3)}{\\sigma-\\beta-1}",
+      "caption": "Lorenz 在 ρ_H 处由定常转为振荡"
+    }
+  ],
+  "4.1": [
+    {
+      "tex": "(I-\\theta r\\tilde{D})u^{n+1}=(I+(1-\\theta)r\\tilde{D})u^n",
+      "caption": "θ 格式用权重在显式与隐式之间过渡"
+    },
+    {
+      "tex": "G_\\theta(\\varphi)=\\frac{1-4(1-\\theta)r\\operatorname{sin}^2(\\varphi/2)}{1+4\\theta r\\operatorname{sin}^2(\\varphi/2)}",
+      "caption": "放大因子决定每个 Fourier 模态的增减"
+    }
+  ],
+  "4.2": [
+    {
+      "tex": "G(\\varphi)=\\sum_k c_ke^{i\\varphi k}",
+      "caption": "放大因子把整个格式压成一个波数函数"
+    },
+    {
+      "tex": "u_t+au_x=D_{\\mathrm{num}}u_{xx}+E_{\\mathrm{num}}u_{xxx}+\\ldots",
+      "caption": "修正方程把格式的耗散与色散分开呈现"
+    },
+    {
+      "tex": "u_{j+1/2}=u_j+\\frac{1}{2}\\phi(r_j)(u_j-u_{j-1}),\\qquad r_j=\\frac{u_j-u_{j-1}}{u_{j+1}-u_j}",
+      "caption": "限制器按斜率比压低界面值，避免过冲"
+    }
+  ],
+  "4.3": [
+    {
+      "tex": "U_j^{n+1}=U_j^n-\\frac{\\Delta t}{\\Delta x}(F_{j+1/2}-F_{j-1/2})",
+      "caption": "有限体积用界面通量之差保证离散守恒"
+    },
+    {
+      "tex": "s=\\frac{f(u_R)-f(u_L)}{u_R-u_L}",
+      "caption": "激波速度由跨间断的通量差与跳跃比决定"
+    }
+  ],
+  "4.4": [
+    {
+      "tex": "a(u,v)=\\int_0^1(a(x)u'v'+c(x)uv)\\mathrm{d}x=\\int_0^1f(x)v(x)\\mathrm{d}x",
+      "caption": "弱形式让方程对一整族试验函数都成立"
+    },
+    {
+      "tex": "a(u-u_h,v_h)=0",
+      "caption": "Galerkin 解在能量内积下与误差正交"
+    }
+  ],
+  "4.5": [
+    {
+      "tex": "\\sigma(E_{\\mathrm{TG}})=\\left\\{0,\\frac{1}{9}\\right\\}",
+      "caption": "两网格一步把误差模态压到零或九分之一"
+    },
+    {
+      "tex": "W_V(0)=(\\nu_1+\\nu_2)\\sum_{l=0}^{L-2}n_l+m n_{L-1}=\\mathcal{O}(n_0)",
+      "caption": "V 循环每层线性工作量，总代价与未知数同阶"
+    }
+  ],
+  "4.6": [
+    {
+      "tex": "\\frac{d}{dx}u_N(x)=\\sum_k i\\kappa_k\\hat{u}_ke^{i\\kappa_kx}",
+      "caption": "谱微分把求导变成逐模态乘以波数"
+    },
+    {
+      "tex": "\\hat{u}_k=\\mathcal{O}(k^{-(p+1)})",
+      "caption": "系数按代数速率衰减，逼近误差随之下降"
+    }
+  ],
+  "5.1": [
+    {
+      "tex": "\\|e_{k+1}\\|\\le\\frac{3M}{\\mu}\\|e_k\\|^2",
+      "caption": "牛顿法进入邻域后误差按平方速度缩小"
+    },
+    {
+      "tex": "B_{k+1}=B_k-\\frac{B_ks_ks_k^{\\mathrm{T}}B_k}{s_k^{\\mathrm{T}}B_ks_k}+\\frac{y_ky_k^{\\mathrm{T}}}{y_k^{\\mathrm{T}}s_k}",
+      "caption": "BFGS 用最新割线同时修正曲率近似"
+    }
+  ],
+  "5.2": [
+    {
+      "tex": "x_\\lambda=\\operatorname{argmin}_x\\|Ax-b\\|_2^2+\\lambda^2\\|x\\|_2^2",
+      "caption": "Tikhonov 在拟合数据与压制范数之间取舍"
+    },
+    {
+      "tex": "f_i(\\lambda)=\\frac{\\sigma_i^2}{\\sigma_i^2+\\lambda^2}",
+      "caption": "正则化按奇异值大小逐个压低解的模态"
+    }
+  ],
+  "5.3": [
+    {
+      "tex": "\\frac{dJ_h}{dp}=\\sum_{n=0}^{N-1}\\left(\\frac{\\partial\\Phi_n}{\\partial p}\\right)^{\\mathrm{T}}\\mu_{n+1}",
+      "caption": "一次反向扫描算出目标对全部参数的梯度"
+    },
+    {
+      "tex": "\\frac{d\\mu}{dt}=-f_y(t,y,p)^{\\mathrm{T}}\\mu",
+      "caption": "连续伴随从终点把梯度信息反向输运回来"
+    }
+  ],
+  "5.4": [
+    {
+      "tex": "\\mathrm{Var}(\\hat{\\mu}_N)=\\frac{\\sigma^2}{N}",
+      "caption": "蒙特卡洛均值的方差随样本数倒数下降"
+    },
+    {
+      "tex": "1=\\sum_iS_i+\\sum_{i<j}S_{ij}+\\ldots",
+      "caption": "总方差被拆成主效应与各阶交互项之和"
+    }
+  ],
+  "6.1": [
+    {
+      "tex": "\\omega_t+u\\omega_x+v\\omega_y=\\frac{1}{Re}\\Delta\\omega",
+      "caption": "涡量被流动带走，同时被粘性慢慢扩散"
+    },
+    {
+      "tex": "u_t=D_u\\Delta u-uv^2+F(1-u),\\qquad v_t=D_v\\Delta v+uv^2-(F+k)v",
+      "caption": "两种物质的扩散与反应生成图灵斑图"
+    },
+    {
+      "tex": "h_t+(hu)_x=0,\\qquad (hu)_t+\\left(hu^2+\\frac{1}{2}gh^2\\right)_x=0",
+      "caption": "浅水方程用质量与动量守恒描述溃坝"
+    }
+  ],
+  "6.2": [
+    {
+      "tex": "n=\\operatorname{floor}(fT)+1,\\qquad \\tau_j=t_0+\\frac{j}{f}",
+      "caption": "帧数与播放时刻由帧率和时长共同决定"
+    },
+    {
+      "tex": "d=\\operatorname{max}\\left(1,\\operatorname{round}\\left(\\frac{100}{f}\\right)\\right),\\qquad f_{\\mathrm{act}}=\\frac{100}{d}",
+      "caption": "GIF 的厘秒延迟把请求帧率改写成实际帧率"
+    }
+  ]
+}

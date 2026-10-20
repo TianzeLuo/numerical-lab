@@ -27,6 +27,7 @@ import { decodeNlf } from "../../shared/src/nlf.js";
 import type { Frame } from "../../shared/src/frame.js";
 import { sceneToJson } from "../../shared/src/scene.js";
 import { validateScene } from "../../shared/src/scene.js";
+import { sceneForDisplay } from "../../shared/src/display.js";
 import type { FrameHistoryEntry, ModelOptions } from "../../shared/src/model.js";
 
 interface Args {
@@ -152,19 +153,26 @@ async function main(): Promise<number> {
           problems.push(`${chapter}/${viz.id}/${file}: Scene 不合规 → ${sceneProblems.join("；")}`);
           continue;
         }
+        // 网页与视觉回归看同一张"干净图"：说明/角标/图内标签移进 HTML，坐标区上下裁剪。
+        const display = sceneForDisplay(scene).scene;
+        const displayProblems = validateScene(display);
+        if (displayProblems.length > 0) {
+          problems.push(`${chapter}/${viz.id}/${file}: 显示场景不合规 → ${displayProblems.join("；")}`);
+          continue;
+        }
         const name = `${viz.id}__${fnv1a(`${chapter}/${viz.id}/${paramsJson}`)}__${timeTag(t)}.json`;
         const target = join(outDir, chapter, name);
         mkdirSync(dirname(target), { recursive: true });
         // sceneToJson 做 12 位有效数字的稳定序列化：同一帧两次必须逐字节相同
-        writeFileSync(target, sceneToJson(scene) + "\n", "utf8");
+        writeFileSync(target, sceneToJson(display) + "\n", "utf8");
         dumped.push({
           chapter,
           viz: viz.id,
           file: target.slice(outDir.length + 1),
           width: args.width,
-          height: args.height,
+          height: display.canvas.h,
           t,
-          layers: scene.layers.length,
+          layers: display.layers.length,
           problems: [],
         });
         history.push({ t, frame });

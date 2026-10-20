@@ -234,9 +234,9 @@ export const dealiasRuleModel: SceneModel = (frame, opts) => {
   }
   vline("spectrum", kLast, pal.reference, [1, 3]);
   scene.layers.push(
-    lineLayer("spectrum", series([spectrum.xlim[0], spectrum.xlim[1]], [floor, floor], pal.warn, { dash: [3, 3], width: 1 })),
-    lineLayer("spectrum", series(kx, refY, pal.reference, { dash: [5, 4], width: 1.5 })),
-    lineLayer("spectrum", series(kx, curY, pal.curves[0], { width: 2.2 })),
+    lineLayer("spectrum", series([spectrum.xlim[0], spectrum.xlim[1]], [floor, floor], pal.warn, { dash: [3, 3], width: 1, label: "谱地板" })),
+    lineLayer("spectrum", series(kx, refY, pal.reference, { dash: [5, 4], width: 1.5, label: "参考谱" })),
+    lineLayer("spectrum", series(kx, curY, pal.curves[0], { width: 2.2, label: "当前网格上的谱" })),
   );
   if (prodMask !== undefined && prodMask.length === kAbs.length) {
     const idx: number[] = [];
@@ -254,8 +254,8 @@ export const dealiasRuleModel: SceneModel = (frame, opts) => {
 
   // —— 混叠偏差（error 副轴）：它铺满整个保留带 ——
   scene.layers.push(
-    lineLayer("alias", series([aliasAxis.xlim[0], aliasAxis.xlim[1]], [floor, floor], pal.warn, { dash: [3, 3], width: 1 })),
-    lineLayer("alias", series(kx, errY, pal.residual, { width: 2.2 })),
+    lineLayer("alias", series([aliasAxis.xlim[0], aliasAxis.xlim[1]], [floor, floor], pal.warn, { dash: [3, 3], width: 1, label: "偏差地板" })),
+    lineLayer("alias", series(kx, errY, pal.residual, { width: 2.2, label: "混叠偏差" })),
   );
   if (kKeep !== undefined && kKeep >= aliasAxis.xlim[0] && kKeep <= aliasAxis.xlim[1]) {
     scene.layers.push(
@@ -279,10 +279,10 @@ export const dealiasRuleModel: SceneModel = (frame, opts) => {
   // —— 扫描图：四条账分开画（截断 ≠ 混叠）——
   scene.layers.push(
     lineLayer("scan", series([scanAxis.xlim[0], scanAxis.xlim[1]], [SCAN_FLOOR_FALLBACK, SCAN_FLOOR_FALLBACK], pal.reference, { dash: [3, 3], width: 1 })),
-    lineLayer("scan", series(scanDecay, scanAlias, pal.warn, { width: 2 })),
-    lineLayer("scan", series(scanDecay, scanTrunc, pal.exact, { width: 2, dash: [6, 3] })),
-    lineLayer("scan", series(scanDecay, scanPad, pal.curves[1], { width: 1.6, dash: [2, 3] })),
-    lineLayer("scan", series(scanDecay, scanDeal, pal.curves[0], { width: 2.2 })),
+    lineLayer("scan", series(scanDecay, scanAlias, pal.warn, { width: 2, label: "混叠" })),
+    lineLayer("scan", series(scanDecay, scanTrunc, pal.exact, { width: 2, dash: [6, 3], label: "截断" })),
+    lineLayer("scan", series(scanDecay, scanPad, pal.curves[1], { width: 1.6, dash: [2, 3], label: "补零" })),
+    lineLayer("scan", series(scanDecay, scanDeal, pal.curves[0], { width: 2.2, label: "去混叠" })),
   );
   if (decayNow !== undefined && decayNow >= scanAxis.xlim[0] && decayNow <= scanAxis.xlim[1]) {
     scene.layers.push(

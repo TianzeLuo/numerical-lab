@@ -510,15 +510,17 @@ function drawLoglogFitLayer(c: Ctx, axis: Axis, layer: Extract<Layer, { kind: "l
     void ax0;
     void ax1;
   }
-  // 两条线的文字标注（规则 2：缺一不可）
-  const yTop = axis.rect[1] + 14;
-  ctx.font = fontOf(c, c.opts.baseFontSize - 1);
-  ctx.textAlign = "right";
-  ctx.textBaseline = "top";
-  ctx.fillStyle = color;
-  ctx.fillText(layer.seriesLabel, axis.rect[0] + axis.rect[2] - 8, yTop);
-  ctx.fillStyle = theoryColor;
-  ctx.fillText(layer.theoryLabel, axis.rect[0] + axis.rect[2] - 8, yTop + c.opts.baseFontSize + 2);
+  // 两条线的文字标注（规则 2：缺一不可）。显示层把标注交给 HTML 图例，画布不重复画。
+  if (c.scene.chrome?.texts !== false) {
+    const yTop = axis.rect[1] + 14;
+    ctx.font = fontOf(c, c.opts.baseFontSize - 1);
+    ctx.textAlign = "right";
+    ctx.textBaseline = "top";
+    ctx.fillStyle = color;
+    ctx.fillText(layer.seriesLabel, axis.rect[0] + axis.rect[2] - 8, yTop);
+    ctx.fillStyle = theoryColor;
+    ctx.fillText(layer.theoryLabel, axis.rect[0] + axis.rect[2] - 8, yTop + c.opts.baseFontSize + 2);
+  }
   ctx.restore();
   });
 }
@@ -690,7 +692,7 @@ export function renderScene(ctx: CanvasRenderingContext2D, scene: Scene, opts: R
   ctx.clearRect(0, 0, scene.canvas.w, scene.canvas.h);
   ctx.fillStyle = opts.background ?? scene.canvas.background;
   ctx.fillRect(0, 0, scene.canvas.w, scene.canvas.h);
-  if (scene.title) {
+  if (scene.chrome?.title !== false && scene.title) {
     ctx.fillStyle = "#111";
     ctx.font = fontOf(c, c.opts.baseFontSize + 5, "700");
     ctx.textAlign = "left";
@@ -699,9 +701,9 @@ export function renderScene(ctx: CanvasRenderingContext2D, scene: Scene, opts: R
   }
   for (const axis of scene.axes) drawAxis(c, axis);
   for (const layer of scene.layers) drawLayer(c, layer);
-  for (const t of scene.texts) drawText(c, t);
-  if (c.opts.showBadges) for (const b of scene.badges) drawBadge(c, b);
-  drawPitfalls(c);
+  if (scene.chrome?.texts !== false) for (const t of scene.texts) drawText(c, t);
+  if (c.opts.showBadges && scene.chrome?.badges !== false) for (const b of scene.badges) drawBadge(c, b);
+  if (scene.chrome?.pitfalls !== false) drawPitfalls(c);
   ctx.restore();
 }
 

@@ -3,7 +3,7 @@
  *
  * 守的几条：
  * 1. 目录默认只标高亮闭包的章号（28 个标签会互相压）；窄画布仍保留图与副图。
- * 2. 导出页的主图 x 轴是**名义帧时刻**，stall 用红圈标；线层不许再落内联标签。
+ * 2. 导出页的主图 x 轴是**名义帧时刻**，stall 用红圈标；线层标签只供网页图例使用，显示层负责剥离。
  * 3. 讲义热图行 0 在底：第一行章的数值必须出现在热图最后一行；失败行强制有行标签。
  * 4. 960 与 640 两种版式都要通过 validateScene（含文本重叠检查）。
  */
@@ -14,6 +14,7 @@ import { test } from "node:test";
 import { Frame, type ArraySpec, type TypedArray } from "../shared/src/frame.js";
 import { ModelInputError, type ModelOptions } from "../shared/src/model.js";
 import { decodeNlf, encodeNlf } from "../shared/src/nlf.js";
+import { sceneForDisplay } from "../shared/src/display.js";
 import { validateScene, type Layer, type Scene } from "../shared/src/scene.js";
 import {
   bookBuildModel,
@@ -242,7 +243,7 @@ test("catalog_nav：640 窄画布保留图与副图并显式降级", async () =>
 // --------------------------------------------------------------------------- //
 // 3. 导出
 // --------------------------------------------------------------------------- //
-test("export_timeline：主图 x=名义帧时刻，stall 红圈，线层无内联标签", async () => {
+test("export_timeline：主图 x=名义帧时刻，stall 红圈，线层标签只进图例", async () => {
   const scene = await sceneOf("export_timeline", EXPORT);
   const mainLayers = layersOn(scene, "main");
   const scatters = mainLayers.filter((l) => l.kind === "scatter") as Extract<Layer, { kind: "scatter" }>[];
@@ -250,9 +251,16 @@ test("export_timeline：主图 x=名义帧时刻，stall 红圈，线层无内�
   const stall = scatters.find((l) => l.r === 4);
   assert.ok(stall, "stall 层半径应为 4（红圈）");
   assert.ok(Math.abs((stall.x[0] as number) - (EXPORT.arrays[2]![1] as number[])[1]!) < 1e-12, "stall 的 x 应是名义帧时刻");
+  const labels = new Set<string>();
   for (const layer of scene.layers) {
     if (layer.kind !== "line") continue;
-    for (const s of layer.series) assert.equal(s.label, undefined, "线层不许带内联标签");
+    for (const s of layer.series) if (s.label !== undefined) labels.add(s.label);
+  }
+  assert.ok(labels.has("内容时刻误差"), "内容时刻曲线要有可读的图例名");
+  assert.ok(labels.has("GIF 播放时刻误差"), "播放时刻曲线要有可读的图例名");
+  for (const layer of sceneForDisplay(scene).scene.layers) {
+    if (layer.kind !== "line") continue;
+    for (const s of layer.series) assert.equal(s.label, undefined, "显示层必须剥掉内联标签，交给 HTML 图例");
   }
   assert.match(textOf(scene), /GIF/);
   assert.match(textOf(scene), /24→25/);

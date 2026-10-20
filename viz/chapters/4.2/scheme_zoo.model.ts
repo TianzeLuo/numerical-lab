@@ -237,19 +237,19 @@ export const schemeZooModel: SceneModel = (frame, opts) => {
 
   // —— 主面板：精确 / 初值 / 数值 ——
   scene.layers.push(
-    lineLayer("solution", series(x, exact, pal.exact, { width: 2 })),
-    lineLayer("solution", series(x, initial, pal.reference, { width: 1.2, dash: [4, 4] })),
-    lineLayer("solution", series(x, u, pal.curves[0], { width: 2.4 })),
+    lineLayer("solution", series(x, exact, pal.exact, { width: 2, label: "精确解" })),
+    lineLayer("solution", series(x, initial, pal.reference, { width: 1.2, dash: [4, 4], label: "初值" })),
+    lineLayer("solution", series(x, u, pal.curves[0], { width: 2.4, label: "数值解" })),
   );
 
   // —— 误差面板：逐点误差 + 只画 >0 的正/负向误差 + 地板散点 ——
   scene.layers.push(
-    lineLayer("error", series(x, errCurve, pal.curves[0], { width: 2 })),
-    lineLayer("error", series([0, 1], [floor, floor], pal.reference, { width: 1, dash: [2, 3] })),
+    lineLayer("error", series(x, errCurve, pal.curves[0], { width: 2, label: "误差 |u − u_exact|" })),
+    lineLayer("error", series([0, 1], [floor, floor], pal.reference, { width: 1, dash: [2, 3], label: "舍入地板" })),
   );
-  const overSeries = segmentedSeries(x, forward, pal.warn, { accept: (v) => v >= floor, width: 1.6 });
+  const overSeries = segmentedSeries(x, forward, pal.warn, { accept: (v) => v >= floor, width: 1.6, label: "正向误差（数值偏高）" });
   if (overSeries.length > 0) scene.layers.push(lineLayer("error", overSeries));
-  const underSeries = segmentedSeries(x, backward, pal.curves[1], { accept: (v) => v >= floor, width: 1.6 });
+  const underSeries = segmentedSeries(x, backward, pal.curves[1], { accept: (v) => v >= floor, width: 1.6, label: "负向误差（数值偏低）" });
   if (underSeries.length > 0) scene.layers.push(lineLayer("error", underSeries));
   if (atFloor !== undefined) {
     const idx = maskIndices(atFloor);
@@ -266,8 +266,8 @@ export const schemeZooModel: SceneModel = (frame, opts) => {
 
   // —— 残差副轴：不是解误差，是最后一步的代数残差 ——
   scene.layers.push(
-    lineLayer("residual", series(x, residual, pal.residual, { width: 1.8 })),
-    lineLayer("residual", series(x, gap, pal.reference, { width: 1.2, dash: [5, 4] })),
+    lineLayer("residual", series(x, residual, pal.residual, { width: 1.8, label: "代数残差" })),
+    lineLayer("residual", series(x, gap, pal.reference, { width: 1.2, dash: [5, 4], label: "积分器之差" })),
   );
   if (algMax !== undefined && algMax > 0) {
     scene.layers.push(

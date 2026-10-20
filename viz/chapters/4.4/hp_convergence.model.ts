@@ -254,13 +254,13 @@ export const hpConvergenceModel: SceneModel = (frame, opts) => {
   });
   scene.axes.push(ladder);
   scene.layers.push(
-    lineLayer("ladder", series([1, 300], [floor, floor], pal.reference, { width: 1, dash: [3, 3] })),
+    lineLayer("ladder", series([1, 300], [floor, floor], pal.reference, { width: 1, dash: [3, 3], label: "误差地板" })),
   );
   if (fitH !== undefined && fitH.length === dofH.length) {
-    const fitSeries = maskedSeries(dofH, fitH, undefined, pal.reference, { width: 1.2, dash: [5, 4] });
+    const fitSeries = maskedSeries(dofH, fitH, undefined, pal.reference, { width: 1.2, dash: [5, 4], label: "h-加密拟合" });
     if (fitSeries.length > 0) scene.layers.push(lineLayer("ladder", fitSeries));
   }
-  const hSeries = maskedSeries(dofH, errH, floorMaskH, pal.curves[0], { width: 2.3, marker: "o" });
+  const hSeries = maskedSeries(dofH, errH, floorMaskH, pal.curves[0], { width: 2.3, marker: "o", label: "h-加密" });
   if (hSeries.length > 0) scene.layers.push(lineLayer("ladder", hSeries));
   const pLadderIdx: number[] = [];
   for (let i = 0; i < dofP.length; i += 1) {
@@ -275,7 +275,7 @@ export const hpConvergenceModel: SceneModel = (frame, opts) => {
       ly[k] = errP[i] as number;
       lm[k] = floorMaskP !== undefined ? (floorMaskP[i] ?? 0) : 0;
     });
-    const pSeries = maskedSeries(lx, ly, lm, pal.curves[1], { width: 2, marker: "s", dash: [6, 3] });
+    const pSeries = maskedSeries(lx, ly, lm, pal.curves[1], { width: 2, marker: "s", dash: [6, 3], label: "p-加密" });
     if (pSeries.length > 0) scene.layers.push(lineLayer("ladder", pSeries));
   }
 
@@ -313,17 +313,17 @@ export const hpConvergenceModel: SceneModel = (frame, opts) => {
     });
     scene.axes.push(vsP);
     scene.layers.push(
-      lineLayer("vs_p", series([1, pMax], [floor, floor], pal.reference, { width: 1, dash: [3, 3] })),
+      lineLayer("vs_p", series([1, pMax], [floor, floor], pal.reference, { width: 1, dash: [3, 3], label: "误差地板" })),
     );
     if (fitExp !== undefined && fitExp.length === pAxis.length) {
-      const fitSeries = maskedSeries(pAxis, fitExp, undefined, pal.exact, { width: 1.4, dash: [6, 3] });
+      const fitSeries = maskedSeries(pAxis, fitExp, undefined, pal.exact, { width: 1.4, dash: [6, 3], label: "指数收敛参考" });
       if (fitSeries.length > 0) scene.layers.push(lineLayer("vs_p", fitSeries));
     }
     if (fitAlg !== undefined && fitAlg.length === pAxis.length) {
-      const fitSeries = maskedSeries(pAxis, fitAlg, undefined, pal.residual, { width: 1.3, dash: [2, 3] });
+      const fitSeries = maskedSeries(pAxis, fitAlg, undefined, pal.residual, { width: 1.3, dash: [2, 3], label: "代数收敛参考" });
       if (fitSeries.length > 0) scene.layers.push(lineLayer("vs_p", fitSeries));
     }
-    const pSeries = maskedSeries(pAxis, errVsP, floorMaskP, pal.curves[1], { width: 2.3, marker: "s" });
+    const pSeries = maskedSeries(pAxis, errVsP, floorMaskP, pal.curves[1], { width: 2.3, marker: "s", label: "p-加密" });
     if (pSeries.length > 0) scene.layers.push(lineLayer("vs_p", pSeries));
     if (errPMark !== undefined && errPMark > 0) {
       scene.layers.push(scatterLayer("vs_p", [pMax], [errPMark], { r: 4, color: pal.curves[1] }));

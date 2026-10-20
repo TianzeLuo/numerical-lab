@@ -1,29 +1,33 @@
 /**
- * 可视化视图层：把一个章节可视化"装"进页面（DOM + canvas + 控件 + 时间轴 + 导出）。
+ * 一个可视化实验的完整视图：图表、参数、时间轴、图例与阅读区。
  *
- * 分工（这是刻意的，因为环境里没有浏览器可以自动化测试）：
+ * 画布之上只放图形：模型原本塞进 Scene 的标题、说明、徽标与长文由
+ * `sceneForDisplay()` 移出画布，改由这里用 HTML 排版。这样视觉回归与网页看到的是
+ * 同一张干净图，而网页又不丢掉解释与读数。
  *
- * * **纯逻辑**在别处，且有测试：`framesource`（取帧与降级）、`timeline`（时间轴）、
- *   `controls`（控件描述与夹取）、`pitfalls`（陷阱面板文案）、`share`（链接状态编码）。
- * * **本文件**只做"把上面那些接到 DOM 上"：建元素、绑事件、调用 `renderScene`。
- *   所以这里不写任何数值逻辑，也不做任何判断性计算——出错的话只可能是"接错线"。
- *
- * 视图的输入是 manifest 里的 `VizSpecJson` 与一个 `SceneModel`，因此**章节无关**：
- * 新章节只要提供 model 与 manifest，这里不用改一行。
+ * 纯逻辑仍在别处并有测试（framesource / timeline / controls / share / display）。
+ * 本文件只负责把状态接到 DOM 与 canvas 上，不做数值判断。
  */
 
 import type { Frame } from "./frame.js";
 import type { ChapterManifestJson, VizSpecJson } from "./manifest.js";
 import type { ModelOptions, SceneModel } from "./model.js";
-import { palette } from "./model.js";
-import type { Scene } from "./scene.js";
+import type { Scene, TextSpec } from "./scene.js";
 import { renderScene } from "./render2d.js";
+import { sceneForDisplay, type DisplaySceneResult } from "./display.js";
 import { ChapterFrameSource, type SourceStatus } from "./framesource.js";
 import { Timeline, type TimelineSnapshot } from "./timeline.js";
-import { mountControls } from "./controls.js";
-import { mountPitfalls, pitfallsModel } from "./pitfalls.js";
+import { describeControls, mountControls } from "./controls.js";
+import { splitSentences } from "./pitfalls.js";
 import { canvasPngBytes, downloadName, sceneToJsonText } from "./export.js";
-import { buildHash, decodeHash, encodeState, type ParamValues, type ShareState } from "./share.js";
+import { buildHash, decodeHash, type ParamValues, type ShareState } from "./share.js";
+import { renderRichText, texToMathML } from "./math.js";
+import { el, icon, toast } from "./dom.js";
+
+export interface SiteFormula {
+  tex: string;
+  caption: string;
+}
 
 export interface VizViewOptions {
   manifest: ChapterManifestJson;
@@ -41,70 +45,296 @@ export interface VizViewOptions {
   params?: ParamValues;
   /** 初始时刻（秒）。 */
   t?: number;
+  /** 打开时是否直接播放（分享链接里可能带着这个状态）。 */
+  playing?: boolean;
+  /** 本章的核心公式（由站点从 data/site/formulas.json 注入）。 */
+  formulas?: SiteFormula[];
+  /** 第几个实验（从 1 开始）；与 total 一起用于标题上方的小字。 */
+  ordinal?: number;
+  total?: number;
   /** 注入数据源（测试/复用）；缺省内部创建。 */
   source?: ChapterFrameSource;
-  /** 状态变化回调（站点用它同步 URL）。 */
+  /** 状态变化回调（站点用它记录当前视图）。 */
   onState?: (state: ShareState, status: SourceStatus) => void;
 }
 
 export const DEFAULT_WIDTH = 960;
 export const DEFAULT_HEIGHT = 600;
 
-/** 去掉多余尾零的数字写法（只看一眼人读的时间步长，不参与任何计算）。 */
-function trimNumber(v: number): string {
-  if (!Number.isFinite(v)) return String(v);
-  return Number.isInteger(v) ? String(v) : String(Number(v.toPrecision(6)));
+/** 画面宽度的上下限：太窄时模型排不下，太宽时文字行会失去比例。 */
+const LOGICAL_MIN_W = 460;
+const LOGICAL_MAX_W = 1180;
+/** 模型按 960×600 设计；网页只改变宽度，高度保持这一比例，避免面板被压扁。 */
+const LOGICAL_HEIGHT = 600;
+
+interface TimeDom {
+  bar: HTMLElement;
+  play: HTMLButtonElement;
+  seek: HTMLInputElement | null;
+  clock: HTMLElement;
+  rate: HTMLSelectElement;
+  dropped: HTMLElement;
 }
 
-/** 从 manifest 取缺省参数（与 `defaultParams` 同义，这里只做本地化避免额外 import）。 */
-function defaultsOf(viz: VizSpecJson): ParamValues {
-  const out: ParamValues = {};
-  for (const p of viz.params) out[p.name] = p.default;
+function numberText(value: number): string {
+  if (!Number.isFinite(value)) return "—";
+  if (Number.isInteger(value)) return String(value);
+  return String(Number(value.toPrecision(4)));
+}
+
+function trimNumber(value: number): string {
+  return numberText(value);
+}
+
+/** 去掉 Markdown 记号，用于标题旁的一句话导语。 */
+function plainText(text: string): string {
+  return text
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/\$([^$]*)\$/g, "$1")
+    .replace(/\\\(([^)]*)\\\)/g, "$1")
+    .replace(/\*\*([^*]*)\*\*/g, "$1")
+    .replace(/`([^`]*)`/g, "$1")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** 去掉正文里对内部规则编号的引用；这些编号对读者没有意义，也会让语气变得机械。 */
+function soften(text: string): string {
+  return text
+    .replace(/[（(]\s*规则\s*[0-9]+(?:\s*\/\s*[0-9]+)?[^）)]*[）)]/g, "")
+    .replace(/[（(]\s*(?:PROTOCOLS|POLICY)\s*[^）)]*[）)]/g, "")
+    .replace(/规则\s*[0-9]+(?:\s*\/\s*[0-9]+)?/g, "")
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/\s+([，。；：、）】])/g, "$1")
+    .replace(/[（(]\s*[）)]/g, "")
+    .trim();
+}
+
+function firstSentence(text: string): string {
+  const sentences = splitSentences(text);
+  return plainText(sentences[0] ?? text);
+}
+
+function clip(text: string, max: number): string {
+  const body = text.trim();
+  if (body.length <= max) return body;
+  return `${body.slice(0, max).replace(/[，。；、\s]+$/, "")}…`;
+}
+
+function timeModeText(mode: string, label?: string): string {
+  if (mode === "stream") return label === undefined || label === "" ? "连续时间演化" : label;
+  if (mode === "scrub") return label === undefined || label === "" ? "可逐帧拖动的时间轴" : label;
+  return "静态视图";
+}
+
+function dataSourceText(source: string): string {
+  return source.startsWith("backend+preview")
+    ? "后端帧为主，缺帧时由前端在显示空间里做近似插值。"
+    : "每一帧都由后端从参数出发算出，浏览器只负责绘制。";
+}
+
+interface LegendChip {
+  label: string;
+  color: string;
+  shape: "line" | "scatter" | "band" | "bars" | "heat" | "contour" | "vertical";
+  dash: boolean;
+  gradient?: string;
+}
+
+const HINT_COLORS: Readonly<Record<string, string>> = {
+  红: "var(--hint-red)",
+  蓝: "var(--hint-blue)",
+  绿: "var(--hint-green)",
+  橙: "var(--hint-orange)",
+  紫: "var(--hint-purple)",
+  灰: "var(--hint-gray)",
+  黑: "var(--hint-ink)",
+  青: "var(--hint-teal)",
+  黄: "var(--hint-yellow)",
+  粉: "var(--hint-pink)",
+  白: "var(--hint-white)",
+};
+
+/**
+ * 有些模型把图例写成画布文字（“蓝=实测误差　红虚线=包络”）。
+ * 画布文字被移出后，这里把这些颜色说明还原成 HTML 图例；只在模型没有给
+ * 图层 label 时启用，避免同一张图出现两份图例。
+ */
+function legendFromTexts(texts: TextSpec[]): LegendChip[] {
+  const out: LegendChip[] = [];
+  const seen = new Set<string>();
+  const tokenRe = /^([红蓝绿橙紫灰黑青黄粉白])(?:色)?\s*(实线|虚线|点线|竖线|圆点|实|虚|点|线)?\s*[=＝]\s*(.+)$/;
+  const startsToken =
+    /(?=(?:[红蓝绿橙紫灰黑青黄粉白](?:色)?\s*(?:实线|虚线|点线|竖线|圆点|实|虚|点|线)?\s*[=＝]))/;
+  for (const item of texts) {
+    if (item.role === "title") continue;
+    for (const chunk of item.text.split(/[\u3000\n]+/)) {
+      // 颜色说明常用空格而不是全角空格分隔；在每个“颜色[样式]=”前切开。
+      for (const raw of chunk.split(startsToken)) {
+        const match = tokenRe.exec(raw.trim());
+        if (match === null) continue;
+        const colorWord = match[1] ?? "";
+        const styleWord = match[2] ?? "";
+        const label = (match[3] ?? "").trim().replace(/[。；，,]\s*$/, "");
+        if (label === "" || label.length > 64) continue;
+        if (/画面放不下|画布放不下|另有/.test(label)) continue;
+        const shape: LegendChip["shape"] = styleWord.includes("竖")
+          ? "vertical"
+          : styleWord.includes("圆点") || styleWord === "点"
+            ? "scatter"
+            : "line";
+        const key = `${shape}\u0000${colorWord}\u0000${label}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push({
+          label: clip(label, 52),
+          color: HINT_COLORS[colorWord] ?? "var(--muted)",
+          shape,
+          dash: styleWord.includes("虚") || styleWord.includes("点线"),
+        });
+        if (out.length >= 14) return out;
+      }
+    }
+  }
   return out;
+}
+
+const HINT_HEX: Readonly<Record<string, string>> = {
+  红: "#c53030",
+  蓝: "#2b6cb0",
+  绿: "#2f855a",
+  橙: "#dd6b20",
+  紫: "#805ad5",
+  灰: "#718096",
+  黑: "#1a202c",
+  青: "#319795",
+  黄: "#b7791f",
+  粉: "#d53f8c",
+  白: "#ffffff",
+};
+
+function colorKey(color: string): string {
+  const hint = /^var\(--hint-([^)]+)\)$/.exec(color);
+  if (hint !== null) return HINT_HEX[hint[1] ?? ""] ?? color;
+  return color.toLowerCase();
+}
+
+/**
+ * 合并显式图层图例与画面文字里的颜色说明。
+ *
+ * 模型为了 PNG 的可独立阅读，常把“蓝=实测　红虚线=包络”写进画布文字；网页把文字
+ * 移走后，这部分含义不能跟着消失。文字里的线条说明优先补进来，显式标签随后；
+ * 同一颜色/形状已经由显式标签覆盖时不重复。
+ */
+function mergeLegend(explicit: LegendChip[], textual: LegendChip[]): LegendChip[] {
+  const out: LegendChip[] = [];
+  const seen = new Set<string>();
+  const coveredLine = new Set(
+    explicit.filter((c) => c.shape === "line" || c.shape === "vertical").map((c) => `${colorKey(c.color)}\u0000${c.shape}`),
+  );
+  const push = (chip: LegendChip): void => {
+    const key = `${chip.shape}\u0000${colorKey(chip.color)}\u0000${chip.label}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(chip);
+  };
+  for (const chip of textual) {
+    if (chip.shape !== "line" && chip.shape !== "vertical") continue;
+    if (coveredLine.has(`${colorKey(chip.color)}\u0000${chip.shape}`)) continue;
+    push(chip);
+  }
+  for (const chip of explicit) push(chip);
+  for (const chip of textual) if (chip.shape === "scatter") push(chip);
+  // 线条在前、散点在后：图例被截断时先保住“这条线是什么颜色”，而不是各方法的当前点。
+  return [...out.filter((chip) => chip.shape !== "scatter"), ...out.filter((chip) => chip.shape === "scatter")];
+}
+
+/** 把 pitfalls 切成「一条一个提醒」。原文里的“第一/第二/第三”会转成独立段落。 */
+function tipChunks(pitfalls: string): string[] {
+  const text = soften(pitfalls ?? "").trim();
+  if (text === "") return [];
+  const marked = text
+    .split(/(?=(?:第[一二三四五六七八九十]+|其[一二三四五六七八九十]+)[：:，,])/g)
+    .map((part) => part.replace(/^(?:第[一二三四五六七八九十]+|其[一二三四五六七八九十]+)[：:，,]\s*/, "").trim())
+    .filter((part) => part.length > 0);
+  if (marked.length > 1) {
+    // “三条都要命。”这类短促的开场白是段落标题，不是一条可以独立阅读的提醒。
+    return marked.filter((part, index) => !(index === 0 && part.length < 20 && !/\d/.test(part)));
+  }
+  return splitSentences(text)
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0);
 }
 
 export class VizView {
   readonly #opts: VizViewOptions;
   readonly #viz: VizSpecJson;
   readonly #model: SceneModel;
-  readonly #width: number;
-  readonly #height: number;
-  readonly #dpr: number;
   readonly #canvas: HTMLCanvasElement;
   readonly #ctx: CanvasRenderingContext2D;
   readonly #timeline: Timeline;
   readonly #source: ChapterFrameSource;
   readonly #history: { t: number; frame: Frame }[] = [];
-  readonly #roots: { timeline: HTMLElement; controls: HTMLElement; pitfalls: HTMLElement; status: HTMLElement };
   #params: ParamValues;
+  #theme: "light" | "dark";
+  #width: number;
+  #height: number;
   #frame: Frame | null = null;
+  #frameT = 0;
   #scene: Scene | null = null;
+  #display: DisplaySceneResult | null = null;
   #status: SourceStatus;
   #raf = 0;
   #disposed = false;
+  #autoPlay = false;
+  #lastAutoAt = 0;
+  #resizeObserver: ResizeObserver | null = null;
+  #resizeTimer = 0;
+  #lastCssWidth = 0;
+  #hadFrame = false;
+  #initialT: number | null = null;
+
+  #stage: HTMLElement | null = null;
+  #loading: HTMLElement | null = null;
+  #stageError: HTMLElement | null = null;
+  #statusEl: HTMLElement | null = null;
+  #sourceNote: HTMLElement | null = null;
+  #legendRow: HTMLElement | null = null;
+  #badgeRow: HTMLElement | null = null;
+  #guideList: HTMLElement | null = null;
+  #figureCaption: HTMLElement | null = null;
+  #time: TimeDom | null = null;
+  #lastLegendKey = "";
+  #lastBadgeKey = "";
+  #lastGuideKey = "";
+  #sourceNoteLevel = "";
+  #outsideClick: ((ev: PointerEvent) => void) | null = null;
+  #fullscreenHandler: (() => void) | null = null;
+  #errorToastAt = 0;
 
   constructor(opts: VizViewOptions) {
     this.#opts = opts;
     this.#viz = opts.viz;
     this.#model = opts.model;
+    this.#theme = opts.theme ?? "light";
     this.#width = opts.width ?? DEFAULT_WIDTH;
     this.#height = opts.height ?? DEFAULT_HEIGHT;
-    this.#dpr = opts.dpr ?? (typeof devicePixelRatio === "number" ? Math.min(2, devicePixelRatio) : 1);
-    this.#params = opts.params ?? defaultsOf(opts.viz);
+    const normalized = describeControls(opts.viz, opts.params);
+    this.#params = {};
+    for (const spec of normalized) this.#params[spec.name] = spec.value;
 
     const canvas = document.createElement("canvas");
-    canvas.width = Math.round(this.#width * this.#dpr);
-    canvas.height = Math.round(this.#height * this.#dpr);
     canvas.className = "nl-canvas";
     const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("拿不到 2D 上下文：这个环境不支持 canvas");
+    if (!ctx) throw new Error("这个浏览器不支持 canvas 2D，无法绘制图形。");
     this.#canvas = canvas;
     this.#ctx = ctx;
 
     const time = opts.viz.time;
     this.#timeline = new Timeline({
       mode: time.mode,
-      tMax: time.tMax ?? 1,
+      tMax: this.#timeMax(),
       dt: time.dt ?? 1,
       fps: time.fps ?? 30,
     });
@@ -119,16 +349,10 @@ export class VizView {
         params: this.#params,
         fps: time.fps ?? 30,
         paramTypes: Object.fromEntries(opts.viz.params.map((p) => [p.name, p.type])),
-        time: { mode: time.mode, dt: time.dt, tMax: time.tMax, frames: this.#timeline.frameCount },
+        // scrub 只按需取当前时刻那一帧；订阅时预推整条时间轴会让首屏解码几十帧。
+        time: { mode: time.mode, dt: time.dt, tMax: time.tMax, frames: 1 },
       });
     this.#status = this.#source.status;
-
-    this.#roots = {
-      timeline: document.createElement("div"),
-      controls: document.createElement("div"),
-      pitfalls: document.createElement("div"),
-      status: document.createElement("div"),
-    };
   }
 
   get canvas(): HTMLCanvasElement {
@@ -139,7 +363,6 @@ export class VizView {
     return this.#scene;
   }
 
-  /** 最近一帧原始数据（导出/调试用；渲染一律走 Scene，不要手改数组）。 */
   get frame(): Frame | null {
     return this.#frame;
   }
@@ -150,53 +373,39 @@ export class VizView {
       viz: this.#viz.id,
       params: this.#params,
       t: this.#timeline.t,
-      playing: this.#timeline.playing,
+      playing: this.#autoPlay || this.#timeline.playing,
     };
   }
 
-  /** 建 DOM、绑事件、连数据源。可重复调用（幂等：先 dispose 再重建）。 */
+  /** 主题切换：模型用主题取色，所以需要按当前帧重画。 */
+  setTheme(theme: "light" | "dark"): void {
+    if (theme === this.#theme) return;
+    this.#theme = theme;
+    this.#renderCurrent();
+  }
+
+  /** 建 DOM、绑事件、连数据源。 */
   async mount(): Promise<void> {
     const host = this.#opts.host;
     host.innerHTML = "";
-    host.classList.add("nl-view");
+    host.classList.add("nl-viz");
 
-    const head = document.createElement("header");
-    head.className = "nl-head";
-    const h2 = document.createElement("h2");
-    h2.textContent = this.#viz.title;
-    const badges = document.createElement("div");
-    badges.className = "nl-badges";
-    this.#roots.status.className = "nl-status";
-    head.append(h2, badges, this.#roots.status);
+    this.#buildHeader(host);
 
-    const stage = document.createElement("div");
-    stage.className = "nl-stage";
-    stage.append(this.#canvas);
+    const grid = el("div", { className: "nl-viz-grid" });
+    const chart = this.#buildChartCard();
+    const guide = this.#buildGuideStrip();
+    if (this.#legendRow !== null) chart.insertBefore(guide, this.#legendRow);
+    else chart.append(guide);
+    const side = el("aside", { className: "nl-side" });
+    side.append(this.#buildControlsCard());
+    grid.append(chart, side, this.#buildReading());
+    host.append(grid);
 
-    const aside = document.createElement("aside");
-    aside.className = "nl-side";
-    aside.append(this.#roots.controls, this.#roots.pitfalls);
-
-    const bar = document.createElement("div");
-    bar.className = "nl-timeline";
-    this.#roots.timeline = bar;
-
-    const main = document.createElement("div");
-    main.className = "nl-main";
-    main.append(stage, bar);
-    host.append(head, main, aside);
-
-    this.#buildBadges(badges);
-    mountControls(this.#viz, this.#roots.controls, (_name, _value, params) => {
-      this.#params = params;
-      this.#history.length = 0;
-      this.#source.setParams(params);
-      this.#source.request(this.#timeline.t);
-      this.#emit();
-    });
-    mountPitfalls(pitfallsModel(this.#viz), this.#roots.pitfalls);
-    this.#buildTimelineBar(bar);
-    this.#buildExportBar(badges);
+    this.#renderStatus();
+    this.#renderGuide();
+    this.#measure();
+    this.#buildTimebar();
 
     this.#source.on("frame", (frame, t) => this.#onFrame(frame, t));
     this.#source.on("status", (status) => {
@@ -204,31 +413,548 @@ export class VizView {
       this.#renderStatus();
       this.#emit();
     });
-    this.#source.on("error", (err) => {
-      this.#roots.status.textContent = `取帧出错：${err.message}`;
-      this.#roots.status.dataset["level"] = "error";
-    });
-
-    await this.#source.connect();
-    this.#source.request(this.#timeline.t);
-    if (this.#timeline.mode === "stream") this.#source.startStream();
+    this.#source.on("error", (err) => this.#onSourceError(err));
 
     this.#timeline.onChange((snap) => this.#onTick(snap));
     this.#tick();
+
+    this.#resizeObserver = new ResizeObserver(() => this.#scheduleMeasure());
+    if (this.#stage !== null) this.#resizeObserver.observe(this.#stage);
+
+    this.#outsideClick = (ev: PointerEvent): void => {
+      const target = ev.target as Node | null;
+      for (const menu of host.querySelectorAll<HTMLDetailsElement>("details.nl-menu[open]")) {
+        if (target === null || !menu.contains(target)) menu.open = false;
+      }
+    };
+    document.addEventListener("pointerdown", this.#outsideClick);
+    this.#fullscreenHandler = (): void => this.#syncFullscreenButton();
+    document.addEventListener("fullscreenchange", this.#fullscreenHandler);
+
+    this.#initialT = this.#timeline.t;
+    await this.#source.connect();
+    this.#source.request(this.#timeline.t);
+    if (this.#viz.time.mode === "stream") this.#source.startStream();
+    if (this.#opts.playing === true) {
+      if (this.#viz.time.mode === "stream") this.#timeline.play();
+      else if (this.#viz.time.mode === "scrub") this.#startScrubPlay();
+    }
+    this.#emit();
   }
 
   dispose(): void {
+    if (this.#disposed) return;
     this.#disposed = true;
-    if (this.#raf) cancelAnimationFrame(this.#raf);
+    if (this.#raf !== 0) cancelAnimationFrame(this.#raf);
     this.#raf = 0;
+    if (this.#resizeTimer !== 0) window.clearTimeout(this.#resizeTimer);
+    this.#resizeObserver?.disconnect();
+    this.#resizeObserver = null;
+    if (this.#outsideClick !== null) document.removeEventListener("pointerdown", this.#outsideClick);
+    if (this.#fullscreenHandler !== null) document.removeEventListener("fullscreenchange", this.#fullscreenHandler);
     this.#source.dispose();
     this.#opts.host.innerHTML = "";
+    this.#opts.host.classList.remove("nl-viz");
   }
 
-  // ------------------------------------------------------------------ //
+  // ------------------------------------------------------------------ 结构
+
+  #buildHeader(host: HTMLElement): void {
+    const head = el("header", { className: "nl-viz-head" });
+    const heading = el("div", { className: "nl-viz-heading" });
+    if (this.#opts.ordinal !== undefined) {
+      const kicker = el("p", { className: "nl-viz-kicker" });
+      kicker.textContent =
+        this.#opts.total !== undefined
+          ? `实验 ${String(this.#opts.ordinal).padStart(2, "0")} / ${String(this.#opts.total).padStart(2, "0")}`
+          : `实验 ${String(this.#opts.ordinal).padStart(2, "0")}`;
+      heading.append(kicker);
+    }
+    const title = el("h2", { className: "nl-viz-title", text: this.#viz.title, attrs: { tabindex: "-1" } });
+    heading.append(title);
+
+    const description = this.#viz.description ?? "";
+    const leadText = description === "" ? firstSentence(this.#viz.pitfalls) : firstSentence(description);
+    if (leadText !== "") {
+      const lead = el("p", { className: "nl-viz-lead" });
+      lead.textContent = clip(leadText, 118);
+      heading.append(lead);
+    }
+
+    const actions = el("div", { className: "nl-viz-actions" });
+    actions.append(this.#buildMenu());
+    head.append(heading, actions);
+    host.append(head);
+  }
+
+  #buildMenu(): HTMLElement {
+    const menu = el("details", { className: "nl-menu" });
+    const summary = el("summary", { className: "nl-btn nl-btn-quiet", attrs: { "aria-label": "导出与分享" } });
+    summary.append(icon("download"), el("span", { text: "导出与分享" }), icon("chevron-down", "nl-chevron"));
+    const panel = el("div", { className: "nl-menu-panel" });
+
+    const png = el("button", { className: "nl-menu-item", attrs: { type: "button" } });
+    png.append(icon("download"), el("span", { text: "保存当前画面 PNG" }));
+    png.addEventListener("click", () => {
+      menu.open = false;
+      void this.#exportPng();
+    });
+
+    const json = el("button", { className: "nl-menu-item", attrs: { type: "button" } });
+    json.append(icon("chart"), el("span", { text: "导出场景数据 JSON" }));
+    json.addEventListener("click", () => {
+      menu.open = false;
+      this.#exportScene();
+    });
+
+    const share = el("button", { className: "nl-menu-item", attrs: { type: "button" } });
+    share.append(icon("link"), el("span", { text: "复制带状态的分享链接" }));
+    share.addEventListener("click", () => {
+      menu.open = false;
+      void this.#share();
+    });
+
+    const note = el("p", { className: "nl-menu-note" });
+    note.textContent = "PNG 只包含图形；分享链接会保存参数与时刻。";
+    panel.append(png, json, el("div", { className: "nl-menu-sep" }), share, note);
+    menu.append(summary, panel);
+    return menu;
+  }
+
+  #buildChartCard(): HTMLElement {
+    const card = el("section", { className: "nl-chart-card nl-panel", attrs: { "aria-label": "交互图形" } });
+    const top = el("div", { className: "nl-chart-top" });
+    const caption = el("div", { className: "nl-chart-caption" });
+    const fig = el("span", { className: "nl-figure-label", text: "图形" });
+    this.#figureCaption = el("span", {
+      className: "nl-figure-name",
+      text: this.#viz.axes[0]?.title ?? this.#viz.title,
+    });
+    caption.append(fig, this.#figureCaption);
+
+    const tools = el("div", { className: "nl-chart-tools" });
+    this.#statusEl = el("span", { className: "nl-live" });
+    const full = el("button", {
+      className: "nl-icon-btn",
+      attrs: { type: "button", "aria-label": "全屏查看图形", title: "全屏查看" },
+    });
+    full.append(icon("expand"));
+    full.addEventListener("click", () => {
+      if (document.fullscreenElement === card) void document.exitFullscreen();
+      else if (typeof card.requestFullscreen === "function") {
+        void card.requestFullscreen().catch(() => toast("这个浏览器不允许全屏显示。", "warn"));
+      } else {
+        toast("这个浏览器不支持全屏查看。", "warn");
+      }
+    });
+    tools.append(this.#statusEl, full);
+    top.append(caption, tools);
+
+    const stage = el("div", { className: "nl-stage" });
+    const frame = el("div", { className: "nl-canvas-frame" });
+    frame.append(this.#canvas);
+    const loading = el("div", { className: "nl-stage-loading" });
+    const spinner = el("span", { className: "nl-spinner", attrs: { "aria-hidden": "true" } });
+    loading.append(spinner, el("span", { text: "正在生成第一帧…" }));
+    const error = el("div", { className: "nl-stage-error" });
+    error.hidden = true;
+    stage.append(frame, loading, error);
+    this.#stage = stage;
+    this.#loading = loading;
+    this.#stageError = error;
+
+    const swipe = el("p", { className: "nl-stage-swipe" });
+    swipe.append(
+      icon("chevron-left"),
+      el("span", { text: "图形较宽，左右滑动查看完整内容" }),
+      icon("chevron-right"),
+    );
+
+    this.#sourceNote = el("p", { className: "nl-source-note" });
+    this.#sourceNote.hidden = true;
+
+    this.#legendRow = el("div", { className: "nl-legend" });
+    this.#legendRow.hidden = true;
+    this.#badgeRow = el("div", { className: "nl-badge-row" });
+    this.#badgeRow.hidden = true;
+
+    const timeSlot = el("div", { className: "nl-timebar-slot" });
+    timeSlot.dataset["role"] = "timebar-slot";
+
+    card.append(top, stage, swipe, this.#sourceNote, this.#legendRow, this.#badgeRow, timeSlot);
+    return card;
+  }
+
+  #buildControlsCard(): HTMLElement {
+    const card = el("section", { className: "nl-panel nl-controls-card" });
+    const head = el("div", { className: "nl-card-head" });
+    const titleBox = el("div");
+    titleBox.append(
+      el("p", { className: "nl-card-kicker", text: "交互参数" }),
+      el("h3", { className: "nl-card-title", text: "亲手调一调" }),
+    );
+    const badge = el("span", { className: "nl-card-icon", attrs: { "aria-hidden": "true" } });
+    badge.append(icon("sliders"));
+    head.append(titleBox, badge);
+    const slot = el("div", { className: "nl-controls-slot" });
+    card.append(head, slot);
+    const parent = slot;
+    mountControls(
+      this.#viz,
+      parent,
+      (_name, _value, params) => {
+        this.#params = params;
+        this.#history.length = 0;
+        this.#source.setParams(params);
+        this.#timeline.setRange(this.#timeMax());
+        this.#source.request(this.#timeline.t);
+        this.#emit();
+      },
+      this.#params,
+    );
+    return card;
+  }
+
+  #buildGuideStrip(): HTMLElement {
+    const card = el("section", { className: "nl-chart-guide" });
+    const head = el("div", { className: "nl-chart-guide-head" });
+    head.append(
+      el("span", { className: "nl-card-kicker", text: "面板" }),
+      el("span", { className: "nl-chart-guide-note", text: "每一块在看什么" }),
+    );
+    this.#guideList = el("ol", { className: "nl-panel-list" });
+    card.append(head, this.#guideList);
+    return card;
+  }
+
+  #buildReading(): HTMLElement {
+    const reading = el("section", { className: "nl-reading", attrs: { "aria-label": "实验说明" } });
+
+    const about = el("section", { className: "nl-reading-block" });
+    about.append(this.#sectionHead("01", "这张图在讲什么", "先从画面要回答的问题开始"));
+    const prose = el("div", { className: "nl-prose" });
+    const description = this.#viz.description ?? "";
+    if (description.trim() !== "") {
+      prose.innerHTML = renderRichText(soften(description));
+    } else {
+      const p = el("p", { text: firstSentence(this.#viz.pitfalls) });
+      prose.append(p);
+    }
+    about.append(prose);
+
+    const play = this.#playbook();
+    if (play.length > 0) {
+      const box = el("div", { className: "nl-playbook" });
+      const title = el("p", { className: "nl-playbook-title", text: "可以这样玩" });
+      const list = el("ul");
+      for (const item of play) list.append(el("li", { text: item }));
+      box.append(title, list);
+      about.append(box);
+    }
+    reading.append(about);
+
+    const theory = this.#viz.theory ?? [];
+    if (theory.length > 0 || (this.#opts.formulas ?? []).length > 0) {
+      const block = el("section", { className: "nl-reading-block" });
+      block.append(this.#sectionHead("02", "原理与推导", "先看两条式子，再看它们对应的实验事实"));
+      const formulas = this.#opts.formulas ?? [];
+      if (formulas.length > 0) {
+        block.append(el("p", { className: "nl-block-label", text: "关键公式" }));
+        const grid = el("div", { className: "nl-reading-formulas" });
+        for (const item of formulas) {
+          const figure = el("figure", { className: "nl-formula" });
+          const math = el("div", { className: "nl-formula-math" });
+          math.innerHTML = texToMathML(item.tex, { display: true });
+          const caption = el("figcaption", { text: item.caption });
+          figure.append(math, caption);
+          grid.append(figure);
+        }
+        block.append(grid);
+      }
+      if (theory.length > 0) {
+        block.append(el("p", { className: "nl-block-label", text: "推导要点" }));
+        const list = el("ul", { className: "nl-theory-list" });
+        for (const line of theory) {
+          const item = el("li");
+          const body = el("div", { className: "nl-theory-text" });
+          body.innerHTML = renderRichText(soften(line));
+          item.append(body);
+          list.append(item);
+        }
+        block.append(list);
+      }
+      reading.append(block);
+    }
+
+    const tips = tipChunks(this.#viz.pitfalls);
+    if (tips.length > 0) {
+      const block = el("section", { className: "nl-reading-block" });
+      block.append(this.#sectionHead("03", "读图时，留意这些地方", "不是每个像素都值得相信——先看坐标轴、缩放与采样方式"));
+      const shown = tips.slice(0, 3);
+      const rest = tips.slice(3);
+      block.append(this.#tipsList(shown));
+      if (rest.length > 0) {
+        const more = el("details", { className: "nl-more" });
+        const summary = el("summary");
+        summary.textContent = `继续读：还有 ${rest.length} 条提醒`;
+        more.append(summary, this.#tipsList(rest));
+        block.append(more);
+      }
+      reading.append(block);
+    }
+
+    const tech = el("details", { className: "nl-tech" });
+    const summary = el("summary");
+    summary.append(icon("info"), el("span", { text: "数据、坐标轴与技术细节" }));
+    const body = el("div", { className: "nl-tech-body" });
+    const dl = el("dl", { className: "nl-tech-grid" });
+    const add = (term: string, value: string): void => {
+      dl.append(el("dt", { text: term }), el("dd", { text: value }));
+    };
+    add("数据来源", dataSourceText(this.#viz.dataSource));
+    add("时间轴", timeModeText(this.#viz.time.mode, this.#viz.time.label));
+    add("误差 / 残差场", this.#viz.requiredAux.join("、"));
+    add("坐标轴", this.#viz.axes.map((axis) => `${axis.title ?? axis.id}（${axis.scale === "log" ? "对数" : "线性"}${axis.autoscaled ? " · 自适应" : ""}）`).join("；"));
+    add("分享", "链接里保存章节、实验、参数与时刻；PNG 只保存当前画面。");
+    body.append(dl);
+    const badgeTexts = (this.#display?.badges ?? [])
+      .filter((badge) => badge.kind === "source" || badge.kind === "autoscale")
+      .map((badge) => badge.text);
+    if (badgeTexts.length > 0) {
+      const badges = el("div", { className: "nl-tech-badges" });
+      for (const text of badgeTexts) badges.append(el("span", { className: "nl-tech-badge", text }));
+      body.append(badges);
+    }
+    tech.append(summary, body);
+    reading.append(tech);
+
+    return reading;
+  }
+
+  #sectionHead(index: string, title: string, sub: string): HTMLElement {
+    const head = el("div", { className: "nl-section-head" });
+    const num = el("span", { className: "nl-section-index", text: index });
+    const box = el("div");
+    box.append(el("h3", { className: "nl-section-title", text: title }), el("p", { className: "nl-section-sub", text: sub }));
+    head.append(num, box);
+    return head;
+  }
+
+  #tipsList(items: string[]): HTMLElement {
+    const list = el("ul", { className: "nl-tips" });
+    for (const text of items) {
+      const item = el("li");
+      const mark = el("span", { className: "nl-tip-mark", attrs: { "aria-hidden": "true" } });
+      mark.append(icon("arrow-right"));
+      const body = el("div", { className: "nl-tip-text" });
+      body.innerHTML = renderRichText(text);
+      item.append(mark, body);
+      list.append(item);
+    }
+    return list;
+  }
+
+  #playbook(): string[] {
+    const out: string[] = [];
+    const mode = this.#viz.time.mode;
+    if (mode === "scrub") {
+      out.push("拖动图下方的滑轨，可以逐帧查看过程；也可以点播放，让时间自己走一遍。");
+    } else if (mode === "stream") {
+      out.push("点播放开始实时推进；随时可以暂停或改变速度。");
+    } else {
+      out.push("这是一张静态图。拖动右侧参数，图形会立刻重画。");
+    }
+    if (this.#viz.params.length > 0) {
+      out.push("参数改变后不需要重新加载页面；滑轨上的细线标出理论临界值。");
+    }
+    if (this.#viz.time.tMaxParam !== undefined) {
+      const cap = this.#viz.params.find((p) => p.name === this.#viz.time.tMaxParam);
+      out.push(`时间轴的上限跟着「${cap?.label ?? this.#viz.time.tMaxParam}」走；把它调大，才能继续往后拖。`);
+    }
+    if (this.#viz.params.some((p) => (p.critical ?? []).length > 0)) {
+      out.push("把参数拖过临界值，对比越界前后曲线形状与误差的变化。");
+    }
+    if (this.#viz.axes.some((axis) => axis.autoscaled)) {
+      out.push("误差副图的纵轴会自动缩放，比较绝对大小时先看刻度。");
+    }
+    return out.slice(0, 4);
+  }
+
+  // ------------------------------------------------------------------ 时间轴
+
+  #buildTimebar(): void {
+    const slot = this.#opts.host.querySelector<HTMLElement>('[data-role="timebar-slot"]');
+    if (slot === null) return;
+    const mode = this.#viz.time.mode;
+    if (mode === "none") {
+      const note = el("div", { className: "nl-static-strip" });
+      note.append(icon("info"), el("span", { text: "静态视图 · 调整参数即可重画" }));
+      slot.append(note);
+      return;
+    }
+
+    const bar = el("div", { className: "nl-timebar" });
+    const play = el("button", {
+      className: "nl-play-btn",
+      attrs: { type: "button", "aria-label": "播放", title: "播放" },
+    });
+    play.append(icon("play"));
+    play.addEventListener("click", () => {
+      if (mode === "stream") this.#timeline.toggle();
+      else this.#toggleScrubPlay();
+    });
+
+    const controls = el("div", { className: "nl-transport-actions" });
+    if (mode === "scrub") {
+      const back = el("button", {
+        className: "nl-icon-btn nl-icon-btn-sm",
+        attrs: { type: "button", "aria-label": "上一帧", title: "上一帧" },
+      });
+      back.append(icon("step-back"));
+      back.addEventListener("click", () => {
+        this.#stopScrubPlay();
+        this.#timeline.step(-1);
+      });
+      const fwd = el("button", {
+        className: "nl-icon-btn nl-icon-btn-sm",
+        attrs: { type: "button", "aria-label": "下一帧", title: "下一帧" },
+      });
+      fwd.append(icon("step-forward"));
+      fwd.addEventListener("click", () => {
+        this.#stopScrubPlay();
+        this.#timeline.step(1);
+      });
+      controls.append(back, fwd);
+    }
+
+    const seek = mode === "stream" ? null : document.createElement("input");
+    if (seek !== null) {
+      seek.type = "range";
+      seek.className = "nl-range nl-seek";
+      seek.min = "0";
+      seek.max = String(this.#timeline.tMax);
+      seek.step = String(this.#viz.time.dt ?? 0.01);
+      seek.value = String(this.#timeline.t);
+      seek.setAttribute("aria-label", this.#viz.time.label ?? "时间");
+      seek.addEventListener("input", () => {
+        this.#stopScrubPlay();
+        this.#timeline.seek(Number(seek.value));
+      });
+    }
+
+    const clock = el("div", { className: "nl-clock" });
+    const rate = document.createElement("select");
+    rate.className = "nl-rate";
+    rate.setAttribute("aria-label", "播放速度");
+    for (const value of [0.5, 1, 2, 4]) {
+      const option = document.createElement("option");
+      option.value = String(value);
+      option.textContent = `${value}×`;
+      if (value === 1) option.selected = true;
+      rate.append(option);
+    }
+    rate.addEventListener("change", () => this.#timeline.setRate(Number(rate.value)));
+    const dropped = el("span", { className: "nl-dropped" });
+
+    if (seek !== null) bar.append(play, seek, clock, rate, dropped);
+    else bar.append(play, clock, rate, dropped);
+    bar.append(controls);
+    slot.append(bar);
+
+    this.#time = { bar, play, seek, clock, rate, dropped };
+    this.#renderTimelineBar(this.#timeline.snapshot());
+  }
+
+  /** 时间轴上限：声明值，或由 `time.tMaxParam` 指向的参数收紧。 */
+  #timeMax(): number {
+    const declared = this.#viz.time.tMax ?? 1;
+    const name = this.#viz.time.tMaxParam;
+    if (name === undefined) return declared;
+    const value = this.#params[name];
+    return typeof value === "number" && Number.isFinite(value) && value > 0
+      ? Math.min(declared, value)
+      : declared;
+  }
+
+  #renderTimelineBar(snap: TimelineSnapshot): void {
+    const dom = this.#time;
+    if (dom === null) return;
+    const mode = this.#viz.time.mode;
+    const playing = mode === "scrub" ? this.#autoPlay : snap.playing;
+    dom.play.replaceChildren(icon(playing ? "pause" : "play"));
+    const label = playing ? "暂停" : "播放";
+    dom.play.setAttribute("aria-label", label);
+    dom.play.title = label;
+    dom.play.classList.toggle("is-playing", playing);
+
+    if (dom.seek !== null) {
+      dom.seek.max = String(this.#timeline.tMax);
+      if (document.activeElement !== dom.seek) dom.seek.value = String(snap.t);
+      const min = Number(dom.seek.min);
+      const max = Number(dom.seek.max);
+      const fraction = max > min ? ((snap.t - min) / (max - min)) * 100 : 0;
+      dom.seek.style.setProperty("--fill", `${Math.min(100, Math.max(0, fraction)).toFixed(3)}%`);
+    }
+
+    const labelName = this.#viz.time.label ?? (mode === "stream" ? "t" : "t");
+    const unit = mode === "stream" ? " s" : "";
+    const metaK = this.#frame?.meta["k"];
+    const useK = /(^|[^A-Za-z])k([^A-Za-z]|$)/.test(labelName) && typeof metaK === "number" && Number.isFinite(metaK);
+    const shownValue = useK ? (metaK as number) : snap.t;
+    const value = mode === "stream" ? snap.t.toFixed(2) : trimNumber(shownValue);
+    dom.clock.replaceChildren();
+    const main = el("span", { className: "nl-clock-main", text: `${labelName} = ${value}${unit}` });
+    const sub = el("span", {
+      className: "nl-clock-sub",
+      text: mode === "scrub" ? `第 ${snap.frame + 1} / ${snap.frames} 帧` : playing ? "实时推进" : "已暂停",
+    });
+    dom.clock.append(main, sub);
+    dom.dropped.textContent = snap.dropped > 0 ? `丢帧 ${snap.dropped}` : "";
+    dom.rate.value = String(snap.rate);
+  }
+
+  #toggleScrubPlay(): void {
+    if (this.#autoPlay) {
+      this.#stopScrubPlay();
+    } else {
+      this.#startScrubPlay();
+    }
+  }
+
+  #startScrubPlay(): void {
+    if (this.#viz.time.mode !== "scrub") return;
+    if (this.#timeline.t >= this.#timeline.tMax - this.#timeline.dt * 1e-9) {
+      this.#timeline.seek(0);
+    }
+    this.#autoPlay = true;
+    this.#lastAutoAt = performance.now();
+    this.#renderTimelineBar(this.#timeline.snapshot());
+    this.#emit();
+  }
+
+  #stopScrubPlay(): void {
+    if (!this.#autoPlay) return;
+    this.#autoPlay = false;
+    this.#renderTimelineBar(this.#timeline.snapshot());
+    this.#emit();
+  }
+
   #tick = (): void => {
     if (this.#disposed) return;
-    if (this.#timeline.playing || this.#timeline.mode === "stream") this.#timeline.advance();
+    if (this.#viz.time.mode === "stream") {
+      if (this.#timeline.playing) this.#timeline.advance();
+    } else if (this.#viz.time.mode === "scrub" && this.#autoPlay) {
+      const now = performance.now();
+      const interval = 1000 / (6 * Math.max(0.5, this.#timeline.rate));
+      if (now - this.#lastAutoAt >= interval) {
+        this.#lastAutoAt = now;
+        if (this.#timeline.t >= this.#timeline.tMax - this.#timeline.dt * 1e-9) {
+          this.#stopScrubPlay();
+        } else {
+          this.#timeline.step(1);
+        }
+      }
+    }
     this.#raf = requestAnimationFrame(this.#tick);
   };
 
@@ -238,180 +964,376 @@ export class VizView {
     this.#emit();
   }
 
+  // ------------------------------------------------------------------ 数据与绘制
+
   #onFrame(frame: Frame, t: number): void {
+    // 订阅确认会先回一帧 t=0。若页面是从 tMax / 分享链接的 t 进入，
+    // 这帧只是握手噪声，画出来会让首屏从 0 闪一下再跳到目标时刻。
+    if (this.#initialT !== null) {
+      const tolerance = Math.max(this.#timeline.dt * 0.51, 1e-9);
+      if (Math.abs(t - this.#initialT) > tolerance) return;
+      this.#initialT = null;
+    }
     this.#frame = frame;
+    this.#frameT = t;
+    this.#hadFrame = true;
     this.#history.push({ t, frame });
     if (this.#history.length > 600) this.#history.shift();
+    if (this.#loading !== null) this.#loading.hidden = true;
+    if (this.#stageError !== null) this.#stageError.hidden = true;
+    this.#renderCurrent();
+    // 帧里的 meta（例如迭代步 k）可能和请求的 t 不同；帧一到就刷新时钟。
+    this.#renderTimelineBar(this.#timeline.snapshot());
+  }
+
+  #onSourceError(err: Error): void {
+    if (!this.#hadFrame) {
+      this.#showStageError("暂时取不到这一帧", err.message);
+      return;
+    }
+    if (this.#sourceNote !== null) {
+      this.#sourceNote.hidden = false;
+      this.#sourceNote.dataset["tone"] = "warn";
+      this.#sourceNote.textContent = "这个参数组合暂时取不到新帧，画面停在上一帧。";
+    }
+    const now = performance.now();
+    if (now - this.#errorToastAt > 6000) {
+      this.#errorToastAt = now;
+      toast("暂时取不到新帧，画面停在上一帧。", "warn");
+    }
+  }
+
+  #showStageError(title: string, detail: string): void {
+    if (this.#loading !== null) this.#loading.hidden = true;
+    const box = this.#stageError;
+    if (box === null) return;
+    box.hidden = false;
+    box.replaceChildren();
+    const mark = el("span", { className: "nl-stage-error-icon", attrs: { "aria-hidden": "true" } });
+    mark.append(icon("alert"));
+    const h = el("strong", { text: title });
+    const p = el("p", { text: "检查本地服务是否在运行，然后刷新页面。" });
+    const retry = el("button", { className: "nl-btn nl-btn-primary", attrs: { type: "button" } });
+    retry.append(icon("reset"), el("span", { text: "刷新页面" }));
+    retry.addEventListener("click", () => location.reload());
+    const tech = el("details", { className: "nl-error-detail" });
+    const summary = el("summary", { text: "技术细节" });
+    const pre = el("p", { text: detail });
+    tech.append(summary, pre);
+    box.append(mark, h, p, retry, tech);
+  }
+
+  /** 依据容器宽度选择逻辑画布尺寸：字体随宽度保持正常大小，窄屏按比例缩小。 */
+  #logicalSize(cssWidth: number): { width: number; height: number } {
+    if (!(cssWidth > 0)) return { width: this.#width, height: this.#height };
+    const width = Math.round(Math.min(LOGICAL_MAX_W, Math.max(LOGICAL_MIN_W, cssWidth)));
+    return { width, height: LOGICAL_HEIGHT };
+  }
+
+  #measure(): void {
+    if (this.#disposed || this.#stage === null) return;
+    const frame = this.#stage.querySelector<HTMLElement>(".nl-canvas-frame");
+    const cssWidth = frame?.clientWidth ?? this.#stage.clientWidth;
+    if (!(cssWidth > 0)) return;
+    this.#lastCssWidth = cssWidth;
+    const size = this.#logicalSize(cssWidth);
+    if (size.width === this.#width && size.height === this.#height) return;
+    this.#width = size.width;
+    this.#height = size.height;
+    if (this.#frame !== null) this.#renderCurrent();
+  }
+
+  #scheduleMeasure(): void {
+    if (this.#disposed) return;
+    if (this.#resizeTimer !== 0) window.clearTimeout(this.#resizeTimer);
+    this.#resizeTimer = window.setTimeout(() => {
+      this.#resizeTimer = 0;
+      if (this.#stage === null) return;
+      const frame = this.#stage.querySelector<HTMLElement>(".nl-canvas-frame");
+      const cssWidth = frame?.clientWidth ?? this.#stage.clientWidth;
+      if (!(cssWidth > 0) || Math.abs(cssWidth - this.#lastCssWidth) < 1) return;
+      this.#lastCssWidth = cssWidth;
+      const size = this.#logicalSize(cssWidth);
+      if (size.width === this.#width && size.height === this.#height) return;
+      this.#width = size.width;
+      this.#height = size.height;
+      if (this.#frame !== null) this.#renderCurrent();
+    }, 120);
+  }
+
+  #renderCurrent(): void {
+    const frame = this.#frame;
+    if (frame === null) return;
     const opts: ModelOptions = {
       width: this.#width,
       height: this.#height,
-      t,
+      t: this.#frameT,
       params: this.#params,
-      theme: this.#opts.theme ?? "light",
+      theme: this.#theme,
       history: this.#history.slice(-60),
     };
     let scene: Scene;
     try {
       scene = this.#model(frame, opts);
     } catch (err) {
-      this.#roots.status.textContent = `模型出错：${(err as Error).message}`;
-      this.#roots.status.dataset["level"] = "error";
+      this.#showStageError("这张图没有画出来", (err as Error).message);
       return;
     }
-    this.#scene = scene;
-    const pal = palette(this.#opts.theme ?? "light");
-    this.#ctx.save();
-    this.#ctx.setTransform(1, 0, 0, 1, 0, 0);
-    this.#ctx.clearRect(0, 0, this.#canvas.width, this.#canvas.height);
-    this.#ctx.fillStyle = scene.canvas.background || pal.background;
-    this.#ctx.fillRect(0, 0, this.#canvas.width, this.#canvas.height);
-    this.#ctx.restore();
-    renderScene(this.#ctx, scene, { dpr: this.#dpr });
+    const display = sceneForDisplay(scene);
+    this.#scene = display.scene;
+    this.#display = display;
+    this.#draw(display.scene);
+    this.#renderLegend(display);
+    this.#renderBadges(display);
+    this.#renderGuide(display);
+    if (this.#figureCaption !== null) {
+      const title = display.axes[0]?.title ?? this.#viz.axes[0]?.title ?? this.#viz.title;
+      this.#figureCaption.textContent = title;
+    }
   }
 
-  // ------------------------------------------------------------------ //
-  #buildBadges(host: HTMLElement): void {
-    const model = pitfallsModel(this.#viz);
-    for (const text of model.badges) {
-      const b = document.createElement("span");
-      b.className = "nl-badge";
-      b.textContent = text;
-      host.append(b);
+  #draw(scene: Scene): void {
+    const dpr = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
+    const w = Math.max(1, Math.round(scene.canvas.w));
+    const h = Math.max(1, Math.round(scene.canvas.h));
+    const bw = Math.round(w * dpr);
+    const bh = Math.round(h * dpr);
+    if (this.#canvas.width !== bw) this.#canvas.width = bw;
+    if (this.#canvas.height !== bh) this.#canvas.height = bh;
+    this.#canvas.style.aspectRatio = `${w} / ${h}`;
+    this.#ctx.save();
+    this.#ctx.setTransform(1, 0, 0, 1, 0, 0);
+    this.#ctx.clearRect(0, 0, bw, bh);
+    this.#ctx.restore();
+    renderScene(this.#ctx, scene, { dpr });
+  }
+
+  #renderLegend(display: DisplaySceneResult): void {
+    const row = this.#legendRow;
+    if (row === null) return;
+    const explicit: LegendChip[] = display.legend.map((item) => {
+      const shape: LegendChip["shape"] =
+        item.kind === "scatter"
+          ? "scatter"
+          : item.kind === "band"
+            ? "band"
+            : item.kind === "bars"
+              ? "bars"
+              : item.kind === "heat"
+                ? "heat"
+                : item.kind === "contour"
+                  ? "contour"
+                  : "line";
+      return {
+        label: item.label,
+        color: item.color,
+        shape,
+        dash: item.kind === "contour",
+        ...(item.gradient === undefined ? {} : { gradient: item.gradient }),
+      };
+    });
+    const chips = mergeLegend(explicit, legendFromTexts(display.texts));
+    const key = JSON.stringify(chips);
+    if (key === this.#lastLegendKey) return;
+    this.#lastLegendKey = key;
+    row.replaceChildren();
+    if (chips.length === 0) {
+      row.hidden = true;
+      return;
+    }
+    row.hidden = false;
+    row.append(el("span", { className: "nl-legend-label", text: "图例" }));
+    const limit = 8;
+    chips.forEach((item, index) => {
+      const chip = el("span", { className: "nl-legend-item" });
+      chip.hidden = index >= limit;
+      const swatch = el("span", {
+        className: `nl-swatch nl-swatch-${item.shape}${item.dash ? " is-dashed" : ""}`,
+      });
+      if (item.gradient !== undefined) {
+        swatch.style.background = item.gradient;
+        swatch.classList.add("nl-swatch-gradient");
+      } else {
+        swatch.style.setProperty("--swatch", item.color);
+      }
+      const text = el("span", { className: "nl-legend-text", text: item.label });
+      if (item.label.length > 30) text.title = item.label;
+      chip.append(swatch, text);
+      row.append(chip);
+    });
+    if (chips.length > limit) {
+      const toggle = el("button", {
+        className: "nl-legend-toggle",
+        attrs: { type: "button", title: "展开全部图例" },
+      });
+      toggle.textContent = `+${chips.length - limit} 项`;
+      toggle.addEventListener("click", () => {
+        for (const chip of row.querySelectorAll<HTMLElement>(".nl-legend-item")) chip.hidden = false;
+        toggle.remove();
+      });
+      row.append(toggle);
+    }
+  }
+
+  #renderBadges(display: DisplaySceneResult): void {
+    const row = this.#badgeRow;
+    if (row === null) return;
+    const badges = display.badges.filter((badge) => badge.kind === "critical" || badge.kind === "overflow" || badge.kind === "preview");
+    const key = JSON.stringify(badges.map((badge) => `${badge.kind}:${badge.text}`));
+    if (key === this.#lastBadgeKey) return;
+    this.#lastBadgeKey = key;
+    row.replaceChildren();
+    if (badges.length === 0) {
+      row.hidden = true;
+      return;
+    }
+    row.hidden = false;
+    for (const badge of badges) {
+      const dangerous = badge.kind === "overflow" || /越界/.test(badge.text);
+      const chip = el("span", { className: `nl-state-chip nl-state-${badge.kind}` });
+      chip.dataset["tone"] = dangerous ? "danger" : "note";
+      chip.append(icon(dangerous ? "alert" : "info"));
+      chip.append(el("span", { text: badge.text }));
+      row.append(chip);
+    }
+  }
+
+  #renderGuide(display?: DisplaySceneResult): void {
+    const list = this.#guideList;
+    if (list === null) return;
+    const axes = display?.axes ?? this.#viz.axes.map((axis) => ({
+      id: axis.id,
+      title: axis.title ?? "",
+      ylabel: axis.ylabel ?? "",
+      yscale: axis.scale ?? "linear",
+    }));
+    const manifestAxes = new Map(this.#viz.axes.map((axis) => [axis.id, axis]));
+    const key = JSON.stringify(axes.map((axis) => [axis.id, axis.title, axis.ylabel, axis.yscale]));
+    if (key === this.#lastGuideKey) return;
+    this.#lastGuideKey = key;
+    list.replaceChildren();
+    const letters = ["A", "B", "C", "D", "E", "F"];
+    axes.forEach((axis, index) => {
+      const item = el("li", { className: "nl-panel-row" });
+      const letter = el("span", { className: "nl-panel-letter", text: letters[index] ?? String(index + 1) });
+      const body = el("div", { className: "nl-panel-body" });
+      const spec = manifestAxes.get(axis.id);
+      const title =
+        axis.title.trim() !== ""
+          ? axis.title
+          : axis.ylabel.trim() !== ""
+            ? `${axis.ylabel.trim()}（补充视图）`
+            : "补充视图";
+      const name = el("p", { className: "nl-panel-name", text: title });
+      const metaBits = [`纵轴 ${axis.ylabel === "" ? "数值" : axis.ylabel}`];
+      metaBits.push(axis.yscale === "log" ? "对数" : "线性");
+      if (spec?.autoscaled === true) metaBits.push("自适应");
+      const meta = el("p", { className: "nl-panel-meta", text: metaBits.join(" · ") });
+      body.append(name, meta);
+      item.append(letter, body);
+      list.append(item);
+    });
+    if (axes.length === 0) {
+      list.append(el("li", { className: "nl-panel-empty", text: "这张图没有独立的坐标轴。" }));
     }
   }
 
   #renderStatus(): void {
-    const s = this.#status;
-    this.#roots.status.textContent = s.message;
-    this.#roots.status.dataset["level"] = s.level;
-    this.#roots.status.dataset["degraded"] = s.degraded ? "1" : "0";
-    this.#roots.status.title = `数据源：${s.level}（尝试 ${s.attempts} 次）`;
+    const node = this.#statusEl;
+    const note = this.#sourceNote;
+    if (node === null) return;
+    const status = this.#status;
+    if (status.level === "ws") {
+      node.hidden = false;
+      node.dataset["level"] = "ok";
+      node.replaceChildren(el("span", { className: "nl-live-dot" }), el("span", { text: "实时计算" }));
+      node.title = status.message;
+      if (note !== null) note.hidden = true;
+      this.#sourceNoteLevel = "";
+      return;
+    }
+    if (status.attempts === 0) {
+      node.hidden = true;
+      return;
+    }
+    const map: Record<string, string> = {
+      rest: "按需取帧",
+      static: "离线帧",
+      none: "暂无数据",
+    };
+    node.hidden = false;
+    node.dataset["level"] = status.level === "rest" ? "warn" : status.level === "static" ? "warn" : "error";
+    node.replaceChildren(el("span", { className: "nl-live-dot" }), el("span", { text: map[status.level] ?? "数据状态" }));
+    node.title = status.message;
+    if (note === null) return;
+    const level = `${status.level}:${status.attempts}`;
+    if (this.#sourceNoteLevel === level) return;
+    this.#sourceNoteLevel = level;
+    note.hidden = false;
+    note.dataset["tone"] = status.level === "none" ? "error" : "warn";
+    if (status.level === "static") {
+      note.textContent = "当前使用预先算好的帧。部分参数或时刻可能没有快照，画面会停在最近一帧。";
+    } else if (status.level === "rest") {
+      note.textContent = "实时通道不可用，正在按需向服务器取帧；拖动时可能会有一点延迟。";
+    } else {
+      note.textContent = "还没有连接到数据服务。检查本地服务是否在运行，然后刷新页面。";
+    }
   }
 
-  #renderTimelineBar(snap: TimelineSnapshot): void {
-    const bar = this.#roots.timeline;
-    const label = bar.querySelector<HTMLElement>("[data-role=clock]");
-    if (label) {
-      const t = snap.t;
-      const dt = this.#timeline.dt;
-      label.textContent = `t = ${t.toFixed(t < 1 ? 4 : 3)}（${snap.frame + 1}/${snap.frames} 帧，Δt = ${trimNumber(dt)}）`;
-    }
-    const slider = bar.querySelector<HTMLInputElement>("[data-role=seek]");
-    if (slider && document.activeElement !== slider) slider.value = String(snap.t);
-    const play = bar.querySelector<HTMLButtonElement>("[data-role=play]");
-    if (play) play.textContent = snap.playing ? "⏸ 暂停" : "▶ 播放";
-    const drop = bar.querySelector<HTMLElement>("[data-role=dropped]");
-    if (drop) drop.textContent = snap.dropped > 0 ? `丢帧 ${snap.dropped}` : "";
-  }
+  // ------------------------------------------------------------------ 导出
 
-  #buildTimelineBar(bar: HTMLElement): void {
-    const time = this.#viz.time;
-    const play = document.createElement("button");
-    play.dataset["role"] = "play";
-    play.textContent = "▶ 播放";
-    play.addEventListener("click", () => this.#timeline.toggle());
-
-    const stepBack = document.createElement("button");
-    stepBack.textContent = "⏪";
-    stepBack.title = "上一帧";
-    stepBack.addEventListener("click", () => this.#timeline.step(-1));
-
-    const stepFwd = document.createElement("button");
-    stepFwd.textContent = "⏩";
-    stepFwd.title = "下一帧";
-    stepFwd.addEventListener("click", () => this.#timeline.step(1));
-
-    const seek = document.createElement("input");
-    seek.type = "range";
-    seek.dataset["role"] = "seek";
-    seek.min = "0";
-    seek.max = String(time.tMax ?? 1);
-    seek.step = String(time.dt ?? 0.01);
-    seek.value = String(this.#timeline.t);
-    seek.addEventListener("input", () => this.#timeline.seek(Number(seek.value)));
-
-    const clock = document.createElement("span");
-    clock.dataset["role"] = "clock";
-
-    const dropped = document.createElement("span");
-    dropped.dataset["role"] = "dropped";
-    dropped.className = "nl-dropped";
-
-    const rate = document.createElement("select");
-    for (const r of [0.25, 0.5, 1, 2, 4]) {
-      const o = document.createElement("option");
-      o.value = String(r);
-      o.textContent = `${r}×`;
-      if (r === 1) o.selected = true;
-      rate.append(o);
-    }
-    rate.addEventListener("change", () => this.#timeline.setRate(Number(rate.value)));
-
-    bar.append(play, stepBack, stepFwd, seek, clock, rate, dropped);
-    if (time.mode === "none") {
-      for (const el of [play, stepBack, stepFwd, seek, rate]) el.setAttribute("disabled", "disabled");
-      clock.textContent = "本图无时间轴";
-    }
-    this.#renderTimelineBar(this.#timeline.snapshot());
-  }
-
-  #buildExportBar(badges: HTMLElement): void {
-    const png = document.createElement("button");
-    png.textContent = "⬇ PNG";
-    png.title = "把当前画面存成 PNG（后端不在时唯一可用的导出）";
-    png.addEventListener("click", () => {
-      void canvasPngBytes(this.#canvas).then((bytes) => {
-        const blob = new Blob([bytes.slice().buffer as ArrayBuffer], { type: "image/png" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = downloadName(this.#opts.manifest.chapter, this.#viz.id, this.#params, this.#timeline.t);
-        a.click();
-        URL.revokeObjectURL(url);
-      });
-    });
-
-    const json = document.createElement("button");
-    json.textContent = "⬇ Scene JSON";
-    json.title = "导出当前 Scene（视觉回归的输入就是这个）";
-    json.addEventListener("click", () => {
-      if (!this.#scene) return;
-      const blob = new Blob([sceneToJsonText(this.#scene)], { type: "application/json" });
+  async #exportPng(): Promise<void> {
+    try {
+      const bytes = await canvasPngBytes(this.#canvas);
+      const blob = new Blob([bytes.slice().buffer as ArrayBuffer], { type: "image/png" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = downloadName(this.#opts.manifest.chapter, this.#viz.id, this.#params, this.#timeline.t).replace(/\.png$/, ".json");
+      a.download = downloadName(this.#opts.manifest.chapter, this.#viz.id, this.#params, this.#timeline.t);
       a.click();
-      URL.revokeObjectURL(url);
-    });
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      toast("PNG 已保存。");
+    } catch (err) {
+      toast(`导出失败：${(err as Error).message}`, "warn");
+    }
+  }
 
-    const share = document.createElement("button");
-    share.textContent = "🔗 复制链接";
-    share.addEventListener("click", () => {
-      const hash = buildHash(this.state);
-      const url = `${location.origin}${location.pathname}${hash}`;
-      void navigator.clipboard?.writeText(url).then(
-        () => {
-          share.textContent = "✅ 已复制";
-          setTimeout(() => (share.textContent = "🔗 复制链接"), 1200);
-        },
-        () => {
-          location.hash = hash;
-        },
-      );
-    });
+  #exportScene(): void {
+    if (this.#scene === null) {
+      toast("还没有可导出的画面。", "warn");
+      return;
+    }
+    const blob = new Blob([sceneToJsonText(this.#scene)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = downloadName(this.#opts.manifest.chapter, this.#viz.id, this.#params, this.#timeline.t).replace(/\.png$/, ".json");
+    a.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    toast("场景 JSON 已保存。");
+  }
 
-    const copy = document.createElement("button");
-    copy.textContent = "⧉ 复制状态";
-    copy.title = "把可分享的状态串复制到剪贴板（`v1.` 前缀的 base64url）";
-    copy.addEventListener("click", () => {
-      void navigator.clipboard?.writeText(encodeState(this.state));
-    });
+  async #share(): Promise<void> {
+    const hash = buildHash(this.state);
+    const url = `${location.origin}${location.pathname}${hash}`;
+    try {
+      if (navigator.clipboard === undefined) throw new Error("clipboard unavailable");
+      await navigator.clipboard.writeText(url);
+      toast("分享链接已复制。");
+    } catch {
+      history.replaceState(null, "", hash);
+      toast("分享链接已放进地址栏。");
+    }
+  }
 
-    const box = document.createElement("div");
-    box.className = "nl-export";
-    box.append(png, json, share, copy);
-    badges.append(box);
+  #syncFullscreenButton(): void {
+    const card = this.#opts.host.querySelector<HTMLElement>(".nl-chart-card");
+    const button = this.#opts.host.querySelector<HTMLButtonElement>(".nl-chart-tools .nl-icon-btn");
+    if (button === null) return;
+    const active = document.fullscreenElement !== null && document.fullscreenElement === card;
+    button.setAttribute("aria-label", active ? "退出全屏" : "全屏查看图形");
+    button.title = active ? "退出全屏" : "全屏查看";
+    button.classList.toggle("is-active", active);
   }
 
   #emit(): void {

@@ -185,6 +185,7 @@ export const cavityVorticityModel: SceneModel = (frame, opts) => {
         levels,
         color: pal.ink,
         width: 0.7,
+        label: "流函数 ψ 的等值线",
       }),
     );
   } else {
@@ -223,24 +224,25 @@ export const cavityVorticityModel: SceneModel = (frame, opts) => {
   }
 
   if (centerValid && centerX !== undefined && centerY !== undefined) {
-    scene.layers.push(scatterLayer("main", [centerX], [centerY], { r: 3.4, color: pal.marker }));
+    scene.layers.push(scatterLayer("main", [centerX], [centerY], { r: 3.4, color: pal.marker, label: "主涡中心" }));
   }
 
   scene.layers.push(
-    lineLayer("residual", { x: residualIndex, y: residual, color: pal.curves[0] as string, width: 1.8 }),
+    lineLayer("residual", { x: residualIndex, y: residual, color: pal.curves[0] as string, width: 1.8, label: "相对残差" }),
   );
   if (residual.length > 0) {
     scene.layers.push(
       scatterLayer("residual", [residualIndex[residual.length - 1] as number], [residual[residual.length - 1] as number], {
         r: 3.2,
         color: pal.marker,
+        label: "当前残差",
       }),
     );
   }
   if (residualTol !== undefined && residualTol > 0) {
     const tolLog = Math.log10(residualTol);
     if (tolLog >= aux.ylim[0] && tolLog <= aux.ylim[1]) {
-      scene.layers.push(lineLayer("residual", { x: [aux.xlim[0], aux.xlim[1]], y: [tolLog, tolLog], color: pal.exact, width: 1.1, dash: [5, 4] }));
+      scene.layers.push(lineLayer("residual", { x: [aux.xlim[0], aux.xlim[1]], y: [tolLog, tolLog], color: pal.exact, width: 1.1, dash: [5, 4], label: "收敛容差" }));
     }
   }
 

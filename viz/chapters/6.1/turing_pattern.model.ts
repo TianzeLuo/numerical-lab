@@ -177,7 +177,7 @@ export const turingPatternModel: SceneModel = (frame, opts) => {
   scene.layers.push(heatLayer("main", v, n, n, [xLo, xHi, yLo, yHi], { cmap: "viridis", vmin: 0, vmax }));
 
   scene.layers.push(
-    lineLayer("error", { x: nError, y: error, color: pal.residual, width: 1.8 }),
+    lineLayer("error", { x: nError, y: error, color: pal.residual, width: 1.8, label: "五点模板增长率误差" }),
     scatterLayer("error", nError, error, { r: 3, color: pal.residual }),
   );
   if (slope !== undefined && Number.isFinite(slope) && error.length >= 2) {
@@ -191,7 +191,7 @@ export const turingPatternModel: SceneModel = (frame, opts) => {
         refX[i] = ni;
         refY[i] = e0 * Math.pow(ni / n0, -2);
       }
-      scene.layers.push(lineLayer("error", { x: refX, y: refY, color: pal.reference, width: 1.1, dash: [5, 4] }));
+      scene.layers.push(lineLayer("error", { x: refX, y: refY, color: pal.reference, width: 1.1, dash: [5, 4], label: "参考误差" }));
     }
   }
 
@@ -211,16 +211,16 @@ export const turingPatternModel: SceneModel = (frame, opts) => {
       tickTarget: 4,
     });
     scene.axes.push(dispAxis);
-    scene.layers.push(lineLayer("dispersion", { x: phi, y: rate, color: pal.curves[0] as string, width: 1.7 }));
+    scene.layers.push(lineLayer("dispersion", { x: phi, y: rate, color: pal.curves[0] as string, width: 1.7, label: "解析色散关系 λ(φ)" }));
     scene.layers.push(
-      lineLayer("dispersion", { x: [0, phi[phi.length - 1] as number], y: [0, 0], color: pal.reference, width: 0.9, dash: [3, 3] }),
+      lineLayer("dispersion", { x: [0, phi[phi.length - 1] as number], y: [0, 0], color: pal.reference, width: 0.9, dash: [3, 3], label: "λ = 0" }),
     );
     if (phiStar !== undefined && phiStar > 0.5 && phiStar <= (dispAxis.xlim[1] as number)) {
       scene.layers.push(
-        lineLayer("dispersion", { x: [phiStar, phiStar], y: [dispAxis.ylim[0], dispAxis.ylim[1]], color: pal.exact, width: 1.2, dash: [4, 3] }),
+        lineLayer("dispersion", { x: [phiStar, phiStar], y: [dispAxis.ylim[0], dispAxis.ylim[1]], color: pal.exact, width: 1.2, dash: [4, 3], label: "最不稳定波数 φ*" }),
       );
       if (lambdaStar !== undefined && lambdaStar >= (dispAxis.ylim[0] as number) && lambdaStar <= (dispAxis.ylim[1] as number)) {
-        scene.layers.push(scatterLayer("dispersion", [phiStar], [lambdaStar], { r: 3.4, color: pal.marker }));
+        scene.layers.push(scatterLayer("dispersion", [phiStar], [lambdaStar], { r: 3.4, color: pal.marker, label: "φ* 的增长率" }));
       }
     }
   } else {

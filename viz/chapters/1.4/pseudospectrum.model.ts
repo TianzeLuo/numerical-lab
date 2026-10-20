@@ -321,7 +321,7 @@ export const pseudospectrumModel: SceneModel = (frame, opts) => {
       okX.push(epsX[i] as number);
       okY.push(v);
     }
-    const segs = segmentedSeries(okX, okY, pal.curves[0], { width: 1.8, marker: "o" });
+    const segs = segmentedSeries(okX, okY, pal.curves[0], { width: 1.8, marker: "o", label: "实测伪谱半径" });
     if (segs.length > 0) scene.layers.push(lineLayer("aux", segs));
     measuredSlope = log10Slope(okX.map((e) => Math.log10(e)), okY);
     // 解析参考线 ρ_ε = ε^(1/n)（Jordan 块；pitfalls 第二条给的就是这条）。它只用到帧里的
@@ -337,7 +337,7 @@ export const pseudospectrumModel: SceneModel = (frame, opts) => {
             refEps,
             refEps.map((e) => e ** (1 / nDim)),
             pal.reference,
-            { dash: [6, 3], width: 1.2 },
+            { dash: [6, 3], width: 1.2, label: "解析参考 ρ_ε = ε^(1/n)" },
           ),
         ),
       );
@@ -349,10 +349,10 @@ export const pseudospectrumModel: SceneModel = (frame, opts) => {
     }
   } else {
     const mapped = replaceFloors(ratio, auxYlim[0]);
-    const segs = segmentedSeries(epsX, mapped.values, pal.curves[0], { width: 1.8, marker: "o" });
+    const segs = segmentedSeries(epsX, mapped.values, pal.curves[0], { width: 1.8, marker: "o", label: "实测 ρ_ε / ρ(A)" });
     if (segs.length > 0) scene.layers.push(lineLayer("aux", segs));
     const exact = replaceFloors(ratioExact, auxYlim[0]);
-    const exactSegs = segmentedSeries(epsX, exact.values, pal.reference, { width: 1.3, dash: [6, 3] });
+    const exactSegs = segmentedSeries(epsX, exact.values, pal.reference, { width: 1.3, dash: [6, 3], label: "参考比值" });
     if (exactSegs.length > 0) scene.layers.push(lineLayer("aux", exactSegs));
     const fitX: number[] = [];
     const fitY: number[] = [];
@@ -374,7 +374,7 @@ export const pseudospectrumModel: SceneModel = (frame, opts) => {
   const epsNow = epsMark.length > 0 ? (epsMark[0] as number) : epsSel;
   if (epsNow !== undefined && Number.isFinite(epsNow) && epsNow > 0) {
     scene.layers.push(
-      lineLayer("aux", series([epsNow, epsNow], auxYlim, pal.cursor, { dash: [3, 3], width: 1 })),
+      lineLayer("aux", series([epsNow, epsNow], auxYlim, pal.cursor, { dash: [3, 3], width: 1, label: "当前 ε" })),
     );
     const rawMark = radiusMark.length > 0 ? (radiusMark[0] as number) : Number.NaN;
     const yMark = useAbsolute
@@ -385,7 +385,7 @@ export const pseudospectrumModel: SceneModel = (frame, opts) => {
           : rawMark
         : undefined;
     if (yMark !== undefined && Number.isFinite(yMark) && yMark > 0) {
-      scene.layers.push(scatterLayer("aux", [epsNow], [yMark], { r: 4, color: pal.marker }));
+      scene.layers.push(scatterLayer("aux", [epsNow], [yMark], { r: 4, color: pal.marker, label: "当前伪谱半径" }));
     }
   }
 

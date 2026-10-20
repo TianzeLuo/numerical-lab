@@ -129,10 +129,7 @@ function markFraction(value: number, min: number | null, max: number | null): nu
 export function autoscaleNote(viz: VizSpecJson): string | null {
   const autoscaled = viz.axes.filter((a) => a.autoscaled).map((a) => a.id);
   if (autoscaled.length === 0) return null;
-  return (
-    `坐标轴 ${autoscaled.join("、")} 是自适应的：纵轴会跟着数据缩放，` +
-    "发散/衰减在这种轴上可能看起来是平的（规则 1/4）"
-  );
+  return "纵轴会自动缩放（自适应）：发散或衰减在这种轴上可能看起来是平的；比较绝对大小时先看刻度。";
 }
 
 /** 单个参数的提示文案（单位 / 临界 / 越界）。 */
@@ -230,12 +227,35 @@ function stepOf(spec: ControlSpec): number {
   return 0.001;
 }
 
+/** 控件里的数字写法：整数直出，小数最多 6 位有效数字。 */
+function numberText(value: number): string {
+  if (!Number.isFinite(value)) return "—";
+  if (Number.isInteger(value)) return String(value);
+  return String(Number(value.toPrecision(6)));
+}
+
+function unitText(value: number, unit: string): string {
+  if (unit === "") return numberText(value);
+  const tight = unit === "%" || unit === "°" || unit === "‰";
+  return `${numberText(value)}${tight ? "" : " "}${unit}`;
+}
+
+function pctOf(spec: ControlSpec, value: number): number | null {
+  if (spec.min === null || spec.max === null || !(spec.max > spec.min)) return null;
+  return Math.min(100, Math.max(0, ((value - spec.min) / (spec.max - spec.min)) * 100));
+}
+
+interface RenderedControl {
+  spec: ControlSpec;
+  set(value: ParamValue, emit: boolean): void;
+}
+
 /**
  * 把控件挂到 `parent` 下（先清空）。
  *
- * 每个 `ControlSpec` 生成一行：`<label>` + 一个 `<input>`（range/number/checkbox）或 `<select>`，
- * 加上提示文案。任何输入都先过 `clampParam` 再回调，所以 `onChange` 拿到的值一定合法。
- * 返回创建出来的容器元素（方便调用方再挂样式或断言）。
+ * 视觉层是「标题 + 当前值 + 轨道 + 临界刻度」：滑块拖动时只更新读数与刻度状态，
+ * 不重建 DOM（重建会让拖动中断）。`spec.hints` 仍然保留在纯函数接口里供测试与其它
+ * 调用方使用；这里只挑最必要的信息展示，长解释收进可展开的说明，避免侧栏变成一堵墙。
  */
 export function mountControls(
   viz: VizSpecJson,
@@ -252,69 +272,237 @@ export function mountControls(
   root.setAttribute("data-viz", viz.id);
   root.addEventListener("submit", (ev) => ev.preventDefault());
 
+  const rows: RenderedControl[] = [];
+
   for (const spec of specs) {
+    const param = viz.params.find((p) => p.name === spec.name);
+    if (param === undefined) continue;
+
     const row = document.createElement("div");
     row.className = "nl-control";
     row.setAttribute("data-param", spec.name);
 
+    const head = document.createElement("div");
+    head.className = "nl-control-head";
     const label = document.createElement("label");
+    label.className = "nl-control-label";
     label.textContent = spec.label;
     label.htmlFor = `nl-${viz.id}-${spec.name}`;
-    row.appendChild(label);
+    const output = document.createElement("output");
+    output.className = "nl-control-value";
+    head.append(label, output);
+    row.append(head);
 
-    const param = viz.params.find((p) => p.name === spec.name);
-    if (param === undefined) continue;
     const commit = (raw: unknown): void => {
       const value = clampParam(param, raw);
       current[spec.name] = value;
       onChange(spec.name, value, { ...current });
     };
 
+    let setVisual = (_value: ParamValue): void => {};
+
     if (spec.type === "enum") {
-      const select = document.createElement("select");
-      select.id = label.htmlFor;
+      const group = document.createElement("div");
+      group.className = "nl-segmented";
+      group.setAttribute("role", "group");
+      group.setAttribute("aria-label", spec.label);
+      const buttons: HTMLButtonElement[] = [];
       for (const option of spec.options) {
-        const el = document.createElement("option");
-        el.value = option;
-        el.textContent = option;
-        el.selected = option === String(spec.value);
-        select.appendChild(el);
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "nl-segment";
+        btn.textContent = option;
+        btn.addEventListener("click", () => {
+          const value = clampParam(param, option);
+          current[spec.name] = value;
+          setVisual(value);
+          commit(option);
+        });
+        buttons.push(btn);
+        group.append(btn);
       }
-      select.addEventListener("change", () => commit(select.value));
-      row.appendChild(select);
+      row.append(group);
+      setVisual = (value) => {
+        for (const [i, btn] of buttons.entries()) {
+          const on = spec.options[i] === String(value);
+          btn.classList.toggle("is-active", on);
+          btn.setAttribute("aria-pressed", on ? "true" : "false");
+        }
+        output.textContent = String(value);
+      };
+      output.textContent = String(spec.value);
     } else if (spec.type === "bool") {
+      const wrap = document.createElement("label");
+      wrap.className = "nl-switch";
       const input = document.createElement("input");
       input.type = "checkbox";
       input.id = label.htmlFor;
       input.checked = spec.value === true;
-      input.addEventListener("change", () => commit(input.checked));
-      row.appendChild(input);
+      const track = document.createElement("span");
+      track.className = "nl-switch-track";
+      track.setAttribute("aria-hidden", "true");
+      const knob = document.createElement("span");
+      knob.className = "nl-switch-knob";
+      track.append(knob);
+      const state = document.createElement("span");
+      state.className = "nl-switch-state";
+      wrap.append(input, track, state);
+      input.addEventListener("change", () => {
+        const value = input.checked;
+        current[spec.name] = value;
+        setVisual(value);
+        commit(value);
+      });
+      row.append(wrap);
+      setVisual = (value) => {
+        const on = value === true;
+        input.checked = on;
+        state.textContent = on ? "开启" : "关闭";
+        output.textContent = on ? "开" : "关";
+      };
+      output.textContent = spec.value === true ? "开" : "关";
     } else {
+      const kind = inputKind(spec);
+      const trackWrap = document.createElement("div");
+      trackWrap.className = "nl-slider-wrap";
+
       const input = document.createElement("input");
-      input.type = inputKind(spec);
       input.id = label.htmlFor;
+      input.className = kind === "range" ? "nl-range" : "nl-number";
+      input.type = kind;
       if (spec.min !== null) input.min = String(spec.min);
       if (spec.max !== null) input.max = String(spec.max);
       input.step = String(stepOf(spec));
       input.value = String(spec.value);
-      const readout = document.createElement("output");
-      readout.textContent = `${spec.value}${spec.unit}`;
+      input.setAttribute("aria-describedby", `${label.htmlFor}-note`);
+      trackWrap.append(input);
+
+      const marks: { value: number; node: HTMLButtonElement }[] = [];
+      if (kind === "range") {
+        const markLayer = document.createElement("div");
+        markLayer.className = "nl-marks";
+        markLayer.setAttribute("aria-hidden", "true");
+        for (const mark of spec.criticalMarks) {
+          if (mark.fraction === null) continue;
+          const tick = document.createElement("button");
+          tick.type = "button";
+          tick.className = "nl-mark";
+          tick.tabIndex = -1;
+          tick.style.left = `${(mark.fraction * 100).toFixed(3)}%`;
+          tick.title = `理论临界 ${mark.label}${spec.unit === "" ? "" : ` ${spec.unit}`}（点击跳到该值）`;
+          tick.setAttribute("aria-label", `设为理论临界值 ${mark.label}`);
+          tick.addEventListener("click", () => {
+            const value = clampParam(param, mark.value);
+            current[spec.name] = value;
+            input.value = String(value);
+            setVisual(value);
+            commit(value);
+          });
+          markLayer.append(tick);
+          marks.push({ value: mark.value, node: tick });
+        }
+        trackWrap.append(markLayer);
+      }
+      row.append(trackWrap);
+
+      const note = document.createElement("p");
+      note.className = "nl-control-note";
+      note.id = `${label.htmlFor}-note`;
+      const criticalText = spec.critical.length > 0 ? `理论临界 ${spec.critical.map((c) => numberText(c)).join(" / ")}` : "";
+      note.textContent = criticalText;
+      if (criticalText === "") note.hidden = true;
+      row.append(note);
+
+      if (spec.criticalNote !== "") {
+        const more = document.createElement("details");
+        more.className = "nl-control-more";
+        const summary = document.createElement("summary");
+        summary.textContent = "这个临界值意味着什么";
+        const body = document.createElement("p");
+        body.textContent = spec.criticalNote;
+        more.append(summary, body);
+        row.append(more);
+      }
+
       input.addEventListener("input", () => {
-        const value = clampParam(param, Number(input.value));
-        readout.textContent = `${value}${spec.unit}`;
+        const value = clampParam(param, input.value);
+        current[spec.name] = value;
+        setVisual(value);
         commit(value);
       });
-      row.appendChild(input);
-      row.appendChild(readout);
+
+      setVisual = (value) => {
+        const numeric = typeof value === "number" ? value : Number(value);
+        if (!(typeof value === "number") || !Number.isFinite(value)) {
+          output.textContent = String(value);
+          return;
+        }
+        input.value = String(value);
+        output.textContent = unitText(value, spec.unit);
+        const pct = pctOf(spec, numeric);
+        if (pct !== null) input.style.setProperty("--fill", `${pct.toFixed(3)}%`);
+        const governing = governingCritical(param, numeric);
+        for (const mark of marks) {
+          const crossed = governing !== null && isBeyond(spec.beyond, numeric, mark.value);
+          mark.node.classList.toggle("is-crossed", crossed);
+          mark.node.classList.toggle("is-governing", governing !== null && mark.value === governing);
+        }
+        const crossedNow = governing !== null && isBeyond(spec.beyond, numeric, governing);
+        row.classList.toggle("is-crossed", crossedNow);
+        if (criticalText !== "") {
+          note.hidden = false;
+          note.textContent = crossedNow
+            ? `已越过临界值 ${numberText(governing as number)}`
+            : criticalText;
+        }
+      };
     }
 
-    if (spec.hints.length > 0) {
-      const hint = document.createElement("p");
-      hint.className = "nl-hint";
-      hint.textContent = spec.hints.join("；");
-      row.appendChild(hint);
-    }
-    root.appendChild(row);
+    if (spec.type !== "bool" && spec.type !== "enum") setVisual(spec.value);
+    rows.push({ spec, set: (value, emit) => {
+      current[spec.name] = value;
+      setVisual(value);
+      if (emit) onChange(spec.name, value, { ...current });
+    } });
+    root.append(row);
+  }
+
+  if (rows.length === 0) {
+    root.append(Object.assign(document.createElement("p"), {
+      className: "nl-controls-empty",
+      textContent: "这个实验没有可调参数。",
+    }));
+  }
+
+  const foot = document.createElement("div");
+  foot.className = "nl-controls-foot";
+  const reset = document.createElement("button");
+  reset.type = "button";
+  reset.className = "nl-text-btn";
+  reset.textContent = "恢复默认值";
+  reset.addEventListener("click", () => {
+    for (const row of rows) row.set(row.spec.defaultValue, false);
+    const first = rows[0];
+    if (first !== undefined) onChange(first.spec.name, current[first.spec.name], { ...current });
+  });
+  const hint = document.createElement("span");
+  hint.className = "nl-controls-hint";
+  hint.textContent = specs.some((s) => s.critical.length > 0)
+    ? "滑轨上的细线标出理论临界值，点击可直接跳过去。"
+    : "调整参数后，图形会立即重画。";
+  foot.append(reset, hint);
+  root.append(foot);
+
+  if (specs.some((s) => s.autoscaled)) {
+    const auto = document.createElement("p");
+    auto.className = "nl-autoscale-note";
+    const mark = document.createElement("span");
+    mark.className = "nl-autoscale-mark";
+    mark.textContent = "↕";
+    const text = document.createElement("span");
+    text.textContent = "误差副图的纵轴会随数据自动缩放，适合看趋势；比较不同参数下的绝对误差时，请留意刻度变化。";
+    auto.append(mark, text);
+    root.append(auto);
   }
 
   parent.replaceChildren(root);

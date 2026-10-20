@@ -161,15 +161,15 @@ export const biasVarianceModel: SceneModel = (frame, opts) => {
   // 解析实线 + 蒙特卡洛虚线（同一批噪声）。虚线不抢实线的语义：它们不该有两条结论。
   // 线不带内联 label：曲线末端挤在右边缘时六条标签会叠成一团；颜色/线型由侧栏解释。
   scene.layers.push(
-    lineLayer("decomposition", { x: lgLam, y: bias2, color: pal.exact, width: 2 }),
-    lineLayer("decomposition", { x: lgLam, y: variance, color: pal.curves[0] as string, width: 2 }),
-    lineLayer("decomposition", { x: lgLam, y: mse, color: pal.residual, width: 2.4 }),
-    lineLayer("decomposition", { x: lgLam, y: biasMc, color: pal.exact, width: 1.1, dash: [2, 4] }),
-    lineLayer("decomposition", { x: lgLam, y: varMc, color: pal.curves[0] as string, width: 1.1, dash: [2, 4] }),
-    lineLayer("decomposition", { x: lgLam, y: mseMc, color: pal.residual, width: 1.1, dash: [2, 4] }),
+    lineLayer("decomposition", { x: lgLam, y: bias2, color: pal.exact, width: 2, label: "偏差²" }),
+    lineLayer("decomposition", { x: lgLam, y: variance, color: pal.curves[0] as string, width: 2, label: "方差" }),
+    lineLayer("decomposition", { x: lgLam, y: mse, color: pal.residual, width: 2.4, label: "均方误差 MSE" }),
+    lineLayer("decomposition", { x: lgLam, y: biasMc, color: pal.exact, width: 1.1, dash: [2, 4], label: "Monte Carlo 偏差²" }),
+    lineLayer("decomposition", { x: lgLam, y: varMc, color: pal.curves[0] as string, width: 1.1, dash: [2, 4], label: "Monte Carlo 方差" }),
+    lineLayer("decomposition", { x: lgLam, y: mseMc, color: pal.residual, width: 1.1, dash: [2, 4], label: "Monte Carlo MSE" }),
   );
   if (floor >= (decomp.ylim[0] as number)) {
-    scene.layers.push(lineLayer("decomposition", { x: [xr[0], xr[1]], y: [floor, floor], color: pal.warn, width: 1, dash: [3, 3] }));
+    scene.layers.push(lineLayer("decomposition", { x: [xr[0], xr[1]], y: [floor, floor], color: pal.warn, width: 1, dash: [3, 3], label: "误差地板" }));
   }
 
   if (lgOpt !== undefined) {
@@ -193,9 +193,9 @@ export const biasVarianceModel: SceneModel = (frame, opts) => {
   }
 
   scene.layers.push(
-    lineLayer("variance_slope", { x: [xr[0], xr[1]], y: [0, 0], color: pal.exact, width: 1.2, dash: [5, 3] }),
-    lineLayer("variance_slope", { x: [xr[0], xr[1]], y: [-4, -4], color: pal.curves[0] as string, width: 1.2, dash: [5, 3] }),
-    lineLayer("variance_slope", { x: lgLam, y: slope, color: pal.residual, width: 2 }),
+    lineLayer("variance_slope", { x: [xr[0], xr[1]], y: [0, 0], color: pal.exact, width: 1.2, dash: [5, 3], label: "斜率 0" }),
+    lineLayer("variance_slope", { x: [xr[0], xr[1]], y: [-4, -4], color: pal.curves[0] as string, width: 1.2, dash: [5, 3], label: "斜率 −4" }),
+    lineLayer("variance_slope", { x: lgLam, y: slope, color: pal.residual, width: 2, label: "方差斜率" }),
   );
   const slopeBelowZero = (() => {
     let n = 0;

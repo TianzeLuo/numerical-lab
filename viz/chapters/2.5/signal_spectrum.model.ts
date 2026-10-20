@@ -198,12 +198,14 @@ export const signalSpectrumModel: SceneModel = (frame, opts) => {
   scene.axes.push(timeAxis, errAxis, specAxis);
 
   // —— 图层 1~3：时域 ——
-  scene.layers.push(lineLayer("time", [series([0, 1], [0, 0], pal.reference, { dash: [4, 4], width: 1 })]));
-  const xSeries = segmentedSeries(tAxis, x, pal.curves[0], { width: 1.6});
+  scene.layers.push(
+    lineLayer("time", [series([0, 1], [0, 0], pal.reference, { dash: [4, 4], width: 1, label: "零线" })]),
+  );
+  const xSeries = segmentedSeries(tAxis, x, pal.curves[0], { width: 1.6, label: "时域信号 x(t)" });
   if (xSeries.length > 0) scene.layers.push(lineLayer("time", xSeries));
   else degraded.push("帧 x 没有可绘的有限值：时域面板不画曲线");
   if (x.length <= 64) {
-    scene.layers.push(scatterLayer("time", tAxis, x, { r: 2, color: pal.marker, alpha: 0.85}));
+    scene.layers.push(scatterLayer("time", tAxis, x, { r: 2, color: pal.marker, alpha: 0.85, label: "样本点" }));
   }
 
   // —— 半高全宽：在帧自己的谱线上量（见文件头第 2 条）——
@@ -216,22 +218,29 @@ export const signalSpectrumModel: SceneModel = (frame, opts) => {
     for (const mult of [1, 2, 3]) {
       const f = mult * f0;
       if (f <= 0 || f > specXlim[1]) continue;
-      refs.push(series([f, f], [specAxis.ylim[0], specAxis.ylim[1]], pal.reference, { dash: [3, 4], width: 1}));
+      refs.push(
+        series([f, f], [specAxis.ylim[0], specAxis.ylim[1]], pal.reference, {
+          dash: [3, 4],
+          width: 1,
+          label: "谐波位置 f₀、2f₀、3f₀",
+        }),
+      );
     }
   }
   if (halfWidth !== undefined) {
     refs.push(
       series([halfWidth.lo, halfWidth.hi], [halfWidth.level, halfWidth.level], pal.marker, {
-        width: 2
+        width: 2,
+        label: "−3 dB 半高全宽",
       }),
     );
     refs.push(series([halfWidth.lo, halfWidth.lo], [specAxis.ylim[0], halfWidth.level], pal.marker, { dash: [2, 3], width: 1 }));
     refs.push(series([halfWidth.hi, halfWidth.hi], [specAxis.ylim[0], halfWidth.level], pal.marker, { dash: [2, 3], width: 1 }));
   }
-  refs.push(series([0, specXlim[1]], [floorDb, floorDb], pal.reference, { dash: [6, 4], width: 1}));
+  refs.push(series([0, specXlim[1]], [floorDb, floorDb], pal.reference, { dash: [6, 4], width: 1, label: "数值地板" }));
   scene.layers.push(lineLayer("spec", refs));
 
-  const specSeries = segmentedSeries(specVisible.x, specVisible.y, pal.curves[0], { width: 1.6});
+  const specSeries = segmentedSeries(specVisible.x, specVisible.y, pal.curves[0], { width: 1.6, label: "单边幅度谱" });
   if (specSeries.length > 0) scene.layers.push(lineLayer("spec", specSeries));
   else degraded.push("帧 spectrum_db 没有可绘的有限值：谱面板不画曲线（也就不报半高全宽）");
 
@@ -243,14 +252,19 @@ export const signalSpectrumModel: SceneModel = (frame, opts) => {
         scatterLayer("spec", coarse.x, coarse.y, {
           r: 3,
           color: pal.exact,
-          alpha: 0.9
+          alpha: 0.9,
+          label: "原始栅格（pad=1）",
         }),
       );
     }
   }
 
   // —— 图层 7：对拍误差（requiredAux）——
-  const errSeries = segmentedSeries(tAxis, absOf(error), pal.residual, { width: 1.4, accept: (v) => v > 0});
+  const errSeries = segmentedSeries(tAxis, absOf(error), pal.residual, {
+    width: 1.4,
+    accept: (v) => v > 0,
+    label: "|FFT − DFT|（自研对拍）",
+  });
   if (errSeries.length > 0) scene.layers.push(lineLayer("error", errSeries));
   else degraded.push("帧 error 没有 >0 的有限值：对数副轴画不出任何点");
 

@@ -303,12 +303,12 @@ export const imageDeconvolutionModel: SceneModel = (frame, opts) => {
       autoscaled: true,
     });
     scene.axes.push(histAxis);
-    scene.layers.push(lineLayer("history", { x: histK, y: errHist, color: pal.marker, width: 2 }));
+    scene.layers.push(lineLayer("history", { x: histK, y: errHist, color: pal.marker, width: 2, label: "重建误差" }));
     if (residualMeaningful) {
-      scene.layers.push(lineLayer("history", { x: histK, y: resHist, color: pal.residual, width: 1.6 }));
+      scene.layers.push(lineLayer("history", { x: histK, y: resHist, color: pal.residual, width: 1.6, label: "残差" }));
       if (floor >= histLo && floor <= (histAxis.ylim[1] as number)) {
         scene.layers.push(
-          lineLayer("history", { x: [histAxis.xlim[0], histAxis.xlim[1]], y: [floor, floor], color: pal.warn, width: 1, dash: [3, 3] }),
+          lineLayer("history", { x: [histAxis.xlim[0], histAxis.xlim[1]], y: [floor, floor], color: pal.warn, width: 1, dash: [3, 3], label: "误差地板" }),
         );
       }
     }
@@ -323,7 +323,7 @@ export const imageDeconvolutionModel: SceneModel = (frame, opts) => {
         }),
       );
       if (errAtKBest !== undefined) {
-        scene.layers.push(scatterLayer("history", [kBest], [errAtKBest], { r: 3.6, color: pal.exact }));
+        scene.layers.push(scatterLayer("history", [kBest], [errAtKBest], { r: 3.6, color: pal.exact, label: "最佳截断阶" }));
       }
     }
     scene.layers.push(
@@ -336,7 +336,7 @@ export const imageDeconvolutionModel: SceneModel = (frame, opts) => {
       }),
     );
     if (kCurrent >= 0 && kCurrent <= kMax) {
-      scene.layers.push(scatterLayer("history", [kCurrent], [errHist[kCurrent] as number], { r: 3.4, color: pal.marker }));
+      scene.layers.push(scatterLayer("history", [kCurrent], [errHist[kCurrent] as number], { r: 3.4, color: pal.marker, label: "当前误差" }));
     }
   } else {
     degraded.push("画布过矮：历史轴放不下（<60px），只保留热图");
@@ -360,7 +360,7 @@ export const imageDeconvolutionModel: SceneModel = (frame, opts) => {
       autoscaled: true,
     });
     scene.axes.push(sweepAxis);
-    scene.layers.push(lineLayer("lambda_sweep", { x: lgSweep, y: errSweep, color: pal.curves[0] as string, width: 1.8 }));
+    scene.layers.push(lineLayer("lambda_sweep", { x: lgSweep, y: errSweep, color: pal.curves[0] as string, width: 1.8, label: "误差随 λ" }));
     if (lamBest !== undefined && lamBest > 0) {
       const lgBest = Math.log10(lamBest);
       if (lgBest >= sweepAxis.xlim[0] && lgBest <= sweepAxis.xlim[1]) {
@@ -386,7 +386,7 @@ export const imageDeconvolutionModel: SceneModel = (frame, opts) => {
           dash: [2, 2],
         }),
       );
-      if (j >= 0) scene.layers.push(scatterLayer("lambda_sweep", [lgLam], [errSweep[j] as number], { r: 3.2, color: pal.marker }));
+      if (j >= 0) scene.layers.push(scatterLayer("lambda_sweep", [lgLam], [errSweep[j] as number], { r: 3.2, color: pal.marker, label: "当前 λ 的误差" }));
     }
   } else if (roomy && histAxis === undefined) {
     degraded.push("右列没有可画的历史轴：λ 扫描也不画");

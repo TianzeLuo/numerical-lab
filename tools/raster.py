@@ -2377,7 +2377,12 @@ def _draw_vectorfield_layer(canvas: Canvas, axis: Mapping[str, Any], layer: Mapp
     canvas.pop_clip()
 
 
-def _draw_loglogfit_layer(canvas: Canvas, axis: Mapping[str, Any], layer: Mapping[str, Any]) -> None:
+def _draw_loglogfit_layer(
+    canvas: Canvas,
+    axis: Mapping[str, Any],
+    layer: Mapping[str, Any],
+    draw_labels: bool = True,
+) -> None:
     color = layer.get("color") or "#2b6cb0"
     theory_color = layer.get("theoryColor") or "#c53030"
     hs = np.asarray(layer.get("h"), dtype=np.float64).reshape(-1)
@@ -2414,10 +2419,11 @@ def _draw_loglogfit_layer(canvas: Canvas, axis: Mapping[str, Any], layer: Mappin
                     theory_path.extend((None, None))
                 s += 0.02
             _stroke_path(canvas, theory_path, theory_color, 1.3, [5, 4], 1.0)
-    rx, ry, rw, _rh = (float(t) for t in axis["rect"])
-    y_top = ry + 14
-    canvas.text(rx + rw - 8, y_top, str(layer.get("seriesLabel", "")), _BASE_FONT_SIZE - 1, color, align="right", baseline="top")
-    canvas.text(rx + rw - 8, y_top + _BASE_FONT_SIZE + 2, str(layer.get("theoryLabel", "")), _BASE_FONT_SIZE - 1, theory_color, align="right", baseline="top")
+    if draw_labels:
+        rx, ry, rw, _rh = (float(t) for t in axis["rect"])
+        y_top = ry + 14
+        canvas.text(rx + rw - 8, y_top, str(layer.get("seriesLabel", "")), _BASE_FONT_SIZE - 1, color, align="right", baseline="top")
+        canvas.text(rx + rw - 8, y_top + _BASE_FONT_SIZE + 2, str(layer.get("theoryLabel", "")), _BASE_FONT_SIZE - 1, theory_color, align="right", baseline="top")
     canvas.pop_clip()
 
 
@@ -2446,7 +2452,8 @@ def _draw_layer(canvas: Canvas, scene: Mapping[str, Any], layer: Mapping[str, An
     elif kind == "vectorfield":
         _draw_vectorfield_layer(canvas, axis, layer)
     elif kind == "loglogfit":
-        _draw_loglogfit_layer(canvas, axis, layer)
+        chrome = scene.get("chrome") or {}
+        _draw_loglogfit_layer(canvas, axis, layer, draw_labels=chrome.get("texts", True) is not False)
 
 
 def _draw_colorbar(
@@ -2532,8 +2539,9 @@ def render_scene(
     opts = options or RenderOptions()
     canvas_spec = scene["canvas"]
     canvas = Canvas(float(canvas_spec["w"]), float(canvas_spec["h"]), scale=scale, background=canvas_spec.get("background", "#ffffff"))
+    chrome = scene.get("chrome") or {}
 
-    if scene.get("title"):
+    if chrome.get("title", True) and scene.get("title"):
         canvas.text(12, 8, str(scene["title"]), opts.base_font_size + 5, _TITLE_COLOR, align="left", baseline="top", bold=True)
     for axis in scene.get("axes", []):
         _draw_axis(canvas, axis, opts)
@@ -2544,22 +2552,24 @@ def render_scene(
             axis = next((a for a in scene.get("axes", []) if a.get("id") == layer.get("axes")), None)
             if axis is not None:
                 _draw_colorbar(canvas, axis, layer, font_size=opts.base_font_size)
-    for txt in scene.get("texts", []):
-        canvas.text(
-            float(txt.get("x", 0)),
-            float(txt.get("y", 0)),
-            str(txt.get("text", "")),
-            float(txt.get("size", 12)),
-            txt.get("color", _DEFAULT_FONT_COLOR),
-            align=str(txt.get("align", "left")),
-            baseline="top",
-            bold=txt.get("role") == "title",
-            max_width=txt.get("maxWidth"),
-        )
-    if opts.show_badges:
+    if chrome.get("texts", True):
+        for txt in scene.get("texts", []):
+            canvas.text(
+                float(txt.get("x", 0)),
+                float(txt.get("y", 0)),
+                str(txt.get("text", "")),
+                float(txt.get("size", 12)),
+                txt.get("color", _DEFAULT_FONT_COLOR),
+                align=str(txt.get("align", "left")),
+                baseline="top",
+                bold=txt.get("role") == "title",
+                max_width=txt.get("maxWidth"),
+            )
+    if opts.show_badges and chrome.get("badges", True):
         for badge in scene.get("badges", []):
             _draw_badge(canvas, badge, opts)
-    _draw_pitfalls(canvas, scene, opts)
+    if chrome.get("pitfalls", True):
+        _draw_pitfalls(canvas, scene, opts)
     return canvas.to_png_image()
 
 

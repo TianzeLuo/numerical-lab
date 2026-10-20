@@ -201,15 +201,15 @@ export const resolutionModel: SceneModel = (frame, opts) => {
   const refs: LineSeries[] = [];
   const rulerY = (i: number): number => specAxis.ylim[1] - 4 - i * 6;
   if (dfWant !== undefined) {
-    refs.push(series([0, Math.min(dfWant, specXlim[1])], [rulerY(0), rulerY(0)], pal.curves[2], { width: 2.5}));
+    refs.push(series([0, Math.min(dfWant, specXlim[1])], [rulerY(0), rulerY(0)], pal.curves[2], { width: 2.5, label: "df 尺（两音间隔）" }));
   }
   if (sepMeasured !== undefined) {
-    refs.push(series([0, Math.min(sepMeasured, specXlim[1])], [rulerY(1), rulerY(1)], pal.marker, { width: 2.5}));
+    refs.push(series([0, Math.min(sepMeasured, specXlim[1])], [rulerY(1), rulerY(1)], pal.marker, { width: 2.5, label: "实测最小可分辨" }));
   }
   if (rayleigh !== undefined) {
-    refs.push(series([0, Math.min(rayleigh, specXlim[1])], [rulerY(2), rulerY(2)], pal.reference, { width: 2.5}));
+    refs.push(series([0, Math.min(rayleigh, specXlim[1])], [rulerY(2), rulerY(2)], pal.reference, { width: 2.5, label: "Rayleigh 判据" }));
   }
-  refs.push(series([specXlim[0], specXlim[1]], [-3, -3], pal.reference, { dash: [5, 4], width: 1}));
+  refs.push(series([specXlim[0], specXlim[1]], [-3, -3], pal.reference, { dash: [5, 4], width: 1, label: "−3 dB" }));
   // 三条尺是**同色横条**，光看长度分不出哪条是 df、哪条是实测/Rayleigh：在尺下面放一块
   // **同色图例**（`text()` 的坐标是像素，不是数据坐标——尺的 y 是数据坐标，必须换算）。
   const legend: Array<[string, string]> = [];
@@ -225,24 +225,25 @@ export const resolutionModel: SceneModel = (frame, opts) => {
     }
   }
   if (valley !== undefined) {
-    refs.push(series([valley.x, valley.x], [specAxis.ylim[0], valley.y], pal.warn, { dash: [3, 3], width: 1}));
+    refs.push(series([valley.x, valley.x], [specAxis.ylim[0], valley.y], pal.warn, { dash: [3, 3], width: 1, label: "峰间谷" }));
   }
   scene.layers.push(lineLayer("spec", refs));
-  const specSeries = segmentedSeries(specVisible.x, specVisible.y, pal.curves[0], { width: 1.8});
+  const specSeries = segmentedSeries(specVisible.x, specVisible.y, pal.curves[0], { width: 1.8, label: "两音谱" });
   if (specSeries.length > 0) scene.layers.push(lineLayer("spec", specSeries));
   else degraded.push("帧 spectrum_db 没有可绘的有限值：谱面板不画曲线（也就不报峰/谷）");
   if (peaks.length >= 2) {
     scene.layers.push(
       scatterLayer("spec", [specVisible.x[peaks[0] as number] as number, specVisible.x[peaks[1] as number] as number], [specVisible.y[peaks[0] as number] as number, specVisible.y[peaks[1] as number] as number], {
         r: 4,
-        color: pal.marker
+        color: pal.marker,
+        label: "两个峰",
       }),
     );
   } else {
     degraded.push(`从帧谱线里只找到 ${peaks.length} 个局部极大（可分辨判据要两个）：画面不标峰`);
   }
   if (valley !== undefined) {
-    scene.layers.push(scatterLayer("spec", [valley.x], [valley.y], { r: 4, color: pal.warn}));
+    scene.layers.push(scatterLayer("spec", [valley.x], [valley.y], { r: 4, color: pal.warn, label: "峰间谷" }));
   }
 
   // —— 图层 5~6：能否分辨 vs N ——
@@ -250,17 +251,17 @@ export const resolutionModel: SceneModel = (frame, opts) => {
     series([spanRange[0], spanRange[1]], [1, 1], pal.reference, { dash: [6, 4], width: 1}),
     series([spanRange[0], spanRange[1]], [0, 0], pal.reference, { dash: [2, 4], width: 1}),
   ];
-  const stepSeries = segmentedSeries(spanN, spanRatio, pal.curves[0], { width: 1.8, marker: "o"});
+  const stepSeries = segmentedSeries(spanN, spanRatio, pal.curves[0], { width: 1.8, marker: "o", label: "能否分辨 vs 观测长度" });
   if (stepSeries.length > 0) thrRefs.push(...stepSeries);
   else degraded.push("帧 span_ratio 没有可绘的有限值：能否分辨面板只画参考线");
   if (n !== undefined) {
-    thrRefs.push(series([n, n], [thrAxis.ylim[0], thrAxis.ylim[1]], pal.marker, { dash: [3, 3], width: 1}));
+    thrRefs.push(series([n, n], [thrAxis.ylim[0], thrAxis.ylim[1]], pal.marker, { dash: [3, 3], width: 1, label: "当前 N" }));
   }
   scene.layers.push(lineLayer("threshold", thrRefs));
   if (n !== undefined) {
     const ratioAtN = valueAt(spanN, spanRatio, n);
     if (ratioAtN !== undefined) {
-      scene.layers.push(scatterLayer("threshold", [n], [ratioAtN], { r: 4, color: pal.marker}));
+      scene.layers.push(scatterLayer("threshold", [n], [ratioAtN], { r: 4, color: pal.marker, label: "当前 N 的判据点" }));
     } else {
       degraded.push(`帧 span_n 里没有 N = ${fmt(n, 6)} 这一档：不标当前 N 的判据点（不插值）`);
     }
@@ -269,7 +270,8 @@ export const resolutionModel: SceneModel = (frame, opts) => {
   // —— 图层 7：对拍误差（requiredAux）——
   const errSeries = segmentedSeries(indexOf(error.length), absOf(error), pal.residual, {
     width: 1.4,
-    accept: (v) => v > 0
+    accept: (v) => v > 0,
+    label: "|FFT − DFT|",
   });
   if (errSeries.length > 0) scene.layers.push(lineLayer("error", errSeries));
   else degraded.push("帧 error 没有 >0 的有限值：对数副轴画不出任何点");

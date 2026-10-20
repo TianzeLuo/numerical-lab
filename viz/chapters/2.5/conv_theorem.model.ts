@@ -212,41 +212,45 @@ export const convTheoremModel: SceneModel = (frame, opts) => {
 
   // —— 图层 1~3：两条卷积曲线 + 信号 ——
   const curveSeries: LineSeries[] = [];
-  const sigSeries = segmentedSeries(idx, signal, pal.reference, { width: 1.2, dash: [4, 4]});
+  const sigSeries = segmentedSeries(idx, signal, pal.reference, { width: 1.2, dash: [4, 4], label: "输入信号" });
   curveSeries.push(...sigSeries);
-  const linSeries = segmentedSeries(idx, linear, pal.exact, { width: 1.8, dash: [7, 4]});
+  const linSeries = segmentedSeries(idx, linear, pal.exact, { width: 1.8, dash: [7, 4], label: "线性卷积" });
   curveSeries.push(...linSeries);
-  const cirSeries = segmentedSeries(idx, circular, pal.curves[0], { width: 1.8});
+  const cirSeries = segmentedSeries(idx, circular, pal.curves[0], { width: 1.8, label: "循环卷积" });
   curveSeries.push(...cirSeries);
   if (curveSeries.length > 0) scene.layers.push(lineLayer("curves", curveSeries));
   else degraded.push("帧 signal/circular/linear 没有可绘的有限值：上方面板不画曲线");
 
   // —— 图层 4~5：卷绕误差（requiredAux）+ 落点区 ——
-  const errSeries = segmentedSeries(idx, absOf(error), pal.marker, { width: 1.6, accept: (v) => v > 0});
+  const errSeries = segmentedSeries(idx, absOf(error), pal.marker, {
+    width: 1.6,
+    accept: (v) => v > 0,
+    label: "循环 − 线性",
+  });
   scene.layers.push(
-    barsLayer("error", idx, difference, { width: 0.8, color: pal.residual}),
+    barsLayer("error", idx, difference, { width: 0.8, color: pal.residual, label: "逐点差异" }),
   );
   if (errSeries.length > 0) scene.layers.push(lineLayer("error", errSeries));
   else degraded.push("帧 error 没有 >0 的有限值：对数/线性面板都画不出卷绕幅度");
   const wrapRefs: LineSeries[] = [];
   if (expectPositions !== undefined && expectPositions > 0) {
     const edge = expectPositions - 0.5;
-    wrapRefs.push(series([edge, edge], [errAxis.ylim[0], errAxis.ylim[1]], pal.reference, { dash: [4, 3], width: 1}));
+    wrapRefs.push(series([edge, edge], [errAxis.ylim[0], errAxis.ylim[1]], pal.reference, { dash: [4, 3], width: 1, label: "卷绕起点" }));
     wrapRefs.push(series([-0.5, edge], [errAxis.ylim[1] * 0.92, errAxis.ylim[1] * 0.92], pal.reference, { width: 1, dash: [2, 4] }));
   }
   if (firstWrap !== undefined && Math.abs(firstWrap - Math.round(firstWrap)) < 1e-9) {
-    wrapRefs.push(series([firstWrap, firstWrap], [errAxis.ylim[0], errAxis.ylim[1]], pal.marker, { width: 1, dash: [2, 3]}));
+    wrapRefs.push(series([firstWrap, firstWrap], [errAxis.ylim[0], errAxis.ylim[1]], pal.marker, { width: 1, dash: [2, 3], label: "首个卷绕位置" }));
   }
   if (wrapRefs.length > 0) scene.layers.push(lineLayer("error", wrapRefs));
 
   // —— 图层 6~7：补零后的差 + 参考线 ——
-  const saferSeries = segmentedSeries(idx, safeDifference, pal.curves[1], { width: 1.6});
-  const saferRefs: LineSeries[] = [series([-0.5, len - 0.5], [0, 0], pal.reference, { dash: [5, 4], width: 1})];
+  const saferSeries = segmentedSeries(idx, safeDifference, pal.curves[1], { width: 1.6, label: "补零后的差异" });
+  const saferRefs: LineSeries[] = [series([-0.5, len - 0.5], [0, 0], pal.reference, { dash: [5, 4], width: 1, label: "零线" })];
   if (safeError !== undefined) {
-    saferRefs.push(series([-0.5, len - 0.5], [safeError, safeError], pal.marker, { dash: [3, 3], width: 1}));
+    saferRefs.push(series([-0.5, len - 0.5], [safeError, safeError], pal.marker, { dash: [3, 3], width: 1, label: "补零后的误差界" }));
     saferRefs.push(series([-0.5, len - 0.5], [-safeError, -safeError], pal.marker, { dash: [3, 3], width: 1 }));
   } else {
-    saferRefs.push(series([-0.5, len - 0.5], [safeScale, safeScale], pal.marker, { dash: [3, 3], width: 1}));
+    saferRefs.push(series([-0.5, len - 0.5], [safeScale, safeScale], pal.marker, { dash: [3, 3], width: 1, label: "补零后的误差界" }));
   }
   scene.layers.push(lineLayer("safer", saferRefs));
   if (saferSeries.length > 0) scene.layers.push(lineLayer("safer", saferSeries));

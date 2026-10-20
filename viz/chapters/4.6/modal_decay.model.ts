@@ -220,9 +220,9 @@ export const modalDecayModel: SceneModel = (frame, opts) => {
 
   // —— 主图图层：地板线 → 理论包络 → 实测曲线 → 地板散点 ——
   scene.layers.push(
-    lineLayer("decay", series([decay.xlim[0], decay.xlim[1]], [coefFloor, coefFloor], pal.warn, { dash: [3, 3], width: 1 })),
-    lineLayer("decay", series(kx, env, pal.exact, { dash: [5, 4], width: 1.5 })),
-    lineLayer("decay", series(kx, amp, pal.curves[0], { width: 2.2 })),
+    lineLayer("decay", series([decay.xlim[0], decay.xlim[1]], [coefFloor, coefFloor], pal.warn, { dash: [3, 3], width: 1, label: "系数地板" })),
+    lineLayer("decay", series(kx, env, pal.exact, { dash: [5, 4], width: 1.5, label: "理论包络" })),
+    lineLayer("decay", series(kx, amp, pal.curves[0], { width: 2.2, label: "模态系数 |a_k|" })),
   );
   if (coeffFloorMask !== undefined && coeffFloorMask.length === modeK.length) {
     const atFloor: number[] = [];
@@ -246,7 +246,7 @@ export const modalDecayModel: SceneModel = (frame, opts) => {
 
   // —— 斜率副图：y=0（不衰减）与理论斜率水平线 ——
   scene.layers.push(
-    lineLayer("slope", series([slopeAxis.xlim[0], slopeAxis.xlim[1]], [0, 0], pal.reference, { dash: [3, 3], width: 1 })),
+    lineLayer("slope", series([slopeAxis.xlim[0], slopeAxis.xlim[1]], [0, 0], pal.reference, { dash: [3, 3], width: 1, label: "零斜率" })),
   );
   if (theoryP !== undefined && theoryP > 0) {
     const y = -theoryP;
@@ -254,13 +254,13 @@ export const modalDecayModel: SceneModel = (frame, opts) => {
       scene.layers.push(
         lineLayer(
           "slope",
-          series([slopeAxis.xlim[0], slopeAxis.xlim[1]], [y, y], pal.exact, { dash: [5, 4], width: 1.3 }),
+          series([slopeAxis.xlim[0], slopeAxis.xlim[1]], [y, y], pal.exact, { dash: [5, 4], width: 1.3, label: "理论斜率" }),
         ),
       );
     }
   }
   if (slope.length >= 2) {
-    scene.layers.push(lineLayer("slope", series(slopeK, slope, pal.curves[0], { width: 2 })));
+    scene.layers.push(lineLayer("slope", series(slopeK, slope, pal.curves[0], { width: 2, label: "局部斜率" })));
   } else if (slope.length === 1) {
     scene.layers.push(scatterLayer("slope", slopeK, slope, { r: 3, color: pal.curves[0] }));
   }
@@ -280,17 +280,17 @@ export const modalDecayModel: SceneModel = (frame, opts) => {
 
   // —— 误差阶梯：三条曲线 + 地板线 + 两条理论参考线 ——
   scene.layers.push(
-    lineLayer("error", series([errAxis.xlim[0], errAxis.xlim[1]], [errFloor, errFloor], pal.warn, { dash: [3, 3], width: 1 })),
-    lineLayer("error", series(errN, errSmooth, pal.curves[0], { width: 2.2 })),
-    lineLayer("error", series(errN, errCorner, pal.exact, { width: 1.8, dash: [6, 3] })),
-    lineLayer("error", series(errN, errJump, pal.residual, { width: 1.8, dash: [2, 3] })),
+    lineLayer("error", series([errAxis.xlim[0], errAxis.xlim[1]], [errFloor, errFloor], pal.warn, { dash: [3, 3], width: 1, label: "误差地板" })),
+    lineLayer("error", series(errN, errSmooth, pal.curves[0], { width: 2.2, label: "光滑误差" })),
+    lineLayer("error", series(errN, errCorner, pal.exact, { width: 1.8, dash: [6, 3], label: "拐角误差" })),
+    lineLayer("error", series(errN, errJump, pal.residual, { width: 1.8, dash: [2, 3], label: "跳跃误差" })),
   );
   // 尖角误差 ~ N^-1：过首个数据点画一条 -1 参考线（只覆盖轴的 x 范围）。
   if (errCorner.length > 0 && Number.isFinite(errCorner[0] as number) && (errCorner[0] as number) > 0) {
     const y0 = Math.max(errCorner[0] as number, errFloor);
     const yEnd = Math.max(y0 * Math.pow(nHi / nLo, -1), errFloor);
     scene.layers.push(
-      lineLayer("error", series([nLo, nHi], [y0, yEnd], pal.reference, { dash: [5, 4], width: 1.2 })),
+      lineLayer("error", series([nLo, nHi], [y0, yEnd], pal.reference, { dash: [5, 4], width: 1.2, label: "参考收敛阶" })),
     );
   }
   // 跳变误差不降：水平参考线放在首值（Gibbs 只压窄、不压平）。

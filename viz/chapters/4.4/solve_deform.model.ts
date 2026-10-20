@@ -302,7 +302,7 @@ export const solveDeformModel: SceneModel = (frame, opts) => {
       refY[i] = mesh.values[i * 2 + 1] as number;
     }
     scene.layers.push(
-      lineLayer("deformed", series(refX, refY, pal.reference, { width: 1.2, dash: [5, 4] })),
+      lineLayer("deformed", series(refX, refY, pal.reference, { width: 1.2, dash: [5, 4], label: "未变形" })),
     );
   } else {
     const ref = meshEdges(mesh, elements, undefined, pal.reference, 0.9, [4, 4], 0.55);
@@ -345,7 +345,7 @@ export const solveDeformModel: SceneModel = (frame, opts) => {
         xs[i] = curve.values[i * 2] as number;
         ys[i] = curve.values[i * 2 + 1] as number;
       }
-      scene.layers.push(lineLayer("deformed", series(xs, ys, pal.curves[0], { width: 2.4 })));
+      scene.layers.push(lineLayer("deformed", series(xs, ys, pal.curves[0], { width: 2.4, label: "FE 解" })));
       const good: number[] = [];
       for (let i = 0; i < nNode; i += 1) {
         if ((singularMask[i] ?? 0) <= 0.5 && Number.isFinite(solution[i] as number)) good.push(i);
@@ -359,7 +359,7 @@ export const solveDeformModel: SceneModel = (frame, opts) => {
   const loadX = markX0[0] as number;
   if (Number.isFinite(loadX) && loadX >= deformedAxis.xlim[0] && loadX <= deformedAxis.xlim[1]) {
     scene.layers.push(
-      lineLayer("deformed", series([loadX, loadX], deformedAxis.ylim, pal.marker, { width: 1.1, dash: [4, 4] })),
+      lineLayer("deformed", series([loadX, loadX], deformedAxis.ylim, pal.marker, { width: 1.1, dash: [4, 4], label: "载荷位置" })),
     );
     if (!membrane) {
       scene.layers.push(scatterLayer("deformed", [loadX], [0], { r: 3.4, color: pal.marker }));
@@ -398,11 +398,11 @@ export const solveDeformModel: SceneModel = (frame, opts) => {
     });
     scene.axes.push(scanAxis);
     scene.layers.push(
-      lineLayer("scan", series([0, 1], [floor, floor], pal.reference, { width: 1, dash: [3, 3] })),
+      lineLayer("scan", series([0, 1], [floor, floor], pal.reference, { width: 1, dash: [3, 3], label: "能量误差地板" })),
     );
     if (!singular) {
       scene.layers.push(
-        lineLayer("scan", series(scanX, scanEnergy, pal.curves[0], { width: 2.1, marker: "o" })),
+        lineLayer("scan", series(scanX, scanEnergy, pal.curves[0], { width: 2.1, marker: "o", label: "能量误差" })),
       );
       if (nodalScan !== undefined) {
         const maskIdx = finiteSmall(scanX, () => true);
@@ -413,7 +413,7 @@ export const solveDeformModel: SceneModel = (frame, opts) => {
         }
         if (kept.length > 0) {
           scene.layers.push(
-            lineLayer("scan", series(pick(scanX, kept), pick(nodalScan, kept), pal.exact, { width: 1.6, marker: "s", dash: [4, 3] })),
+            lineLayer("scan", series(pick(scanX, kept), pick(nodalScan, kept), pal.exact, { width: 1.6, marker: "s", dash: [4, 3], label: "节点误差" })),
           );
         }
       }
@@ -474,7 +474,7 @@ export const solveDeformModel: SceneModel = (frame, opts) => {
     });
     scene.axes.push(errorAxis);
     scene.layers.push(
-      lineLayer("error", series([0, Math.max(1, nNode - 1)], [floor, floor], pal.reference, { width: 1, dash: [3, 3] })),
+      lineLayer("error", series([0, Math.max(1, nNode - 1)], [floor, floor], pal.reference, { width: 1, dash: [3, 3], label: "节点误差地板" })),
     );
     const good: number[] = [];
     for (let i = 0; i < nNode; i += 1) {
@@ -488,7 +488,7 @@ export const solveDeformModel: SceneModel = (frame, opts) => {
         scene.layers.push(scatterLayer("error", ex, pick(error, good), { r: 1.8, color: pal.exact, alpha: 0.75 }));
       } else {
         scene.layers.push(
-          lineLayer("error", series(ex, pick(error, good), pal.exact, { width: 1.6, marker: "o" })),
+          lineLayer("error", series(ex, pick(error, good), pal.exact, { width: 1.6, marker: "o", label: "节点误差 |u_h − u|" })),
         );
       }
     }

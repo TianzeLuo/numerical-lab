@@ -195,7 +195,7 @@ export const descentRaceModel: SceneModel = (frame, opts) => {
       }
     }
     if (px.length >= 2) {
-      scene.layers.push(lineLayer("main", { x: px, y: py, color: colors[name], width: name === "gd" ? 1.9 : 1.5 }));
+      scene.layers.push(lineLayer("main", { x: px, y: py, color: colors[name], width: name === "gd" ? 1.9 : 1.5, label: METHOD_LABEL[name] }));
     }
     if (last >= 0) {
       scene.layers.push(
@@ -208,7 +208,7 @@ export const descentRaceModel: SceneModel = (frame, opts) => {
       nFinitePoints += 1;
     }
     if (er.length >= 2) {
-      scene.layers.push(lineLayer("aux", { x: prefix(iterations, er.length), y: er, color: colors[name], width: name === "gd" ? 1.9 : 1.5 }));
+      scene.layers.push(lineLayer("aux", { x: prefix(iterations, er.length), y: er, color: colors[name], width: name === "gd" ? 1.9 : 1.5, label: METHOD_LABEL[name] }));
     }
     const eNow = er.length > 0 ? (er[er.length - 1] as number) : Number.NaN;
     pathSummary.push(

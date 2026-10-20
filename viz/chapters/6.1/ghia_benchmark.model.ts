@@ -137,11 +137,11 @@ export const ghiaBenchmarkModel: SceneModel = (frame, opts) => {
   scene.axes.push(main, errAxis);
 
   scene.layers.push(
-    lineLayer("main", { x: uNum, y: yRef, color: pal.curves[0] as string, width: 1.9 }),
+    lineLayer("main", { x: uNum, y: yRef, color: pal.curves[0] as string, width: 1.9, label: "数值解 u(y)" }),
     scatterLayer("main", uRef, yRef, { r: 3.3, color: pal.exact, label: "Ghia 基准" }),
   );
   // 细网格剖面只作背景：它说明线不是“只连了 17 个点”，但不参与对拍。
-  scene.layers.push(lineLayer("main", { x: uProfile, y: yProfile, color: pal.curves[0] as string, width: 0.7, alpha: 0.28 }));
+  scene.layers.push(lineLayer("main", { x: uProfile, y: yProfile, color: pal.curves[0] as string, width: 0.7, alpha: 0.28, label: "迭代轨迹" }));
 
   let profileAxis: ReturnType<typeof makeAxis> | undefined;
   if (L) {
@@ -158,8 +158,8 @@ export const ghiaBenchmarkModel: SceneModel = (frame, opts) => {
     });
     scene.axes.push(profileAxis);
     scene.layers.push(
-      lineLayer("vprofile", { x: xRef, y: vNum, color: pal.curves[0] as string, width: 1.8 }),
-      scatterLayer("vprofile", xRef, vRef, { r: 3, color: pal.exact }),
+      lineLayer("vprofile", { x: xRef, y: vNum, color: pal.curves[0] as string, width: 1.8, label: "数值解 v(x)" }),
+      scatterLayer("vprofile", xRef, vRef, { r: 3, color: pal.exact, label: "Ghia 基准 v" }),
       lineLayer("vprofile", {
         x: [0, 1],
         y: [0, 0],
@@ -173,9 +173,9 @@ export const ghiaBenchmarkModel: SceneModel = (frame, opts) => {
   }
 
   scene.layers.push(
-    lineLayer("error", { x: nGrid, y: err, color: pal.curves[0] as string, width: 2 }),
-    lineLayer("error", { x: nGrid, y: errU, color: pal.exact, width: 1.2, dash: [4, 3] }),
-    lineLayer("error", { x: nGrid, y: errV, color: pal.curves[1] as string, width: 1.2, dash: [2, 3] }),
+    lineLayer("error", { x: nGrid, y: err, color: pal.curves[0] as string, width: 2, label: "总 RMSE" }),
+    lineLayer("error", { x: nGrid, y: errU, color: pal.exact, width: 1.2, dash: [4, 3], label: "u 剖面的 RMSE" }),
+    lineLayer("error", { x: nGrid, y: errV, color: pal.curves[1] as string, width: 1.2, dash: [2, 3], label: "v 剖面的 RMSE" }),
   );
   for (const [arr, color] of [
     [err, pal.curves[0] as string],
@@ -190,7 +190,7 @@ export const ghiaBenchmarkModel: SceneModel = (frame, opts) => {
   }
   if (floor !== undefined && floor > 0 && floor >= yLo && floor <= yHi) {
     scene.layers.push(
-      lineLayer("error", { x: [errAxis.xlim[0], errAxis.xlim[1]], y: [floor, floor], color: pal.reference, width: 1.1, dash: [5, 4] }),
+      lineLayer("error", { x: [errAxis.xlim[0], errAxis.xlim[1]], y: [floor, floor], color: pal.reference, width: 1.1, dash: [5, 4], label: "RMSE 地板" }),
     );
   }
 

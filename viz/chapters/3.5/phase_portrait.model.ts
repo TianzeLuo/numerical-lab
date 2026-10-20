@@ -235,22 +235,22 @@ export const phasePortraitModel: SceneModel = (frame, opts) => {
   }
 
   // —— 图层 2~3：数值零倾线（按分支号断开）——
-  const numX = branchSeries(nullXX, nullXY, nullXSeg, pal.curves[0], { width: 1.6 });
-  const numY = branchSeries(nullYX, nullYY, nullYSeg, pal.curves[1], { width: 1.6 });
+  const numX = branchSeries(nullXX, nullXY, nullXSeg, pal.curves[0], { width: 1.6, label: "数值零倾线：dx/dt = 0" });
+  const numY = branchSeries(nullYX, nullYY, nullYSeg, pal.curves[1], { width: 1.6, label: "数值零倾线：dy/dt = 0" });
   if (numX.length > 0) scene.layers.push(lineLayer("phase", numX));
   if (numY.length > 0) scene.layers.push(lineLayer("phase", numY));
   // —— 图层 4：闭式零倾线（虚线）——
   if (anaXX !== undefined && anaXY !== undefined) {
-    const s = branchSeries(anaXX, anaXY, anaXSeg, pal.exact, { width: 1.1, dash: [5, 4] });
+    const s = branchSeries(anaXX, anaXY, anaXSeg, pal.exact, { width: 1.1, dash: [5, 4], label: "闭式零倾线" });
     if (s.length > 0) scene.layers.push(lineLayer("phase", s));
   }
   if (anaYX !== undefined && anaYY !== undefined) {
-    const s = branchSeries(anaYX, anaYY, anaYSeg, pal.exact, { width: 1.1, dash: [5, 4] });
+    const s = branchSeries(anaYX, anaYY, anaYSeg, pal.exact, { width: 1.1, dash: [5, 4], label: "闭式零倾线" });
     if (s.length > 0) scene.layers.push(lineLayer("phase", s));
   }
   // —— 图层 5：闭式极限环 ——
   if (cycleX !== undefined && cycleY !== undefined && cycleX.length === cycleY.length && cycleX.length > 0) {
-    scene.layers.push(lineLayer("phase", segmentedSeries(cycleX, cycleY, pal.marker, { width: 1.8, dash: [7, 4] })));
+    scene.layers.push(lineLayer("phase", segmentedSeries(cycleX, cycleY, pal.marker, { width: 1.8, dash: [7, 4], label: "闭式极限环" })));
   }
   // —— 图层 6：轨迹（每列一条）——
   const traj = trajectorySeries(frame, nTraj, degraded, pal);
@@ -261,9 +261,9 @@ export const phasePortraitModel: SceneModel = (frame, opts) => {
   const markX = frame.has("mark_x") ? requireArray(frame, "mark_x") : undefined;
   const markY = frame.has("mark_y") ? requireArray(frame, "mark_y") : undefined;
   if (startX !== undefined && startY !== undefined && startX.length === startY.length && startX.length > 0) {
-    scene.layers.push(scatterLayer("phase", startX, startY, { r: 1.6, color: pal.reference }));
+    scene.layers.push(scatterLayer("phase", startX, startY, { r: 1.6, color: pal.reference, label: "初值" }));
     if (markX !== undefined && markY !== undefined && markX.length === markY.length) {
-      scene.layers.push(scatterLayer("phase", markX, markY, { r: 3.0, color: pal.ink }));
+      scene.layers.push(scatterLayer("phase", markX, markY, { r: 3.0, color: pal.ink, label: "当前端点" }));
     }
   } else {
     degraded.push("帧缺 start_x/start_y：不标初值点（不猜）");
@@ -307,11 +307,11 @@ export const phasePortraitModel: SceneModel = (frame, opts) => {
   );
   scene.layers.push(
     lineLayer("residual", [
-      { x: resX.lim, y: [RESIDUAL_FLOOR, RESIDUAL_FLOOR], color: pal.muted, width: 1, dash: [1, 3] },
+      { x: resX.lim, y: [RESIDUAL_FLOOR, RESIDUAL_FLOOR], color: pal.muted, width: 1, dash: [1, 3], label: "残差地板" },
     ]),
   );
   scene.layers.push(
-    scatterLayer("residual", resX.x, resNull, { r: 1.1, color: pal.curves[0], alpha: 0.85 }),
+    scatterLayer("residual", resX.x, resNull, { r: 1.1, color: pal.curves[0], alpha: 0.85, label: "零倾线上的残差" }),
   );
   let nFixedZero = 0;
   if (fixedX !== undefined && resFixed !== undefined && resFixed.length === fixedX.length) {
@@ -328,7 +328,7 @@ export const phasePortraitModel: SceneModel = (frame, opts) => {
     }
     if (xs.length > 0) {
       scene.layers.push(
-        scatterLayer("residual", Float64Array.from(xs), Float64Array.from(ys), { r: 4, color: pal.marker }),
+        scatterLayer("residual", Float64Array.from(xs), Float64Array.from(ys), { r: 4, color: pal.marker, label: "不动点残差" }),
       );
     }
   }
@@ -623,6 +623,7 @@ function trajectorySeries(
       ...segmentedSeries(xs, ys, pal.curves[c % pal.curves.length] as string, {
         width: 1.1,
         alpha: 0.9,
+        label: "数值轨迹",
       }),
     );
   }

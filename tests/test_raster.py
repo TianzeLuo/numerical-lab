@@ -602,6 +602,33 @@ def test_render_loglogfit_draws_both_slopes():
     assert has_blue and has_red, "实测曲线与理论参考线必须同时出现（规则 2）"
 
 
+def test_render_loglogfit_labels_follow_chrome_texts_flag():
+    """网页显示层把两条标注交给 HTML 图例，光栅器不应再在画布上重复写一遍。"""
+    h = [1e-3, 1e-2, 1e-1]
+    err = [1e-6, 1e-4, 1e-2]
+    axis = make_axis(xlim=[1e-3, 1e-1], ylim=[1e-6, 1e-2], xscale="log", yscale="log",
+                     xticks=[1e-3, 1e-2, 1e-1], yticks=[1e-6, 1e-4, 1e-2])
+    fit = {"kind": "loglogfit", "axes": "main", "h": h, "err": err, "measuredSlope": 2.0,
+           "theorySlope": 2.0, "seriesLabel": "实测斜率 2.00", "theoryLabel": "理论斜率 2",
+           "refX": [1e-3, 1e-1]}
+    raw = make_scene([fit], axes=[axis])
+    without = json.loads(json.dumps(raw))
+    without["chrome"] = {"texts": False}
+    assert validate_scene(raw) == []
+    assert validate_scene(without) == []
+    region = (300, 64, 456, 110)
+    with_labels = ink(pixels(raw), region).sum()
+    no_labels = ink(pixels(without), region).sum()
+    assert with_labels - no_labels > 80, (
+        f"关闭 chrome.texts 后标注应消失：带标注 {with_labels} 像素，无标注 {no_labels} 像素"
+    )
+    # 曲线本身不受影响：整幅图的差异像素应当集中在标注区域
+    diff = np.any(pixels(raw)[:, :, :3] != pixels(without)[:, :, :3], axis=2)
+    ys, xs = np.nonzero(diff)
+    assert len(xs) > 0
+    assert xs.min() >= 300 and xs.max() < 456 and ys.min() >= 64 and ys.max() < 110
+
+
 def test_marching_squares_single_cell():
     seg = marching_squares([0.0, 1.0, 0.0, 1.0], 2, 2, 0.5)
     assert len(seg) == 4  # 一条线段

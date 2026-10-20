@@ -193,10 +193,10 @@ export const convergenceRaceModel: SceneModel = (frame, opts) => {
 
   // —— 主图：三条误差曲线 + 地板 + 两条理论阶参考线（右半段锚定）——
   scene.layers.push(
-    lineLayer("error", series([nLo, nHi], [errFloor, errFloor], pal.warn, { dash: [3, 3], width: 1 })),
-    lineLayer("error", series(errN, errSp, pal.residual, { width: 2.2 })),
-    lineLayer("error", series(errN, err2, pal.curves[0], { width: 1.8 })),
-    lineLayer("error", series(errN, err4, pal.curves[1], { width: 1.8, dash: [6, 3] })),
+    lineLayer("error", series([nLo, nHi], [errFloor, errFloor], pal.warn, { dash: [3, 3], width: 1, label: "误差地板" })),
+    lineLayer("error", series(errN, errSp, pal.residual, { width: 2.2, label: "谱方法" })),
+    lineLayer("error", series(errN, err2, pal.curves[0], { width: 1.8, label: "二阶差分" })),
+    lineLayer("error", series(errN, err4, pal.curves[1], { width: 1.8, dash: [6, 3], label: "四阶差分" })),
   );
   const theoryAnchor = (yEnd: number, order: number): { x: [number, number]; y: [number, number] } | undefined => {
     if (!Number.isFinite(yEnd) || yEnd <= 0) return undefined;
@@ -207,10 +207,10 @@ export const convergenceRaceModel: SceneModel = (frame, opts) => {
   const ref2 = err2.length > 0 ? theoryAnchor(err2[err2.length - 1] as number, 2) : undefined;
   const ref4 = err4.length > 0 ? theoryAnchor(err4[err4.length - 1] as number, 4) : undefined;
   if (ref2 !== undefined) {
-    scene.layers.push(lineLayer("error", series(ref2.x, ref2.y, pal.reference, { dash: [5, 4], width: 1.1 })));
+    scene.layers.push(lineLayer("error", series(ref2.x, ref2.y, pal.reference, { dash: [5, 4], width: 1.1, label: "二阶斜率参考" })));
   }
   if (ref4 !== undefined) {
-    scene.layers.push(lineLayer("error", series(ref4.x, ref4.y, pal.reference, { dash: [2, 3], width: 1.1 })));
+    scene.layers.push(lineLayer("error", series(ref4.x, ref4.y, pal.reference, { dash: [2, 3], width: 1.1, label: "四阶斜率参考" })));
   }
 
   // —— 每加倍比值：0–1 固定窗口；退化帧/地板段不画（并说明）——
@@ -235,27 +235,27 @@ export const convergenceRaceModel: SceneModel = (frame, opts) => {
   const spIdx = ratioFilter(ratioSp, true);
   const fd2Idx = ratioFilter(ratio2, false);
   const fd4Idx = ratioFilter(ratio4, false);
-  const pushRatio = (vals: ArrayLike<number>, idx: number[], color: string, dash?: number[]): void => {
+  const pushRatio = (vals: ArrayLike<number>, idx: number[], color: string, label: string, dash?: number[]): void => {
     if (idx.length >= 2) {
       scene.layers.push(
-        lineLayer("ratio", series(selectValues(ratioN, idx), selectValues(vals, idx), color, { width: 1.8, dash })),
+        lineLayer("ratio", series(selectValues(ratioN, idx), selectValues(vals, idx), color, { width: 1.8, dash, label })),
       );
     } else if (idx.length === 1) {
       scene.layers.push(
-        scatterLayer("ratio", selectValues(ratioN, idx), selectValues(vals, idx), { r: 3, color }),
+        scatterLayer("ratio", selectValues(ratioN, idx), selectValues(vals, idx), { r: 3, color, label }),
       );
     }
   };
-  pushRatio(ratio2, fd2Idx, pal.curves[0]);
-  pushRatio(ratio4, fd4Idx, pal.curves[1], [6, 3]);
-  pushRatio(ratioSp, spIdx, pal.residual);
+  pushRatio(ratio2, fd2Idx, pal.curves[0], "二阶差分");
+  pushRatio(ratio4, fd4Idx, pal.curves[1], "四阶差分", [6, 3]);
+  pushRatio(ratioSp, spIdx, pal.residual, "谱方法");
 
   // —— 逐点误差（y 对数）——
   scene.layers.push(
-    lineLayer("pointwise", series([pointAxis.xlim[0], pointAxis.xlim[1]], [errFloor, errFloor], pal.warn, { dash: [3, 3], width: 1 })),
-    lineLayer("pointwise", series(px, pSp, pal.residual, { width: 2.2 })),
-    lineLayer("pointwise", series(px, p2, pal.curves[0], { width: 1.6 })),
-    lineLayer("pointwise", series(px, p4, pal.curves[1], { width: 1.6, dash: [6, 3] })),
+    lineLayer("pointwise", series([pointAxis.xlim[0], pointAxis.xlim[1]], [errFloor, errFloor], pal.warn, { dash: [3, 3], width: 1, label: "误差地板" })),
+    lineLayer("pointwise", series(px, pSp, pal.residual, { width: 2.2, label: "谱方法" })),
+    lineLayer("pointwise", series(px, p2, pal.curves[0], { width: 1.6, label: "二阶差分" })),
+    lineLayer("pointwise", series(px, p4, pal.curves[1], { width: 1.6, dash: [6, 3], label: "四阶差分" })),
   );
 
   // —— 面板内图例 ——

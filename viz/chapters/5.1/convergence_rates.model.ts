@@ -174,6 +174,7 @@ export const convergenceRatesModel: SceneModel = (frame, opts) => {
 
   const colors = methodColors(pal);
   const convOrder = ["gd", "momentum", "bfgs", "newton"] as const;
+  const methodZh = { gd: "梯度下降", momentum: "重球动量", bfgs: "BFGS", newton: "牛顿" } as const;
   for (const name of convOrder) {
     scene.layers.push(
       lineLayer("convergence", {
@@ -181,6 +182,7 @@ export const convergenceRatesModel: SceneModel = (frame, opts) => {
         y: errors[name]!,
         color: colors[name],
         width: name === "newton" ? 2.2 : 1.7,
+        label: methodZh[name],
       }),
     );
   }
@@ -191,6 +193,7 @@ export const convergenceRatesModel: SceneModel = (frame, opts) => {
       color: pal.warn,
       width: 1,
       dash: [3, 3],
+      label: "误差地板",
     }),
   );
   const marks: Array<{ x: number; dash: number[]; color: string }> = [];
@@ -205,6 +208,7 @@ export const convergenceRatesModel: SceneModel = (frame, opts) => {
         color: m.color,
         width: 1,
         dash: m.dash,
+        label: m.color === pal.exact ? "进入二次区" : "地板开始污染",
       }),
     );
     if (m.x <= qXmax) {
@@ -309,6 +313,7 @@ export const convergenceRatesModel: SceneModel = (frame, opts) => {
         color: pal.exact,
         width: 1.3,
         dash: [5, 3],
+        label: "GD 理论线性速率",
       }),
     );
   }

@@ -316,49 +316,28 @@ export function axisTitleFitted(
 }
 
 /**
- * 曲线标签只在"末点右侧画得下"时给。
- *
- * 渲染层把 `series.label` 画在**最后一个有效点的右侧 4px**，而且画布不裁剪文字
- * （`tools/raster.py::_draw_line_layer` 与 `render2d.ts` 同口径）。末点贴着面板右缘时
- * 标签会直接冲出面板、压到右边那一栏的说明文字上——4.1 章的误差曲线、参考线、\|G\|=1
- * 界线全都横贯整幅面板，末点必然在右缘，所以这些一律不给 `label`，图例改由面板文字承担。
+ * 曲线标签现在只进网页的 HTML 图例：显示层会把 label 从图层里取走、不在画布末端绘制，
+ * 所以不必再按剩余像素决定要不要保留。
  */
 export function endLabel(
-  xLast: number,
-  xlim: readonly [number, number],
-  panelW: number,
+  _xLast: number,
+  _xlim: readonly [number, number],
+  _panelW: number,
   label: string,
-  opts: { log?: boolean } = {},
-): string | undefined {
-  if (!Number.isFinite(xLast) || !(xlim[1] > xlim[0])) return undefined;
-  let frac: number;
-  if (opts.log === true && xLast > 0) {
-    // 对数横轴上像素位置按 log 分（线性估会把末点算得比实际更靠里）。
-    frac = (Math.log(xlim[1]) - Math.log(xLast)) / (Math.log(xlim[1]) - Math.log(xlim[0]));
-  } else {
-    frac = (xlim[1] - xLast) / (xlim[1] - xlim[0]);
-  }
-  const room = Math.max(0, Math.min(1, frac)) * panelW;
-  return room > textWidthUnits(label) * BADGE_UNIT_PX + 10 ? label : undefined;
+  _opts: { log?: boolean } = {},
+): string {
+  return label;
 }
 
-/** {@link endLabel} 的数组版：自己取最后一个有限横坐标。 */
+/** {@link endLabel} 的数组版：保留签名，统一返回标签。 */
 export function endLabelOf(
-  x: ArrayLike<number>,
-  xlim: readonly [number, number],
-  panelW: number,
+  _x: ArrayLike<number>,
+  _xlim: readonly [number, number],
+  _panelW: number,
   label: string,
-  opts: { log?: boolean } = {},
-): string | undefined {
-  let last = Number.NaN;
-  for (let i = x.length - 1; i >= 0; i -= 1) {
-    const v = x[i] as number;
-    if (Number.isFinite(v)) {
-      last = v;
-      break;
-    }
-  }
-  return endLabel(last, xlim, panelW, label, opts);
+  _opts: { log?: boolean } = {},
+): string {
+  return label;
 }
 
 /** 轴名（ylabel）：manifest 声明优先。 */

@@ -218,10 +218,10 @@ export const powerIterationModel: SceneModel = (frame, opts) => {
   );
 
   // —— 图层 1：单位圆（虚线，所有迭代向量的 2-范数都是 1）——
-  scene.layers.push(lineLayer("main", series(circleX, circleY, pal.reference, { dash: [5, 4], width: 1.2 })));
+  scene.layers.push(lineLayer("main", series(circleX, circleY, pal.reference, { dash: [5, 4], width: 1.2, label: "单位圆" })));
 
   // —— 图层 2~3：投影轨迹 + 步点 ——
-  scene.layers.push(lineLayer("main", series(vectorX, vectorY, pal.curves[0], { width: 1.8 })));
+  scene.layers.push(lineLayer("main", series(vectorX, vectorY, pal.curves[0], { width: 1.8, label: "迭代向量轨迹" })));
   const stride = Math.max(1, Math.ceil(vectorX.length / 24));
   const dotX: number[] = [];
   const dotY: number[] = [];
@@ -229,14 +229,14 @@ export const powerIterationModel: SceneModel = (frame, opts) => {
     dotX.push(vectorX[i] as number);
     dotY.push(vectorY[i] as number);
   }
-  scene.layers.push(scatterLayer("main", dotX, dotY, { r: 2.2, color: pal.curves[0], alpha: 0.85 }));
+  scene.layers.push(scatterLayer("main", dotX, dotY, { r: 2.2, color: pal.curves[0], alpha: 0.85, label: "迭代落点" }));
 
   // —— 图层 4~5：当前向量（原点 → 当前投影）——
   const idxNow = k === undefined ? vectorX.length - 1 : clamp(Math.round(k), 0, vectorX.length - 1);
   const cx = vectorX[idxNow] as number;
   const cy = vectorY[idxNow] as number;
-  scene.layers.push(lineLayer("main", series([0, cx], [0, cy], pal.marker, { width: 2.2 })));
-  scene.layers.push(scatterLayer("main", [cx], [cy], { r: 4.5, color: pal.marker }));
+  scene.layers.push(lineLayer("main", series([0, cx], [0, cy], pal.marker, { width: 2.2, label: "当前向量" })));
+  scene.layers.push(scatterLayer("main", [cx], [cy], { r: 4.5, color: pal.marker, label: "当前迭代点" }));
 
   // —— 图层 6~8：残差与两条理论参考线（规则 2：两条斜率都要在图上）——
   const pointLike = residual.length < MIN_LINE_POINTS;
@@ -250,6 +250,7 @@ export const powerIterationModel: SceneModel = (frame, opts) => {
     width: 1.8,
     marker: pointLike ? "o" : "none",
     accept: (v) => v > 0,
+    label: "残差",
   });
   if (resSeries.length > 0) scene.layers.push(lineLayer("aux", resSeries));
   else degraded.push("residual 里没有一个 > 0 的值：log 轴上画不出残差曲线（只在文本里报数）");
@@ -259,6 +260,7 @@ export const powerIterationModel: SceneModel = (frame, opts) => {
     dash: [6, 3],
     marker: pointLike ? "o" : "none",
     accept: (v) => v > 0,
+    label: "理论收敛率",
   });
   if (theorySeries.length > 0) scene.layers.push(lineLayer("aux", theorySeries));
   const theorySqSeries = segmentedSeries(stepGrid, theorySq, pal.reference, {
@@ -266,6 +268,7 @@ export const powerIterationModel: SceneModel = (frame, opts) => {
     dash: [2, 3],
     marker: pointLike ? "o" : "none",
     accept: (v) => v > 0,
+    label: "理论收敛率（平方项）",
   });
   if (theorySqSeries.length > 0) scene.layers.push(lineLayer("aux", theorySqSeries));
 
@@ -273,10 +276,10 @@ export const powerIterationModel: SceneModel = (frame, opts) => {
   if (k !== undefined) {
     const kk = clamp(Math.round(k), 0, stepGrid.length - 1);
     const xNow = stepGrid[kk] as number;
-    scene.layers.push(lineLayer("aux", series([xNow, xNow], auxYlim, pal.cursor, { dash: [3, 3], width: 1 })));
+    scene.layers.push(lineLayer("aux", series([xNow, xNow], auxYlim, pal.cursor, { dash: [3, 3], width: 1, label: "当前步" })));
     const rNow = sampleLinear(stepGrid, residual, xNow);
     if (rNow !== undefined && rNow > 0) {
-      scene.layers.push(scatterLayer("aux", [xNow], [rNow], { r: 4, color: pal.marker }));
+      scene.layers.push(scatterLayer("aux", [xNow], [rNow], { r: 4, color: pal.marker, label: "当前残差" }));
     }
   }
 

@@ -291,6 +291,7 @@ export const floatZoomModel: SceneModel = (frame, opts) => {
       series([-half, half], [RATIO_UNIFORM, RATIO_UNIFORM], pal.reference, {
         width: 1,
         dash: [2, 4],
+        label: "间距比 = 1（均匀网格的假想线）",
       }),
     ),
   );
@@ -299,24 +300,24 @@ export const floatZoomModel: SceneModel = (frame, opts) => {
   const boundarySeries = segmentedSeries(boundaryOffset, boundarySpacingRatio, pal.curves[1] ?? "#2f855a", {
     width: 1.8,
     dash: [7, 4],
-  });
+  }).map((s) => ({ ...s, label: "跨过 2 的幂的网格" }));
   if (boundarySeries.length > 0) scene.layers.push(lineLayer("ladder", boundarySeries));
   else degraded.push("boundary_spacing_ratio 没有可绘的有限值：2 的幂梯子画不出来（网格均匀与否就没有证据了）");
 
   // —— 图层 3：以参数中心为中心的梯子（实线）——
   const centerSeries = segmentedSeries(offset, spacingRatio, pal.curves[0] ?? "#2b6cb0", {
     width: 2,
-  });
+  }).map((s) => ({ ...s, label: "中心浮点网格" }));
   if (centerSeries.length > 0) scene.layers.push(lineLayer("ladder", centerSeries));
   else degraded.push("spacing_ratio 没有可绘的有限值：中心梯子画不出来");
 
   // —— 图层 4：两条竖线（数学上的 0.3 / 0.1+0.2 的落点）——
   const vlines = [];
   if (idealOffset !== undefined) {
-    vlines.push(series([idealOffset, idealOffset], LADDER_YLIM, pal.reference, { width: 1.2, dash: [3, 3] }));
+    vlines.push(series([idealOffset, idealOffset], LADDER_YLIM, pal.reference, { width: 1.2, dash: [3, 3], label: "数学上的 0.3" }));
   }
   if (landingOffset !== undefined) {
-    vlines.push(series([landingOffset, landingOffset], LADDER_YLIM, pal.marker, { width: 1.2, dash: [3, 3] }));
+    vlines.push(series([landingOffset, landingOffset], LADDER_YLIM, pal.marker, { width: 1.2, dash: [3, 3], label: "0.1 + 0.2 的落点" }));
   }
   if (vlines.length > 0) scene.layers.push(lineLayer("ladder", vlines));
 
@@ -349,21 +350,21 @@ export const floatZoomModel: SceneModel = (frame, opts) => {
   const resSeries = segmentedSeries(kGrid, residual, pal.residual, {
     width: 1.9,
     accept: (v) => v > 0,
-  });
+  }).map((s) => ({ ...s, label: "残差（对照 k/10）" }));
   if (resSeries.length > 0) scene.layers.push(lineLayer("residual", resSeries));
   else degraded.push("residual 的样本没有一个 > 0：log 轴上画不出这条曲线");
   const resSumSeries = segmentedSeries(kGrid, residualSumOnly, pal.curves[1] ?? "#2f855a", {
     width: 1.5,
     dash: [6, 3],
     accept: (v) => v > 0,
-  });
+  }).map((s) => ({ ...s, label: "残差（对照 k·fl(0.1)）" }));
   if (resSumSeries.length > 0) scene.layers.push(lineLayer("residual", resSumSeries));
   else degraded.push("residual_sum_only 的样本没有一个 > 0：log 轴上画不出这条曲线");
   const floorSeries = segmentedSeries(kGrid, residualFloor, pal.reference, {
     width: 1.1,
     dash: [2, 3],
     accept: (v) => v > 0,
-  });
+  }).map((s) => ({ ...s, label: "舍入地板" }));
   if (floorSeries.length > 0) scene.layers.push(lineLayer("residual", floorSeries));
 
   const onFloor = floorIndices(residual, residualFloor);

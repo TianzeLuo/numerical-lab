@@ -237,11 +237,11 @@ export const packetLongTimeModel: SceneModel = (frame, opts) => {
 
   // —— 主面板 ——
   scene.layers.push(
-    lineLayer("packet", series(x, initial, pal.reference, { width: 1.2, dash: [4, 4] })),
-    lineLayer("packet", series(x, exact, pal.exact, { width: 2 })),
-    lineLayer("packet", series(x, u, pal.curves[0], { width: 2.4 })),
-    lineLayer("packet", series(x, envExact, pal.reference, { width: 1.2, dash: [2, 3] })),
-    lineLayer("packet", series(x, envNum, pal.curves[1], { width: 2 })),
+    lineLayer("packet", series(x, initial, pal.reference, { width: 1.2, dash: [4, 4], label: "初值" })),
+    lineLayer("packet", series(x, exact, pal.exact, { width: 2, label: "精确解" })),
+    lineLayer("packet", series(x, u, pal.curves[0], { width: 2.4, label: "数值解" })),
+    lineLayer("packet", series(x, envExact, pal.reference, { width: 1.2, dash: [2, 3], label: "精确包络" })),
+    lineLayer("packet", series(x, envNum, pal.curves[1], { width: 2, label: "数值包络" })),
   );
 
   // —— 幅值标尺：同一 x 上两条包络的落差 ——
@@ -263,8 +263,8 @@ export const packetLongTimeModel: SceneModel = (frame, opts) => {
 
   // —— 误差面板 ——
   scene.layers.push(
-    lineLayer("error", series(x, errCurve, pal.curves[0], { width: 2 })),
-    lineLayer("error", series([0, 1], [floor, floor], pal.reference, { width: 1, dash: [2, 3] })),
+    lineLayer("error", series(x, errCurve, pal.curves[0], { width: 2, label: "误差 |u − u_exact|" })),
+    lineLayer("error", series([0, 1], [floor, floor], pal.reference, { width: 1, dash: [2, 3], label: "舍入地板" })),
   );
   if (atFloor !== undefined) {
     const idx = maskIndices(atFloor);
@@ -281,8 +281,8 @@ export const packetLongTimeModel: SceneModel = (frame, opts) => {
 
   // —— 残差副轴 ——
   scene.layers.push(
-    lineLayer("residual", series(x, residual, pal.residual, { width: 1.8 })),
-    lineLayer("residual", series(x, gap, pal.reference, { width: 1.2, dash: [5, 4] })),
+    lineLayer("residual", series(x, residual, pal.residual, { width: 1.8, label: "代数残差" })),
+    lineLayer("residual", series(x, gap, pal.reference, { width: 1.2, dash: [5, 4], label: "积分器之差" })),
   );
 
   if (!narrow) {

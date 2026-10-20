@@ -258,13 +258,14 @@ export const adaptiveMeshModel: SceneModel = (frame, opts) => {
     const tEta = logHi > logLo ? clamp((lv - logLo) / (logHi - logLo), 0, 1) : 0;
     const color = tEta > 0.66 ? pal.warn : tEta > 0.33 ? pal.exact : pal.curves[0];
     const height = 0.06 + 0.4 * tEta;
-    stems.push(series([xm, xm], [baseY, baseY + height], color, { width: 2.6 }));
-    cells.push(series([xa, xb], [baseY, baseY], pal.muted, { width: 2 }));
+    const stemLabel = tEta > 0.66 ? "指示子 η_K（高）" : tEta > 0.33 ? "指示子 η_K（中）" : "指示子 η_K（低）";
+    stems.push(series([xm, xm], [baseY, baseY + height], color, { width: 2.6, label: stemLabel }));
+    cells.push(series([xa, xb], [baseY, baseY], pal.muted, { width: 2, label: "单元" }));
   }
   if (cells.length > 0) scene.layers.push(lineLayer("mesh", cells));
   if (stems.length > 0) scene.layers.push(lineLayer("mesh", stems));
   if (mid.length > 0) {
-    scene.layers.push(scatterLayer("mesh", mid, mid.map(() => baseY), { r: 2.1, color: pal.ink, alpha: 0.9 }));
+    scene.layers.push(scatterLayer("mesh", mid, mid.map(() => baseY), { r: 2.1, color: pal.ink, alpha: 0.9, label: "节点" }));
   }
   scene.texts.push(
     ...textBlock(
@@ -291,11 +292,11 @@ export const adaptiveMeshModel: SceneModel = (frame, opts) => {
     });
     scene.axes.push(indicator);
     scene.layers.push(
-      lineLayer("indicator", series([0, 1], [floor, floor], pal.reference, { width: 1, dash: [3, 3] })),
+      lineLayer("indicator", series([0, 1], [floor, floor], pal.reference, { width: 1, dash: [3, 3], label: "地板" })),
     );
     if (mid.length > 0) {
-      const etaSeries = maskedSeries(mid, eta, undefined, pal.curves[0], { width: 1.9, marker: "o" });
-      const errSeries = maskedSeries(mid, trueErr, undefined, pal.exact, { width: 1.7, marker: "s", dash: [5, 3] });
+      const etaSeries = maskedSeries(mid, eta, undefined, pal.curves[0], { width: 1.9, marker: "o", label: "指示子 η_K" });
+      const errSeries = maskedSeries(mid, trueErr, undefined, pal.exact, { width: 1.7, marker: "s", dash: [5, 3], label: "真误差" });
       if (etaSeries.length > 0) scene.layers.push(lineLayer("indicator", etaSeries));
       if (errSeries.length > 0) scene.layers.push(lineLayer("indicator", errSeries));
     }
@@ -332,7 +333,7 @@ export const adaptiveMeshModel: SceneModel = (frame, opts) => {
     });
     scene.axes.push(hist);
     scene.layers.push(
-      lineLayer("history", series(hist.xlim, [floor, floor], pal.reference, { width: 1, dash: [3, 3] })),
+      lineLayer("history", series(hist.xlim, [floor, floor], pal.reference, { width: 1, dash: [3, 3], label: "误差地板" })),
     );
     const aSeries = maskedSeries(dofA, errA, floorMask, pal.curves[0], { width: 2.2, marker: "o" });
     if (aSeries.length > 0) scene.layers.push(lineLayer("history", aSeries));
