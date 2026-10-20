@@ -26,7 +26,7 @@ import { test } from "node:test";
 import { Frame, type ArraySpec, type Dtype, type TypedArray } from "../shared/src/frame.js";
 import { ModelInputError, type ModelOptions } from "../shared/src/model.js";
 import { decodeNlf, encodeNlf } from "../shared/src/nlf.js";
-import { sceneToJson, validateScene, type Scene } from "../shared/src/scene.js";
+import { pitfallsBand, sceneToJson, textBoxOf, validateScene, type Scene } from "../shared/src/scene.js";
 import { manifest, modelFor, models } from "../chapters/1.1/index.js";
 
 // --------------------------------------------------------------------------- //
@@ -304,6 +304,40 @@ for (const viz of VIZ_IDS) {
     }
   });
 }
+
+test("1.1/float_zoom：960px 说明文字只占右栏，不压绘图区；480px 不铺说明", async () => {
+  const frame = await frameFor("float_zoom");
+  const wide = sceneOf(frame);
+  const ladder = axisOf(wide, "ladder");
+  const residual = axisOf(wide, "residual");
+  assert.ok(wide.texts.length > 0, "宽画布必须有说明文字");
+  const textX = new Set(wide.texts.map((t) => t.x));
+  assert.equal(textX.size, 1, "说明文字必须排在同一条右栏里");
+  assert.ok((wide.texts[0]?.x ?? 0) > ladder.rect[0] + ladder.rect[2] + 10, "右栏与主图之间要留净空");
+  for (const t of wide.texts) {
+    const box = textBoxOf({ ...t, x: t.x ?? 0, y: t.y ?? 0 });
+    assert.ok(box.ok, `说明行折行失败：${t.text}`);
+    for (const axis of [ladder, residual]) {
+      const [ax, ay, aw, ah] = axis.rect;
+      const ox = Math.min(box.x + box.w, ax + aw) - Math.max(box.x, ax);
+      const oy = Math.min(box.y + box.h, ay + ah) - Math.max(box.y, ay);
+      assert.ok(ox <= 0 || oy <= 0, `说明压住了 ${axis.id} 绘图区：${t.text}`);
+    }
+  }
+  assert.ok(residual.rect[1] - (ladder.rect[1] + ladder.rect[3]) >= 40, "两块图之间要同时容下刻度带与副轴标题带");
+
+  const narrow = sceneOf(frame, { width: 480, height: 600 });
+  assert.deepEqual(validateScene(narrow), [], "窄画布仍要合规");
+  assert.equal(narrow.texts.length, 0, "窄画布不铺说明：宁可少说，也不压曲线");
+
+  for (const [label, s] of [["wide", wide], ["narrow", narrow]] as const) {
+    const band = pitfallsBand(s);
+    assert.ok(band, "底部 pitfalls 面板必须存在");
+    for (const axis of s.axes) {
+      assert.ok(axis.rect[1] + axis.rect[3] + 28 < band[1], `${label} 的 ${axis.id} 轴与 pitfalls 面板之间放不下 xlabel`);
+    }
+  }
+});
 
 // --------------------------------------------------------------------------- //
 // 3. 退化输入：缺必需数组 / 数组不等长 / pitfalls 太短 → ModelInputError

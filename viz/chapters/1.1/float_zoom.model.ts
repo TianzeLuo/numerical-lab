@@ -41,9 +41,12 @@
  *    `ideal_offset = 0`。数学上的 0.3 正好是窗口中心、`fl(0.3)` 也是它，0.1+0.2 恰好在
  *    它上面 **1 个 ulp**——"差 1 个 ulp"在图上就是这两个点的间距（默认帧约 28px）。
  *    落点不在窗口内时帧给 `meta.landing_in_window = false`，模型不画点、只挂溢出说明。
+ * 5. **说明文字一律不进绘图区**：宽画布（≥900px）在两块图右侧各开一条说明栏；
+ *    窄画布只保留角标与轴标题（宁可少说，也不把字压在曲线上）。当前 k 写进状态角标，
+ *    不再在图内漂浮 `k=` 标签。主图与副轴之间留 44px，让主图刻度带和副轴标题带互不重叠。
  */
 
-import { countNonFinite, dataToPixel } from "../../shared/src/geometry.js";
+import { countNonFinite } from "../../shared/src/geometry.js";
 import { formatNumber, niceLimits, niceTicks } from "../../shared/src/axes.js";
 import type { Frame } from "../../shared/src/frame.js";
 import {
@@ -74,14 +77,15 @@ import {
   lineLayer,
   makeAxis,
   overflowBadge,
+  pitfallsBand,
   previewBadge,
   scatterLayer,
   series,
   sourceBadge,
-  text,
+  type TextSpec,
 } from "../../shared/src/scene.js";
 import {
-  SAFE_GAP,
+  TEXT_ROW_H,
   absMax,
   avoidTextOverlap,
   axisTitleOf,
@@ -89,8 +93,6 @@ import {
   floorIndices,
   pick,
   textBlock,
-  textBottom,
-  textTop,
   unitBudget,
 } from "./_panel.js";
 import { manifest } from "./manifest.gen.js";
@@ -121,6 +123,52 @@ const LADDER_YLIM: [number, number] = [0.4, 1.15];
 /** 间距比的两种理论取值（定理给的两个数，不是前端算出来的物理量）。 */
 const RATIO_UNIFORM = 1;
 const RATIO_HALVED = 0.5;
+
+/** 宽画布才开右侧说明栏；窄画布宁可少说，也不把文字压进曲线。 */
+const TEXT_COLUMN_MIN_WIDTH = 900;
+const TEXT_COLUMN_GAP = 26;
+const TEXT_COLUMN_WIDTH = 300;
+/** 两块面板之间要同时放下主图刻度带（约 18px）与副轴标题带（约 18px）。 */
+const PANEL_GAP = 44;
+
+interface FloatZoomLayout {
+  main: Rect;
+  aux: Rect;
+  mainText?: Rect;
+  auxText?: Rect;
+}
+
+/**
+ * 上（梯子）下（残差）两块；宽画布各切一条右栏放说明。
+ *
+ * 为什么不用 `stackedPanels` 的默认 22px 间距：主图刻度从 `bottom+3` 画到 `+18`，
+ * 副轴标题从 `top-18` 画到 `top-6`，22px 间距会让两段文字直接叠在一起（本图曾如此）。
+ * 这里固定 44px，并把说明文字整体移出绘图区；窄画布退回满宽、不画说明栏。
+ */
+function floatZoomLayout(width: number, height: number, pitfalls: string): FloatZoomLayout {
+  // 底部 pitfalls 面板由渲染器现画，窄画布会折成很多行；默认 102px 的 footer 不够，
+  // 会把副轴图整个盖住。用共享的 `pitfallsBand` 量出真实高度，再留 36px 给副轴 xlabel。
+  const band = pitfallsBand({ canvas: { w: width, h: height }, pitfalls });
+  const footer = band === null ? 102 : height - band[1] + 36;
+  const base = stackedPanels(width, height, { footer });
+  const avail = base.bottom - base.top;
+  const mainH = Math.round((avail - PANEL_GAP) * 0.59);
+  const auxH = avail - PANEL_GAP - mainH;
+  const twoCol = width >= TEXT_COLUMN_MIN_WIDTH;
+  const sideW = twoCol ? TEXT_COLUMN_WIDTH : 0;
+  const plotW = twoCol ? base.contentWidth - sideW - TEXT_COLUMN_GAP : base.contentWidth;
+  const main: Rect = [base.left, base.top, plotW, mainH];
+  const aux: Rect = [base.left, base.top + mainH + PANEL_GAP, plotW, auxH];
+  if (!twoCol) return { main, aux };
+  const textX = base.left + plotW + TEXT_COLUMN_GAP;
+  const textW = base.left + base.contentWidth - textX;
+  return {
+    main,
+    aux,
+    mainText: [textX, main[1], textW, main[3]],
+    auxText: [textX, aux[1], textW, aux[3]],
+  };
+}
 
 export const floatZoomModel: SceneModel = (frame, opts) => {
   const pal = palette(opts.theme);
@@ -164,13 +212,9 @@ export const floatZoomModel: SceneModel = (frame, opts) => {
   const boundary = metaNumber(frame, "boundary");
   const boundaryUlps = metaNumber(frame, "boundary_ulps");
   const windowUlps = metaNumber(frame, "window_ulps");
-  const spacingMin = metaNumber(frame, "spacing_min");
-  const spacingMax = metaNumber(frame, "spacing_max");
   const boundarySpacingMin = metaNumber(frame, "boundary_spacing_min");
   const boundarySpacingMax = metaNumber(frame, "boundary_spacing_max");
   const landingInWindow = (metaNumber(frame, "landing_in_window") ?? 1) > 0.5;
-  const residual0102 = metaNumber(frame, "residual_0102_03");
-  const residual0102Ulps = metaNumber(frame, "residual_0102_03_ulps");
   const nExactZero = metaNumber(frame, "residual_exact_zero_steps");
   const nExactZeroSum = metaNumber(frame, "residual_sum_only_exact_zero_steps");
   const kMeta = metaNumber(frame, "k");
@@ -190,10 +234,10 @@ export const floatZoomModel: SceneModel = (frame, opts) => {
     pitfalls,
   });
 
-  // —— 排版：上（梯子）下（残差）两块；两块都满宽 ——
-  const base = stackedPanels(width, height);
-  const mainRect: Rect = base.main;
-  const auxRect: Rect = base.error;
+  // —— 排版：上（梯子）下（残差）；宽画布右侧各留一条说明栏 ——
+  const layout = floatZoomLayout(width, height, pitfalls);
+  const mainRect: Rect = layout.main;
+  const auxRect: Rect = layout.aux;
 
   // 横轴范围：两条梯子共用"±half 个 ulp"这个窗口（帧 meta 给的是同一个 half）。
   const half =
@@ -247,7 +291,6 @@ export const floatZoomModel: SceneModel = (frame, opts) => {
       series([-half, half], [RATIO_UNIFORM, RATIO_UNIFORM], pal.reference, {
         width: 1,
         dash: [2, 4],
-        label: "间距比 = 1（同一 binade 内的均匀网格）",
       }),
     ),
   );
@@ -256,7 +299,6 @@ export const floatZoomModel: SceneModel = (frame, opts) => {
   const boundarySeries = segmentedSeries(boundaryOffset, boundarySpacingRatio, pal.curves[1] ?? "#2f855a", {
     width: 1.8,
     dash: [7, 4],
-    label: "最近的 2 的幂窗口：跨过它间距减半（网格不均匀的直接证据）",
   });
   if (boundarySeries.length > 0) scene.layers.push(lineLayer("ladder", boundarySeries));
   else degraded.push("boundary_spacing_ratio 没有可绘的有限值：2 的幂梯子画不出来（网格均匀与否就没有证据了）");
@@ -264,7 +306,6 @@ export const floatZoomModel: SceneModel = (frame, opts) => {
   // —— 图层 3：以参数中心为中心的梯子（实线）——
   const centerSeries = segmentedSeries(offset, spacingRatio, pal.curves[0] ?? "#2b6cb0", {
     width: 2,
-    label: "参数中心窗口：整个窗口在同一 binade 内，间距比恒为 1",
   });
   if (centerSeries.length > 0) scene.layers.push(lineLayer("ladder", centerSeries));
   else degraded.push("spacing_ratio 没有可绘的有限值：中心梯子画不出来");
@@ -272,10 +313,10 @@ export const floatZoomModel: SceneModel = (frame, opts) => {
   // —— 图层 4：两条竖线（数学上的 0.3 / 0.1+0.2 的落点）——
   const vlines = [];
   if (idealOffset !== undefined) {
-    vlines.push(series([idealOffset, idealOffset], LADDER_YLIM, pal.reference, { width: 1.2, dash: [3, 3], label: "数学上的 0.3（= 窗口中心）" }));
+    vlines.push(series([idealOffset, idealOffset], LADDER_YLIM, pal.reference, { width: 1.2, dash: [3, 3] }));
   }
   if (landingOffset !== undefined) {
-    vlines.push(series([landingOffset, landingOffset], LADDER_YLIM, pal.marker, { width: 1.2, dash: [3, 3], label: "0.1+0.2 的落点" }));
+    vlines.push(series([landingOffset, landingOffset], LADDER_YLIM, pal.marker, { width: 1.2, dash: [3, 3] }));
   }
   if (vlines.length > 0) scene.layers.push(lineLayer("ladder", vlines));
 
@@ -292,7 +333,7 @@ export const floatZoomModel: SceneModel = (frame, opts) => {
   }
   if (markX.length > 0) {
     scene.layers.push(
-      scatterLayer("ladder", markX, markY, { r: 5, color: pal.marker, label: "0.1+0.2 的落点（与数学上的 0.3 相差 1 个 ulp）" }),
+      scatterLayer("ladder", markX, markY, { r: 5, color: pal.marker }),
     );
   }
   if (!landingInWindow) {
@@ -303,11 +344,10 @@ export const floatZoomModel: SceneModel = (frame, opts) => {
   // —— 图层 6~10：副轴（规则 3 的残差场）——
   const kNow = kMeta ?? kMark ?? clamp(Math.round(opts.t), 0, kMax);
   scene.layers.push(
-    lineLayer("residual", series([kNow, kNow], auxAxis.ylim, pal.cursor, { width: 1, dash: [3, 3], label: `当前 k = ${formatNumber(kNow, 4)}` })),
+    lineLayer("residual", series([kNow, kNow], auxAxis.ylim, pal.cursor, { width: 1, dash: [3, 3] })),
   );
   const resSeries = segmentedSeries(kGrid, residual, pal.residual, {
     width: 1.9,
-    label: "残差（相对数学值 k/10；精确值用有理数算）",
     accept: (v) => v > 0,
   });
   if (resSeries.length > 0) scene.layers.push(lineLayer("residual", resSeries));
@@ -315,7 +355,6 @@ export const floatZoomModel: SceneModel = (frame, opts) => {
   const resSumSeries = segmentedSeries(kGrid, residualSumOnly, pal.curves[1] ?? "#2f855a", {
     width: 1.5,
     dash: [6, 3],
-    label: "残差（相对 k·fl(0.1)：只含求和误差，不含 0.1 的表示误差）",
     accept: (v) => v > 0,
   });
   if (resSumSeries.length > 0) scene.layers.push(lineLayer("residual", resSumSeries));
@@ -323,7 +362,6 @@ export const floatZoomModel: SceneModel = (frame, opts) => {
   const floorSeries = segmentedSeries(kGrid, residualFloor, pal.reference, {
     width: 1.1,
     dash: [2, 3],
-    label: "显示地板 u/2·max(|k/10|,0.1)：贴住它的点不是「误差 = 地板值」",
     accept: (v) => v > 0,
   });
   if (floorSeries.length > 0) scene.layers.push(lineLayer("residual", floorSeries));
@@ -333,110 +371,75 @@ export const floatZoomModel: SceneModel = (frame, opts) => {
   if (onFloor.length > 0) {
     const p = pick(kGrid, residual, onFloor);
     scene.layers.push(
-      scatterLayer("residual", p.x, p.y, { r: 3, color: pal.warn, alpha: 0.9, label: `贴地板的点（${onFloor.length} 个：精确 0 与低于地板在这里同高）` }),
+      scatterLayer("residual", p.x, p.y, { r: 3, color: pal.warn, alpha: 0.9 }),
     );
   }
   if (residualMark !== undefined && kMark !== undefined && residualMark > 0) {
-    scene.layers.push(scatterLayer("residual", [kMark], [residualMark], { r: 4.5, color: pal.marker, label: "当前 k 的残差" }));
+    scene.layers.push(scatterLayer("residual", [kMark], [residualMark], { r: 4.5, color: pal.marker }));
   }
 
-  // —— 文本（一行一个 text 层：render2d 不拆 \n）——
+  // —— 文本：宽画布放在右栏；窄画布不铺说明，避免压住曲线 ——
   const summary = paramSummary(frame, opts, [
     { name: "center_log10", label: "中心(10 的幂)" },
     { name: "mantissa", label: "尾数" },
   ]);
   degraded.push(...summary.degraded);
 
-  const head: string[] = [summary.text];
-  if (center !== undefined) head.push(`中心=${formatNumber(center, 6)}`);
-  if (spacingCenter !== undefined) head.push(`ulp(中心)=${formatNumber(spacingCenter, 3)}`);
-  if (nPoints !== undefined) head.push(`窗口=${formatNumber(nPoints, 4)} 个可表示数`);
-  else if (Number.isFinite(half)) head.push(`窗口=±${formatNumber(half, 4)} ulp`);
-  if (spacingMin !== undefined && spacingMax !== undefined && spacingMin === spacingMax) {
-    head.push(`中心梯子间距比恒为 ${formatNumber(spacingMin, 2)}`);
-  }
-  const mainBudget = unitBudget(mainRect[2]);
-  scene.texts.push(...textBlock(mainRect[0] + 6, textTop(mainRect), textBottom(mainRect), [head.join("　")], pal.muted, mainBudget, "top"));
+  if (layout.mainText !== undefined) {
+    const headData: string[] = [];
+    if (center !== undefined) headData.push(`中心 ${formatNumber(center, 6)}`);
+    if (spacingCenter !== undefined) headData.push(`ulp ${formatNumber(spacingCenter, 3)}`);
+    if (nPoints !== undefined) headData.push(`窗口 ${formatNumber(nPoints, 4)} 个浮点数`);
+    const head = [summary.text];
+    if (headData.length > 0) head.push(headData.join("　"));
 
-  // 两块文字都放在"没有曲线"的横带里：梯子只占 y≈0.5 与 y≈1.0 两条水平带，
-  // 中间那条空带（0.55..0.95）放"怎么读"，下沿放图例。这样文字不会压住任何一条梯子。
-  const midTop = mainRect[1] + Math.round(mainRect[3] * 0.26);
-  const mid: string[] = [];
-  mid.push("实线=参数中心窗口（整个窗口在同一 binade：间距比恒为 1）");
-  if (boundarySpacingMin !== undefined && boundarySpacingMax !== undefined) {
-    mid.push(
-      `虚线=最近的 2 的幂窗口（${boundary === undefined ? "中心" : formatNumber(boundary, 6)}）：` +
-        `跨过它间距比从 ${formatNumber(boundarySpacingMin, 2)} 跳到 ${formatNumber(boundarySpacingMax, 2)}——网格不均匀的直接证据`,
-    );
-  }
-  if (bigPlusOneUnchanged) {
-    mid.push("1e16 + 1 = 1e16（ulp(1e16) = 2，加 1 落在中点被 ties-to-even 舍回）：图上「看起来没变」是正确结果，不是渲染 bug");
-  }
-  scene.texts.push(...textBlock(mainRect[0] + 6, midTop, textBottom(mainRect), mid, pal.muted, mainBudget, "top"));
+    const boundaryLabel = boundary === undefined ? "中心" : formatNumber(boundary, 6);
+    const ratioJump =
+      boundarySpacingMin !== undefined && boundarySpacingMax !== undefined
+        ? `跨过它 ${formatNumber(boundarySpacingMin, 2)}→${formatNumber(boundarySpacingMax, 2)}`
+        : "跨过它间距减半";
+    const landingLabel =
+      landingOffset === undefined ? "红点=0.1+0.2" : `红点=0.1+0.2（中心上 ${formatNumber(landingOffset, 3)} ulp）`;
+    const legend = [
+      "实线=中心窗口（同一 binade，间距比恒 1）",
+      `虚线=2 的幂窗口 ${boundaryLabel}，${ratioJump}`,
+      landingLabel,
+      "灰虚线=数学上的 0.3",
+    ];
 
-  // "为什么横轴不是真实坐标"必须写在图上，否则 ulp 偏移轴会被当成真实数轴。
-  if (exactCenter !== undefined && nPoints !== undefined) {
-    scene.texts.push(
-      ...textBlock(
-        mainRect[0] + 6,
-        midTop + mid.length * 15 + 4,
-        textBottom(mainRect),
-        [
-          `窗口里 ${formatNumber(nPoints, 4)} 个 double 在 16 位有效数字下印出来都是 ` +
-            `${center === undefined ? "同一个数" : formatNumber(center, 6)}（中心的精确值 ${exactCenter}）：` +
-            "真实坐标画不出这个差别，所以横轴必须是 ulp 偏移",
-        ],
-        pal.note,
-        mainBudget,
-        "top",
-      ),
-    );
+    const why: string[] = [];
+    if (center !== undefined && nPoints !== undefined) {
+      why.push(`横轴是 ulp 偏移：窗口里 ${formatNumber(nPoints, 4)} 个 double 印成 16 位都是 ${formatNumber(center, 6)}`);
+    } else {
+      why.push("横轴是距各自中心的 ulp 偏移，不是真实坐标");
+    }
+    if (exactCenter !== undefined) why.push(`精确中心 ${exactCenter}`);
+    if (bigPlusOneUnchanged) why.push("1e16+1=1e16 是正确结果：ulp=2，加 1 落在中点被 ties-to-even 舍回");
+
+    pushTextColumn(scene.texts, layout.mainText, [
+      { lines: head, color: pal.muted, gapAfter: 5 },
+      { lines: legend, color: pal.muted, gapAfter: 5 },
+      { lines: why, color: pal.note },
+    ]);
   }
 
-  const legend: string[] = [];
-  legend.push("红=0.1+0.2 的落点（中心之上 1 个 ulp）　灰虚竖线=数学上的 0.3　横轴=距各自中心的 ulp 偏移");
-  const crossCheck: string[] = [];
-  if (residual0102 !== undefined) {
-    crossCheck.push(
-      `(0.1+0.2) − fl(0.3) = ${formatNumber(residual0102, 3)}` +
-        (residual0102Ulps === undefined ? "" : `（恰好 ${formatNumber(residual0102Ulps, 2)} 个 ulp）`),
-    );
-  }
-  crossCheck.push("而 (0.1+0.2) − 3/10 = 4.44e-17（副轴画的是这一条）：残差必须说清「相对谁」");
-  legend.push(crossCheck.join("；"));
-  scene.texts.push(...textBlock(mainRect[0] + 6, textTop(mainRect), textBottom(mainRect), legend, pal.muted, mainBudget, "bottom"));
+  if (layout.auxText !== undefined) {
+    const kIdx = clamp(Math.round(kNow), 0, Math.max(0, kGrid.length - 1));
+    const live: string[] = [`游标 k=${formatNumber(kNow, 4)}`];
+    if (sumValue !== undefined && kIdx < sumValue.length) live.push(`fl(Σ0.1)=${formatNumber(sumValue[kIdx] as number, 8)}`);
+    const residualLines: string[] = [];
+    if (kIdx < residual.length) residualLines.push(`残差 ${formatNumber(residual[kIdx] as number, 3)}（紫，对 k/10）`);
+    if (kIdx < residualSumOnly.length) residualLines.push(`残差 ${formatNumber(residualSumOnly[kIdx] as number, 3)}（绿虚，对 k·fl(0.1)）`);
+    const floorLine = kIdx < residualFloor.length ? `地板 ${formatNumber(residualFloor[kIdx] as number, 3)}（灰点）` : "";
+    const onFloorLine = `贴地板 residual ${onFloor.length}/${residual.length}（0 的 ${nExactZero === undefined ? "?" : formatNumber(nExactZero, 4)} 个）`;
+    const onFloorSumLine = `sum_only ${onFloorSum.length}/${residualSumOnly.length}（0 的 ${nExactZeroSum === undefined ? "?" : formatNumber(nExactZeroSum, 4)} 个）`;
 
-  // 副轴：只留 3 行（帧 note + 当前数值 + 地板判读），曲线才看得见。
-  const auxLines: string[] = [];
-  if (note !== undefined) auxLines.push(`帧 note：${note}`);
-  const kIdx = clamp(Math.round(kNow), 0, Math.max(0, kGrid.length - 1));
-  const nums: string[] = [`k=${formatNumber(kNow, 4)}`];
-  if (sumValue !== undefined && kIdx < sumValue.length) nums.push(`fl(Σ0.1)=${formatNumber(sumValue[kIdx] as number, 8)}`);
-  if (kIdx < residual.length) nums.push(`残差(对 k/10)=${formatNumber(residual[kIdx] as number, 3)}`);
-  if (kIdx < residualSumOnly.length) nums.push(`残差(对 k·fl(0.1))=${formatNumber(residualSumOnly[kIdx] as number, 3)}`);
-  if (kIdx < residualFloor.length) nums.push(`地板=${formatNumber(residualFloor[kIdx] as number, 3)}`);
-  auxLines.push(nums.join("　"));
-  auxLines.push(
-    `贴地板：residual ${onFloor.length}/${residual.length}（0 的 ` +
-      `${nExactZero === undefined ? "?" : formatNumber(nExactZero, 4)} 个；` +
-      `sum_only ${onFloorSum.length} 个，0 的 ${nExactZeroSum === undefined ? "?" : formatNumber(nExactZeroSum, 4)} 个）`,
-  );
-  auxLines.push("贴地板 ≠ 误差不为零：判据是它随 k 长不长");
-  const auxBudget = unitBudget(auxRect[2]);
-  scene.texts.push(...textBlock(auxRect[0] + 6, textTop(auxRect), textBottom(auxRect), auxLines, pal.muted, auxBudget, "top"));
-
-  // 游标标签：贴着副轴底部（`SAFE_GAP` 之上），x 由**共享的** dataToPixel 给出。
-  const anchorY = auxAxis.ylim[0];
-  const [mx] = dataToPixel(auxAxis, kNow, anchorY);
-  if (Number.isFinite(mx)) {
-    scene.texts.push(
-      text(
-        clamp(mx + 4, auxRect[0] + 6, auxRect[0] + auxRect[2] - 60),
-        auxRect[1] + auxRect[3] - SAFE_GAP - 15,
-        `k=${formatNumber(kNow, 4)}`,
-        { role: "note", size: 11, color: pal.marker, align: "left" },
-      ),
-    );
+    pushTextColumn(scene.texts, layout.auxText, [
+      { lines: [live.join("　")], color: pal.muted, gapAfter: 5 },
+      { lines: residualLines, color: pal.muted, gapAfter: 3 },
+      { lines: [floorLine], color: pal.muted, gapAfter: 5 },
+      { lines: [onFloorLine, onFloorSumLine, "贴地板 ≠ 误差为 0：判据是它随 k 长不长"], color: pal.muted },
+    ]);
   }
 
   // —— 角标（固定槽位）——
@@ -447,20 +450,19 @@ export const floatZoomModel: SceneModel = (frame, opts) => {
   scene.badges.push(placeBadge(axisModeBadge(false), SLOT.axisMode, width));
   scene.badges.push(
     placeBadge(
-      badge("autoscale", "副轴：自适应（log 纵轴按本帧三条残差曲线取整；自适应会掩盖量级变化）", 8, 8),
+      badge("autoscale", "副轴：自适应 log 纵轴（按本帧三条残差取整）", 8, 8),
       SLOT.auxAxis,
       width,
     ),
   );
-  const status: string[] = [];
+  const status: string[] = [`k=${formatNumber(kNow, 4)}`];
   if (landingInWindow && landingOffset !== undefined) {
-    status.push(`0.1+0.2 落在中心之上 ${formatNumber(landingOffset, 3)} 个 ulp`);
+    status.push(`0.1+0.2 在中心上 ${formatNumber(landingOffset, 3)} ulp`);
   } else if (!landingInWindow) {
-    status.push("0.1+0.2 不在当前窗口内：把中心调到 0.3 再看");
+    status.push("0.1+0.2 不在当前窗口");
   }
-  if (note !== undefined) status.push(note);
-  if (bigPlusOneUnchanged) status.push("1e16+1 = 1e16（ties-to-even），不是渲染 bug");
-  if (status.length === 0) status.push("帧未给出可判读的状态（预期有 strings.note 与 meta.landing_ulps）");
+  if (note === undefined) status.push("帧未给出 note");
+  if (status.length === 1) status.push("帧未给出可判读的落点状态");
   scene.badges.push(placeBadge(badge("status", status.join("；"), 8, 8), SLOT.status, width));
   const degradedNode = degradedBadge(degraded, SLOT.degraded, width);
   if (degradedNode !== undefined) scene.badges.push(degradedNode);
@@ -488,7 +490,7 @@ export const floatZoomModel: SceneModel = (frame, opts) => {
   }
   // 窄画布（480px）下每块说明都会多折一两行，模型里按自己的行数排的下一块就会压上去。
   // 这里用共享盒子量法统一消解（放不下的如实计数并写明）；960×600 下是恒等变换。
-  scene.texts = avoidTextOverlap(scene.texts, [8, 24, width - 16, height - 132]);
+  scene.texts = avoidTextOverlap(scene.texts, [8, 24, width - 16, layout.aux[1] + layout.aux[3] - 24]);
 
   return scene;
 };
@@ -496,6 +498,24 @@ export const floatZoomModel: SceneModel = (frame, opts) => {
 // --------------------------------------------------------------------------- //
 // 局部工具
 // --------------------------------------------------------------------------- //
+
+interface TextBlockSpec {
+  lines: readonly string[];
+  color: string;
+  gapAfter?: number;
+}
+
+/** 把几组说明按序排进右栏；放不下的行由 `textBlock` 截断并如实计数。 */
+function pushTextColumn(out: TextSpec[], rect: Rect, blocks: readonly TextBlockSpec[]): void {
+  const budget = unitBudget(rect[2]);
+  const bottom = rect[1] + rect[3] - 4;
+  let y = rect[1] + 4;
+  for (const block of blocks) {
+    const nodes = textBlock(rect[0], y, bottom, block.lines, block.color, budget, "top");
+    out.push(...nodes);
+    y += nodes.length * TEXT_ROW_H + (block.gapAfter ?? 0);
+  }
+}
 
 /** 取"长度 1 的数组"的第 0 个元素；缺数组、空数组、非有限值一律 undefined（降级，不猜）。 */
 function optionalFirst(frame: Frame, name: string): number | undefined {
