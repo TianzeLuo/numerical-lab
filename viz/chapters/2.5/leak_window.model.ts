@@ -234,7 +234,7 @@ export const leakWindowModel: SceneModel = (frame, opts) => {
   // —— 图层 3~6：dB 谱 + 旁瓣水平线 + 锚点 ——
   const specRefs: LineSeries[] = [];
   if (peakDb !== undefined) {
-    specRefs.push(series([0, specXlim[1]], [peakDb, peakDb], pal.marker, { width: 1.4, dash: [6, 3], label: "峰值电平" }));
+    specRefs.push(series([0, specXlim[1]], [peakDb, peakDb], pal.marker, { width: 1.4, dash: [6, 3], label: "峰值高度" }));
   }
   if (harrisDb !== undefined) {
     specRefs.push(series([0, specXlim[1]], [harrisDb, harrisDb], pal.exact, { width: 1.2, dash: [2, 3], label: "Harris 旁瓣参考" }));

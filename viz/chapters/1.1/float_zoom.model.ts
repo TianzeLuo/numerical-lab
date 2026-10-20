@@ -100,7 +100,7 @@ import { manifest } from "./manifest.gen.js";
 const CHAPTER = "1.1";
 const VIZ = "float_zoom";
 const SPEC = manifest.vizzes.find((v) => v.id === VIZ);
-const TITLE = SPEC?.title ?? "数轴放大镜：浮点网格与 0.1+0.2 的落点";
+const TITLE = SPEC?.title ?? "0.1+0.2 为什么不等于 0.3：放大数轴看舍入";
 
 /** 固定角标槽位（见 `model.ts::BADGE_LAYOUT`）。 */
 const SLOT = {
@@ -246,11 +246,10 @@ export const floatZoomModel: SceneModel = (frame, opts) => {
   const ladderAxis = makeAxis("ladder", mainRect, {
     xlim: [-half, half],
     ylim: LADDER_YLIM,
-    // 主轴 xlabel 置空：下方面板顶部要放说明文字，留着这条带子就会撞上（规则 8）。
-    // 横轴的含义写在图的标题与图例里（manifest 的 axes 也只给了 title/ylabel）。
-    xlabel: "",
-    ylabel: axisYlabelOf(SPEC?.axes, "ladder", "间距 / 该窗口中心的 ulp"),
-    title: axisTitleOf(SPEC?.axes, "ladder", "浮点梯子：中心窗口与最近的 2 的幂窗口"),
+    // 网页显示层会按可用空间决定是否把轴名画上画布；模型给出准确名称即可。
+    xlabel: "距中心的 ulp 偏移",
+    ylabel: axisYlabelOf(SPEC?.axes, "ladder", "间距（ulp）"),
+    title: axisTitleOf(SPEC?.axes, "ladder", "窗口内相邻浮点数的间距"),
     autoscaled: false,
     xticks: niceTicks(-half, half, 9),
     yticks: [RATIO_HALVED, 0.75, RATIO_UNIFORM],
@@ -277,8 +276,8 @@ export const floatZoomModel: SceneModel = (frame, opts) => {
     ylim: auxYlim,
     yscale: "log",
     xlabel: "0.1 的累加次数 k",
-    ylabel: axisYlabelOf(SPEC?.axes, "residual", "|fl(Σ0.1) − k/10|"),
-    title: axisTitleOf(SPEC?.axes, "residual", "0.1 累加 k 次与 k/10 的残差（0 以地板显示）"),
+    ylabel: axisYlabelOf(SPEC?.axes, "residual", "残差"),
+    title: axisTitleOf(SPEC?.axes, "residual", "0.1 累加 k 次与精确值 k/10 的差"),
     autoscaled: true,
     tickTarget: 5,
   });

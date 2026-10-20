@@ -235,6 +235,34 @@ def check_guides(expected: list[str]) -> tuple[list[str], dict[str, int]]:
         for phrase in BANNED_GUIDE_PHRASES:
             if phrase in intro:
                 errors.append(f"guides.{ch}: banned phrase {phrase!r}")
+        glossary = entry.get("glossary")
+        if not isinstance(glossary, list) or not 2 <= len(glossary) <= 4:
+            errors.append(f"guides.{ch}: glossary must list 2..4 terms")
+            continue
+        seen_terms: set[str] = set()
+        for i, item in enumerate(glossary):
+            where = f"guides.{ch}.glossary[{i}]"
+            if not isinstance(item, dict):
+                errors.append(f"{where}: entry must be an object")
+                continue
+            term = item.get("term")
+            desc = item.get("desc")
+            if not isinstance(term, str) or not term.strip() or len(term.strip()) > 24:
+                errors.append(f"{where}: term must be a nonempty string up to 24 chars")
+                continue
+            if "\n" in term or "\n" in str(desc):
+                errors.append(f"{where}: term/desc must be single-line")
+            if term.strip() in seen_terms:
+                errors.append(f"{where}: duplicate term {term!r}")
+            seen_terms.add(term.strip())
+            if not isinstance(desc, str) or not 8 <= len(desc.strip()) <= 80:
+                errors.append(f"{where}: desc length must be 8..80 chars")
+                continue
+            for phrase in BANNED_GUIDE_PHRASES:
+                if phrase in term or phrase in desc:
+                    errors.append(f"{where}: banned phrase {phrase!r}")
+        stats.setdefault("glossary", 0)
+        stats["glossary"] += len(glossary)
     if lengths:
         stats["count"] = len(lengths)
         stats["min"] = min(lengths)

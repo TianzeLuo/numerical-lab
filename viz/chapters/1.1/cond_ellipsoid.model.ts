@@ -90,7 +90,7 @@ import { manifest } from "./manifest.gen.js";
 const CHAPTER = "1.1";
 const VIZ = "cond_ellipsoid";
 const SPEC = manifest.vizzes.find((v) => v.id === VIZ);
-const TITLE = SPEC?.title ?? "条件数椭球：单位圆的像与解 x 的跳变";
+const TITLE = SPEC?.title ?? "条件数 κ(A)：输入的小误差会被放大多少倍";
 
 /** 固定角标槽位（见 `model.ts::BADGE_LAYOUT`）。 */
 const SLOT = {
@@ -229,9 +229,9 @@ export const condEllipsoidModel: SceneModel = (frame, opts) => {
   const mainAxis = makeAxis("geometry", mainRect, {
     xlim: MAIN_LIM,
     ylim: MAIN_LIM,
-    xlabel: "x",
-    ylabel: axisYlabelOf(SPEC?.axes, "geometry", "y"),
-    title: axisTitleOf(SPEC?.axes, "geometry", "单位圆与它的像（固定 ±3）"),
+    xlabel: "x₁",
+    ylabel: axisYlabelOf(SPEC?.axes, "geometry", "x₂"),
+    title: axisTitleOf(SPEC?.axes, "geometry", "单位圆与 A 作用后的椭圆"),
     autoscaled: false,
   });
 
@@ -253,8 +253,8 @@ export const condEllipsoidModel: SceneModel = (frame, opts) => {
     xscale: "linear",
     yscale: "log",
     xlabel: "log10 κ（目标）",
-    ylabel: axisYlabelOf(SPEC?.axes, "error", "相对误差放大比"),
-    title: axisTitleOf(SPEC?.axes, "error", "实测放大比与理论上界 κ（对数）"),
+    ylabel: axisYlabelOf(SPEC?.axes, "error", "放大比"),
+    title: axisTitleOf(SPEC?.axes, "error", "实测放大比与最坏情况上界 κ(A)"),
     autoscaled: true,
     tickTarget: 5,
   });

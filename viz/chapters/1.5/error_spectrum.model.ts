@@ -280,7 +280,7 @@ export const errorSpectrumModel: SceneModel = (frame, opts) => {
         vmax: vmaxLog,
         // 值已经是 log10（后端在地板处截断过）：再开 logScale 就成了 loglog，是另一张图。
         logScale: false,
-        label: "log10|分量|",
+        label: "误差分量大小（log10）",
       }),
     );
   } else {

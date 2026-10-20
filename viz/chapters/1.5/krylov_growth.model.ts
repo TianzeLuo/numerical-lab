@@ -363,7 +363,7 @@ export const krylovGrowthModel: SceneModel = (frame, opts) => {
         vmin: MATRIX_LOG_FLOOR,
         vmax: Math.max(MATRIX_LOG_FLOOR + 1, Math.ceil(maxFinite(hv, MATRIX_LOG_FLOOR))),
         logScale: false, // 值已经取过 log10，再开对数就成了 loglog
-        label: "log10|H|（地板 1e-16）",
+        label: "Hessenberg 矩阵元素（log10）",
       }),
     );
     hessNote.push(`H 是 ${formatNumber(hessenberg.rows, 3)}×${formatNumber(hessenberg.cols, 3)}，纵轴 0 在下：零区在左上`);
@@ -381,7 +381,7 @@ export const krylovGrowthModel: SceneModel = (frame, opts) => {
         vmin: MATRIX_LOG_FLOOR,
         vmax: Math.max(MATRIX_LOG_FLOOR + 1, Math.ceil(maxFinite(orthValues, MATRIX_LOG_FLOOR))),
         logScale: false,
-        label: "log10|内积|",
+        label: "基向量内积（log10）",
       }),
     );
   } else {

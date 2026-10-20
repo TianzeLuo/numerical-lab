@@ -94,7 +94,7 @@ import { manifest } from "./manifest.gen.js";
 const CHAPTER = "1.1";
 const VIZ = "cancellation";
 const SPEC = manifest.vizzes.find((v) => v.id === VIZ);
-const TITLE = SPEC?.title ?? "灾难性抵消：有效位一位一位消失";
+const TITLE = SPEC?.title ?? "两个相近数相减：有效数字为什么会消失";
 
 /** 固定角标槽位（见 `model.ts::BADGE_LAYOUT`）。 */
 const SLOT = {
@@ -185,10 +185,10 @@ export const cancellationModel: SceneModel = (frame, opts) => {
   const mainAxis = makeAxis("digits", mainRect, {
     xlim: [Math.min(0, Math.floor(tLo)), Math.max(DIGITS_LIM[1], Math.ceil(tHi))],
     ylim: DIGITS_LIM,
-    // 主轴 xlabel 置空（下方面板顶部要放说明文字，规则 8）；横轴含义写进图例。
+    // 这条轴名在显示层的 HTML 面板说明里由标题给出；画在画布上会撞到下方说明带。
     xlabel: "",
-    ylabel: axisYlabelOf(SPEC?.axes, "digits", "位数"),
-    title: axisTitleOf(SPEC?.axes, "digits", "剩余有效位数（固定 0..16）"),
+    ylabel: axisYlabelOf(SPEC?.axes, "digits", "剩余位数"),
+    title: axisTitleOf(SPEC?.axes, "digits", "相减后还剩多少位十进制有效数字（横轴 = 损失位数 t）"),
     autoscaled: false,
     xticks: integerTicks(0, 16, 2),
     yticks: integerTicks(0, 16, 2),
@@ -209,9 +209,9 @@ export const cancellationModel: SceneModel = (frame, opts) => {
     xlim: mainAxis.xlim,
     ylim: auxYlim,
     yscale: "log",
-    xlabel: "损失位数 t",
+    xlabel: "",
     ylabel: axisYlabelOf(SPEC?.axes, "error", "相对误差"),
-    title: axisTitleOf(SPEC?.axes, "error", "结果的相对误差（0 以 u/2 显示）"),
+    title: axisTitleOf(SPEC?.axes, "error", "结果的相对误差与理论上界（横轴 = 损失位数 t）"),
     autoscaled: true,
     xticks: niceTicks(mainAxis.xlim[0], mainAxis.xlim[1], 7),
   });
@@ -222,7 +222,7 @@ export const cancellationModel: SceneModel = (frame, opts) => {
   scene.layers.push(
     lineLayer(
       "digits",
-      series([tNow, tNow], DIGITS_LIM, pal.cursor, { width: 1, dash: [3, 3], label: "当前损失位数（帧 meta.loss_mark）" }),
+      series([tNow, tNow], DIGITS_LIM, pal.cursor, { width: 1, dash: [3, 3], label: "当前损失位数" }),
     ),
     lineLayer("error", series([tNow, tNow], auxAxis.ylim, pal.cursor, { width: 1, dash: [3, 3] })),
   );
@@ -230,20 +230,20 @@ export const cancellationModel: SceneModel = (frame, opts) => {
   // —— 图层 2：先验剩余有效位数（斜率 −1 的直线）——
   const digitsSeries = segmentedSeries(lossGrid, digitsRemaining, pal.curves[0] ?? "#2b6cb0", {
     width: 1.9,
-    label: "先验剩余有效位数 log10(|a−b|/(δ_in·M))：每抵消 10 倍少一位",
+    label: "先验剩余有效位数",
   });
   if (digitsSeries.length > 0) scene.layers.push(lineLayer("digits", digitsSeries));
   else degraded.push("digits_remaining 没有可绘的有限值：主轴画不出下降曲线");
 
   // —— 图层 3：当前点 ——
   if (digitsMark !== undefined && lossMark !== undefined) {
-    scene.layers.push(scatterLayer("digits", [lossMark], [digitsMark], { r: 4.5, color: pal.marker, label: "当前 (t, 剩余位数)" }));
+    scene.layers.push(scatterLayer("digits", [lossMark], [digitsMark], { r: 4.5, color: pal.marker, label: "当前游标" }));
   }
 
   // —— 图层 4~8：副轴的三条曲线 + 两个标记 ——
   const errSeries = segmentedSeries(lossGrid, error, pal.residual, {
     width: 2,
-    label: "实测：输入扰动被放大后的相对误差（把 a、b 各推 ulp 个 ulp 实测）",
+    label: "实测相对误差",
     accept: (v) => v > 0,
   });
   if (errSeries.length > 0) scene.layers.push(lineLayer("error", errSeries));
@@ -252,7 +252,7 @@ export const cancellationModel: SceneModel = (frame, opts) => {
   const theorySeries = segmentedSeries(lossGrid, errorTheory, pal.curves[2] ?? "#b7791f", {
     width: 1.5,
     dash: [7, 4],
-    label: "理论上界 δ_in(|a|+|b|)/|a−b|",
+    label: "理论上界",
     accept: (v) => v > 0,
   });
   if (theorySeries.length > 0) scene.layers.push(lineLayer("error", theorySeries));
@@ -261,7 +261,7 @@ export const cancellationModel: SceneModel = (frame, opts) => {
   const roundSeries = segmentedSeries(lossGrid, roundoff, pal.curves[1] ?? "#2f855a", {
     width: 1.5,
     dash: [2, 3],
-    label: "减法**自身**的舍入误差（Sterbenz 区里恒为 0，被地板抬起）",
+    label: "减法自身的舍入误差",
     accept: (v) => v > 0,
   });
   if (roundSeries.length > 0) scene.layers.push(lineLayer("error", roundSeries));
@@ -274,11 +274,11 @@ export const cancellationModel: SceneModel = (frame, opts) => {
     // 用同一把地板尺子标出"贴地板"的点：这里 31 个点全都贴在 u/2 上（减法精确）。
     const p = pick(lossGrid, roundoff, onFloor);
     scene.layers.push(
-      scatterLayer("error", p.x, p.y, { r: 3, color: pal.curves[1] ?? "#2f855a", alpha: 0.9, label: `减法舍入误差贴地板的 ${onFloor.length} 个点（实测 0）` }),
+      scatterLayer("error", p.x, p.y, { r: 3, color: pal.curves[1] ?? "#2f855a", alpha: 0.9, label: "舍入误差采样点" }),
     );
   }
   if (errorMark !== undefined && lossMark !== undefined && errorMark > 0) {
-    scene.layers.push(scatterLayer("error", [lossMark], [errorMark], { r: 4.5, color: pal.marker, label: "当前实测放大后相对误差" }));
+    scene.layers.push(scatterLayer("error", [lossMark], [errorMark], { r: 4.5, color: pal.marker, label: "当前实测相对误差" }));
   }
   if (roundoffMark !== undefined && lossMark !== undefined && roundoffMark > 0) {
     scene.layers.push(scatterLayer("error", [lossMark], [roundoffMark], { r: 4, color: pal.curves[1] ?? "#2f855a", alpha: 0.8 }));

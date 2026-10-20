@@ -232,7 +232,7 @@ def _viz_scheme_zoo(p: Mapping[str, Any], t: float) -> Frame:
         stability_note=(
             f"max|G| = {ad.max_abs_symbol(scheme, nu):.6f}（>1 表示每步都在放大，"
             "此时曲线照样可能「看起来光滑」）。中心差分与迎风/下风在 euler 下的稳定域不同，"
-            "本帧的 integrator 参数就是让你亲手切过去看的。"
+            "切换 integrator 参数就能直接看到差别。"
         ),
     )
     return fr

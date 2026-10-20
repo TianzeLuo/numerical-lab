@@ -96,7 +96,7 @@ import { manifest } from "./manifest.gen.js";
 const CHAPTER = "1.1";
 const VIZ = "summation_order";
 const SPEC = manifest.vizzes.find((v) => v.id === VIZ);
-const TITLE = SPEC?.title ?? "求和顺序：朴素 vs Kahan vs 成对 vs 排序";
+const TITLE = SPEC?.title ?? "加法顺序为什么影响结果：朴素、Kahan、成对与排序";
 
 /** 固定角标槽位（见 `model.ts::BADGE_LAYOUT`）。 */
 const SLOT = {
@@ -209,10 +209,9 @@ export const summationOrderModel: SceneModel = (frame, opts) => {
   const mainAxis = makeAxis("terms", mainRect, {
     xlim: niceLimits(finiteMinMax(termsK)?.[0] ?? 0, finiteMinMax(termsK)?.[1] ?? 1, 8),
     ylim: niceLimits(Math.min(0, tRange[0]), Math.max(tRange[1], tRange[0] === tRange[1] ? tRange[0] + 1 : tRange[0]), 5),
-    // 主轴 xlabel 置空（下方面板顶部要放说明文字，规则 8）；横轴含义写进面板文字。
     xlabel: "",
-    ylabel: axisYlabelOf(SPEC?.axes, "terms", "x_i"),
-    title: axisTitleOf(SPEC?.axes, "terms", "项序列（前 64 项）"),
+    ylabel: axisYlabelOf(SPEC?.axes, "terms", "xᵢ"),
+    title: axisTitleOf(SPEC?.axes, "terms", "被相加的项（横轴 = 项序号 i；最大项在前）"),
     autoscaled: true,
     tickTarget: 6,
   });
@@ -242,8 +241,8 @@ export const summationOrderModel: SceneModel = (frame, opts) => {
     ylim: auxYlim,
     yscale: "log",
     xlabel: "部分和长度 k",
-    ylabel: axisYlabelOf(SPEC?.axes, "error", "绝对误差 |fl(Σx) − Σx|"),
-    title: axisTitleOf(SPEC?.axes, "error", "五种顺序的误差与两条理论界（对数）"),
+    ylabel: axisYlabelOf(SPEC?.axes, "error", "绝对误差"),
+    title: axisTitleOf(SPEC?.axes, "error", "各求和顺序的绝对误差与两条理论上界"),
     autoscaled: true,
     tickTarget: 6,
   });

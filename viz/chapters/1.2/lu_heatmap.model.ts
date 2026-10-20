@@ -253,7 +253,7 @@ export const luHeatmapModel: SceneModel = (frame, opts) => {
       logScale: false, // 值已经是 log10；再开 logScale 就是 loglog 了（见文件头第 2 条）
       // 这个 label 只有**光栅器**用得上：tools/raster.py 会把 heat 图层的 label
       // 居中画在自动色标条下方，太长会糊到隔壁面板上；完整说明放在下面的图例里。
-      label: "log10|元素|",
+      label: "矩阵元素（log10）",
     }),
   );
 
