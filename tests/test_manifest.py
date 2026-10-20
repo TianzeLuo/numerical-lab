@@ -243,6 +243,31 @@ def test_time_n_frames() -> None:
     assert man.viz("demo").time.n_frames == 11
 
 
+def test_time_max_param_must_reference_numeric_param() -> None:
+    m = good_manifest()
+    m["vizzes"][0]["time"] = {"mode": "scrub", "tMax": 1.0, "dt": 0.1, "tMaxParam": "n"}
+    assert problems_of(m) == []
+    man = load_manifest(m)
+    assert man.viz("demo").time.t_max_param == "n"
+    assert man.to_json()["vizzes"][0]["time"]["tMaxParam"] == "n"
+
+    m = good_manifest()
+    m["vizzes"][0]["time"] = {"mode": "scrub", "tMax": 1.0, "dt": 0.1, "tMaxParam": "missing"}
+    assert any("不存在的参数" in p for p in problems_of(m))
+
+    m = good_manifest()
+    m["vizzes"][0]["time"] = {"mode": "scrub", "tMax": 1.0, "dt": 0.1, "tMaxParam": "mode"}
+    assert any("只能指向 int/float" in p for p in problems_of(m))
+
+    m = good_manifest()
+    m["vizzes"][0]["time"] = {"mode": "none", "tMaxParam": "n"}
+    assert any("不得声明时间控件" in p for p in problems_of(m))
+
+    m = good_manifest()
+    m["vizzes"][0]["time"] = {"mode": "scrub", "tMax": 1.0, "dt": 0.1, "tMaxParam": 7}
+    assert any("非空参数名" in p for p in problems_of(m))
+
+
 # --------------------------------------------------------------------------- #
 # 规则 1/3/7
 # --------------------------------------------------------------------------- #

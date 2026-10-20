@@ -46,6 +46,8 @@ export interface TimeSpecJson {
   dt?: number;
   fps?: number;
   label?: string;
+  /** 时间轴上限跟随的数值参数名（例如 `k` 最多走到节点数 `n`）。 */
+  tMaxParam?: string;
 }
 
 export interface VizSpecJson {
@@ -123,6 +125,7 @@ export function validateManifestJson(raw: unknown): string[] {
       out.push(`${tag}：dataSource 必须是 ${DATA_SOURCES.join(" / ")} 之一`);
     }
     const params = v["params"];
+    const paramTypes = new Map<string, string>();
     if (!Array.isArray(params) || params.length === 0) {
       out.push(`${tag}：params 必须是非空列表`);
     } else {
@@ -136,6 +139,7 @@ export function validateManifestJson(raw: unknown): string[] {
         if (pn === "") out.push(`${tag}：参数 name 必须是非空字符串`);
         else if (names.has(pn)) out.push(`${tag}：参数名重复：${pn}`);
         else names.add(pn);
+        if (typeof p["type"] === "string") paramTypes.set(pn, p["type"]);
         if (typeof p["type"] !== "string" || !PARAM_TYPES.includes(p["type"])) {
           out.push(`${tag}.${pn}：type 必须是 ${PARAM_TYPES.join(" / ")} 之一`);
         }
@@ -168,8 +172,8 @@ export function validateManifestJson(raw: unknown): string[] {
     } else if (typeof time["mode"] !== "string" || !TIME_MODES.includes(time["mode"])) {
       out.push(`${tag}：time.mode 必须是 ${TIME_MODES.join(" / ")} 之一`);
     } else if (time["mode"] === "none") {
-      if (time["tMax"] !== undefined || time["dt"] !== undefined) {
-        out.push(`${tag}：time.mode === "none" 时不得声明 tMax/dt`);
+      if (time["tMax"] !== undefined || time["dt"] !== undefined || time["tMaxParam"] !== undefined) {
+        out.push(`${tag}：time.mode === "none" 时不得声明 tMax/dt/tMaxParam`);
       }
     } else {
       const tMax = time["tMax"];
@@ -178,6 +182,16 @@ export function validateManifestJson(raw: unknown): string[] {
       if (typeof dt !== "number" || !(dt > 0)) out.push(`${tag}：time.dt 必须为正数`);
       if (typeof tMax === "number" && typeof dt === "number" && dt > tMax) {
         out.push(`${tag}：time.dt 不应大于 tMax`);
+      }
+      const cap = time["tMaxParam"];
+      if (cap !== undefined) {
+        if (typeof cap !== "string" || cap.trim() === "") {
+          out.push(`${tag}：time.tMaxParam 必须是非空参数名`);
+        } else if (!paramTypes.has(cap)) {
+          out.push(`${tag}：time.tMaxParam 指向不存在的参数 ${cap}`);
+        } else if (paramTypes.get(cap) !== "int" && paramTypes.get(cap) !== "float") {
+          out.push(`${tag}：time.tMaxParam 只能指向 int/float 参数，${cap} 是 ${paramTypes.get(cap)}`);
+        }
       }
     }
     const aux = v["requiredAux"];

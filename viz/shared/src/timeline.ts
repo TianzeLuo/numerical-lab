@@ -68,11 +68,11 @@ function positiveOr(value: unknown, fallback: number): number {
  */
 export class Timeline {
   readonly #mode: TimeMode;
-  readonly #tMax: number;
+  #tMax: number;
   readonly #dt: number;
   readonly #fps: number;
   readonly #now: () => number;
-  readonly #frameCount: number;
+  #frameCount: number;
 
   #t = 0;
   #playing = false;
@@ -225,6 +225,25 @@ export class Timeline {
     const count = typeof n === "number" && Number.isFinite(n) ? Math.trunc(n) : 0;
     if (count === 0) return;
     this.seek(this.#t + count * this.#dt);
+  }
+
+  /**
+   * 调整时间轴上限（例如 `k` 只能走到参数 `n`）。
+   *
+   * 上限缩小时当前时刻随之夹紧；放大时保持当前位置。播放头停在旧末端的情况
+   * 会退出 `ended`，让用户能继续往后拖。
+   */
+  setRange(tMax: number): void {
+    if (this.#mode === "none") return;
+    if (typeof tMax !== "number" || !Number.isFinite(tMax) || tMax <= 0) return;
+    if (tMax === this.#tMax) return;
+    this.#tMax = tMax;
+    this.#frameCount = Math.floor(tMax / this.#dt) + 1;
+    if (this.#t > tMax) this.#t = tMax;
+    this.#ended = this.#t >= this.#tMax;
+    this.#acc = 0;
+    this.#lastNow = this.#now();
+    this.#emit();
   }
 
   /** 调速（0.1×–16×）；非法值（≤0、NaN）回落到 1×。 */

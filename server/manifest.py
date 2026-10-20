@@ -115,10 +115,17 @@ class TimeSpec:
     dt: float | None = None
     fps: int | None = None
     label: str = "t"
+    t_max_param: str | None = None
 
     def to_json(self) -> dict[str, Any]:
         out: dict[str, Any] = {"mode": self.mode}
-        for key, val in (("tMax", self.t_max), ("dt", self.dt), ("fps", self.fps), ("label", self.label)):
+        for key, val in (
+            ("tMax", self.t_max),
+            ("dt", self.dt),
+            ("fps", self.fps),
+            ("label", self.label),
+            ("tMaxParam", self.t_max_param),
+        ):
             if val is not None:
                 out[key] = val
         return out
@@ -288,7 +295,7 @@ def _check_params(viz_id: str, raw: Any, problems: list[str]) -> None:
                     problems.append(f"{tag}: default={d} 大于 max={hi}")
 
 
-def _check_time(viz_id: str, raw: Any, problems: list[str]) -> None:
+def _check_time(viz_id: str, raw: Any, problems: list[str], params: Any = None) -> None:
     if raw is None:
         problems.append(f"{viz_id}: 缺少 time 字段（没有时间轴也要写 {{\"mode\": \"none\"}}）")
         return
@@ -300,7 +307,7 @@ def _check_time(viz_id: str, raw: Any, problems: list[str]) -> None:
         problems.append(f"{viz_id}: time.mode 必须是 {TIME_MODES} 之一，得到 {mode!r}")
         return
     if mode == "none":
-        extra = {"tMax", "dt", "fps"} & set(raw)
+        extra = {"tMax", "dt", "fps", "tMaxParam"} & set(raw)
         if extra:
             problems.append(f"{viz_id}: time.mode='none' 时不得声明时间控件 {sorted(extra)}——规则 4")
         return
@@ -313,6 +320,21 @@ def _check_time(viz_id: str, raw: Any, problems: list[str]) -> None:
     fps = raw.get("fps")
     if fps is not None and (not isinstance(fps, int) or not 1 <= fps <= 120):
         problems.append(f"{viz_id}: fps 必须是 1..120 的整数")
+    cap = raw.get("tMaxParam")
+    if cap is not None:
+        if not isinstance(cap, str) or not cap.strip():
+            problems.append(f"{viz_id}: time.tMaxParam 必须是非空参数名")
+        else:
+            pmap = {
+                p.get("name"): p
+                for p in (params if isinstance(params, (list, tuple)) else ())
+                if isinstance(p, Mapping)
+            }
+            p = pmap.get(cap)
+            if p is None:
+                problems.append(f"{viz_id}: time.tMaxParam 指向不存在的参数 {cap!r}")
+            elif p.get("type") not in ("int", "float"):
+                problems.append(f"{viz_id}: time.tMaxParam 只能指向 int/float 参数，{cap} 是 {p.get('type')!r}")
 
 
 def validate_manifest(raw: Mapping[str, Any], *, where: str = "") -> list[str]:
@@ -345,7 +367,7 @@ def validate_manifest(raw: Mapping[str, Any], *, where: str = "") -> list[str]:
         if v.get("dataSource") not in DATA_SOURCES:
             problems.append(f"{vid}: dataSource 必须是 {DATA_SOURCES} 之一，得到 {v.get('dataSource')!r}")
         _check_params(vid, v.get("params"), problems)
-        _check_time(vid, v.get("time"), problems)
+        _check_time(vid, v.get("time"), problems, v.get("params"))
         aux = v.get("requiredAux")
         if not isinstance(aux, (list, tuple)) or len(aux) == 0:
             problems.append(f"{vid}: requiredAux 必须非空——规则 3 要求给出误差或残差场")
@@ -421,6 +443,7 @@ def load_manifest(raw: Mapping[str, Any], *, where: str = "") -> ChapterManifest
             dt=t.get("dt"),
             fps=t.get("fps"),
             label=t.get("label", "t"),
+            t_max_param=t.get("tMaxParam"),
         )
         axes = tuple(
             AxisSpec(id=a["id"], autoscaled=bool(a["autoscaled"]), title=a.get("title", ""), ylabel=a.get("ylabel", ""), scale=a.get("scale", "linear"))

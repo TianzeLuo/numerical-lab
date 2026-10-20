@@ -144,6 +144,35 @@ test("seek：夹到 [0, tMax]，到末端标记 ended，并重置节流", () => 
   assert.equal(tl.ended, false);
 });
 
+test("setRange：收紧上限时夹住 t、重算帧数，并保持 ended 一致", () => {
+  const { tl, events } = makeTimeline({ mode: "scrub", tMax: 40, dt: 1 });
+  tl.seek(40);
+  assert.equal(tl.ended, true);
+  const before = events.length;
+  tl.setRange(12);
+  assert.equal(tl.tMax, 12);
+  assert.equal(tl.t, 12, "t 必须夹到新上限");
+  assert.equal(tl.frameCount, 13);
+  assert.equal(tl.ended, true);
+  assert.equal(events.length, before + 1);
+  assert.equal(events[events.length - 1]!.frames, 13);
+});
+
+test("setRange：放大上限时保持当前位置、退出 ended；非法值 no-op", () => {
+  const { tl } = makeTimeline({ mode: "scrub", tMax: 12, dt: 1 });
+  tl.seek(12);
+  tl.setRange(20);
+  assert.equal(tl.t, 12, "上限变大不替用户往前跳");
+  assert.equal(tl.ended, false, "原来停在旧末端，放大后应能继续往后拖");
+  assert.equal(tl.frameCount, 21);
+  tl.setRange(Number.NaN);
+  tl.setRange(0);
+  assert.equal(tl.tMax, 20, "非法上限不改范围");
+  const none = makeTimeline({ mode: "none", tMax: 1, dt: 0.1 }).tl;
+  none.setRange(5);
+  assert.equal(none.tMax, 0, "静态时间轴没有范围可调");
+});
+
 test("step：单步（可负），不改变播放态也不产生丢帧", () => {
   const { tl } = makeTimeline({ mode: "scrub", tMax: 1, dt: 0.1 });
   tl.step(3);

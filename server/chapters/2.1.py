@@ -596,7 +596,13 @@ MANIFEST: dict[str, Any] = {
                     "criticalNote": "",
                 },
             ],
-            "time": {"mode": "scrub", "tMax": 40.0, "dt": 1.0, "label": "已用节点数 k"},
+            "time": {
+                "mode": "scrub",
+                "tMax": 40.0,
+                "dt": 1.0,
+                "label": "已用节点数 k",
+                "tMaxParam": "n",
+            },
             "requiredAux": ["error"],
             "axes": [
                 {
@@ -669,7 +675,13 @@ MANIFEST: dict[str, Any] = {
                     "criticalNote": "",
                 },
             ],
-            "time": {"mode": "scrub", "tMax": 60.0, "dt": 1.0, "label": "节点数 n"},
+            "time": {
+                "mode": "scrub",
+                "tMax": 60.0,
+                "dt": 1.0,
+                "label": "节点数 n",
+                "tMaxParam": "n_max",
+            },
             "requiredAux": ["error"],
             "axes": [
                 {
@@ -834,7 +846,13 @@ MANIFEST: dict[str, Any] = {
                     "criticalNote": "",
                 },
             ],
-            "time": {"mode": "scrub", "tMax": 36.0, "dt": 1.0, "label": "节点数 n"},
+            "time": {
+                "mode": "scrub",
+                "tMax": 36.0,
+                "dt": 1.0,
+                "label": "节点数 n",
+                "tMaxParam": "n_max",
+            },
             "requiredAux": ["error", "residual"],
             "axes": [
                 {
