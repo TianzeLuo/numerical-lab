@@ -2179,6 +2179,7 @@ def _draw_line_layer(
     layer: Mapping[str, Any],
     *,
     avoid: Sequence[tuple[float, float, float, float]] = (),
+    draw_labels: bool = True,
 ) -> None:
     canvas.push_clip(*[float(v) for v in axis["rect"]])
     for s in layer.get("series", []):
@@ -2204,7 +2205,7 @@ def _draw_line_layer(
                     canvas.line(px - radius, py - radius, px + radius, py + radius, color, width=1, alpha=alpha)
                     if marker == "+":
                         canvas.line(px - radius, py + radius, px + radius, py - radius, color, width=1, alpha=alpha)
-        if s.get("label"):
+        if s.get("label") and draw_labels:
             last = None
             for i in range(0, len(path), 2):
                 if path[i] is not None and path[i + 1] is not None:
@@ -2438,7 +2439,14 @@ def _draw_layer(canvas: Canvas, scene: Mapping[str, Any], layer: Mapping[str, An
         return
     kind = layer.get("kind")
     if kind == "line":
-        _draw_line_layer(canvas, axis, layer, avoid=_scene_text_boxes(scene))
+        chrome = scene.get("chrome") or {}
+        _draw_line_layer(
+            canvas,
+            axis,
+            layer,
+            avoid=_scene_text_boxes(scene),
+            draw_labels=chrome.get("texts", True) is not False,
+        )
     elif kind == "band":
         _draw_band_layer(canvas, axis, layer)
     elif kind == "scatter":
@@ -2462,6 +2470,7 @@ def _draw_colorbar(
     layer: Mapping[str, Any],
     *,
     font_size: float = _BASE_FONT_SIZE,
+    draw_label: bool = True,
 ) -> None:
     """色标条：与 ``render2d.ts::drawColorbar`` 同一算法。
 
@@ -2490,7 +2499,7 @@ def _draw_colorbar(
     labels = [vmax, math.sqrt(vmin * vmax), vmin] if log_scale else [vmax, (vmin + vmax) / 2.0, vmin]
     for i, v in enumerate(labels):
         canvas.text(x + w + 4, y + (i * h) / (len(labels) - 1), format_number(float(v), 4), font_size - 1, _DEFAULT_FONT_COLOR, align="left", baseline="middle")
-    if layer.get("label"):
+    if layer.get("label") and draw_label:
         canvas.text(x + w / 2, y + h + 4, str(layer["label"]), font_size - 1, _DEFAULT_FONT_COLOR, align="center", baseline="top")
 
 
@@ -2551,7 +2560,13 @@ def render_scene(
         if layer.get("kind") == "heat":
             axis = next((a for a in scene.get("axes", []) if a.get("id") == layer.get("axes")), None)
             if axis is not None:
-                _draw_colorbar(canvas, axis, layer, font_size=opts.base_font_size)
+                _draw_colorbar(
+                    canvas,
+                    axis,
+                    layer,
+                    font_size=opts.base_font_size,
+                    draw_label=chrome.get("texts", True) is not False,
+                )
     if chrome.get("texts", True):
         for txt in scene.get("texts", []):
             canvas.text(

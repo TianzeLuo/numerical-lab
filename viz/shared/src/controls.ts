@@ -257,12 +257,18 @@ interface RenderedControl {
  * 不重建 DOM（重建会让拖动中断）。`spec.hints` 仍然保留在纯函数接口里供测试与其它
  * 调用方使用；这里只挑最必要的信息展示，长解释收进可展开的说明，避免侧栏变成一堵墙。
  */
+export interface ControlsHandle {
+  root: HTMLElement;
+  /** 把所有参数恢复到 manifest 的默认值，并只提交一次变更。 */
+  reset(): void;
+}
+
 export function mountControls(
   viz: VizSpecJson,
   parent: HTMLElement,
   onChange: ControlsChangeHandler,
   params?: ParamValues,
-): HTMLElement {
+): ControlsHandle {
   const specs = describeControls(viz, params);
   const current: ParamValues = {};
   for (const s of specs) current[s.name] = s.value;
@@ -474,17 +480,19 @@ export function mountControls(
     }));
   }
 
+  const resetAll = (): void => {
+    for (const row of rows) row.set(row.spec.defaultValue, false);
+    const first = rows[0];
+    if (first !== undefined) onChange(first.spec.name, current[first.spec.name], { ...current });
+  };
+
   const foot = document.createElement("div");
   foot.className = "nl-controls-foot";
   const reset = document.createElement("button");
   reset.type = "button";
   reset.className = "nl-text-btn";
-  reset.textContent = "恢复默认值";
-  reset.addEventListener("click", () => {
-    for (const row of rows) row.set(row.spec.defaultValue, false);
-    const first = rows[0];
-    if (first !== undefined) onChange(first.spec.name, current[first.spec.name], { ...current });
-  });
+  reset.textContent = "恢复全部默认值";
+  reset.addEventListener("click", resetAll);
   const hint = document.createElement("span");
   hint.className = "nl-controls-hint";
   hint.textContent = specs.some((s) => s.critical.length > 0)
@@ -506,5 +514,5 @@ export function mountControls(
   }
 
   parent.replaceChildren(root);
-  return root;
+  return { root, reset: resetAll };
 }

@@ -33,8 +33,19 @@ interface ChapterBundleLike {
   models: Record<string, unknown>;
 }
 
+interface GlossaryItem {
+  term: string;
+  desc: string;
+}
+
+interface GuideEntry {
+  intro?: string;
+  note?: string;
+  glossary?: GlossaryItem[];
+}
+
 interface GuideFile {
-  chapters?: Record<string, { intro?: string; note?: string }>;
+  chapters?: Record<string, GuideEntry>;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -49,6 +60,16 @@ function soften(text: string): string {
     .replace(/[ \t]{2,}/g, " ")
     .replace(/\s+([，。；：、）】])/g, "$1")
     .trim();
+}
+
+function tabSummary(text: string, max = 42): string {
+  const plain = soften(text).replace(/\*\*/g, "").replace(/\s+/g, " ").trim();
+  if (plain === "") return "";
+  const end = plain.search(/[。！？]/);
+  let first = end >= 0 ? plain.slice(0, end) : plain;
+  first = first.replace(/[。！？]$/, "").trim();
+  if ([...first].length <= max) return first;
+  return `${[...first].slice(0, max).join("").replace(/[，、；：\s]+$/, "")}…`;
 }
 
 function partName(part: string): string {
@@ -152,7 +173,7 @@ async function loadFormulas(): Promise<FormulaMap> {
   }
 }
 
-async function loadGuides(): Promise<Record<string, { intro?: string; note?: string }>> {
+async function loadGuides(): Promise<Record<string, GuideEntry>> {
   try {
     const response = await fetch(`${BASE_URL}data/site/guides.json`, { cache: "no-cache" });
     if (!response.ok) return {};
@@ -458,13 +479,29 @@ export async function startSite(root: HTMLElement, opts: { baseUrl?: string } = 
     const intro = guide?.intro?.trim() ?? "";
     lede.innerHTML = renderRichText(soften(intro === "" ? (manifest.summary ?? "") : intro));
 
+    const glossary = Array.isArray(guide?.glossary) ? guide.glossary : [];
+    const glossaryBox = el("section", { className: "nl-glossary", attrs: { "aria-label": "本章术语" } });
+    if (glossary.length > 0) {
+      glossaryBox.append(el("p", { className: "nl-glossary-title", text: "先认识这些词" }));
+      const list = el("dl", { className: "nl-glossary-list" });
+      for (const item of glossary) {
+        if (typeof item?.term !== "string" || typeof item?.desc !== "string") continue;
+        const row = el("div", { className: "nl-glossary-item" });
+        row.append(el("dt", { text: item.term }), el("dd", { text: item.desc }));
+        list.append(row);
+      }
+      glossaryBox.append(list);
+    }
+
     const paramsCount = vizzes.reduce((sum, viz) => sum + viz.params.length, 0);
     const formulaCount = (formulas[manifest.chapter] ?? []).length;
     const meta = el("div", { className: "chapter-meta" });
     const stat = (text: string): HTMLElement => el("span", { className: "chapter-stat", text });
     meta.append(stat(`${vizzes.length} 个交互实验`), stat(`${paramsCount} 个可调参数`));
     if (formulaCount > 0) meta.append(stat(`${formulaCount} 条核心公式`));
-    hero.append(glyph, eyebrow, h1, lede, meta);
+    hero.append(glyph, eyebrow, h1, lede);
+    if (glossary.length > 0) hero.append(glossaryBox);
+    hero.append(meta);
     main.append(hero);
 
     let tabs: HTMLElement | null = null;
@@ -475,10 +512,11 @@ export async function startSite(root: HTMLElement, opts: { baseUrl?: string } = 
           className: `viz-tab${viz.id === selected.id ? " is-active" : ""}`,
           attrs: { href: routeHash(manifest.chapter, viz.id), "aria-current": viz.id === selected.id ? "page" : "false" },
         });
-        link.append(
-          el("span", { className: "viz-tab-index", text: String(index + 1).padStart(2, "0") }),
-          el("span", { className: "viz-tab-title", text: viz.title }),
-        );
+        const titleBox = el("span", { className: "viz-tab-copy" });
+        titleBox.append(el("span", { className: "viz-tab-title", text: viz.title }));
+        const summary = tabSummary(viz.description ?? "");
+        if (summary !== "") titleBox.append(el("span", { className: "viz-tab-sub", text: summary }));
+        link.append(el("span", { className: "viz-tab-index", text: String(index + 1).padStart(2, "0") }), titleBox);
         link.addEventListener("click", (ev) => {
           ev.preventDefault();
           if (viz.id === selected.id) return;

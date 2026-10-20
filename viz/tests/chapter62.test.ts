@@ -258,9 +258,11 @@ test("export_timeline：主图 x=名义帧时刻，stall 红圈，线层标签�
   }
   assert.ok(labels.has("内容时刻误差"), "内容时刻曲线要有可读的图例名");
   assert.ok(labels.has("GIF 播放时刻误差"), "播放时刻曲线要有可读的图例名");
-  for (const layer of sceneForDisplay(scene).scene.layers) {
+  const display = sceneForDisplay(scene);
+  assert.equal(display.scene.chrome?.texts, false, "显示层用 chrome 关闭画布文字");
+  for (const layer of display.scene.layers) {
     if (layer.kind !== "line") continue;
-    for (const s of layer.series) assert.equal(s.label, undefined, "显示层必须剥掉内联标签，交给 HTML 图例");
+    for (const s of layer.series) assert.ok(s.label !== undefined, "标签留给 HTML 图例与悬停命中测试");
   }
   assert.match(textOf(scene), /GIF/);
   assert.match(textOf(scene), /24→25/);

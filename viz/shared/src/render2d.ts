@@ -33,12 +33,28 @@ export interface RenderOptions {
   background?: string;
   /** 是否画轴标题（缺省 true）。 */
   showTitles?: boolean;
+  /** 坐标轴、刻度与标题的颜色主题；图形本身由模型按主题取色。 */
+  theme?: "light" | "dark";
+}
+
+interface AxisColors {
+  grid: string;
+  frame: string;
+  tick: string;
+  title: string;
+}
+
+/** 坐标轴装饰的主题色。图形颜色归模型管，这里只负责“框和字”。 */
+export function axisColors(theme: "light" | "dark"): AxisColors {
+  return theme === "dark"
+    ? { grid: "#273449", frame: "#718096", tick: "#cbd5e0", title: "#edf2f7" }
+    : { grid: "#e8e8e8", frame: "#333333", tick: "#333333", title: "#222222" };
 }
 
 interface Ctx {
   ctx: CanvasRenderingContext2D;
   scene: Scene;
-  opts: Required<Pick<RenderOptions, "fontFamily" | "baseFontSize" | "showBadges" | "showTitles">>;
+  opts: Required<Pick<RenderOptions, "fontFamily" | "baseFontSize" | "showBadges" | "showTitles" | "theme">>;
 }
 
 const DEFAULT_FONT = '13px -apple-system, "Segoe UI", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif';
@@ -96,12 +112,13 @@ function strokePath(ctx: CanvasRenderingContext2D, path: (number | null)[]): voi
 // --------------------------------------------------------------------------- //
 function drawAxis(c: Ctx, axis: Axis): void {
   const { ctx } = c;
+  const colors = axisColors(c.opts.theme);
   const [rx, ry, rw, rh] = axis.rect;
   const x1 = rx + rw;
   const y1 = ry + rh;
   ctx.save();
   if (axis.grid) {
-    ctx.strokeStyle = "#e8e8e8";
+    ctx.strokeStyle = colors.grid;
     ctx.lineWidth = 1;
     ctx.beginPath();
     for (const t of axis.xticks) {
@@ -121,11 +138,11 @@ function drawAxis(c: Ctx, axis: Axis): void {
     ctx.stroke();
   }
   if (axis.frame) {
-    ctx.strokeStyle = "#333";
+    ctx.strokeStyle = colors.frame;
     ctx.lineWidth = 1;
     ctx.strokeRect(rx + 0.5, ry + 0.5, rw - 1, rh - 1);
   }
-  ctx.fillStyle = "#333";
+  ctx.fillStyle = colors.tick;
   ctx.font = fontOf(c, c.opts.baseFontSize - 2);
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
@@ -142,7 +159,7 @@ function drawAxis(c: Ctx, axis: Axis): void {
     ctx.fillText(tickLabel(t, { log: axis.yscale === "log" }), rx - 6, py);
   }
   if (c.opts.showTitles) {
-    ctx.fillStyle = "#222";
+    ctx.fillStyle = colors.title;
     ctx.font = fontOf(c, c.opts.baseFontSize, "600");
     ctx.textAlign = "center";
     ctx.textBaseline = "bottom";
@@ -204,7 +221,7 @@ function drawLineLayer(c: Ctx, axis: Axis, layer: Extract<Layer, { kind: "line" 
         }
       }
     }
-    if (s.label) {
+    if (s.label && c.scene.chrome?.texts !== false) {
       // 曲线标签放在最后一个可见点附近，避免压住图形主体
       const pts: [number, number][] = [];
       for (let i = 0; i < path.length; i += 2) {
@@ -685,6 +702,7 @@ export function renderScene(ctx: CanvasRenderingContext2D, scene: Scene, opts: R
       baseFontSize: opts.baseFontSize ?? 13,
       showBadges: opts.showBadges ?? true,
       showTitles: opts.showTitles ?? true,
+      theme: opts.theme ?? "light",
     },
   };
   ctx.save();
@@ -693,7 +711,7 @@ export function renderScene(ctx: CanvasRenderingContext2D, scene: Scene, opts: R
   ctx.fillStyle = opts.background ?? scene.canvas.background;
   ctx.fillRect(0, 0, scene.canvas.w, scene.canvas.h);
   if (scene.chrome?.title !== false && scene.title) {
-    ctx.fillStyle = "#111";
+    ctx.fillStyle = axisColors(c.opts.theme).title;
     ctx.font = fontOf(c, c.opts.baseFontSize + 5, "700");
     ctx.textAlign = "left";
     ctx.textBaseline = "top";

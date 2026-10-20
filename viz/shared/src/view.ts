@@ -15,6 +15,8 @@ import type { ModelOptions, SceneModel } from "./model.js";
 import type { Scene, TextSpec } from "./scene.js";
 import { renderScene } from "./render2d.js";
 import { sceneForDisplay, type DisplaySceneResult } from "./display.js";
+import { hoverAt, type HoverHit } from "./hover.js";
+import { keyMetrics } from "./metrics.js";
 import { ChapterFrameSource, type SourceStatus } from "./framesource.js";
 import { Timeline, type TimelineSnapshot } from "./timeline.js";
 import { describeControls, mountControls } from "./controls.js";
@@ -139,6 +141,7 @@ interface LegendChip {
   color: string;
   shape: "line" | "scatter" | "band" | "bars" | "heat" | "contour" | "vertical";
   dash: boolean;
+  axis?: string;
   gradient?: string;
 }
 
@@ -176,7 +179,7 @@ function legendFromTexts(texts: TextSpec[]): LegendChip[] {
         if (match === null) continue;
         const colorWord = match[1] ?? "";
         const styleWord = match[2] ?? "";
-        const label = (match[3] ?? "").trim().replace(/[。；，,]\s*$/, "");
+        const label = (match[3] ?? "").replace(/\*\*|__|`/g, "").replace(/\s+/g, " ").trim().replace(/[。；，,]\s*$/, "");
         if (label === "" || label.length > 64) continue;
         if (/画面放不下|画布放不下|另有/.test(label)) continue;
         const shape: LegendChip["shape"] = styleWord.includes("竖")
@@ -214,10 +217,16 @@ const HINT_HEX: Readonly<Record<string, string>> = {
   白: "#ffffff",
 };
 
+const COLOR_FAMILY: Readonly<Record<string, string>> = {
+  "#b7791f": "#dd6b20",
+  "#d69e2e": "#dd6b20",
+};
+
 function colorKey(color: string): string {
   const hint = /^var\(--hint-([^)]+)\)$/.exec(color);
-  if (hint !== null) return HINT_HEX[hint[1] ?? ""] ?? color;
-  return color.toLowerCase();
+  const raw = hint !== null ? (HINT_HEX[hint[1] ?? ""] ?? color) : color;
+  const key = raw.toLowerCase();
+  return COLOR_FAMILY[key] ?? key;
 }
 
 /**
@@ -228,24 +237,35 @@ function colorKey(color: string): string {
  * 同一颜色/形状已经由显式标签覆盖时不重复。
  */
 function mergeLegend(explicit: LegendChip[], textual: LegendChip[]): LegendChip[] {
+  // 图层已经有名字时，画布文字里的颜色说明通常只是同一批曲线的另一种说法。
+  // 两套图例并排会出现“同色、同义、不同写法”的重复项，反而难核对；有显式标签就只信它。
+  if (explicit.length > 0) {
+    const seenExplicit = new Set<string>();
+    const outExplicit: LegendChip[] = [];
+    for (const chip of explicit) {
+      const key = `${chip.shape}\u0000${colorKey(chip.color)}\u0000${chip.label}`;
+      if (seenExplicit.has(key)) continue;
+      seenExplicit.add(key);
+      outExplicit.push(chip);
+    }
+    return [...outExplicit.filter((chip) => chip.shape !== "scatter"), ...outExplicit.filter((chip) => chip.shape === "scatter")];
+  }
   const out: LegendChip[] = [];
   const seen = new Set<string>();
-  const coveredLine = new Set(
-    explicit.filter((c) => c.shape === "line" || c.shape === "vertical").map((c) => `${colorKey(c.color)}\u0000${c.shape}`),
-  );
+  const explicitColors = new Set(explicit.map((chip) => colorKey(chip.color)));
   const push = (chip: LegendChip): void => {
     const key = `${chip.shape}\u0000${colorKey(chip.color)}\u0000${chip.label}`;
     if (seen.has(key)) return;
     seen.add(key);
     out.push(chip);
   };
+  // 图层已带标签时，画布文字里的颜色说明通常只是同一批曲线的另一种说法。
+  // 同色说明一律不重复补入；只有显式标签完全没覆盖的颜色才用文字补齐。
   for (const chip of textual) {
-    if (chip.shape !== "line" && chip.shape !== "vertical") continue;
-    if (coveredLine.has(`${colorKey(chip.color)}\u0000${chip.shape}`)) continue;
+    if (explicitColors.has(colorKey(chip.color))) continue;
     push(chip);
   }
   for (const chip of explicit) push(chip);
-  for (const chip of textual) if (chip.shape === "scatter") push(chip);
   // 线条在前、散点在后：图例被截断时先保住“这条线是什么颜色”，而不是各方法的当前点。
   return [...out.filter((chip) => chip.shape !== "scatter"), ...out.filter((chip) => chip.shape === "scatter")];
 }
@@ -300,11 +320,22 @@ export class VizView {
   #stageError: HTMLElement | null = null;
   #statusEl: HTMLElement | null = null;
   #sourceNote: HTMLElement | null = null;
+  #metricRow: HTMLElement | null = null;
   #legendRow: HTMLElement | null = null;
   #badgeRow: HTMLElement | null = null;
   #guideList: HTMLElement | null = null;
   #figureCaption: HTMLElement | null = null;
   #time: TimeDom | null = null;
+  #resetParams: (() => void) | null = null;
+  #hoverCanvas: HTMLCanvasElement | null = null;
+  #hoverTip: HTMLElement | null = null;
+  #hoverHint: HTMLElement | null = null;
+  #hoverRaf = 0;
+  #hoverPending: { x: number; y: number } | null = null;
+  #touchStart: { id: number; x: number; y: number; moved: boolean } | null = null;
+  #hoverHideTimer = 0;
+  #lastMetricKey = "";
+  #legendColors: Record<string, string> = {};
   #lastLegendKey = "";
   #lastBadgeKey = "";
   #lastGuideKey = "";
@@ -399,7 +430,9 @@ export class VizView {
     else chart.append(guide);
     const side = el("aside", { className: "nl-side" });
     side.append(this.#buildControlsCard());
-    grid.append(chart, side, this.#buildReading());
+    const workbench = el("div", { className: "nl-workbench" });
+    workbench.append(chart, side);
+    grid.append(workbench, this.#buildReading());
     host.append(grid);
 
     this.#renderStatus();
@@ -447,6 +480,10 @@ export class VizView {
     this.#disposed = true;
     if (this.#raf !== 0) cancelAnimationFrame(this.#raf);
     this.#raf = 0;
+    if (this.#hoverRaf !== 0) cancelAnimationFrame(this.#hoverRaf);
+    this.#hoverRaf = 0;
+    if (this.#hoverHideTimer !== 0) window.clearTimeout(this.#hoverHideTimer);
+    this.#hoverHideTimer = 0;
     if (this.#resizeTimer !== 0) window.clearTimeout(this.#resizeTimer);
     this.#resizeObserver?.disconnect();
     this.#resizeObserver = null;
@@ -552,13 +589,18 @@ export class VizView {
 
     const stage = el("div", { className: "nl-stage" });
     const frame = el("div", { className: "nl-canvas-frame" });
-    frame.append(this.#canvas);
+    const hoverCanvas = el("canvas", { className: "nl-hover-layer", attrs: { "aria-hidden": "true" } });
+    this.#hoverCanvas = hoverCanvas;
+    frame.append(this.#canvas, hoverCanvas);
+    const hoverTip = el("div", { className: "nl-hover-tip", attrs: { role: "tooltip" } });
+    hoverTip.hidden = true;
+    this.#hoverTip = hoverTip;
     const loading = el("div", { className: "nl-stage-loading" });
     const spinner = el("span", { className: "nl-spinner", attrs: { "aria-hidden": "true" } });
     loading.append(spinner, el("span", { text: "正在生成第一帧…" }));
     const error = el("div", { className: "nl-stage-error" });
     error.hidden = true;
-    stage.append(frame, loading, error);
+    stage.append(frame, loading, error, hoverTip);
     this.#stage = stage;
     this.#loading = loading;
     this.#stageError = error;
@@ -570,9 +612,16 @@ export class VizView {
       icon("chevron-right"),
     );
 
+    const hoverHint = el("p", { className: "nl-hover-hint" });
+    hoverHint.append(icon("info"), el("span", { text: "悬停或轻点图中的曲线、点、柱，查看对应数值" }));
+    hoverHint.hidden = true;
+    this.#hoverHint = hoverHint;
+
     this.#sourceNote = el("p", { className: "nl-source-note" });
     this.#sourceNote.hidden = true;
 
+    this.#metricRow = el("div", { className: "nl-metrics" });
+    this.#metricRow.hidden = true;
     this.#legendRow = el("div", { className: "nl-legend" });
     this.#legendRow.hidden = true;
     this.#badgeRow = el("div", { className: "nl-badge-row" });
@@ -581,8 +630,175 @@ export class VizView {
     const timeSlot = el("div", { className: "nl-timebar-slot" });
     timeSlot.dataset["role"] = "timebar-slot";
 
-    card.append(top, stage, swipe, this.#sourceNote, this.#legendRow, this.#badgeRow, timeSlot);
+    card.append(top, stage, swipe, hoverHint, this.#sourceNote, this.#metricRow, this.#legendRow, this.#badgeRow, timeSlot);
+    this.#bindHover();
     return card;
+  }
+
+  #bindHover(): void {
+    const canvas = this.#canvas;
+    const stage = this.#stage;
+    if (stage === null) return;
+    canvas.addEventListener("pointermove", (ev) => {
+      if (ev.pointerType === "touch") {
+        const start = this.#touchStart;
+        if (start === null) return;
+        if (Math.hypot(ev.clientX - start.x, ev.clientY - start.y) > 10) {
+          start.moved = true;
+          this.#hideHover();
+        }
+        return;
+      }
+      this.#queueHover(ev.clientX, ev.clientY);
+    });
+    canvas.addEventListener("pointerleave", (ev) => {
+      if (ev.pointerType !== "touch") this.#hideHover();
+    });
+    canvas.addEventListener("pointerdown", (ev) => {
+      if (ev.pointerType !== "touch") return;
+      if (this.#hoverHideTimer !== 0) window.clearTimeout(this.#hoverHideTimer);
+      this.#touchStart = { id: ev.pointerId, x: ev.clientX, y: ev.clientY, moved: false };
+    });
+    canvas.addEventListener("pointerup", (ev) => {
+      const start = this.#touchStart;
+      if (ev.pointerType !== "touch" || start === null) return;
+      this.#touchStart = null;
+      if (start.moved) return;
+      this.#queueHover(ev.clientX, ev.clientY);
+      this.#hoverHideTimer = window.setTimeout(() => this.#hideHover(), 6000);
+    });
+    canvas.addEventListener("pointercancel", () => {
+      this.#touchStart = null;
+      this.#hideHover();
+    });
+    stage.addEventListener("scroll", () => this.#hideHover(), { passive: true });
+  }
+
+  #queueHover(clientX: number, clientY: number): void {
+    this.#hoverPending = { x: clientX, y: clientY };
+    if (this.#hoverRaf !== 0) return;
+    this.#hoverRaf = requestAnimationFrame(() => {
+      this.#hoverRaf = 0;
+      const pending = this.#hoverPending;
+      this.#hoverPending = null;
+      if (pending !== null) this.#showHoverAt(pending.x, pending.y);
+    });
+  }
+
+  #showHoverAt(clientX: number, clientY: number): void {
+    const scene = this.#scene;
+    if (scene === null) return;
+    const rect = this.#canvas.getBoundingClientRect();
+    if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) {
+      this.#hideHover();
+      return;
+    }
+    const px = ((clientX - rect.left) / Math.max(1, rect.width)) * scene.canvas.w;
+    const py = ((clientY - rect.top) / Math.max(1, rect.height)) * scene.canvas.h;
+    const labels: Record<string, { x: string; y: string }> = {};
+    for (const axis of this.#display?.axes ?? []) {
+      labels[axis.id] = { x: axis.xlabel, y: axis.ylabel };
+    }
+    const hit = hoverAt(scene, px, py, { labels, colorLabels: this.#legendColors });
+    if (hit === null) {
+      this.#hideHover();
+      return;
+    }
+    this.#drawHover(hit);
+    this.#showHoverTip(hit, clientX, clientY);
+  }
+
+  #drawHover(hit: HoverHit): void {
+    const overlay = this.#hoverCanvas;
+    if (overlay === null || this.#scene === null) return;
+    const cssW = Math.max(1, Math.round(this.#canvas.clientWidth));
+    const cssH = Math.max(1, Math.round(this.#canvas.clientHeight));
+    const dpr = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
+    if (overlay.width !== Math.round(cssW * dpr) || overlay.height !== Math.round(cssH * dpr)) {
+      overlay.width = Math.round(cssW * dpr);
+      overlay.height = Math.round(cssH * dpr);
+    }
+    const ctx = overlay.getContext("2d");
+    if (ctx === null) return;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, overlay.width, overlay.height);
+    const sx = overlay.width / this.#scene.canvas.w;
+    const sy = overlay.height / this.#scene.canvas.h;
+    ctx.setTransform(sx, 0, 0, sy, 0, 0);
+    const [rx, ry, , rh] = hit.axisRect;
+    ctx.save();
+    ctx.strokeStyle = this.#theme === "dark" ? "rgba(203,213,224,0.55)" : "rgba(51,51,51,0.42)";
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 4]);
+    ctx.beginPath();
+    ctx.moveTo(hit.px, ry);
+    ctx.lineTo(hit.px, ry + rh);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.arc(hit.px, hit.py, 5.5, 0, Math.PI * 2);
+    ctx.strokeStyle = hit.color;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(hit.px, hit.py, 2, 0, Math.PI * 2);
+    ctx.fillStyle = hit.color;
+    ctx.fill();
+    ctx.restore();
+    void rx;
+  }
+
+  #showHoverTip(hit: HoverHit, clientX: number, clientY: number): void {
+    const tip = this.#hoverTip;
+    const stage = this.#stage;
+    if (tip === null || stage === null) return;
+    const shape =
+      hit.shape === "cell" ? "heat" : hit.shape === "bar" ? "bars" : hit.kind === "scatter" ? "scatter" : "line";
+    const head = el("div", { className: "nl-hover-head" });
+    const swatch = el("span", {
+      className: `nl-swatch nl-swatch-${shape}${hit.dash ? " is-dashed" : ""}`,
+    });
+    swatch.style.setProperty("--swatch", hit.color);
+    head.append(swatch, el("span", { className: "nl-hover-name", text: hit.label }));
+    const values = el("p", { className: "nl-hover-values" });
+    values.append(el("span", { text: hit.xText }), el("span", { text: hit.yText }));
+    const parts: HTMLElement[] = [head, values];
+    if (hit.detail !== undefined && hit.detail !== "") {
+      parts.push(el("p", { className: "nl-hover-detail", text: hit.detail }));
+    }
+    tip.replaceChildren(...parts);
+    tip.hidden = false;
+    const stageRect = stage.getBoundingClientRect();
+    const x = clientX - stageRect.left;
+    const y = clientY - stageRect.top;
+    const gap = 14;
+    const tw = tip.offsetWidth;
+    const th = tip.offsetHeight;
+    let left = x + gap;
+    if (left + tw > stage.clientWidth - 8) left = x - tw - gap;
+    left = Math.min(Math.max(8, left), Math.max(8, stage.clientWidth - tw - 8));
+    let top = y - th - gap;
+    if (top < 8) top = y + gap;
+    top = Math.min(Math.max(8, top), Math.max(8, stage.clientHeight - th - 8));
+    tip.style.left = `${left.toFixed(1)}px`;
+    tip.style.top = `${top.toFixed(1)}px`;
+  }
+
+  #hideHover(): void {
+    const tip = this.#hoverTip;
+    if (tip !== null) tip.hidden = true;
+    const overlay = this.#hoverCanvas;
+    if (overlay !== null) {
+      const ctx = overlay.getContext("2d");
+      if (ctx !== null) {
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.clearRect(0, 0, overlay.width, overlay.height);
+      }
+    }
+    if (this.#hoverHideTimer !== 0) {
+      window.clearTimeout(this.#hoverHideTimer);
+      this.#hoverHideTimer = 0;
+    }
   }
 
   #buildControlsCard(): HTMLElement {
@@ -590,16 +806,22 @@ export class VizView {
     const head = el("div", { className: "nl-card-head" });
     const titleBox = el("div");
     titleBox.append(
-      el("p", { className: "nl-card-kicker", text: "交互参数" }),
-      el("h3", { className: "nl-card-title", text: "亲手调一调" }),
+      el("p", { className: "nl-card-kicker", text: "可调参数" }),
+      el("h3", { className: "nl-card-title", text: "参数调节" }),
     );
-    const badge = el("span", { className: "nl-card-icon", attrs: { "aria-hidden": "true" } });
-    badge.append(icon("sliders"));
-    head.append(titleBox, badge);
+    const actions = el("div", { className: "nl-card-actions" });
+    const reset = el("button", {
+      className: "nl-reset-btn",
+      attrs: { type: "button", title: "把所有参数恢复为默认值" },
+    });
+    reset.append(icon("reset"), el("span", { text: "恢复默认" }));
+    reset.addEventListener("click", () => this.#resetParams?.());
+    actions.append(reset);
+    head.append(titleBox, actions);
     const slot = el("div", { className: "nl-controls-slot" });
     card.append(head, slot);
     const parent = slot;
-    mountControls(
+    const controls = mountControls(
       this.#viz,
       parent,
       (_name, _value, params) => {
@@ -612,6 +834,7 @@ export class VizView {
       },
       this.#params,
     );
+    this.#resetParams = controls.reset;
     return card;
   }
 
@@ -619,8 +842,8 @@ export class VizView {
     const card = el("section", { className: "nl-chart-guide" });
     const head = el("div", { className: "nl-chart-guide-head" });
     head.append(
-      el("span", { className: "nl-card-kicker", text: "面板" }),
-      el("span", { className: "nl-chart-guide-note", text: "每一块在看什么" }),
+      el("span", { className: "nl-card-kicker", text: "读图" }),
+      el("span", { className: "nl-chart-guide-note", text: "每个面板的横轴与纵轴" }),
     );
     this.#guideList = el("ol", { className: "nl-panel-list" });
     card.append(head, this.#guideList);
@@ -645,7 +868,7 @@ export class VizView {
     const play = this.#playbook();
     if (play.length > 0) {
       const box = el("div", { className: "nl-playbook" });
-      const title = el("p", { className: "nl-playbook-title", text: "可以这样玩" });
+      const title = el("p", { className: "nl-playbook-title", text: "建议先试这些操作" });
       const list = el("ul");
       for (const item of play) list.append(el("li", { text: item }));
       box.append(title, list);
@@ -762,10 +985,10 @@ export class VizView {
     } else if (mode === "stream") {
       out.push("点播放开始实时推进；随时可以暂停或改变速度。");
     } else {
-      out.push("这是一张静态图。拖动右侧参数，图形会立刻重画。");
+      out.push("这是一张静态图。拖动参数，图形会立刻重画。");
     }
     if (this.#viz.params.length > 0) {
-      out.push("参数改变后不需要重新加载页面；滑轨上的细线标出理论临界值。");
+      out.push("参数改变后不需要重新加载页面，几块图会一起更新。");
     }
     if (this.#viz.time.tMaxParam !== undefined) {
       const cap = this.#viz.params.find((p) => p.name === this.#viz.time.tMaxParam);
@@ -1082,13 +1305,22 @@ export class VizView {
     const display = sceneForDisplay(scene);
     this.#scene = display.scene;
     this.#display = display;
+    this.#hideHover();
+    const hoverable = display.scene.layers.some((layer) =>
+      layer.kind === "line" || layer.kind === "scatter" || layer.kind === "bars" ||
+      layer.kind === "heat" || layer.kind === "vectorfield" || layer.kind === "loglogfit",
+    );
+    if (this.#hoverHint !== null) this.#hoverHint.hidden = !hoverable;
+    this.#canvas.setAttribute("aria-label", `交互图形：${this.#figureCaption?.textContent ?? this.#viz.title}。可以悬停或轻点图中的数据元素查看数值。`);
     this.#draw(display.scene);
+    this.#renderMetrics(frame);
     this.#renderLegend(display);
     this.#renderBadges(display);
     this.#renderGuide(display);
     if (this.#figureCaption !== null) {
       const title = display.axes[0]?.title ?? this.#viz.axes[0]?.title ?? this.#viz.title;
       this.#figureCaption.textContent = title;
+      this.#figureCaption.title = title;
     }
   }
 
@@ -1105,7 +1337,33 @@ export class VizView {
     this.#ctx.setTransform(1, 0, 0, 1, 0, 0);
     this.#ctx.clearRect(0, 0, bw, bh);
     this.#ctx.restore();
-    renderScene(this.#ctx, scene, { dpr });
+    renderScene(this.#ctx, scene, { dpr, theme: this.#theme });
+  }
+
+  #renderMetrics(frame: Frame): void {
+    const row = this.#metricRow;
+    if (row === null) return;
+    const chips = keyMetrics(frame.meta, this.#opts.manifest.chapter, this.#viz.id);
+    const key = JSON.stringify(chips);
+    if (key === this.#lastMetricKey) return;
+    this.#lastMetricKey = key;
+    row.replaceChildren();
+    if (chips.length === 0) {
+      row.hidden = true;
+      return;
+    }
+    row.hidden = false;
+    row.append(el("span", { className: "nl-metrics-label", text: "当前帧" }));
+    for (const chip of chips) {
+      const item = el("span", { className: "nl-metric" });
+      item.title = "随参数与时间更新";
+      item.append(
+        el("span", { className: "nl-metric-name", text: chip.label }),
+        el("strong", { className: "nl-metric-value", text: chip.value }),
+      );
+      if (chip.unit !== "") item.append(el("span", { className: "nl-metric-unit", text: chip.unit }));
+      row.append(item);
+    }
   }
 
   #renderLegend(display: DisplaySceneResult): void {
@@ -1128,11 +1386,34 @@ export class VizView {
         label: item.label,
         color: item.color,
         shape,
-        dash: item.kind === "contour",
+        dash: item.dash === true || item.kind === "contour",
+        axis: item.axis,
         ...(item.gradient === undefined ? {} : { gradient: item.gradient }),
       };
     });
     const chips = mergeLegend(explicit, legendFromTexts(display.texts));
+    const letters = new Map((this.#display?.axes ?? []).map((axis, index) => [axis.id, String.fromCharCode(65 + index)]));
+    const repeated = new Map<string, number>();
+    for (const chip of chips) {
+      if (chip.axis === undefined) continue;
+      const k = `${chip.shape}\u0000${colorKey(chip.color)}\u0000${chip.dash ? "d" : "s"}`;
+      repeated.set(k, (repeated.get(k) ?? 0) + 1);
+    }
+    const colorLabels: Record<string, string> = {};
+    for (const chip of chips) {
+      if (chip.shape !== "line" && chip.shape !== "scatter") continue;
+      const key = colorKey(chip.color);
+      if (colorLabels[key] === undefined) colorLabels[key] = chip.label;
+      const raw = chip.color.toLowerCase();
+      if (raw.startsWith("#") && colorLabels[raw] === undefined) colorLabels[raw] = chip.label;
+    }
+    this.#legendColors = colorLabels;
+    for (const chip of chips) {
+      if (chip.axis === undefined) continue;
+      const k = `${chip.shape}\u0000${colorKey(chip.color)}\u0000${chip.dash ? "d" : "s"}`;
+      const letter = letters.get(chip.axis);
+      if ((repeated.get(k) ?? 0) > 1 && letter !== undefined) chip.label = `${chip.label}（${letter}）`;
+    }
     const key = JSON.stringify(chips);
     if (key === this.#lastLegendKey) return;
     this.#lastLegendKey = key;
@@ -1157,7 +1438,7 @@ export class VizView {
         swatch.style.setProperty("--swatch", item.color);
       }
       const text = el("span", { className: "nl-legend-text", text: item.label });
-      if (item.label.length > 30) text.title = item.label;
+      text.title = item.label;
       chip.append(swatch, text);
       row.append(chip);
     });
@@ -1204,11 +1485,13 @@ export class VizView {
     const axes = display?.axes ?? this.#viz.axes.map((axis) => ({
       id: axis.id,
       title: axis.title ?? "",
+      xlabel: "",
       ylabel: axis.ylabel ?? "",
+      xscale: "linear",
       yscale: axis.scale ?? "linear",
     }));
     const manifestAxes = new Map(this.#viz.axes.map((axis) => [axis.id, axis]));
-    const key = JSON.stringify(axes.map((axis) => [axis.id, axis.title, axis.ylabel, axis.yscale]));
+    const key = JSON.stringify(axes.map((axis) => [axis.id, axis.title, axis.xlabel, axis.ylabel, axis.xscale, axis.yscale]));
     if (key === this.#lastGuideKey) return;
     this.#lastGuideKey = key;
     list.replaceChildren();
@@ -1225,8 +1508,10 @@ export class VizView {
             ? `${axis.ylabel.trim()}（补充视图）`
             : "补充视图";
       const name = el("p", { className: "nl-panel-name", text: title });
-      const metaBits = [`纵轴 ${axis.ylabel === "" ? "数值" : axis.ylabel}`];
-      metaBits.push(axis.yscale === "log" ? "对数" : "线性");
+      const xText = axis.xlabel.trim() !== "" ? axis.xlabel.trim() : "见面板标题";
+      const yText = axis.ylabel.trim() !== "" ? axis.ylabel.trim() : "见面板标题";
+      const metaBits = [`横轴：${xText}`, `纵轴：${yText}${axis.yscale === "log" ? "（对数）" : ""}`];
+      if (axis.xscale === "log") metaBits.push("横轴取对数");
       if (spec?.autoscaled === true) metaBits.push("自适应");
       const meta = el("p", { className: "nl-panel-meta", text: metaBits.join(" · ") });
       body.append(name, meta);

@@ -61,7 +61,7 @@ test("显示变换把两条标注同时交给 HTML 图例，且不重复", () =>
   assert.notEqual(items[0]?.color, items[1]?.color, "实测线与参考线必须用不同颜色区分");
 });
 
-test("显示变换不会改坏普通折线的图例收集", () => {
+test("显示变换保留折线标签供悬停使用，但不把它们画上画布", () => {
   const raw = convergenceScene();
   raw.axes[0]!.xscale = "linear";
   raw.axes[0]!.xlim = [0, 1];
@@ -82,7 +82,29 @@ test("显示变换不会改坏普通折线的图例收集", () => {
   );
   const line = display.scene.layers[0];
   assert.ok(line?.kind === "line");
-  assert.ok(line.series.every((s) => s.label === undefined), "画布上不再重复画内联标签");
+  assert.deepEqual(
+    line.series.map((s) => s.label),
+    ["迭代解", "参考解"],
+    "标签保留在场景里供命中测试与读屏使用",
+  );
+  assert.equal(display.scene.chrome?.texts, false, "画布文字由 chrome 统一关闭");
+  assert.equal(display.legend.length, 2);
+});
+
+test("轴说明同时提供横轴与纵轴，缺 xlabel 时从面板标题里提取", () => {
+  const raw = convergenceScene();
+  raw.axes[0]!.xlabel = "步长 h";
+  raw.axes[0]!.title = "误差随步长变化（横轴 = 步长 h）";
+  const display = sceneForDisplay(raw);
+  const guide = display.axes[0];
+  assert.equal(guide?.xlabel, "步长 h");
+  assert.equal(guide?.xscale, "log");
+  assert.equal(guide?.ylabel, "误差");
+
+  const fallback = convergenceScene();
+  fallback.axes[0]!.xlabel = "";
+  fallback.axes[0]!.title = "收敛（横轴 = 节点数 n）";
+  assert.equal(sceneForDisplay(fallback).axes[0]?.xlabel, "节点数 n");
 });
 
 test("放不下的纵轴名只在 HTML 面板说明里保留，不在画布上伸出面板", () => {

@@ -5,10 +5,11 @@
  * 网页有更好的排版能力：说明进 HTML 阅读区、图例进带色块的列表、长文进折叠面板。
  * 因此浏览器与视觉回归共用这一层变换：
  *
- *   - `texts` / `badges` 清空，`pitfalls` 保留但由 `chrome.pitfalls=false` 关掉绘制；
- *   - 所有 `label`（曲线/散点/热图/拟合标注）收集成 HTML 图例并从图层里移除；
- *   - 轴标题与 xlabel 置空（它们最容易在紧密堆叠的面板间互相压住），保留刻度与 ylabel；
- *   - 上下空白按坐标区裁剪，画布只留下图本身。
+ *   - `texts` 清空、`badges` 保留但由 HTML 角标区呈现；画布只留图形；
+ *   - 所有 `label` 收集成 HTML 图例；标签本身保留在图层里供命中测试与无障碍描述，
+ *     两个渲染器按 `chrome.texts` 决定是否把它们画上画布；
+ *   - 轴标题置空；短得下、放得开的 xlabel/ylabel 留在画布上，其余交给 HTML 面板说明；
+ *   - 上下空白按坐标区与轴名裁剪，画布只留下图本身。
  *
  * 变换是纯函数：不碰帧、不重算数值，只搬运显示信息。
  */
@@ -20,14 +21,20 @@ export interface DisplayLegendItem {
   label: string;
   color: string;
   kind: Layer["kind"];
+  /** 图例所属面板（同色重复时用来标 A/B）。 */
+  axis: string;
   /** 热图图例用的 CSS 渐变；其它图层为 undefined。 */
   gradient?: string;
+  /** 线型是否为虚线（同色多条曲线靠它区分）。 */
+  dash?: boolean;
 }
 
 export interface DisplayAxisGuide {
   id: string;
   title: string;
+  xlabel: string;
   ylabel: string;
+  xscale: string;
   yscale: string;
 }
 
@@ -44,8 +51,13 @@ export interface DisplaySceneResult {
 }
 
 function cleanLabel(label: string | undefined): string | undefined {
-  const text = label?.trim();
-  return text === undefined || text === "" ? undefined : text;
+  if (label === undefined) return undefined;
+  const text = label
+    .replace(/\*\*|__|`/g, "")
+    .replace(/[（(][^）)]{0,24}帧\s*meta\.[^）)]*[）)]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return text === "" ? undefined : text;
 }
 
 /**
@@ -59,6 +71,43 @@ function ylabelFits(label: string, axisHeight: number): boolean {
   return [...label].length * 17 <= Math.max(0, axisHeight - 10);
 }
 
+/** 横排文字宽度估算（CJK 按 12px、ASCII 按 6.2px，宁大勿小）。 */
+function textWidthPx(label: string): number {
+  let width = 0;
+  for (const ch of label) {
+    if (/\s/.test(ch)) width += 4;
+    else if (/[\u2e80-\u9fff\uf900-\ufaff]/.test(ch)) width += 12;
+    else if (/[A-Z0-9]/.test(ch)) width += 7.2;
+    else width += 6.2;
+  }
+  return width;
+}
+
+/**
+ * x 轴名横排。除了宽度，还要给它留出刻度数字下方约 30px 的带子；
+ * 若正下方紧接着另一个面板，宁可把轴名放进 HTML 面板说明，也不压到下一张图上。
+ */
+function xlabelFits(axis: Axis, all: readonly Axis[], canvasHeight: number): boolean {
+  const label = axis.xlabel.trim();
+  if (label === "") return false;
+  if (textWidthPx(label) > axis.rect[2] - 10) return false;
+  const bottom = axis.rect[1] + axis.rect[3];
+  const labelBottom = bottom + 31;
+  if (labelBottom > canvasHeight - 2) return false;
+  for (const other of all) {
+    if (other === axis) continue;
+    const top = other.rect[1];
+    if (top > bottom + 2 && top < labelBottom + 4) return false;
+  }
+  return true;
+}
+
+/** 从面板标题里提取“横轴 = …”这类说明，作为没写 xlabel 时的回退。 */
+function xlabelFromTitle(title: string): string {
+  const match = /横轴\s*(?:=|是|为|：)\s*([^；;）)]+)/.exec(title);
+  return match?.[1]?.trim() ?? "";
+}
+
 /**
  * 显示变换。`scene` 本身不被修改；返回的新 Scene 与调用方共享数据数组。
  *
@@ -68,61 +117,79 @@ function ylabelFits(label: string, axisHeight: number): boolean {
 export function sceneForDisplay(scene: Scene): DisplaySceneResult {
   const legend: DisplayLegendItem[] = [];
   const seen = new Set<string>();
-  const addLegend = (label: string | undefined, color: string, kind: Layer["kind"], gradient?: string): void => {
+  const addLegend = (
+    label: string | undefined,
+    color: string,
+    kind: Layer["kind"],
+    axis: string,
+    extra: { gradient?: string; dash?: boolean } = {},
+  ): void => {
     const text = cleanLabel(label);
     if (text === undefined) return;
-    const key = `${kind}\u0000${color}\u0000${text}`;
+    const key = `${kind}\u0000${color}\u0000${text}\u0000${extra.dash === true ? "dash" : "solid"}`;
     if (seen.has(key)) return;
     seen.add(key);
-    const item: DisplayLegendItem = { label: text, color, kind };
-    if (gradient !== undefined) item.gradient = gradient;
+    const item: DisplayLegendItem = { label: text, color, kind, axis };
+    if (extra.gradient !== undefined) item.gradient = extra.gradient;
+    if (extra.dash === true) item.dash = true;
     legend.push(item);
   };
 
   const layers: Layer[] = scene.layers.map((layer) => {
     switch (layer.kind) {
-      case "line":
-        return {
-          ...layer,
-          series: layer.series.map((s) => {
-            addLegend(s.label, s.color, "line");
-            const { label: _label, ...rest } = s;
-            return rest;
-          }),
-        };
-      case "band":
-        addLegend(layer.band.label, layer.band.color, "band");
-        return { ...layer, band: { ...layer.band, label: undefined } };
-      case "scatter":
-        addLegend(layer.label, layer.color, "scatter");
-        return { ...layer, label: undefined };
-      case "heat":
-        addLegend(layer.label, "#94a3b8", "heat", cmapCssGradient(layer.cmap));
-        return { ...layer, label: undefined };
-      case "contour":
-        addLegend(layer.label, layer.color, "contour");
-        return { ...layer, label: undefined };
-      case "bars":
-        addLegend(layer.label, layer.color, "bars");
-        return { ...layer, label: undefined };
+      case "line": {
+        const series = layer.series.map((s) => {
+          const label = cleanLabel(s.label);
+          addLegend(label, s.color, "line", layer.axes, { dash: s.dash !== undefined && s.dash.length > 0 });
+          return { ...s, label };
+        });
+        return { ...layer, series };
+      }
+      case "band": {
+        const label = cleanLabel(layer.band.label);
+        addLegend(label, layer.band.color, "band", layer.axes);
+        return { ...layer, band: { ...layer.band, label } };
+      }
+      case "scatter": {
+        const label = cleanLabel(layer.label);
+        addLegend(label, layer.color, "scatter", layer.axes);
+        return { ...layer, label };
+      }
+      case "heat": {
+        const label = cleanLabel(layer.label);
+        addLegend(label, "#94a3b8", "heat", layer.axes, { gradient: cmapCssGradient(layer.cmap) });
+        return { ...layer, label };
+      }
+      case "contour": {
+        const label = cleanLabel(layer.label);
+        addLegend(label, layer.color, "contour", layer.axes, { dash: true });
+        return { ...layer, label };
+      }
+      case "bars": {
+        const label = cleanLabel(layer.label);
+        addLegend(label, layer.color, "bars", layer.axes);
+        return { ...layer, label };
+      }
       case "loglogfit": {
-        const color = layer.color ?? "#2b6cb0";
-        const theoryColor = layer.theoryColor ?? "#c53030";
-        addLegend(layer.seriesLabel, color, "loglogfit");
-        addLegend(layer.theoryLabel, theoryColor, "loglogfit");
-        // 标注保留在图层里：契约要求两条线都有名字，渲染器据 chrome.texts 决定是否画上画布。
-        return layer;
+        const seriesLabel = cleanLabel(layer.seriesLabel) ?? layer.seriesLabel;
+        const theoryLabel = cleanLabel(layer.theoryLabel) ?? layer.theoryLabel;
+        addLegend(seriesLabel, layer.color ?? "#2b6cb0", "loglogfit", layer.axes);
+        addLegend(theoryLabel, layer.theoryColor ?? "#c53030", "loglogfit", layer.axes, { dash: true });
+        return { ...layer, seriesLabel, theoryLabel };
       }
       case "vectorfield":
         return layer;
     }
   });
 
+  const xlabelKept = new Map<string, boolean>();
+  for (const axis of scene.axes) xlabelKept.set(axis.id, xlabelFits(axis, scene.axes, scene.canvas.h));
+
   const axes: Axis[] = scene.axes.map((axis) => ({
     ...axis,
     rect: [axis.rect[0], axis.rect[1], axis.rect[2], axis.rect[3]],
     title: "",
-    xlabel: "",
+    xlabel: xlabelKept.get(axis.id) === true ? axis.xlabel : "",
     ylabel: ylabelFits(axis.ylabel, axis.rect[3]) ? axis.ylabel : "",
   }));
 
@@ -130,7 +197,10 @@ export function sceneForDisplay(scene: Scene): DisplaySceneResult {
   if (axes.length > 0) {
     const topEdge = Math.min(...axes.map((a) => a.rect[1]));
     const bottomEdge = Math.max(
-      ...axes.map((a) => a.rect[1] + a.rect[3] + (a.xticks.length > 0 ? 18 : 8)),
+      ...axes.map((a) => {
+        const extra = a.xlabel !== "" ? 31 : a.xticks.length > 0 ? 18 : 8;
+        return a.rect[1] + a.rect[3] + extra;
+      }),
     );
     const top = Math.max(0, Math.floor(topEdge - 10));
     const bottom = Math.min(scene.canvas.h, Math.ceil(bottomEdge + 12));
@@ -157,7 +227,9 @@ export function sceneForDisplay(scene: Scene): DisplaySceneResult {
     axes: scene.axes.map((axis) => ({
       id: axis.id,
       title: axis.title,
+      xlabel: axis.xlabel.trim() !== "" ? axis.xlabel : xlabelFromTitle(axis.title),
       ylabel: axis.ylabel,
+      xscale: axis.xscale,
       yscale: axis.yscale,
     })),
     texts: scene.texts,
