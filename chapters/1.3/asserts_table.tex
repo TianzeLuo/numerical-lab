@@ -1,6 +1,6 @@
 % 本文件由 tools/build_book.py 从 dist/reports/assertions.json 生成，请勿手改。
 \begin{longtable}{@{}p{0.06\textwidth}p{0.32\textwidth}p{0.22\textwidth}p{0.16\textwidth}@{}}
-\caption{章节 1.3 数值断言（生成时间 2026-10-19T16:08:50-0400）}\\
+\caption{章节 1.3 数值断言（生成时间 2026-10-21T12:15:15-0400）}\\
 \toprule
 类别 & 断言 & 理论值 & 实测值 \\
 \midrule
@@ -33,7 +33,7 @@ B & 四种谱的 L 曲线拐点 & 拐点由 log-log 离散曲率最大处给出 
 B & max|P$^2$$-$P|、max|P$^{\mathsf T}$$-$P|、max$\|$Pv$\|$/$\|$v$\|$ & $\le$ c$\cdot$$\kappa$u(\allowbreak{}$\kappa$=\allowbreak{}1e6 时实测 1.1e-11)、\allowbreak{}0、\allowbreak{}$\le$ 1 & 1.06e-11、\allowbreak{}1.49e-11、\allowbreak{}0.756856 \checkmark \\
 B & 端点误差 & t=\allowbreak{}0: (\allowbreak{}p\_t,\allowbreak{}r\_t)=\allowbreak{}(\allowbreak{}p,\allowbreak{}r\_LS)；t=\allowbreak{}1: $\|$r\_t$\|$=\allowbreak{}0、\allowbreak{}p\_t=\allowbreak{}b；任意 t: $\|$p\_t+r\_t$-$b$\|$ $\le$ u$\|$b$\|$ & t=\allowbreak{}0 $\|$r\_t$-$(\allowbreak{}b$-$p\_LS)$\|$=\allowbreak{}0.000e+00；t=\allowbreak{}1 $\|$r\_t$\|$=\allowbreak{}0.000e+00、\allowbreak{}$\|$p\_t$-$b$\|$=\allowbreak{}0.000e+00；t=\allowbreak{}0.5 合成误差 1.241e-16 \checkmark \\
 B & 实测 $\kappa$ / 目标 $\kappa$ $-$ 1；四种谱 & $\le$ 1e-6(\allowbreak{}$\sigma$\_min 只精确到 \textasciitilde{}$\kappa$u) & 4.56e-08；decay:$\sigma$\_min=\allowbreak{}1.0e-08；cliff:$\sigma$\_min=\allowbreak{}1.0e-08；plateau:$\sigma$\_min=\allowbreak{}1.0e-08；two\_clusters:$\sigma$\_min=\allowbreak{}1.0e-08 \checkmark \\
-B & 通过自检的 (viz, t) 组合数 & 4 个可视化 $\times$ 各自的时间采样点 & 12；projection\_3d:15数组/\allowbreak{}18meta；normal\_vs\_qr:18数组/\allowbreak{}32meta；svd\_truncation:17数组/\allowbreak{}22meta；uncertainty\_fan:17数组/\allowbreak{}25meta \checkmark \\
+B & 通过自检的 (viz, t) 组合数 & 4 个可视化 $\times$ 各自的时间采样点 & 12；projection\_3d:15数组/\allowbreak{}18meta；normal\_vs\_qr:20数组/\allowbreak{}32meta；svd\_truncation:17数组/\allowbreak{}22meta；uncertainty\_fan:17数组/\allowbreak{}25meta \checkmark \\
 B & 实测 $\kappa$ 与网格的相对差($\kappa$ 本身只能精确到 \textasciitilde{}$\kappa$u) & $\le$ 1.00000e-06 & $1.551\times 10^{-8}$ \checkmark \\
 B & 曲线有限性 /(地板 u) 与 $\kappa$ 一致性 & 全部有限且 $\ge$ u =\allowbreak{} 1.1e-16 & $\kappa$ 相对差 1.55e-08；11 条曲线全部有限；地板 1.110e-16 \checkmark \\
 B & GCV 残差随 $\lambda$ 非减 & nondecreasing & 违反 0 处 \checkmark \\
