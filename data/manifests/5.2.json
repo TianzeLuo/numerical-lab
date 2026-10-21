@@ -9,7 +9,7 @@
         {
           "autoscaled": true,
           "id": "lcurve",
-          "title": "L 曲线（横=$\\log_{10}\\|x\\|$，纵=$\\log_{10}$ 残差）",
+          "title": "$L$ 曲线（横=$\\log_{10}\\|x\\|$，纵=$\\log_{10}$ 残差）",
           "ylabel": "$\\log_{10}$ 残差"
         },
         {
@@ -114,7 +114,7 @@
         "label": "t",
         "mode": "none"
       },
-      "title": "L 曲线交互：拖 lambda 滑动，四个判据同时标出"
+      "title": "$L$ 曲线交互：拖 lambda 滑动，四个判据同时标出"
     },
     {
       "axes": [
@@ -202,7 +202,7 @@
           "criticalNote": "$\\omega_{\\mathrm{rel}}=1$ 是最快收敛点（$\\omega=1/\\sigma_1^2$，最慢模态一步压到 $0$）；$\\omega_{\\mathrm{rel}}=2$ 是**发散线**：$\\omega\\ge2/\\sigma_1^2$ 时 $|1-\\omega s_1^2|\\ge1$，迭代值指数增长，滤波因子跑出 $[0,1]$——图上那一段是夹住的占位值。",
           "default": 1.0,
           "help": "Landweber 步长相对上限的倍数，定义为 $\\omega\\sigma_1^2$，无量纲。等于一时最慢模态一步压到零，收敛最快；小于一时收敛变慢但稳定；超过二以后迭代发散，滤波因子越出 $[0,1]$，图上的红点是夹住的占位值而不是读数。读主图看红色曲线是否还在带内，读侧栏看最大因子是否远大于一。",
-          "label": "步长 omega / (1/sigma_1^2)",
+          "label": "步长 $\\omega/(1/\\sigma_1^2)$",
           "max": 2.5,
           "min": 0.1,
           "name": "omega_rel",
@@ -374,7 +374,7 @@
       "time": {
         "dt": 1.0,
         "fps": 30,
-        "label": "迭代 / 截断阶 k",
+        "label": "迭代 / 截断阶 $k$",
         "mode": "scrub",
         "tMax": 60.0
       },

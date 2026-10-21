@@ -215,7 +215,7 @@ export const spyOrderingModel: SceneModel = (frame, opts) => {
     // xlabel 置空：类别名由模型手写在刻度行（`AxisOptions` 没有 xtickLabels），
     // 再让渲染层画一条 xlabel 就会与手写标签挤在同一带里（规则 8 会报）。
     xlabel: "",
-    ylabel: axisYlabel("aux", "‖PA−LU‖_∞ / ‖A‖_∞"),
+    ylabel: axisYlabel("aux", "$\\|PA-LU\\|_\\infty/\\|A\\|_\\infty$"),
     title: axisTitle("aux", "各排序的 LU 后向残差"),
     autoscaled: true,
     // 刻度标签用 text 层手写（AxisOptions 没有 xtickLabels）：先清空数字刻度，免得两行叠字。

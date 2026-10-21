@@ -3,7 +3,7 @@
 这一章有五页，分工是"从最温和的迭代到最凶险的几何"：
 
 1. ``power_iteration`` —— 幂法对齐过程。参数里有 **|λ₂/λ₁|**（收敛率，有理论临界值 1）
-   与 **非正规强度 shear**。时间轴是**迭代步 k**；副轴（对数）画残差与理论斜率
+   与 **非正规强度 shear**。时间轴是**迭代步 $k$**；副轴（对数）画残差与理论斜率
    :math:`|\\lambda_2/\\lambda_1|^k`。文字结论（``status``）会说清 converge / plateau。
 2. ``qr_schur`` —— QR 迭代的次对角元衰减热力图（:math:`\\log_{10}|h_{i+1,i}|`）
    + Ritz 值收敛曲线。位移策略 ``none/rayleigh/wilkinson`` 与矩阵族
@@ -86,7 +86,7 @@ MANIFEST: dict[str, Any] = {
             "params": [
                 {
                     "name": "ratio",
-                    "label": "第二特征值比 |λ₂/λ₁|",
+                    "label": "第二特征值比 $|\\lambda_2/\\lambda_1|$",
                     "type": "float",
                     "min": 0.05,
                     "max": 0.99,
@@ -144,7 +144,7 @@ MANIFEST: dict[str, Any] = {
                     ),
                 },
             ],
-            "time": {"mode": "scrub", "tMax": 120.0, "dt": 1.0, "label": "迭代步 k"},
+            "time": {"mode": "scrub", "tMax": 120.0, "dt": 1.0, "label": "迭代步 $k$"},
             "requiredAux": ["residual"],
             "axes": [
                 {
@@ -329,7 +329,7 @@ MANIFEST: dict[str, Any] = {
         # ------------------------------------------------------------------ #
         {
             "id": "pseudospectrum",
-            "title": "ε-伪谱云雾：σ_min(A−zI) 的等高线",
+            "title": "$\\varepsilon$-伪谱云雾：$\\sigma_{\\min}(A-zI)$ 的等高线",
             "description": (
                 "复平面网格上画 $\\log_{10}\\sigma_{\\min}(A-zI)$；每个 $\\varepsilon$ 给一条 marching-squares 轮廓。"
                 "主轴**固定**在 ${[-1.5,1.5]}^{2}$（不随 $\\varepsilon$ 自适应）；副轴画 $\\rho_\\varepsilon/\\rho(A)$ 随 $\\varepsilon$ 的曲线"
@@ -373,7 +373,7 @@ MANIFEST: dict[str, Any] = {
                 },
                 {
                     "name": "epsilon",
-                    "label": "当前 ε（轮廓高亮）",
+                    "label": "当前 $\\varepsilon$（轮廓高亮）",
                     "type": "float",
                     "min": 1e-8,
                     "max": 1e-1,
@@ -459,7 +459,7 @@ MANIFEST: dict[str, Any] = {
         # ------------------------------------------------------------------ #
         {
             "id": "transient_growth",
-            "title": "瞬态增长：‖A^k‖ 先涨后落 vs 谱半径的单调衰减",
+            "title": "瞬态增长：$\\|A^k\\|$ 先涨后落，谱半径单调衰减",
             "description": (
                 "副轴（对数）画实测 $\\|A^{k}\\|_2$ 与谱半径预测 $\\rho(A)^{k}$；主轴画两者的比值（增长倍数）。"
                 "参数里 nonnormal 就是剪切强度：谱半径严格小于 $1$，$\\|A^{k}\\|$ 却能先涨三个量级。"
@@ -519,7 +519,7 @@ MANIFEST: dict[str, Any] = {
                 },
                 {
                     "name": "k_max",
-                    "label": "时间上限 k_max",
+                    "label": "时间上限 $k_{\\max}$",
                     "type": "int",
                     "min": 10,
                     "max": 80,
@@ -535,7 +535,7 @@ MANIFEST: dict[str, Any] = {
                     ),
                 },
             ],
-            "time": {"mode": "scrub", "tMax": 40.0, "dt": 1.0, "label": "幂次 k"},
+            "time": {"mode": "scrub", "tMax": 40.0, "dt": 1.0, "label": "幂次 $k$"},
             "requiredAux": ["error"],
             "axes": [
                 {
@@ -663,7 +663,7 @@ MANIFEST: dict[str, Any] = {
                 },
                 {
                     "name": "epsilon",
-                    "label": "轮廓 ε",
+                    "label": "轮廓 $\\varepsilon$",
                     "type": "float",
                     "min": 1e-6,
                     "max": 1e-1,
@@ -825,12 +825,12 @@ def _power_iteration(params: Mapping[str, Any], t: float) -> Frame:
     fr = Frame(chapter="1.4", viz="power_iteration", kind="frame")
     fr.add("circle_x", circle_x, unit="1", label="单位圆")
     fr.add("circle_y", circle_y, unit="1", label="单位圆")
-    fr.add("vector_x", head[:, 0].astype(float), unit="1", label="迭代向量 x 分量")
-    fr.add("vector_y", head[:, 1].astype(float), unit="1", label="迭代向量 y 分量")
+    fr.add("vector_x", head[:, 0].astype(float), unit="1", label="迭代向量 $x$ 分量")
+    fr.add("vector_y", head[:, 1].astype(float), unit="1", label="迭代向量 $y$ 分量")
     fr.add("step_grid", ks, unit="1", label="迭代步")
-    fr.add("rayleigh", rq, unit="1", label="Rayleigh 商 ρ(x_k)")
-    fr.add("residual", np.maximum(resid, 1e-300), unit="1", label="残差 ‖Ax−ρx‖（地板 1e-300）")
-    fr.add("theory_rate", np.maximum(theory, 1e-300), unit="1", label="理论斜率 |λ₂/λ₁|^k")
+    fr.add("rayleigh", rq, unit="1", label="Rayleigh 商 $\\rho(x_k)$")
+    fr.add("residual", np.maximum(resid, 1e-300), unit="1", label="残差 $\\|Ax-\\rho x\\|$（地板 $10^{-300}$）")
+    fr.add("theory_rate", np.maximum(theory, 1e-300), unit="1", label="理论斜率 $|\\lambda_2/\\lambda_1|^k$")
     fr.add("theory_rate_sq", np.maximum(theory2, 1e-300), unit="1", label="理论斜率（Rayleigh 商，平方）")
     fr.add("error", np.array([_sigma_safe(float(resid[-1]))]), unit="1", label="当前残差（当前步）")
     fr.set_meta(
@@ -858,7 +858,7 @@ def _power_iteration(params: Mapping[str, Any], t: float) -> Frame:
     fr.set_strings(
         family=family,
         status=_power_status(res, ratio, family),
-        rate_note=f"理论 |λ₂/λ₁| = {ratio:.3f}，实测残差比 {float(np.nanmean(res.ratios[-6:])) if res.ratios.size else float('nan'):.3f}",
+        rate_note=f"理论 $|\\lambda_2/\\lambda_1|={ratio:.3f}$，实测残差比 {float(np.nanmean(res.ratios[-6:])) if res.ratios.size else float('nan'):.3f}",
     )
     return fr
 
@@ -868,10 +868,10 @@ def _power_status(res: Any, ratio: float, family: str) -> str:
     if res.is_complex_pair:
         return f"plateau：复主特征值，实向量在二维不变子空间里旋转（夹角平台 {float(np.mean(res.angle_step[-5:])):.3f} rad），幂法不收敛"
     if res.converged:
-        return f"converge：{res.n_iter} 步后残差 {res.residual[-1]:.2e}（|λ₂/λ₁| = {ratio:.3f}）"
+        return f"converge：{res.n_iter} 步后残差 {res.residual[-1]:.2e}（$|\\lambda_2/\\lambda_1|={ratio:.3f}$）"
     return (
         f"plateau：{res.n_iter} 步仍未到 1e-14（残差 {res.residual[-1]:.2e}）；"
-        f"|λ₂/λ₁| = {ratio:.3f} 时理论迭代数 ≈ log(tol)/log(ratio) 已经超过上限"
+        f"$|\\lambda_2/\\lambda_1|={ratio:.3f}$ 时，按理论估计所需的迭代数已经超过本轮上限"
     )
 
 
@@ -936,13 +936,13 @@ def _qr_schur(params: Mapping[str, Any], t: float) -> Frame:
     gap = float(mags[1] / mags[0]) if mags.size > 1 and mags[0] > 0.0 else float("nan")
 
     fr = Frame(chapter="1.4", viz="qr_schur", kind="frame")
-    fr.add("subdiag_heat", hw, unit="1", label="log10|次对角元|（行=下标，列=迭代步）")
+    fr.add("subdiag_heat", hw, unit="1", label="次对角元的 $\\log_{10}|\\cdot|$（行=下标，列=迭代步）")
     fr.add("subdiag_current", cur, unit="1", label="当前步的次对角元")
     fr.add("subdiag_final", np.log10(np.maximum(hist[-1], 1e-300)), unit="1", label="末步的次对角元")
     fr.add("error", np.maximum(errs, 1e-300), unit="1", label="Ritz 值到真谱的最大距离")
     fr.add("error_mark", np.array([_sigma_safe(cur_err)]), unit="1", label="当前步的谱距离")
     fr.add("step_grid", np.arange(hist.shape[0], dtype=float), unit="1", label="迭代步")
-    fr.add("theory_rate", np.asarray([gap ** j if np.isfinite(gap) else 1e-300 for j in range(hist.shape[0])], dtype=float), unit="1", label="理论衰减 |λ₂/λ₁|^k")
+    fr.add("theory_rate", np.asarray([gap ** j if np.isfinite(gap) else 1e-300 for j in range(hist.shape[0])], dtype=float), unit="1", label="理论衰减 $|\\lambda_2/\\lambda_1|^k$")
     fr.set_meta(
         n=n,
         step=kk,
@@ -1020,10 +1020,10 @@ def _pseudospectrum(params: Mapping[str, Any], t: float) -> Frame:
     log_sigma = np.log10(np.maximum(grid.sigma, 1e-300))
 
     fr = Frame(chapter="1.4", viz="pseudospectrum", kind="frame")
-    fr.add("grid_x", grid.xs, unit="1", label="Re z")
-    fr.add("grid_y", grid.ys, unit="1", label="Im z")
-    fr.add("log10_sigma", log_sigma, unit="1", label="log10 σ_min(A−zI)")
-    fr.add("inside", grid.inside.astype(float), unit="1", label="伪谱掩码（逐 ε）")
+    fr.add("grid_x", grid.xs, unit="1", label="$\\mathrm{Re}\\,z$")
+    fr.add("grid_y", grid.ys, unit="1", label="$\\mathrm{Im}\\,z$")
+    fr.add("log10_sigma", log_sigma, unit="1", label="$\\log_{10}\\sigma_{\\min}(A-zI)$")
+    fr.add("inside", grid.inside.astype(float), unit="1", label="伪谱掩码（逐 $\\varepsilon$）")
     # 可信掩码：σ_min 还没掉进 sqrt(u)·‖A‖ 的舍入地板（用 Frobenius 量级做尺度）
     sigma_scale = float(np.max(grid.sigma)) if grid.sigma.size else 1.0
     floor = np.sqrt(np.finfo(float).eps) * max(sigma_scale, 1e-300)
@@ -1034,15 +1034,15 @@ def _pseudospectrum(params: Mapping[str, Any], t: float) -> Frame:
     )
     fr.add("trusted", trusted, unit="1", label="可信格点掩码（1 = 没掉进舍入噪声）")
     fr.add("distance", grid.distance, unit="1", label="到谱的距离 dist(z, Λ(A))")
-    fr.add("epsilon_grid", eps_arr, unit="1", label="ε 序列")
-    fr.add("radius", grid.radius, unit="1", label="实测伪谱半径 ρ_ε")
-    fr.add("radius_ratio", np.maximum(rho_ratio, 1e-300), unit="1", label="ρ_ε / ρ(A)（实测）")
-    fr.add("radius_ratio_exact", np.maximum(exact_ratio, 1e-300), unit="1", label="正规矩阵解析 ρ_ε/ρ(A)")
-    fr.add("spectrum_x", np.real(lam).astype(float), unit="1", label="谱（Re）")
-    fr.add("spectrum_y", np.imag(lam).astype(float), unit="1", label="谱（Im）")
-    fr.add("error", np.maximum(est_err.ravel(), 1e-300), unit="1", label="σ_min 估计的可信度余量 σ_min−dist")
-    fr.add("epsilon_mark", np.array([eps_arr[sel]]), unit="1", label="当前 ε")
-    fr.add("radius_mark", np.array([float(np.maximum(rho_ratio[sel], 1e-300))]), unit="1", label="当前 ρ_ε/ρ(A)")
+    fr.add("epsilon_grid", eps_arr, unit="1", label="$\\varepsilon$ 序列")
+    fr.add("radius", grid.radius, unit="1", label="实测伪谱半径 $\\rho_\\varepsilon$")
+    fr.add("radius_ratio", np.maximum(rho_ratio, 1e-300), unit="1", label="$\\rho_\\varepsilon/\\rho(A)$（实测）")
+    fr.add("radius_ratio_exact", np.maximum(exact_ratio, 1e-300), unit="1", label="正规矩阵解析 $\\rho_\\varepsilon/\\rho(A)$")
+    fr.add("spectrum_x", np.real(lam).astype(float), unit="1", label="谱（$\\mathrm{Re}$）")
+    fr.add("spectrum_y", np.imag(lam).astype(float), unit="1", label="谱（$\\mathrm{Im}$）")
+    fr.add("error", np.maximum(est_err.ravel(), 1e-300), unit="1", label="$\\sigma_{\\min}$ 估计的可信度余量 $\\sigma_{\\min}-\\mathrm{dist}$")
+    fr.add("epsilon_mark", np.array([eps_arr[sel]]), unit="1", label="当前 $\\varepsilon$")
+    fr.add("radius_mark", np.array([float(np.maximum(rho_ratio[sel], 1e-300))]), unit="1", label="当前 $\\rho_\\varepsilon/\\rho(A)$")
     fr.set_meta(
         n=n,
         family_key=("normal", "jordan", "shifted_jordan", "shear", "grcar", "companion").index(family),
@@ -1111,10 +1111,10 @@ def _transient_growth(params: Mapping[str, Any], t: float) -> Frame:
     ratio = norms / pred
 
     fr = Frame(chapter="1.4", viz="transient_growth", kind="frame")
-    fr.add("step_grid", ks, unit="1", label="幂次 k")
-    fr.add("norms", norms, unit="1", label="实测 ‖A^k‖₂")
-    fr.add("spectral_prediction", pred, unit="1", label="谱半径预测 ρ(A)^k")
-    fr.add("growth_ratio", ratio, unit="1", label="增长倍数 ‖A^k‖/ρ(A)^k")
+    fr.add("step_grid", ks, unit="1", label="幂次 $k$")
+    fr.add("norms", norms, unit="1", label="实测 $\\|A^k\\|_2$")
+    fr.add("spectral_prediction", pred, unit="1", label="谱半径预测 $\\rho(A)^k$")
+    fr.add("growth_ratio", ratio, unit="1", label="增长倍数 $\\|A^k\\|/\\rho(A)^k$")
     fr.add("error", np.abs(norms - pred), unit="1", label="实测与谱预测之差（误差场）")
     fr.add("error_mark", np.array([_sigma_safe(abs(float(tr.norms[k]) - float(tr.spectral_prediction[k])))]), unit="1", label="当前步之差")
     fr.set_meta(
@@ -1205,14 +1205,14 @@ def _gmres_pseudospec(params: Mapping[str, Any], t: float) -> Frame:
     lam = np.asarray(dense_eigenvalues(A), dtype=complex)
 
     fr = Frame(chapter="1.4", viz="gmres_pseudospec", kind="frame")
-    fr.add("grid_x", grid.xs, unit="1", label="Re z")
-    fr.add("grid_y", grid.ys, unit="1", label="Im z")
-    fr.add("log10_sigma", np.log10(np.maximum(grid.sigma, 1e-300)), unit="1", label="log10 σ_min(A−zI)")
-    fr.add("inside", grid.inside.astype(float), unit="1", label="伪谱掩码（逐 ε）")
-    fr.add("epsilon_grid", eps_arr, unit="1", label="ε 序列")
-    fr.add("radius", grid.radius, unit="1", label="伪谱半径 ρ_ε")
-    fr.add("spectrum_x", np.real(lam).astype(float), unit="1", label="谱（Re）")
-    fr.add("spectrum_y", np.imag(lam).astype(float), unit="1", label="谱（Im）")
+    fr.add("grid_x", grid.xs, unit="1", label="$\\mathrm{Re}\\,z$")
+    fr.add("grid_y", grid.ys, unit="1", label="$\\mathrm{Im}\\,z$")
+    fr.add("log10_sigma", np.log10(np.maximum(grid.sigma, 1e-300)), unit="1", label="$\\log_{10}\\sigma_{\\min}(A-zI)$")
+    fr.add("inside", grid.inside.astype(float), unit="1", label="伪谱掩码（逐 $\\varepsilon$）")
+    fr.add("epsilon_grid", eps_arr, unit="1", label="$\\varepsilon$ 序列")
+    fr.add("radius", grid.radius, unit="1", label="伪谱半径 $\\rho_\\varepsilon$")
+    fr.add("spectrum_x", np.real(lam).astype(float), unit="1", label="谱（$\\mathrm{Re}$）")
+    fr.add("spectrum_y", np.imag(lam).astype(float), unit="1", label="谱（$\\mathrm{Im}$）")
     fr.add("residual", resid, unit="1", label="GMRES 相对残差（对数轴）")
     fr.add("residual_floor", np.full(k + 1, 1e-300, dtype=float), unit="1", label="对数轴地板")
     fr.add("spectral_bound", np.full(k + 1, max(bound, 1e-300), dtype=float), unit="1", label="只依赖谱的多项式下降界")

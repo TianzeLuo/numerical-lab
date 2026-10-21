@@ -196,8 +196,8 @@ export const barycentricVsVandermondeModel: SceneModel = (frame, opts) => {
     ylim: rangeLog([kap, kapTh, resid], [1e-18, 1e16]),
     yscale: "log",
     xlabel: "",
-    ylabel: axisYlabelOf(SPEC, "aux", "κ₁(V) 与残差（log）"),
-    title: axisTitleOf(SPEC, "aux", "κ₁(V) 与参考指数曲线、后向残差（log-log）"),
+    ylabel: axisYlabelOf(SPEC, "aux", "$\\kappa_1(V)$ 与残差（对数）"),
+    title: axisTitleOf(SPEC, "aux", "$\\kappa_1(V)$ 与参考指数曲线、后向残差（双对数）"),
     autoscaled: true,
   });
   const slopeAxis = makeAxis("slope", slopeRect, {
@@ -205,7 +205,7 @@ export const barycentricVsVandermondeModel: SceneModel = (frame, opts) => {
     ylim: rangeLinear([slopeM, slopeT], [0, 40]),
     xlabel: "节点数 $n$（本行线性；上一行同轴但用对数刻度）",
     ylabel: "$d\\log\\kappa/d\\log n$",
-    title: "log-log 斜率：实测 vs 理论（参考指数曲线只是量级参考）",
+    title: "双对数斜率：实测 vs 理论（参考指数曲线只是量级参考）",
     autoscaled: true,
   });
   scene.axes.push(mainAxis, auxAxis, slopeAxis);
@@ -284,7 +284,7 @@ export const barycentricVsVandermondeModel: SceneModel = (frame, opts) => {
 
   // —— 文本 ——
   const summary = paramSummary(frame, opts, [
-    { name: "n_max", label: "`n_max`" },
+    { name: "n_max", label: "$n_{\\max}$" },
     { name: "distribution", label: "节点分布" },
   ]);
   degraded.push(...summary.degraded);
@@ -315,7 +315,7 @@ export const barycentricVsVandermondeModel: SceneModel = (frame, opts) => {
   const auxLines: string[] = [];
   if (kapN !== undefined) {
     auxLines.push(
-      `κ₁(V)（蓝）=${num(kapN, 4)}` +
+      `$\\kappa_1(V)$（蓝）$=${num(kapN, 4)}$` +
         (kapRatio === undefined ? "" : `　= 红虚线 ${num(kapBase ?? 3, 3)}^n 的 ${num(kapRatio, 3)} 倍`) +
         (kapLog2 === undefined ? "" : `　log2κ/n=${num(kapLog2, 4)}`),
     );

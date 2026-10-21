@@ -64,10 +64,10 @@ _NONFINITE_POLICY = (
 )
 
 _TIME_SEMANTICS = {
-    "burgers_shock": "真实时间 t：从初值推进到 t（meta.t_actual 是实际到达时刻；末步被截断到正好落在 t）",
-    "characteristics": "真实时间 t：特征线画满 [0, tMax]，t 只是「当前时刻」那条水平切线与解曲线的位置",
-    "conservation_ledger": "真实时间 t：三本账都推进到 t；横轴是各方案自己的步进时刻",
-    "riemann_fan": "真实时间 t：精确解与数值解都取当前时刻（t=0 时自相似解没有定义，见 t_clamped）",
+    "burgers_shock": "真实时间 $t$：从初值推进到 t（meta.t_actual 是实际到达时刻；末步被截断到正好落在 t）",
+    "characteristics": "真实时间 $t$：特征线画满 [0, tMax]，t 只是「当前时刻」那条水平切线与解曲线的位置",
+    "conservation_ledger": "真实时间 $t$：三本账都推进到 t；横轴是各方案自己的步进时刻",
+    "riemann_fan": "真实时间 $t$：精确解与数值解都取当前时刻（t=0 时自相似解没有定义，见 t_clamped）",
 }
 
 
@@ -363,7 +363,7 @@ def _viz_characteristics(p: Mapping[str, Any], t: float) -> Frame:
             "而它对照的根本不是熵解——这是本章最容易写成假证据的地方。"
         ),
         theory_note=(
-            "Burgers: f'(u)=u，特征线是直线；破散时间 t_b=-1/min_x u0'(x)。"
+            "Burgers: f'(u)=u，特征线是直线；破散时间 $t$_b=-1/min_x u0'(x)。"
             "t<t_b 时回溯方程 x0+t*u0(x0)=x 单调、解唯一；t>t_b 时三条特征线折到一点，解多值。"
         ),
     )
@@ -690,7 +690,7 @@ MANIFEST: dict[str, Any] = {
                     "default": "godunov", "critical": [], "criticalNote": "",
                 "help": "数值通量：godunov 用局部 Riemann 解，rusanov 加最大波速耗散，osher 做通量分裂，upwind 按特征方向取样，advective 用中心平均（通常不稳定）。不同通量决定激波的锐度与振荡。"},
                 {
-                    "name": "limiter", "label": "限制器（none=一阶）", "type": "enum",
+                    "name": "limiter", "label": "限制器（`none` 表示一阶）", "type": "enum",
                     "options": ["none", "minmod", "mc", "vanleer"], "default": "none",
                     "critical": [], "criticalNote": "",
                 "help": "限制器：none 是一阶（很耗散、但无振荡），minmod/mc/vanleer 是二阶 TVD 限制器，能在光滑区提高精度、在激波附近压住过冲。限制越强越稳定，但抹平细节。"},
@@ -700,28 +700,28 @@ MANIFEST: dict[str, Any] = {
                     "critical": [], "criticalNote": "",
                 "help": "空间单元数。$n$ 越大，激波过渡带越窄、分辨率越高，但同样的 CFL 下时间步也更小；比较格式误差时要固定 $n$。"},
                 {
-                    "name": "cfl", "label": "CFL 数 cfl = dt*max|f'|/dx", "type": "float",
+                    "name": "cfl", "label": "CFL 数 $\\mathrm{CFL}=\\Delta t\\max|f'|/\\Delta x$", "type": "float",
                     "min": 0.1, "max": 1.2, "step": 0.05, "default": 0.4,
                     "critical": [1.0], "criticalNote": _CRIT_NOTE_CFL, "beyond": "above",
                 "help": "CFL 数 $\\mathrm{CFL}=\\Delta t\\max|f'|/\\Delta x$。显式格式要求 CFL 不超过约 1；越接近 1 效率越高，但激波附近可能更敏感。"},
             ],
-            "time": {"mode": "scrub", "tMax": 0.6, "dt": 0.02, "label": "t（真实时间，域长 L=1）"},
+            "time": {"mode": "scrub", "tMax": 0.6, "dt": 0.02, "label": "$t$（真实时间，域长 $L=1$）"},
             "requiredAux": ["error", "residual"],
             "axes": [
                 {
                     "id": "solution", "autoscaled": False,
                     "title": "解与精确解（窗口固定，失控时截断）",
-                    "ylabel": "u(x,t)",
+                    "ylabel": "$u(x,t)$",
                 },
                 {
                     "id": "flux", "autoscaled": False,
                     "title": f"逐单元界面通量（窗口固定 ±{_FLUX_CLIP:g}）",
-                    "ylabel": "F_(j±1/2)",
+                    "ylabel": "$F_{j\\pm1/2}$",
                 },
                 {
                     "id": "error", "autoscaled": False, "scale": "log",
                     "title": "逐点误差（对数轴，地板掩码）",
-                    "ylabel": "|u - u_exact|",
+                    "ylabel": "$|u-u_{\\mathrm{exact}}|$",
                 },
             ],
             "pitfalls": (
@@ -772,23 +772,23 @@ MANIFEST: dict[str, Any] = {
                     "critical": [], "criticalNote": "",
                 "help": "画多少条特征线。线越密，越容易看清特征线的相交（激波）和发散（稀疏波）；它只改变采样密度，不改变解。"},
             ],
-            "time": {"mode": "scrub", "tMax": 0.8, "dt": 0.02, "label": "t（真实时间；tMax=0.8 覆盖破散前后）"},
+            "time": {"mode": "scrub", "tMax": 0.8, "dt": 0.02, "label": "$t$（真实时间；$t_{\\max}=0.8$ 覆盖破散前后）"},
             "requiredAux": ["error", "residual"],
             "axes": [
                 {
                     "id": "characteristics", "autoscaled": False,
-                    "title": "特征线平面 (x,t)（固定窗口）",
-                    "ylabel": "t",
+                    "title": "特征线平面 $(x,t)$（固定窗口）",
+                    "ylabel": "$t$",
                 },
                 {
                     "id": "profile", "autoscaled": False,
                     "title": "当前时刻解与回溯精确解",
-                    "ylabel": "u(x,t)",
+                    "ylabel": "$u(x,t)$",
                 },
                 {
                     "id": "error", "autoscaled": False, "scale": "log",
                     "title": "回溯解误差（对数轴，掩码点断开）",
-                    "ylabel": "|u - u_exact|",
+                    "ylabel": "$|u-u_{\\mathrm{exact}}|$",
                 },
             ],
             "pitfalls": (
@@ -838,23 +838,23 @@ MANIFEST: dict[str, Any] = {
                     "critical": [], "criticalNote": "",
                 "help": "边界条件：outflow 让波离开、总量可变；periodic 把两端接起来、总量应严格守恒。守恒账本的误差在 periodic 下应只剩舍入量级。"},
             ],
-            "time": {"mode": "scrub", "tMax": 0.6, "dt": 0.02, "label": "t（真实时间，域长 L=1）"},
+            "time": {"mode": "scrub", "tMax": 0.6, "dt": 0.02, "label": "$t$（真实时间，域长 $L=1$）"},
             "requiredAux": ["residual"],
             "axes": [
                 {
                     "id": "mass", "autoscaled": False,
-                    "title": "总质量 M(t)（出流下它本来就该变）",
-                    "ylabel": "M = sum u_j dx",
+                    "title": "总质量 $M(t)$（出流下它本来就该变）",
+                    "ylabel": "$M=\\sum_j u_j\\,\\Delta x$",
                 },
                 {
                     "id": "defect", "autoscaled": False, "scale": "log",
                     "title": "账本残差（对数轴 1e-18–10）",
-                    "ylabel": "|M(t)-M(0)+(out-in)|",
+                    "ylabel": "$|M(t)-M(0)+(\\mathrm{out}-\\mathrm{in})|$",
                 },
                 {
                     "id": "shock", "autoscaled": False,
                     "title": "激波位置-时间与 RH 参考线",
-                    "ylabel": "x_shock(t)",
+                    "ylabel": "$x_{\\mathrm{shock}}(t)$",
                 },
             ],
             "pitfalls": (
@@ -900,7 +900,7 @@ MANIFEST: dict[str, Any] = {
                     "critical": [], "criticalNote": "",
                 "help": "Riemann 求解器：godunov 精确/近似求解，hllc 区分接触波，rusanov 只加最大波速耗散（较耗散）。选择决定接触间断的锐度。"},
                 {
-                    "name": "limiter", "label": "限制器（none=一阶）", "type": "enum",
+                    "name": "limiter", "label": "限制器（`none` 表示一阶）", "type": "enum",
                     "options": ["none", "minmod", "mc"], "default": "minmod",
                     "critical": [], "criticalNote": "",
                 "help": "限制器：none 一阶，minmod/mc 二阶 TVD。高阶限制器在光滑区更准，在间断处仍能压住过冲；限制越强，接触面越被抹宽。"},
@@ -910,7 +910,7 @@ MANIFEST: dict[str, Any] = {
                     "critical": [], "criticalNote": "",
                 "help": "单元数。$n$ 越大，激波/接触波越锐，但显式 CFL 下步长越小；比较格式时要固定 $n$。"},
             ],
-            "time": {"mode": "scrub", "tMax": 0.2, "dt": 0.01, "label": "t（真实时间；t=0 时自相似解未定义，见 t_clamped）"},
+            "time": {"mode": "scrub", "tMax": 0.2, "dt": 0.01, "label": "$t$（真实时间；$t=0$ 时自相似解未定义，见 `t_clamped`）"},
             "requiredAux": ["error", "residual"],
             "axes": [
                 {
@@ -921,12 +921,12 @@ MANIFEST: dict[str, Any] = {
                 {
                     "id": "velocity", "autoscaled": False,
                     "title": "速度（接触两侧连续）",
-                    "ylabel": "u",
+                    "ylabel": "$u$",
                 },
                 {
                     "id": "pressure", "autoscaled": False,
                     "title": "压强（跨激波跳、跨接触连续）",
-                    "ylabel": "p",
+                    "ylabel": "$p$",
                 },
                 {
                     "id": "error", "autoscaled": False, "scale": "log",

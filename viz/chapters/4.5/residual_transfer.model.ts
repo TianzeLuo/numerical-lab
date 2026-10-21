@@ -258,8 +258,8 @@ export const residualTransferModel: SceneModel = (frame, opts) => {
     ),
     yscale: "log",
     xticks: Array.from(new Set([0, Math.max(0, Math.round((lossAxis.length - 1) / 2)), Math.max(0, lossAxis.length - 1)])),
-    xlabel: "预平滑步数 $ν$",
-    title: "不可见比例随 ν（混合残差 vs 纯模态）",
+    xlabel: "预平滑步数 $\\nu$",
+    title: "不可见比例随 $\\nu$（混合残差 vs 纯模态）",
     ylabel: "比值",
     autoscaled: true,
   });

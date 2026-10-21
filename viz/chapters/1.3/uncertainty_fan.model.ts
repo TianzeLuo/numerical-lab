@@ -254,7 +254,7 @@ export const uncertaintyFanModel: SceneModel = (frame, opts) => {
     // **不设轴名**：轴名带会在正方形下方占 16..28px，而这块正方形要顶到内容底边；
     // 轴的含义写在右下角的文字里（"横 = x₁、纵 = x₂，等比例、固定窗口"）。
     xlabel: "",
-    ylabel: axisYlabel("plane", "x₂"),
+    ylabel: axisYlabel("plane", "$x_2$"),
     title: axisTitle("plane", "解平面（固定等比例坐标，等残差椭圆族）"),
     autoscaled: false,
     xticks: [],
@@ -365,7 +365,7 @@ export const uncertaintyFanModel: SceneModel = (frame, opts) => {
     scene.layers.push(
       loglogFitLayer("growth", kappaGrid, errorKappa, slopeMeasured, 1, {
         seriesLabel: `实测最大不确定度（幂律拟合斜率 ${fmt(slopeMeasured, 3)}；理论 1）`,
-        theoryLabel: "理论参考斜率 1（κ·δ：扰动界取等号的方向）",
+        theoryLabel: "理论参考斜率 1（$\\kappa\\cdot\\delta$：扰动界取等号的方向）",
         color: pal.curves[0],
         theoryColor: pal.reference,
       }),

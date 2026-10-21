@@ -167,7 +167,7 @@ async function oscFrame(over: OscOverride = {}): Promise<Frame> {
     { name: "t", data: OSC_T, unit: "s", label: "时间" },
     { name: "x", data: OSC_X, unit: "1", label: "位移" },
     { name: "v", data: Array.from(OSC_T, () => -0.05), unit: "1/s", label: "速度" },
-    { name: "energy", data: Array.from(OSC_T, () => 0.5), unit: "1", label: "比能量 ½(v²+ω²x²)" },
+    { name: "energy", data: Array.from(OSC_T, () => 0.5), unit: "1", label: "比能量 $\\tfrac12(v^2+\\omega^2x^2)$" },
     { name: "residual", data: OSC_RESIDUAL, unit: "1", label: "ODE 残差" },
   ];
   const arrays = base
@@ -450,7 +450,7 @@ test("oscillator：残差参考线取帧给的 meta.residual_max，不是前端�
   const scene = oscillatorModel(OSC_DEFAULT, oscOpts());
   const ref = lineSeries(scene, "error")[1];
   assert.deepEqual(Array.from(ref.y), [1.5e-5, 1.5e-5]);
-  assert.match(String(ref.label), /residual_max/);
+  assert.match(String(ref.label), /residual_max|残差上界/);
 
   const noMax = await oscFrame({ dropMeta: ["residual_max"] });
   const scene2 = oscillatorModel(noMax, oscOpts());
@@ -1016,8 +1016,8 @@ test("真实帧：oscillator 真实帧可解码并驱动 model（分支说明/�
   const error = scene.axes.find((a) => a.id === "error");
   assert.ok(Math.log10((error?.ylim[1] ?? 1) / (error?.ylim[0] ?? 1)) >= 3, "真实残差横跨若干数量级，对数轴要画出来");
   assert.match(badgesOf(scene, "critical")[0], /理论临界 1\.000/);
-  assert.equal(frame.strings["regime_note"], "欠阻尼：解振荡衰减，包络 e^(−ζωt)");
-  assert.ok(textsOf(scene).includes("underdamped｜欠阻尼：解振荡衰减，包络 e^(−ζωt)"), `分支说明必须来自帧 strings：${textsOf(scene)}`);
+  assert.equal(frame.strings["regime_note"], "欠阻尼：解振荡衰减，包络 $e^{-\\zeta\\omega t}$");
+  assert.ok(textsOf(scene).includes("underdamped｜欠阻尼：解振荡衰减，包络 $e^{-\\zeta\\omega t}$"), `分支说明必须来自帧 strings：${textsOf(scene)}`);
   assert.equal(scene.t, 0.5);
 });
 

@@ -103,11 +103,11 @@ export const manifest: ChapterManifestJson = {
       "time": {
         "dt": 0.1,
         "fps": 30,
-        "label": "log10(观测步数)",
+        "label": "$\\log_{10}$（观测步数）",
         "mode": "scrub",
         "tMax": 6.0,
       },
-      "title": "能量漂移对决：10⁶ 步的辛 vs 非辛",
+      "title": "能量漂移对决：$10^6$ 步的辛 vs 非辛",
     },
     {
       "axes": [
@@ -265,7 +265,7 @@ export const manifest: ChapterManifestJson = {
       "time": {
         "dt": 0.1,
         "fps": 30,
-        "label": "log10(观测步数)",
+        "label": "$\\log_{10}$（观测步数）",
         "mode": "scrub",
         "tMax": 6.0,
       },

@@ -293,7 +293,7 @@ export const convergenceRaceModel: SceneModel = (frame, opts) => {
   // —— 右列文字 ——
   if (L.columns && L.floor - L.textTop >= 32) {
     const head = paramSummary(frame, opts, [
-      { name: "n_max", label: "`N_max`" },
+      { name: "n_max", label: "$N_{\\max}$" },
       { name: "rho", label: "$ρ$", digits: 3 },
     ]);
     degraded.push(...head.degraded);

@@ -29,7 +29,7 @@ test("describeControls：顺序跟着 manifest，值取默认值，字段齐全"
   const specs = describeControls(heat);
   assert.deepEqual(specs.map((s) => s.name), ["nx", "r", "t_end"]);
   const r = specs[1];
-  assert.equal(r.label, "网格比 r = αΔt/Δx²");
+  assert.equal(r.label, "网格比 $r=\\alpha\\Delta t/\\Delta x^2$");
   assert.equal(r.type, "float");
   assert.equal(r.value, 0.4);
   assert.equal(r.defaultValue, 0.4);

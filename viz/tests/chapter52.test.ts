@@ -439,7 +439,7 @@ test("image_deconvolution：四块热图 + 历史轴 + λ 扫描轴，热图是�
   assert.equal(heatAxes.length, 4);
   assert.deepEqual(
     heatAxes.map((a) => a.title),
-    ["真解 x*", "数据 b", "重建 x_k", "|重建−x*|"],
+    ["真解 x*", "数据 b", "重建 $x_k$", "|重建−x*|"],
   );
   const heats = scene.layers.filter((l) => l.kind === "heat");
   assert.equal(heats.length, 4);

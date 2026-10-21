@@ -262,7 +262,7 @@ MANIFEST: dict[str, Any] = {
         # ------------------------------------------------------------------ #
         {
             "id": "energy_drift_duel",
-            "title": "能量漂移对决：10⁶ 步的辛 vs 非辛",
+            "title": "能量漂移对决：$10^6$ 步的辛 vs 非辛",
             "description": (
                 "同一个哈密顿系统、同一个步长，两种方法各跑一步数上限（可拖到 $10^6$ 步）："
                 "辛方法给一条在带宽内来回振荡的能量误差曲线，非辛对照给一条单调爬升/下坡的。"
@@ -368,7 +368,7 @@ MANIFEST: dict[str, Any] = {
                     ),
                 },
             ],
-            "time": {"mode": "scrub", "tMax": 6.0, "dt": 0.1, "fps": 30, "label": "log10(观测步数)"},
+            "time": {"mode": "scrub", "tMax": 6.0, "dt": 0.1, "fps": 30, "label": "$\\log_{10}$（观测步数）"},
             "requiredAux": ["error"],
             "axes": [
                 {
@@ -704,7 +704,7 @@ MANIFEST: dict[str, Any] = {
                     ),
                 },
             ],
-            "time": {"mode": "scrub", "tMax": 6.0, "dt": 0.1, "fps": 30, "label": "log10(观测步数)"},
+            "time": {"mode": "scrub", "tMax": 6.0, "dt": 0.1, "fps": 30, "label": "$\\log_{10}$（观测步数）"},
             "requiredAux": ["error"],
             "axes": [
                 {
@@ -986,7 +986,7 @@ def _energy_drift_duel(params: Mapping[str, Any], t: float) -> Frame:
     short_b = _short_term_error(system, m_base, h, n_short)
 
     fr = Frame(chapter="3.3", viz="energy_drift_duel", kind="frame")
-    fr.add("t", run_s.t, unit="", label="观测时间 t")
+    fr.add("t", run_s.t, unit="", label="观测时间 $t$")
     fr.add("energy_error_symplectic", err_s, unit="", label=f"{_method_label(m_sym)} 的能量相对误差")
     fr.add("energy_error_baseline", err_b, unit="", label=f"{_method_label(m_base)} 的能量相对误差")
     fr.add("energy_band_hi", hi, unit="", label="辛方法的误差带上边")
@@ -1037,7 +1037,7 @@ def _energy_drift_duel(params: Mapping[str, Any], t: float) -> Frame:
         system=spec.label,
         method_symplectic=_method_label(m_sym),
         method_baseline=_method_label(m_base),
-        time_axis="log10(观测步数)：t=0 给 1 步，t=6 给 10^6 步；数组只覆盖已观测的那一段",
+        time_axis="$\\log_{10}$（观测步数）：t=0 给 1 步，t=6 给 10^6 步；数组只覆盖已观测的那一段",
         horizon=(
             f"本帧观测 {run_s.n_steps} 步（h={h:g}，共 {_fin(run_s.n_periods() or 0.0):.4g} 个精确周期）。"
             f"主判据是**后半段/前半段的 sup 之比**：辛方法 {_fin(grow_s):.4f}"
@@ -1216,7 +1216,7 @@ def _modified_hamiltonian(params: Mapping[str, Any], t: float) -> Frame:
         band_theory = float("nan")
 
     fr = Frame(chapter="3.3", viz="modified_hamiltonian", kind="frame")
-    fr.add("t", run.t, unit="", label="观测时间 t")
+    fr.add("t", run.t, unit="", label="观测时间 $t$")
     fr.add("energy_error", err, unit="", label="真实能量的相对误差")
     fr.add("energy_band_hi", hi, unit="", label="误差带上边（实测 sup）")
     fr.add("energy_band_lo", lo, unit="", label="误差带下边（实测 −sup）")
@@ -1252,7 +1252,7 @@ def _modified_hamiltonian(params: Mapping[str, Any], t: float) -> Frame:
     fr.set_strings(
         status="ok" if run.ok else "partial_blowup",
         method=_method_label(method),
-        time_axis="log10(观测步数)：数组只覆盖已观测的那一段",
+        time_axis="$\\log_{10}$（观测步数）：数组只覆盖已观测的那一段",
         band_note=(
             f"观测 {run.n_steps} 步（后半段/前半段 sup 比 = {_fin(iv.band_growth(err) if err.size >= 4 else 0.0):.4f}："
             f"1 = 有界振荡、2 = 线性漂移）；真实能量的实测带宽 {band:.6e}"

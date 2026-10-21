@@ -210,7 +210,7 @@ export const stabilityThresholdModel: SceneModel = (frame, opts) => {
   const solutionAxis = makeAxis("solution", solutionRect, {
     xlim,
     ylim: SOLUTION_YLIM,
-    ylabel: axisYlabelOf(SPEC, "solution", "u(x,t)"),
+    ylabel: axisYlabelOf(SPEC, "solution", "$u(x,t)$"),
     title: axisTitleFitted(SPEC, "solution", "解 u(x,t)（窗口固定 ±1.5）", solutionRect[2]),
     autoscaled: axisAutoscaledOf(SPEC, "solution", false),
     // 上排清空 xticks：下面那块误差面板是同一根 x 轴，刻度由它出（省掉一整条装饰带，

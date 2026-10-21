@@ -218,7 +218,7 @@ export const luHeatmapModel: SceneModel = (frame, opts) => {
     // 轴下的位置留给图例（含色标说明）；"列 j" 的含义写进 head 行。
     xlabel: "",
     ylabel: "行 $i$（0 在上）",
-    title: axisTitle("main", "log10|M|（当前工作矩阵）"),
+    title: axisTitle("main", "$\\log_{10}|M|$（当前工作矩阵）"),
     autoscaled: false,
     xticks: integerTicks(n),
     yticks: integerTicks(n),
@@ -241,7 +241,7 @@ export const luHeatmapModel: SceneModel = (frame, opts) => {
     ylim: auxYlim,
     yscale: "log",
     xlabel: "历史样本 $j$（$j=0 为初始矩阵，$j=k+1 为第 $k$ 步之后）",
-    ylabel: axisYlabel("aux", "ρ 与 ‖PA−LU‖/‖A‖"),
+    ylabel: axisYlabel("aux", "$\\rho$ 与 $\\|PA-LU\\|/\\|A\\|$"),
     title: axisTitle("aux", "增长因子 ρ(k) 与残差"),
     autoscaled: true,
     xticks: integerTicks(auxLen),

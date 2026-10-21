@@ -251,8 +251,8 @@ export const energyDriftDuelModel: SceneModel = (frame, opts) => {
     xlim: [x0, x1],
     ylim: [-1.35 * maxAbs, 1.35 * maxAbs],
     xlabel: sameLen ? "观测时间 t（数组只覆盖已观测步数）" : "采样下标（帧 t 与对照曲线长度不一致）",
-    title: axisTitleOf(SPEC?.axes, "main", "能量相对误差 (H−H₀)/|H₀|"),
-    ylabel: axisYlabelOf(SPEC?.axes, "main", "ΔE/E₀"),
+    title: axisTitleOf(SPEC?.axes, "main", "能量相对误差 $(H-H_0)/|H_0|$"),
+    ylabel: axisYlabelOf(SPEC?.axes, "main", "$\\Delta E/E_0$"),
     autoscaled: true,
     tickTarget: Math.max(3, Math.round(L.leftW / 100)),
   });

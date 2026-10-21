@@ -287,7 +287,7 @@ export const gridIndependenceModel: SceneModel = (frame, opts) => {
   if (L.columns) {
     const budget = unitBudget(L.rightW);
     const head = paramSummary(frame, opts, [
-      { name: "levels_max", label: "`L_max`" },
+      { name: "levels_max", label: "$L_{\\max}$" },
       { name: "nu", label: "$ν$" },
     ]);
     degraded.push(...head.degraded);

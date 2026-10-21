@@ -10,14 +10,14 @@
           "autoscaled": false,
           "id": "main",
           "title": "曲线、数据点与曲率梳（固定坐标）",
-          "ylabel": "y"
+          "ylabel": "$y$"
         },
         {
           "autoscaled": true,
           "id": "jump",
           "scale": "log",
           "title": "节点处的跳变",
-          "ylabel": "|dS'|, |dS''|"
+          "ylabel": "$|\\mathrm{d}S'|,\\ |\\mathrm{d}S''|$"
         },
         {
           "autoscaled": true,
@@ -158,7 +158,7 @@
       ],
       "time": {
         "dt": 0.05,
-        "label": "探针位置 x",
+        "label": "探针位置 $x$",
         "mode": "scrub",
         "tMax": 5.0
       },
@@ -170,13 +170,13 @@
           "autoscaled": true,
           "id": "main",
           "title": "三条插值曲线",
-          "ylabel": "y"
+          "ylabel": "$y$"
         },
         {
           "autoscaled": true,
           "id": "d2",
-          "title": "二阶导 S''（节点两侧分别采样）",
-          "ylabel": "S''"
+          "title": "二阶导 $S''$（节点两侧分别采样）",
+          "ylabel": "$S''$"
         },
         {
           "autoscaled": true,
@@ -223,7 +223,7 @@
           "criticalNote": "",
           "default": 9,
           "help": "节点数。增加 $n$ 让分段更细，样条误差按 $h^4$ 下降；但分段线性的转折点也更多，C0 的“折角”仍存在。",
-          "label": "节点数 n",
+          "label": "节点数 $n$",
           "max": 15,
           "min": 5,
           "name": "n",
@@ -280,7 +280,7 @@
           "autoscaled": false,
           "id": "main",
           "title": "曲线、控制多边形与基函数（固定参数域）",
-          "ylabel": "y"
+          "ylabel": "$y$"
         },
         {
           "autoscaled": true,
@@ -294,7 +294,7 @@
           "id": "support",
           "scale": "log",
           "title": "支撑外的基函数值（应恒为 0）",
-          "ylabel": "max|B_i| 支撑外"
+          "ylabel": "$\\max|B_i|$（支撑外）"
         }
       ],
       "dataSource": "backend",
@@ -385,7 +385,7 @@
           "autoscaled": false,
           "id": "main",
           "title": "函数、样条与多项式（固定坐标，溢出显式报告）",
-          "ylabel": "y"
+          "ylabel": "$y$"
         },
         {
           "autoscaled": true,
@@ -398,8 +398,8 @@
           "autoscaled": true,
           "id": "growth",
           "scale": "log",
-          "title": "误差随 n 的增长",
-          "ylabel": "max|误差|"
+          "title": "误差随 $n$ 的增长",
+          "ylabel": "$\\max|e|$"
         }
       ],
       "dataSource": "backend",
@@ -411,7 +411,7 @@
           "criticalNote": "",
           "default": 9,
           "help": "插值节点数。对多项式，$n$ 增大不保证更好（Runge 现象）；对三次样条，$n$ 增大通常让误差按 $h^4$ 下降，直到舍入地板。",
-          "label": "节点数 n",
+          "label": "节点数 $n$",
           "max": 20,
           "min": 4,
           "name": "n",

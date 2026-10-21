@@ -211,7 +211,7 @@ export const controlPointsModel: SceneModel = (frame, opts) => {
     xlim: xLim,
     ylim: yLim,
     xlabel: "",
-    ylabel: axisYlabel("main", "y"),
+    ylabel: axisYlabel("main", "$y$"),
     title: axisTitle("main", "曲线、数据点与曲率梳（固定坐标）"),
     autoscaled: false,
     xticks: niceTicks(xLim[0], xLim[1], Math.max(3, Math.round(mainRect[2] / 100))),

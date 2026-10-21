@@ -278,7 +278,7 @@ MANIFEST: dict[str, Any] = {
         # ------------------------------------------------------------------ #
         {
             "id": "cond_ellipsoid",
-            "title": "条件数 κ(A)：输入的小误差会被放大多少倍",
+            "title": "条件数 $\\kappa(A)$：输入的小误差会被放大多少倍",
             "description": (
                 "解方程 $Ax=b$ 时，条件数 $\\kappa(A)$ 衡量“$b$ 的小扰动会把解 $x$ 放大多少”。"
                 "画面中单位圆经过 $A$ 变成椭圆，长轴与短轴之比就是 $\\kappa_2$；$\\kappa$ 越大，"
@@ -299,7 +299,7 @@ MANIFEST: dict[str, Any] = {
                 },
                 {
                     "name": "shear",
-                    "label": "剪切强度 s（仅 shear 族）",
+                    "label": "剪切强度 $s$（仅 shear 族）",
                     "type": "float",
                     "min": 0.0,
                     "max": 2.0,
@@ -311,7 +311,7 @@ MANIFEST: dict[str, Any] = {
                 },
                 {
                     "name": "delta_b",
-                    "label": "右端项相对扰动 ‖δb‖/‖b‖",
+                    "label": "右端项相对扰动 $\\|\\delta b\\|/\\|b\\|$",
                     "type": "float",
                     "min": 1e-16,
                     "max": 1e-2,
@@ -319,7 +319,7 @@ MANIFEST: dict[str, Any] = {
                     "default": 1e-12,
                     "critical": [1.1e-16],
                     "criticalNote": (
-                        "δb 低于单位舍入 u = 1.11e-16 时，扰动在 float64 里根本表示不出来，"
+                        "$\\delta b$ 低于单位舍入 $u=1.11\\times10^{-16}$ 时，扰动在 float64 里根本表示不出来，"
                         "实测放大比会退化成舍入噪声；滑块下限取 u 量级正是为了让这件事可见。"
                     ),
                     "beyond": "below",
@@ -403,8 +403,8 @@ MANIFEST: dict[str, Any] = {
                     "default": 1.0 / U - 1.0,
                     "critical": [1.0 / U],
                     "criticalNote": (
-                        "big ≥ 1/u = 2^53 ≈ 9.0e15 时，1.0 这个「小项」已经落在 big 的半个 ulp 之内，"
-                        "朴素求和会把它整项丢掉。默认值取 2^53−1：第一次加 1 恰好到边界，之后每个 1 都被丢掉，"
+                        "$big\\ge1/u=2^{53}\\approx9.0\\times10^{15}$ 时，$1.0$ 这个「小项」已经落在 $big$ 的半个 ulp 之内，"
+                        "朴素求和会把它整项丢掉。默认值取 $2^{53}-1$：第一次加 $1$ 恰好到边界，之后每个 $1$ 都被丢掉，"
                         "既演示了问题，又不会一打开就亮红色越界提示。"
                     ),
                     "beyond": "above",
@@ -564,11 +564,11 @@ def _float_zoom(params: Mapping[str, Any], t: float) -> Frame:
     if special is not None and special_pos is not None and abs(special_pos) <= radius + 1e-12:
         fr.add("special_offset", np.array([float(special_pos)]), unit="ulp", label="0.1+0.2 的实际值")
         fr.add("special_y", np.array([0.5]), unit="1", label="0.1+0.2 的实际值")
-    fr.add("k_grid", np.arange(ACC_COUNT + 1, dtype=float), unit="1", label="累加次数 k")
+    fr.add("k_grid", np.arange(ACC_COUNT + 1, dtype=float), unit="1", label="累加次数 $k$")
     fr.add("residual", residual, unit="1", label="与数学值 k/10 的残差（精确 0 以 u/2·|k/10| 显示）")
-    fr.add("residual_sum_only", residual_sum_only, unit="1", label="纯求和误差：与 k·fl(0.1) 的残差")
+    fr.add("residual_sum_only", residual_sum_only, unit="1", label="纯求和误差：与 $k\\cdot\\mathrm{fl}(0.1)$ 的残差")
     fr.add("residual_floor", residual_floor, unit="1", label="对数轴的显示地板")
-    fr.add("sum_value", sums, unit="1", label="fl(Σ0.1) 的部分和")
+    fr.add("sum_value", sums, unit="1", label="$\\mathrm{fl}(\\sum 0.1)$ 的部分和")
     fr.add("residual_mark", np.array([float(residual[k])]), unit="1", label="当前位置的残差")
     fr.add("k_mark", np.array([float(k)]), unit="1", label="当前位置的累加次数")
     fr.set_meta(
@@ -596,8 +596,8 @@ def _float_zoom(params: Mapping[str, Any], t: float) -> Frame:
     fr.set_strings(
         focus=kind,
         note=_zoom_note(kind, center, spacing_center, spacing_below, spacing_above, k, float(raw[k])),
-        center_label="0.3 的最近 double" if kind == "sum" else "2 的幂边界 0.25",
-        special_label="0.1+0.2 的实际值（大 1 个 ulp）" if kind == "sum" else "",
+        center_label="$0.3$ 的最近 double" if kind == "sum" else "$2$ 的幂边界 $0.25$",
+        special_label="$0.1+0.2$ 的实际值（大 $1$ 个 ulp）" if kind == "sum" else "",
         exact_center=fp.exact_decimal(center, digits=24),
         exact_special=fp.exact_decimal(special, digits=24) if special is not None else "",
         spacing_note=(
@@ -692,18 +692,18 @@ def _cancellation(params: Mapping[str, Any], t: float) -> Frame:
     n_exact_zero = int(np.count_nonzero(round_grid == 0.0))
 
     fr = Frame(chapter="1.1", viz="cancellation", kind="frame")
-    fr.add("loss_grid", t_grid, unit="1", label="损失位数 t = log10(M/|a−b|)")
+    fr.add("loss_grid", t_grid, unit="1", label="损失位数 $t=\\log_{10}(M/|a-b|)$")
     fr.add("digits_remaining", digits_grid, unit="1", label="剩余有效位数（先验估计）")
     fr.add("digits_mark", np.array([digits_mark]), unit="1", label="当前剩余有效位数")
     fr.add("error", np.maximum(error_grid, error_floor), unit="1", label="实测相对误差（0 以 u/2 显示）")
-    fr.add("error_theory", np.maximum(theory_grid, error_floor), unit="1", label="理论上界 δ_in(|a|+|b|)/|a−b|")
+    fr.add("error_theory", np.maximum(theory_grid, error_floor), unit="1", label="理论上界 $\\delta_{\\mathrm{in}}(|a|+|b|)/|a-b|$")
     fr.add("roundoff", np.maximum(round_grid, error_floor), unit="1", label="减法本身的舍入误差（0 以 u/2 显示）")
     fr.add("error_mark", np.array([max(error_mark, error_floor)]), unit="1", label="当前实测相对误差")
     fr.add("loss_mark", np.array([loss_now]), unit="1", label="当前损失位数")
     fr.add("roundoff_mark", np.array([max(round_mark, error_floor)]), unit="1", label="当前减法舍入误差")
-    fr.add("a_value", np.array([a]), unit="1", label="被减数 a")
-    fr.add("b_value", np.array([b]), unit="1", label="减数 b")
-    fr.add("gap_value", np.array([gap]), unit="1", label="|a−b|")
+    fr.add("a_value", np.array([a]), unit="1", label="被减数 $a$")
+    fr.add("b_value", np.array([b]), unit="1", label="减数 $b$")
+    fr.add("gap_value", np.array([gap]), unit="1", label="$|a-b|$")
     fr.set_meta(
         a=a,
         b=b,
@@ -859,22 +859,22 @@ def _cond_ellipsoid(params: Mapping[str, Any], t: float) -> Frame:
     fr.add("theta", theta, unit="rad", label="参数角")
     fr.add("circle_x", cx, unit="1", label="单位圆")
     fr.add("circle_y", cy, unit="1", label="单位圆")
-    fr.add("image_x", ix, unit="1", label="A 的像（椭圆）")
-    fr.add("image_y", iy, unit="1", label="A 的像（椭圆）")
-    fr.add("b_vec", np.array([0.0, b[0], 0.0, b[1]]), unit="1", label="b")
-    fr.add("db_vec", np.array([0.0, db[0], 0.0, db[1]]), unit="1", label="δb")
-    fr.add("x_exact", np.array([0.0, x_exact[0], 0.0, x_exact[1]]), unit="1", label="精确解 x")
-    fr.add("x_num", np.array([0.0, x_num[0], 0.0, x_num[1]]), unit="1", label="数值解 x̂")
-    fr.add("x_pert", np.array([0.0, x_pert[0], 0.0, x_pert[1]]), unit="1", label="扰动后的解 x̂′")
+    fr.add("image_x", ix, unit="1", label="$A$ 的像（椭圆）")
+    fr.add("image_y", iy, unit="1", label="$A$ 的像（椭圆）")
+    fr.add("b_vec", np.array([0.0, b[0], 0.0, b[1]]), unit="1", label="$b$")
+    fr.add("db_vec", np.array([0.0, db[0], 0.0, db[1]]), unit="1", label="$\\delta b$")
+    fr.add("x_exact", np.array([0.0, x_exact[0], 0.0, x_exact[1]]), unit="1", label="精确解 $x$")
+    fr.add("x_num", np.array([0.0, x_num[0], 0.0, x_num[1]]), unit="1", label="数值解 $\\hat{x}$")
+    fr.add("x_pert", np.array([0.0, x_pert[0], 0.0, x_pert[1]]), unit="1", label="扰动后的解 $\\hat{x}'$")
     fr.add("x_exact_defined", np.array([x_exact_defined]), unit="1", label="精确解是否存在（1/0）")
     fr.add("x_num_defined", np.array([x_num_defined]), unit="1", label="数值解是否存在（1/0）")
     fr.add("x_pert_defined", np.array([x_pert_defined]), unit="1", label="扰动解是否存在（1/0）")
-    fr.add("matrix_A", A.reshape(-1), unit="1", label="当前矩阵 A（行优先 2×2）")
-    fr.add("kappa_grid", grid, unit="1", label="log10 κ（目标）")
-    fr.add("error", np.maximum(error, ERROR_FLOOR), unit="1", label="实测放大比（0 以 u/2 显示）")
-    fr.add("error_bound", bound, unit="1", label="理论上界 κ")
+    fr.add("matrix_A", A.reshape(-1), unit="1", label="当前矩阵 $A$（行优先 2×2）")
+    fr.add("kappa_grid", grid, unit="1", label="$\\log_{10}\\kappa$（目标）")
+    fr.add("error", np.maximum(error, ERROR_FLOOR), unit="1", label="实测放大比（0 以 $u/2$ 显示）")
+    fr.add("error_bound", bound, unit="1", label="理论上界 $\\kappa$")
     fr.add("error_mark", np.array([float(max(error[j], ERROR_FLOOR))]), unit="1", label="当前位置的实测放大比")
-    fr.add("kappa_mark", np.array([float(grid[j])]), unit="1", label="当前位置的 log10 κ")
+    fr.add("kappa_mark", np.array([float(grid[j])]), unit="1", label="当前位置的 $\\log_{10}\\kappa$")
     fr.set_meta(
         shear=shear,
         log10_kappa=log_kappa,
@@ -913,16 +913,18 @@ def _cond_ellipsoid(params: Mapping[str, Any], t: float) -> Frame:
         family=family,
         norm=norm_label,
         note=_ellipse_note(family, norm_label, kappa_measured, kappa_target, amp_now, kappa_u).rstrip("。")
-        + f"；当前矩阵 A=[{A[0, 0]:.3g} {A[0, 1]:.3g}; {A[1, 0]:.3g} {A[1, 1]:.3g}]"
+        + f"；当前矩阵 $A=[{A[0, 0]:.3g},{A[0, 1]:.3g};{A[1, 0]:.3g},{A[1, 1]:.3g}]$"
         + (
             "；" + "、".join(undefined_names) + " 没有有限解（矩阵在 double 里奇异或超出表示范围），对应的箭头不画，其余量照常显示。"
             if undefined_names
             else ""
         ),
         norm_note=(
-            f"本帧的 κ 用 <{norm_label}> 范数：κ₁={_fmt_kappa(kappas['1'])}、"
-            f"κ₂={_fmt_kappa(kappas['2'])}、κ∞={_fmt_kappa(kappas['inf'])}、"
-            f"κ_F={_fmt_kappa(kappas['fro'])}——不同范数可以差一个 n 因子，"
+            f"本帧的 $\\kappa$ 按{_norm_name(norm_label)}计算："
+            f"$\\kappa_1={_fmt_kappa(kappas['1'])}$、"
+            f"$\\kappa_2={_fmt_kappa(kappas['2'])}$、"
+            f"$\\kappa_\\infty={_fmt_kappa(kappas['inf'])}$、"
+            f"$\\kappa_{{\\mathrm{{F}}}}={_fmt_kappa(kappas['fro'])}$——不同范数可以差一个 $n$ 因子，"
             "图上任何「条件数」都要连范数一起读。"
         ),
         floor_note="副轴是对数轴：实测放大比小于 u/2 时按地板 u/2 显示（不会出现 log(0)）。",
@@ -930,27 +932,38 @@ def _cond_ellipsoid(params: Mapping[str, Any], t: float) -> Frame:
     return fr
 
 
+def _norm_tex(norm: str) -> str:
+    return {"1": "1", "2": "2", "inf": r"\infty", "fro": r"\mathrm{F}"}.get(norm, norm)
+
+
+def _norm_name(norm: str) -> str:
+    return {"1": " 1-范数", "2": " 2-范数", "inf": " ∞-范数", "fro": " Frobenius 范数"}.get(
+        norm, f" {norm} 范数"
+    )
+
+
 def _ellipse_note(
     family: str, norm_label: str, kappa: float, target: float, amp: float, kappa_u: float
 ) -> str:
+    norm_tex = _norm_tex(norm_label)
     if not np.isfinite(kappa):
         return (
-            f"{family} 族：目标 κ={target:.3g}。在 double 里 A 已经被舍入成奇异矩阵"
+            f"{family} 族：目标 $\\kappa={target:.3g}$。在 double 里 $A$ 已经被舍入成奇异矩阵"
             "（例如两行完全重合），条件数没有有限值；此时不谈“放大多少倍”，只能看到它已经不可解。"
         )
     if kappa_u >= 1.0:
         return (
-            f"κu = {kappa_u:.2e} ≥ 1：A 在 float64 里已经和奇异矩阵无法区分，"
+            f"$\\kappa u={kappa_u:.2e}\\ge 1$：$A$ 在 float64 里已经和奇异矩阵无法区分，"
             "此时椭圆与实测曲线都只是舍入的产物，不要再读具体数字。"
         )
     if not np.isfinite(amp):
         return (
-            f"{family} 族：目标 κ={target:.3g}，实测 κ_{norm_label}={kappa:.3g}；"
+            f"{family} 族：目标 $\\kappa={target:.3g}$，实测 $\\kappa_{{{norm_tex}}}={kappa:.3g}$；"
             "这个方向上扰动被奇异方向吞掉，放大比没有有限值。"
         )
     return (
-        f"{family} 族：目标 κ={target:.3g}，实测 κ_{norm_label}={kappa:.3g}，"
-        f"当前方向上的实测放大比 {amp:.3g}（理论上界 κ={kappa:.3g}，实测/上界 = {amp / kappa:.2f}）"
+        f"{family} 族：目标 $\\kappa={target:.3g}$，实测 $\\kappa_{{{norm_tex}}}={kappa:.3g}$，"
+        f"当前方向上的实测放大比 ${amp:.3g}$（理论上界 $\\kappa={kappa:.3g}$，实测/上界 $={amp / kappa:.2f}$）"
     )
 
 
@@ -982,9 +995,9 @@ def _summation_order(params: Mapping[str, Any], t: float) -> Frame:
 
     n_head = min(n, 64)
     fr = Frame(chapter="1.1", viz="summation_order", kind="frame")
-    fr.add("terms_k", np.arange(n_head, dtype=float), unit="1", label="项序号 i")
+    fr.add("terms_k", np.arange(n_head, dtype=float), unit="1", label="项序号 $i$")
     fr.add("terms", np.asarray(values[:n_head], dtype=float), unit="1", label="项序列（前 64 项）")
-    fr.add("k_grid", traj.index, unit="1", label="部分和长度 k")
+    fr.add("k_grid", traj.index, unit="1", label="部分和长度 $k$")
     fr.add("error_naive", np.maximum(traj.error_naive, floor), unit="1", label="朴素求和误差（0 以地板显示）")
     fr.add(
         "error_kahan",
@@ -1000,8 +1013,8 @@ def _summation_order(params: Mapping[str, Any], t: float) -> Frame:
     )
     fr.add("error_pairwise", np.maximum(traj.error_pairwise, floor), unit="1", label="成对求和误差（0 以地板显示）")
     fr.add("error_sorted", np.maximum(traj.error_sorted, floor), unit="1", label="排序后求和误差（0 以地板显示）")
-    fr.add("error_bound_naive", traj.error_bound_naive, unit="1", label="理论界 n·u·Σ|x|")
-    fr.add("error_bound_kahan", traj.error_bound_kahan, unit="1", label="理论界 (2u+n·u²)·Σ|x|")
+    fr.add("error_bound_naive", traj.error_bound_naive, unit="1", label="理论界 $n\\,u\\sum_i|x_i|$")
+    fr.add("error_bound_kahan", traj.error_bound_kahan, unit="1", label="理论界 $(2u+n\\,u^2)\\sum_i|x_i|$")
     fr.add("error_naive_mark", np.array([float(max(traj.error_naive[idx], floor))]), unit="1", label="当前朴素误差")
     fr.add("error_kahan_mark", np.array([float(max(err_scheme[idx], floor))]), unit="1", label="当前补偿误差")
     fr.add(
@@ -1010,7 +1023,7 @@ def _summation_order(params: Mapping[str, Any], t: float) -> Frame:
         unit="1",
         label="当前成对误差",
     )
-    fr.add("k_mark", np.array([float(k)]), unit="1", label="当前部分和长度")
+    fr.add("k_mark", np.array([float(k)]), unit="1", label="当前部分和长度 $k$")
     fr.set_meta(
         big=big,
         small=small,

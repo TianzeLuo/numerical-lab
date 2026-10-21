@@ -196,7 +196,7 @@ export const convergenceOrderModel: SceneModel = (frame, opts) => {
     xlim: Number.isFinite(xProfLo) && Number.isFinite(xProfHi) && xProfHi > xProfLo ? [xProfLo, xProfHi] : [0, 1],
     ylim: profileYlim,
     yscale: "log",
-    ylabel: axisYlabelOf(SPEC, "profile", "|误差|"),
+    ylabel: axisYlabelOf(SPEC, "profile", "误差绝对值"),
     title: axisTitleFitted(SPEC, "profile", "最细一级的逐点误差（对数轴）", profileRect[2]),
     autoscaled: axisAutoscaledOf(SPEC, "profile", true),
   });

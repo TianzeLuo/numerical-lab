@@ -261,7 +261,7 @@ export const diffMatrixStructureModel: SceneModel = (frame, opts) => {
       xlim: [-1, 1],
       ylim: logRange(dLo * 0.5, dHi * 2),
       yscale: "log",
-      title: "谱微分的逐点误差 |D_N u - u'| 与 N^4·u 地板",
+      title: "谱微分的逐点误差 $|D_Nu-u\\'|$ 与 $N^4u$ 地板",
       ylabel: "误差",
       xlabel: "节点 $x$",
       autoscaled: false,

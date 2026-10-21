@@ -119,9 +119,9 @@ MANIFEST: dict[str, Any] = {
                 {'id': 'tree', 'autoscaled': False, 'title': '系数树（近似 / 细节，按层）',
                  'ylabel': '层基线 + 系数（显示坐标）', 'scale': 'linear'},
                 {'id': 'recon', 'autoscaled': False, 'title': '逐层重构（当前层）',
-                 'ylabel': 'x', 'scale': 'linear'},
-                {'id': 'error', 'autoscaled': True, 'title': '重构误差 |x_hat - x|',
-                 'ylabel': 'max|delta|', 'scale': 'log'},
+                 'ylabel': '$x$', 'scale': 'linear'},
+                {'id': 'error', 'autoscaled': True, 'title': '重构误差 $|\\hat{x}-x|$',
+                 'ylabel': '$\\max|\\delta|$', 'scale': 'log'},
             ],
             'pitfalls': '系数树的横轴是"系数下标"，不是时间：第 $j$ 层的一个系数对应 $2^j$ 个样本，'
                         '把各层的分支画成等宽会把最粗那层放大 $2^J$ 倍。另一个更常见的误读是'
@@ -166,7 +166,7 @@ MANIFEST: dict[str, Any] = {
                 {'id': 'stft', 'autoscaled': False, 'title': 'STFT 幅度（频率 × 时间，固定窗）',
                  'ylabel': '频率格', 'scale': 'linear'},
                 {'id': 'error', 'autoscaled': True, 'title': 'SWT 往返误差',
-                 'ylabel': 'max|delta|', 'scale': 'log'},
+                 'ylabel': '$\\max|\\delta|$', 'scale': 'log'},
             ],
             'pitfalls': '把尺度图的纵轴读成"频率"会低估低频的时间定位能力：第 $j$ 层带宽是 $1/2^j$，'
                         '但它的时间支撑也按 $2^j$ 变宽，两个方向的乘积（分辨率元面积）几乎不变。'
@@ -212,11 +212,11 @@ MANIFEST: dict[str, Any] = {
             'requiredAux': ['error'],
             'axes': [
                 {'id': 'signals', 'autoscaled': False, 'title': '干净 / 含噪 / 去噪',
-                 'ylabel': 'x', 'scale': 'linear'},
-                {'id': 'curves', 'autoscaled': True, 'title': '偏差^2、方差、MSE vs lambda',
+                 'ylabel': '$x$', 'scale': 'linear'},
+                {'id': 'curves', 'autoscaled': True, 'title': '偏差平方、方差、MSE vs $\\lambda$',
                  'ylabel': 'MSE', 'scale': 'linear'},
-                {'id': 'error', 'autoscaled': True, 'title': '去噪残差 |x_hat - x|',
-                 'ylabel': 'max|delta|', 'scale': 'log'},
+                {'id': 'error', 'autoscaled': True, 'title': '去噪残差 $|\\hat{x}-x|$',
+                 'ylabel': '$\\max|\\delta|$', 'scale': 'log'},
             ],
             'pitfalls': '把"看起来更平滑"当成更好：硬阈值留下的 Gibbs 式振铃在图上更"干净"，'
                         '但同一 SNR 下它的 MSE 常高于软阈值（本页两条曲线直接对照）。'
@@ -255,12 +255,12 @@ MANIFEST: dict[str, Any] = {
             'time': {'mode': 'none'},
             'requiredAux': ['error'],
             'axes': [
-                {'id': 'poly', 'autoscaled': False, 'title': '多项式信号 t^k 与它的细节系数',
-                 'ylabel': 'x', 'scale': 'linear'},
-                {'id': 'ratio', 'autoscaled': True, 'title': '内部量级比 max|d|/max|a|（对数轴）',
+                {'id': 'poly', 'autoscaled': False, 'title': '多项式信号 $t^k$ 与它的细节系数',
+                 'ylabel': '$x$', 'scale': 'linear'},
+                {'id': 'ratio', 'autoscaled': True, 'title': '内部量级比 $\\max|d|/\\max|a|$（对数轴）',
                  'ylabel': 'ratio', 'scale': 'log'},
                 {'id': 'error', 'autoscaled': True, 'title': '该模式的往返误差',
-                 'ylabel': 'max|delta|', 'scale': 'log'},
+                 'ylabel': '$\\max|\\delta|$', 'scale': 'log'},
             ],
             'pitfalls': '把"细节系数是 $0$"当成严格成立：实测内部系数是 $u$ 量级（约 $10^{-16}$）而不是 $0$，'
                         '对数轴上 $0$ 只能画地板值。更危险的是只看最大值：多项式的边界系数本来就'

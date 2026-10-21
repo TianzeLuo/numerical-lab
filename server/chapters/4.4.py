@@ -968,7 +968,7 @@ MANIFEST: dict[str, Any] = {
             "requiredAux": ["residual", "symmetry_residual"],
             "axes": [
                 {"id": "matrix", "autoscaled": False,
-                 "title": "全局刚度阵 $K_k$（固定窗口，灰=未定型）", "ylabel": "自由度 $i$"},
+                 "title": "全局刚度阵 $K_k$（固定窗口，灰色表示未定型）", "ylabel": "自由度 $i$"},
                 {"id": "local", "autoscaled": True, "title": "当前单元矩阵 $k_e$（色标自适应）",
                  "ylabel": "局部自由度"},
                 {"id": "residuals", "autoscaled": False,
@@ -1093,7 +1093,7 @@ MANIFEST: dict[str, Any] = {
                         "与冻结 Jacobi 的差别会暴露；接近 0.16 时网格接近自交。读图时看右栏的 J 比与误差。"
                     ),
                 },
-                {"name": "sigma", "label": "膜载荷宽度 σ", "type": "float", "min": 0.06, "max": 0.4,
+                {"name": "sigma", "label": "膜载荷宽度 $\\sigma$", "type": "float", "min": 0.06, "max": 0.4,
                  "step": 0.01, "default": 0.18, "critical": [], "criticalNote": "",
                  "help": (
                      "膜上分布载荷的宽度参数，控制载荷在空间上的集中程度，单位与坐标长度相同。调大时载荷铺得更开、"
@@ -1101,7 +1101,7 @@ MANIFEST: dict[str, Any] = {
                      "分辨载荷宽度，读图时看变形峰值与误差量级。"
                  )},
             ],
-            "time": {"mode": "scrub", "tMax": 1.0, "dt": 0.05, "label": "加载因子 λ（准静态）"},
+            "time": {"mode": "scrub", "tMax": 1.0, "dt": 0.05, "label": "加载因子 $\\lambda$（准静态）"},
             "requiredAux": ["error", "error_energy_scan"],
             "axes": [
                 {"id": "deformed", "autoscaled": True,
@@ -1271,7 +1271,7 @@ MANIFEST: dict[str, Any] = {
         # ------------------------------------------------------------------ #
         {
             "id": "adaptive_mesh",
-            "title": "后验指示子与自适应网格：η 是分布，不是常数",
+            "title": "后验指示子与自适应网格：$\\eta$ 是分布，不是常数",
             "description": (
                 "时间轴是加密层数。主图是当前网格上的逐单元指示子 $\\eta_K$ 与逐单元真误差"
                 "（真误差只有拿解析解才算得出，指示子只用 $u_h$ 与系数场）；"
@@ -1282,7 +1282,7 @@ MANIFEST: dict[str, Any] = {
             "dataSource": "backend",
             "params": [
                 {
-                    "name": "theta", "label": "Doerfler 标记比例 θ", "type": "float", "min": 0.1, "max": 1.0,
+                    "name": "theta", "label": "Doerfler 标记比例 $\\theta$", "type": "float", "min": 0.1, "max": 1.0,
                     "step": 0.05, "default": 0.5, "critical": [1.0], "beyond": "above",
                     "criticalNote": (
                         "$\\theta=1$ 时所有单元都被标记，自适应退化成一致加密——用它做对照，"
@@ -1301,10 +1301,10 @@ MANIFEST: dict[str, Any] = {
                      "压得很小、同自由度误差更低；后者网格均匀但自由度按 2 的幂暴涨。读图时对照两条误差-自由度"
                      "曲线与当前网格的 h 比。"
                  )},
-                {"name": "ratio", "label": "系数反差 a₂/a₁", "type": "float", "min": 10.0, "max": 10000.0,
+                {"name": "ratio", "label": "系数反差 $a_2/a_1$", "type": "float", "min": 10.0, "max": 10000.0,
                  "step": 10.0, "default": 100.0, "critical": [], "criticalNote": "",
                  "help": (
-                     "系数反差 a2/a1，即界面两侧导热或扩散系数之比，无单位。调大时解在界面处折得更尖、误差更集中，"
+                     "系数反差 $a_2/a_1$，即界面两侧导热或扩散系数之比，无单位。调大时解在界面处折得更尖、误差更集中，"
                      "自适应优势更明显，但矩阵条件数变差；调小则解接近光滑，两种加密策略差别缩小。"
                      "读图时看指示子热区是否更集中在界面。"
                  )},

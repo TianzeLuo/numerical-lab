@@ -185,7 +185,7 @@ MANIFEST: dict[str, Any] = {
             "params": [
                 {
                     "name": "stiffness",
-                    "label": "线性刚度 p1（共振脊在 p1 = omega^2）",
+                    "label": "线性刚度 $p_1$（共振脊在 $p_1=\\omega^2$）",
                     "type": "float",
                     "min": 0.6,
                     "max": 1.6,
@@ -222,7 +222,7 @@ MANIFEST: dict[str, Any] = {
                 },
                 {
                     "name": "cubic",
-                    "label": "三次项 p3（p3=0 退化成线性振子）",
+                    "label": "三次项 $p_3$（$p_3=0$ 退化成线性振子）",
                     "type": "float",
                     "min": 0.0,
                     "max": 0.4,
@@ -402,7 +402,7 @@ MANIFEST: dict[str, Any] = {
                 },
                 {
                     "name": "obs_center",
-                    "label": "观测中心 x_obs",
+                    "label": "观测中心 $x_{\\mathrm{obs}}$",
                     "type": "float",
                     "min": 0.25,
                     "max": 0.75,
@@ -449,7 +449,7 @@ MANIFEST: dict[str, Any] = {
                     ),
                 },
             ],
-            "time": {"mode": "scrub", "tMax": 1.0, "dt": 0.02, "fps": 30, "label": "反向时间比例 tau/T"},
+            "time": {"mode": "scrub", "tMax": 1.0, "dt": 0.02, "fps": 30, "label": "反向时间比例 $\\tau/T$"},
             "requiredAux": ["error"],
             "axes": [
                 {"id": "field", "autoscaled": False, "title": "影响场 $\\mu(x,\\tau)$（按 $\\tau=0$ 的峰值归一化）", "ylabel": "反向时间 $\\tau$"},
@@ -560,7 +560,7 @@ MANIFEST: dict[str, Any] = {
                 },
                 {
                     "name": "param_index",
-                    "label": "被检验的参数下标（0=p1, 1=p2, 2=p3）",
+                    "label": "被检验的参数下标（$0=p_1$，$1=p_2$，$2=p_3$）",
                     "type": "int",
                     "min": 0,
                     "max": 2,
@@ -679,7 +679,7 @@ MANIFEST: dict[str, Any] = {
                 },
                 {
                     "name": "damping",
-                    "label": "阻尼 p2（可以为负：负阻尼 = 泵浦）",
+                    "label": "阻尼 $p_2$（可以为负：负阻尼即泵浦）",
                     "type": "float",
                     "min": -0.1,
                     "max": 0.4,
@@ -756,7 +756,7 @@ MANIFEST: dict[str, Any] = {
                     ),
                 },
             ],
-            "time": {"mode": "scrub", "tMax": 1.0, "dt": 0.02, "fps": 30, "label": "播放头比例 t/T"},
+            "time": {"mode": "scrub", "tMax": 1.0, "dt": 0.02, "fps": 30, "label": "播放头比例 $t/T$"},
             "requiredAux": ["residual"],
             "axes": [
                 {"id": "phase", "autoscaled": True, "title": "相平面：正向轨迹（到头）与反向伴随轨迹（从尾）", "ylabel": "$y_2$ / $\\mu_2$"},
@@ -958,7 +958,7 @@ def _influence_field_frame(params: Mapping[str, Any], t: float) -> Frame:
     fr = Frame(chapter="5.3", viz="influence_field", kind="frame")
     x = prob.x()
     fr.add("position", x, unit="", label="x")
-    fr.add("tau", study.tau, unit="", label="反向时间 tau = T - t")
+    fr.add("tau", study.tau, unit="", label="反向时间 $t$au = T - t")
     fr.add("influence", study.mu, unit="", label="伴随影响场 mu(x, tau)")
     fr.add("width_measured", study.width_measured, unit="", label="实测宽度 sqrt(Var(mu))")
     fr.add("width_theory", study.width_continuous, unit="", label="连续律 sqrt(sigma_0^2 + 2*alpha*tau)")

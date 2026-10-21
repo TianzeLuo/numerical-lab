@@ -152,8 +152,8 @@ export const convergenceRatesModel: SceneModel = (frame, opts) => {
     ylim: [qLo, qHi],
     yscale: "log",
     xlabel: "迭代步 $k$（越窗后截断）",
-    ylabel: "`q_k`",
-    title: "q_k：牛顿二次比值（对数）",
+    ylabel: "$q_k$",
+    title: "$q_k$：牛顿二次比值（对数）",
     autoscaled: true,
   });
   scene.axes.push(conv, ratio);
@@ -163,8 +163,8 @@ export const convergenceRatesModel: SceneModel = (frame, opts) => {
       xlim: [0, kMax],
       ylim: [0.95, 1.0],
       xlabel: "迭代步 $k$",
-      ylabel: "`r_k`",
-      title: "GD 比值 r_k",
+      ylabel: "$r_k$",
+      title: "GD 比值 $r_k$",
       autoscaled: false,
     });
     scene.axes.push(rate);

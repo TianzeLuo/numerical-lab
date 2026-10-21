@@ -4,7 +4,7 @@
 
 1. ``runge_nodes`` —— 同一个函数、同样多的节点，只换**节点分布**：等距插值在
    :math:`n=7` 触底（实测最大误差 0.247）之后一路发散到 :math:`n=30` 的 2388，
-   Chebyshev 节点同期是 0.132 -> 0.0177 -> 0.00243。时间轴是"已用节点数 k"，
+   Chebyshev 节点同期是 0.132 -> 0.0177 -> 0.00243。时间轴是"已用节点数 $k$"，
    画的是**整条误差曲线**而不是最大误差那一个点。
 2. ``lebesgue_growth`` —— 发散的原因不是函数，是 :math:`\\Lambda_n`：等距节点
    :math:`\\Lambda_{30}=6.60\\times10^6` 并继续以因子 2 增长，Chebyshev 节点
@@ -169,7 +169,7 @@ def _runge_nodes(params: Mapping[str, Any], t: float) -> Frame:
     fr.add("nodes_selected_y", runge(nd_sel, a), unit="1", label="节点上的函数值")
     fr.add("nodes_other_x", nd_oth, unit="1", label="另一种分布的节点")
     fr.add("nodes_other_y", runge(nd_oth, a), unit="1", label="节点上的函数值")
-    fr.add("n_axis", ns, unit="1", label="节点数 n")
+    fr.add("n_axis", ns, unit="1", label="节点数 $n$")
     fr.add("max_error_vs_n_selected", eq_n if family == "equispaced" else ch_n, unit="1", label="最大误差随 n（当前分布）")
     fr.add("max_error_vs_n_other", ch_n if family == "equispaced" else eq_n, unit="1", label="最大误差随 n（另一种分布）")
     fr.add("mark_k", np.array([float(k)], dtype=float), unit="1", label="当前位置 k")
@@ -251,7 +251,7 @@ def _lebesgue_growth(params: Mapping[str, Any], t: float) -> Frame:
 
     j = int(np.argmin(np.abs(ns - n_cur)))
     fr = Frame(chapter="2.1", viz="lebesgue_growth", kind="frame")
-    fr.add("n_axis", ns, unit="1", label="节点数 n")
+    fr.add("n_axis", ns, unit="1", label="节点数 $n$")
     fr.add("lambda_equispaced", lam_eq, unit="1", label="Λ_n（等距）实测")
     fr.add("lambda_chebyshev", lam_ch, unit="1", label="Λ_n（Chebyshev）实测")
     fr.add("theory_equispaced", tab["theory_equispaced"], unit="1", label="渐近公式 2^(n+1)/(e n ln n)")
@@ -441,18 +441,18 @@ def _barycentric_vs_vandermonde(params: Mapping[str, Any], t: float) -> Frame:
 
     j = int(np.argmin(np.abs(ns - n_cur)))
     fr = Frame(chapter="2.1", viz="barycentric_vs_vandermonde", kind="frame")
-    fr.add("n_axis", ns, unit="1", label="节点数 n")
+    fr.add("n_axis", ns, unit="1", label="节点数 $n$")
     fr.add("error_barycentric", err_b, unit="1", label="函数值误差：重心公式")
     fr.add("error_vandermonde", err_v, unit="1", label="函数值误差：Vandermonde + Horner")
     fr.add("error_coefficients_vandermonde", cerr, unit="1", label="系数误差：Vandermonde（对有理数精确解）")
-    fr.add("kappa_vandermonde", kappa, unit="1", label="κ₁(V) 实测")
-    fr.add("kappa_bound_vandermonde", kbound, unit="1", label="最坏情况系数误差尺度 κ₁(V)·u")
+    fr.add("kappa_vandermonde", kappa, unit="1", label="$\\kappa_1(V)$ 实测")
+    fr.add("kappa_bound_vandermonde", kbound, unit="1", label="最坏情况系数误差尺度 $\\kappa_1(V)\\,u$")
     fr.add("kappa_theory", kappa_theory, unit="1", label=f"参考指数 {base:.4g}^n")
     fr.add("residual_vandermonde", resid, unit="1", label="后向残差 ‖Vc−y‖/(‖V‖‖c‖+‖y‖)")
     fr.add("log10_error_barycentric", log_b, unit="1", label="log10 函数值误差（重心）")
     fr.add("log10_error_vandermonde", log_v, unit="1", label="log10 函数值误差（Vandermonde）")
     fr.add("log10_error_coefficients_vandermonde", log_c, unit="1", label="log10 系数误差（Vandermonde）")
-    fr.add("log10_kappa_vandermonde", log_k, unit="1", label="log10 κ₁(V)")
+    fr.add("log10_kappa_vandermonde", log_k, unit="1", label="$\\log_{10}\\kappa_1(V)$")
     fr.add("log10_kappa_theory", log_kt, unit="1", label="log10 参考指数曲线")
     fr.add("slope_kappa_measured", slope_k, unit="1", label="实测 log-log 斜率 d log κ/d log n")
     fr.add("slope_kappa_theory", slope_kt, unit="1", label="参考曲线的 log-log 斜率")
@@ -493,7 +493,7 @@ def _barycentric_vs_vandermonde(params: Mapping[str, Any], t: float) -> Frame:
         function_label=_FUNC_ZH[func],
         note=(
             f"n={n_cur}：函数值误差 重心 {err_b[j]:.3e} / Vandermonde {err_v[j]:.3e}（几乎并列），"
-            f"而**系数**误差 {cerr[j]:.3e}，κ₁(V)={kappa[j]:.3e}（约 {base:.3g}^n 的 {kappa[j] / kappa_theory[j]:.3f} 倍），"
+            f"而**系数**误差 {cerr[j]:.3e}，$\\kappa_1(V)={kappa[j]:.3e}$（约 ${base:.3g}^n$ 的 {kappa[j] / kappa_theory[j]:.3f} 倍），"
             f"后向残差始终 {resid[j]:.2e}。"
         ),
     )
@@ -576,17 +576,17 @@ MANIFEST: dict[str, Any] = {
                 },
                 {
                     "name": "n",
-                    "label": "节点数 n",
+                    "label": "节点数 $n$",
                     "type": "int",
                     "min": 1,
                     "max": 40,
                     "default": 12,
                     "critical": [_CRIT_N_EQ],
                     "criticalNote": (
-                        "实测：等距插值的最大误差在 n=7 触底 0.247，之后**不是单调上涨**——"
-                        "按奇偶分成两条子列各自发散（偶数 n 更差：n=8 是 1.045、n=12 是 3.663、"
-                        "n=16 是 14.39），n=12 已经比函数自身的量级 1 还大；n=20 是 59.8、n=30 是 2.39e3。"
-                        "同期 Chebyshev 节点也是奇偶两条子列下降：n=10 是 0.132、n=30 是 2.43e-3。"
+                        "实测：等距插值的最大误差在 $n=7$ 触底 $0.247$，之后**不是单调上涨**——"
+                        "按奇偶分成两条子列各自发散（偶数 $n$ 更差：$n=8$ 是 $1.045$、$n=12$ 是 $3.663$、"
+                        "$n=16$ 是 $14.39$），$n=12$ 已经比函数自身的量级 $1$ 还大；$n=20$ 是 $59.8$、$n=30$ 是 $2.39\\times10^3$。"
+                        "同期 Chebyshev 节点也是奇偶两条子列下降：$n=10$ 是 $0.132$、$n=30$ 是 $2.43\\times10^{-3}$。"
                         "所以 n=12 是「等距插值已经比不插值更糟」的临界点。"
                     ),
                     "beyond": "above",
@@ -619,7 +619,7 @@ MANIFEST: dict[str, Any] = {
                 "mode": "scrub",
                 "tMax": 40.0,
                 "dt": 1.0,
-                "label": "已用节点数 k",
+                "label": "已用节点数 $k$",
                 "tMaxParam": "n",
             },
             "requiredAux": ["error"],
@@ -671,17 +671,17 @@ MANIFEST: dict[str, Any] = {
             "params": [
                 {
                     "name": "n_max",
-                    "label": "最大节点数 n_max",
+                    "label": "最大节点数 $n_{\\max}$",
                     "type": "int",
                     "min": 10,
                     "max": 60,
                     "default": 30,
                     "critical": [_CRIT_LAMBDA],
                     "criticalNote": (
-                        "n=50 时实测 Λ_等距=3.64e12、Λ·u=4.0e-4：插值误差的理论界已经比 1e-3 还大，"
-                        "双精度下的等距插值彻底失效（n=60 时 Λ·u=0.25，界完全失去意义）；"
-                        "同一列 Chebyshev 是 3.4527（渐近公式 3.4530，相对偏差 1e-4）。"
-                        "把 n_max 拖过 50，等距那条线才会露出完整的指数爆炸。"
+                        "$n=50$ 时实测 $\\Lambda_{\\text{等距}}=3.64\\times10^{12}$、$\\Lambda u=4.0\\times10^{-4}$：插值误差的理论界已经比 $10^{-3}$ 还大，"
+                        "双精度下的等距插值彻底失效（$n=60$ 时 $\\Lambda u=0.25$，界完全失去意义）；"
+                        "同一列 Chebyshev 是 $3.4527$（渐近公式 $3.4530$，相对偏差 $10^{-4}$）。"
+                        "把 $n_{\\max}$ 拖过 $50$，等距那条线才会露出完整的指数爆炸。"
                     ),
                     "beyond": "above",
                     "help": (
@@ -712,7 +712,7 @@ MANIFEST: dict[str, Any] = {
                 "mode": "scrub",
                 "tMax": 60.0,
                 "dt": 1.0,
-                "label": "节点数 n",
+                "label": "节点数 $n$",
                 "tMaxParam": "n_max",
             },
             "requiredAux": ["error"],
@@ -764,16 +764,16 @@ MANIFEST: dict[str, Any] = {
             "params": [
                 {
                     "name": "n",
-                    "label": "节点数 n",
+                    "label": "节点数 $n$",
                     "type": "int",
                     "min": 2,
                     "max": 24,
                     "default": 12,
                     "critical": [_CRIT_N_EQ],
                     "criticalNote": (
-                        "n=12 是等距插值误差（3.663）已经超过函数自身量级的位置（见 runge_nodes）；"
-                        "同时 n=12 时 Λ 从等距的 89.3 降到 Chebyshev 的 2.54（35 倍），"
-                        "首一乘积的最大值从 4.01e-3 降到 4.84e-4（与理论 2^(1-n)=4.88e-4 相差 0.8%），"
+                        "$n=12$ 是等距插值误差（$3.663$）已经超过函数自身量级的位置（见 runge_nodes）；"
+                        "同时 $n=12$ 时 $\\Lambda$ 从等距的 $89.3$ 降到 Chebyshev 的 $2.54$（$35$ 倍），"
+                        "首一乘积的最大值从 $4.01\\times10^{-3}$ 降到 $4.84\\times10^{-4}$（与理论 $2^{1-n}=4.88\\times10^{-4}$ 相差 $0.8\\%$），"
                         "变形滑块在这两个数之间连续过渡。"
                     ),
                     "beyond": "above",
@@ -800,7 +800,7 @@ MANIFEST: dict[str, Any] = {
                 },
                 {
                     "name": "a",
-                    "label": "Runge 参数 a（只在 function=runge 时生效）",
+                    "label": "Runge 参数 $a$（只在 `function=runge` 时生效）",
                     "type": "float",
                     "min": 1.0,
                     "max": 49.0,
@@ -815,7 +815,7 @@ MANIFEST: dict[str, Any] = {
                     ),
                 },
             ],
-            "time": {"mode": "scrub", "tMax": 1.0, "dt": 0.01, "label": "节点分布变形 t（0=等距，1=Chebyshev）"},
+            "time": {"mode": "scrub", "tMax": 1.0, "dt": 0.01, "label": "节点分布变形 $t$（$0$=等距，$1$=Chebyshev）"},
             "requiredAux": ["error"],
             "axes": [
                 {
@@ -881,21 +881,21 @@ MANIFEST: dict[str, Any] = {
                 },
                 {
                     "name": "n_max",
-                    "label": "最大节点数 n_max",
+                    "label": "最大节点数 $n_{\\max}$",
                     "type": "int",
                     "min": 6,
                     "max": 36,
                     "default": 30,
                     "critical": [_CRIT_VDM],
                     "criticalNote": (
-                        "n=30 实测：κ₁(V)=2.59e14（等距）/2.68e11（Chebyshev），"
-                        "κ·u 达到 2.9e-2 / 3.0e-5，系数误差 2.69e-4 / 1.14e-6——"
-                        "系数通道在这个点上已经丢掉全部有效位；而同一帧里函数值误差只有 2.45e-9 / 1.33e-15，"
-                        "后向残差 1.6e-17。这正是「κ 大不等于公式不稳定」的临界演示。"
+                        "$n=30$ 实测：$\\kappa_1(V)=2.59\\times10^{14}$（等距）/$2.68\\times10^{11}$（Chebyshev），"
+                        "$\\kappa u$ 达到 $2.9\\times10^{-2}$ / $3.0\\times10^{-5}$，系数误差 $2.69\\times10^{-4}$ / $1.14\\times10^{-6}$——"
+                        "系数通道在这个点上已经丢掉全部有效位；而同一帧里函数值误差只有 $2.45\\times10^{-9}$ / $1.33\\times10^{-15}$，"
+                        "后向残差 $1.6\\times10^{-17}$。这正是「$\\kappa$ 大不等于公式不稳定」的临界演示。"
                     ),
                     "beyond": "above",
                     "help": (
-                        "节点数扫描上限（次数，实际节点数为 $n_max+1$）。调大后曲线延伸到更大规模："
+                        "节点数扫描上限（次数，实际节点数为 $n_{\\max}+1$）。调大后曲线延伸到更大规模："
                         "Vandermonde 条件数按指数上升，系数误差会越过 $10^0$，而函数值误差与后向残差"
                         "仍可能很小。看三条通道何时分岔、$\\kappa$ 面板的斜率；与 distribution 一起"
                         "比较两种底数，不要把条件数直接当成误差倍数。"
@@ -920,7 +920,7 @@ MANIFEST: dict[str, Any] = {
                 "mode": "scrub",
                 "tMax": 36.0,
                 "dt": 1.0,
-                "label": "节点数 n",
+                "label": "节点数 $n$",
                 "tMaxParam": "n_max",
             },
             "requiredAux": ["error", "residual"],

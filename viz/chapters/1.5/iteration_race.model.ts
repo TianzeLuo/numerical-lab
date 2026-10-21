@@ -243,7 +243,7 @@ export const iterationRaceModel: SceneModel = (frame, opts) => {
     xlim,
     ylim,
     xlabel: "$x1$",
-    ylabel: axisYlabel("plane", "x2"),
+    ylabel: axisYlabel("plane", "$x_2$"),
     title: axisTitle("plane", "等高线与迭代轨迹（物理坐标，固定轴）"),
     autoscaled: false,
     xticks: ticks,

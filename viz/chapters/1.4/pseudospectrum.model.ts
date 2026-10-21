@@ -207,7 +207,7 @@ export const pseudospectrumModel: SceneModel = (frame, opts) => {
       xlim: [-lim, lim],
       ylim: [-lim, lim],
       xlabel: "$\\operatorname{Re} z$",
-      ylabel: axisYlabelOf(AXES, "main", "Im z"),
+      ylabel: axisYlabelOf(AXES, "main", "$\\mathrm{Im}\\,z$"),
       title: axisTitleOf(AXES, "main", "复平面（固定窗口）"),
       autoscaled: false,
     }),

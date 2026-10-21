@@ -11,7 +11,7 @@
 
 import type { Frame } from "./frame.js";
 import type { ChapterManifestJson, VizSpecJson } from "./manifest.js";
-import type { ModelOptions, SceneModel } from "./model.js";
+import { clipRichText, type ModelOptions, type SceneModel } from "./model.js";
 import type { Scene, TextSpec } from "./scene.js";
 import { renderScene } from "./render2d.js";
 import { sceneForDisplay, type DisplaySceneResult } from "./display.js";
@@ -503,7 +503,8 @@ export class VizView {
           : `实验 ${String(this.#opts.ordinal).padStart(2, "0")}`;
       heading.append(kicker);
     }
-    const title = el("h2", { className: "nl-viz-title", text: this.#viz.title, attrs: { tabindex: "-1" } });
+    const title = el("h2", { className: "nl-viz-title", attrs: { tabindex: "-1" } });
+    title.innerHTML = renderRichText(this.#viz.title);
     heading.append(title);
 
     const description = this.#viz.description ?? "";
@@ -900,7 +901,11 @@ export class VizView {
       const box = el("div", { className: "nl-playbook" });
       const title = el("p", { className: "nl-playbook-title", text: "建议先试这些操作" });
       const list = el("ul");
-      for (const item of play) list.append(el("li", { text: item }));
+      for (const item of play) {
+        const li = el("li");
+        li.innerHTML = renderRichText(item);
+        list.append(li);
+      }
       box.append(title, list);
       about.append(box);
     }
@@ -1412,9 +1417,8 @@ export class VizView {
       box.hidden = true;
       return;
     }
-    const clipped = raw.length > 240 ? `${raw.slice(0, 240)}…` : raw;
-    textNode.innerHTML = renderRichText(clipped);
-    textNode.title = raw;
+    textNode.innerHTML = renderRichText(clipRichText(raw, 240));
+    textNode.title = plainText(raw);
     box.hidden = false;
   }
 
@@ -1537,15 +1541,13 @@ export class VizView {
       const chip = el("span", { className: `nl-state-chip nl-state-${badge.kind}` });
       chip.dataset["tone"] = tone;
       chip.tabIndex = 0;
-      chip.title = full;
-      chip.setAttribute("aria-label", full);
+      // title/aria-label 与可见文字都用排版后的纯文本：不能让悬停提示露出 $...$。
+      chip.title = plainText(full);
+      chip.setAttribute("aria-label", plainText(full));
       chip.append(icon(tone === "danger" ? "alert" : "info"));
-      chip.append(el("span", { text: shown }));
-      // 角标在画布与 HTML 里都按列宽截断；完整原因必须在悬停/聚焦时能看到。
-      if (full !== badge.text) {
-        const more = el("span", { className: "nl-state-more", text: "悬停看全文" });
-        chip.append(more);
-      }
+      chip.append(el("span", { text: plainText(shown) }));
+      // 角标在画布与 HTML 里都按列宽截断；完整原因保留在 title / aria-label 里，
+      // 悬停或键盘聚焦即可读到，不再用额外字样占宽。
       row.append(chip);
     }
   }

@@ -126,7 +126,7 @@ export const pointFillModel: SceneModel = (frame, opts) => {
   const main = makeAxis("main", [L.left, L.topY, L.leftW, L.topH], {
     xlim: [0, 1],
     ylim: [0, 1],
-    xlabel: "`x_1`",
+    xlabel: "$x_1$",
     ylabel: axisYlabelOf(SPEC?.axes, "main", "$x_2$"),
     title: axisTitleOf(SPEC?.axes, "main", "点集（单位正方形；$x_1$–$x_2$ 平面；蓝=MC / 橙=Sobol' / 绿=格点）"),
     autoscaled: false,

@@ -524,7 +524,9 @@ export async function startSite(root: HTMLElement, opts: { baseUrl?: string } = 
           attrs: { href: routeHash(manifest.chapter, viz.id), "aria-current": viz.id === selected.id ? "page" : "false" },
         });
         const titleBox = el("span", { className: "viz-tab-copy" });
-        titleBox.append(el("span", { className: "viz-tab-title", text: viz.title }));
+        const tabTitle = el("span", { className: "viz-tab-title" });
+        tabTitle.innerHTML = renderRichText(viz.title);
+        titleBox.append(tabTitle);
         const summary = tabSummary(viz.description ?? "");
         if (summary !== "") titleBox.append(el("span", { className: "viz-tab-sub", text: summary }));
         link.append(el("span", { className: "viz-tab-index", text: String(index + 1).padStart(2, "0") }), titleBox);

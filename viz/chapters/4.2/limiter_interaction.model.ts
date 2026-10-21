@@ -205,7 +205,7 @@ export const limiterInteractionModel: SceneModel = (frame, opts) => {
     xlim: [0, 1],
     ylim: Y_SOLUTION,
     title: axisTitleOf(SPEC?.axes, "solution", "阶跃解与精确解（固定窗口）"),
-    ylabel: axisYlabelOf(SPEC?.axes, "solution", "u(x,t)"),
+    ylabel: axisYlabelOf(SPEC?.axes, "solution", "$u(x,t)$"),
     xlabel: "$x$（格点，域长 $L=1$）",
     autoscaled: false,
   });

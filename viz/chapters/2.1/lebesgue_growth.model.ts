@@ -25,7 +25,7 @@
  *   `aux` 面板再把两个家族的实测/理论斜率成对画一遍——"看起来在涨"和"按 2^n 在涨"
  *   是两件事，两个斜率必须在同一张图上对照。
  * * 规则 4：三个面板的纵轴都是自适应的，各挂一枚角标，并在正文里写明"会掩盖量级变化"。
- * * 规则 6：`n_max` 的临界值 50 画成 `criticalBadge`（`beyond="above"`），
+ * * 规则 6：$n_{\max}$ 的临界值 50 画成 `criticalBadge`（`beyond="above"`），
  *   越过时写明"Λ·u 已经让界失去意义"。
  *
  * 两条最容易被误读的地方，以及本页怎么防
@@ -221,7 +221,7 @@ export const lebesgueGrowthModel: SceneModel = (frame, opts) => {
     yscale: "log",
     xlabel: "节点数 $n$（上面两个面板的横轴同样是 $n$；主轴用对数刻度）",
     ylabel: "相对偏差",
-    title: "渐近公式的相对偏差 |Λ实测/Λ渐近 − 1|（log）",
+    title: "渐近公式的相对偏差：实测/渐近 $-1$（对数轴）",
     autoscaled: true,
   });
   scene.axes.push(mainAxis, auxAxis, devAxis);
@@ -317,7 +317,7 @@ export const lebesgueGrowthModel: SceneModel = (frame, opts) => {
 
   // —— 文本 ——
   const summary = paramSummary(frame, opts, [
-    { name: "n_max", label: "`n_max`" },
+    { name: "n_max", label: "$n_{\\max}$" },
     { name: "grid", label: "grid" },
   ]);
   degraded.push(...summary.degraded);

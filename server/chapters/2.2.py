@@ -221,11 +221,11 @@ MANIFEST: dict[str, Any] = {
                     "help": "曲率梳的尺度：global 用统一的放大倍数，便于比较整条曲线的曲率大小；local 按每段最大值归一化，突出形状变化但会掩盖绝对量级。",
                 },
             ],
-            "time": {"mode": "scrub", "tMax": 5.0, "dt": 0.05, "label": "探针位置 x"},
+            "time": {"mode": "scrub", "tMax": 5.0, "dt": 0.05, "label": "探针位置 $x$"},
             "requiredAux": ["residual", "curvature"],
             "axes": [
-                {"id": "main", "autoscaled": False, "title": "曲线、数据点与曲率梳（固定坐标）", "ylabel": "y"},
-                {"id": "jump", "autoscaled": True, "title": "节点处的跳变", "ylabel": "|dS'|, |dS''|", "scale": "log"},
+                {"id": "main", "autoscaled": False, "title": "曲线、数据点与曲率梳（固定坐标）", "ylabel": "$y$"},
+                {"id": "jump", "autoscaled": True, "title": "节点处的跳变", "ylabel": "$|\\mathrm{d}S'|,\\ |\\mathrm{d}S''|$", "scale": "log"},
                 {"id": "curv", "autoscaled": True, "title": "曲率 kappa 与能量", "ylabel": "kappa"},
             ],
             "pitfalls": (
@@ -276,7 +276,7 @@ MANIFEST: dict[str, Any] = {
                     "criticalNote": "",
                     "help": "节点分布：uniform 等距，chebyshev 在两端加密。对光滑函数，Chebyshev 节点能压低 Runge 型振荡；对台阶，加密也救不了跳跃本身。",
                 },
-                {"name": "n", "label": "节点数 n", "type": "int", "min": 5, "max": 15, "default": 9, "critical": [], "criticalNote": "", "help": "节点数。增加 $n$ 让分段更细，样条误差按 $h^4$ 下降；但分段线性的转折点也更多，C0 的“折角”仍存在。"},
+                {"name": "n", "label": "节点数 $n$", "type": "int", "min": 5, "max": 15, "default": 9, "critical": [], "criticalNote": "", "help": "节点数。增加 $n$ 让分段更细，样条误差按 $h^4$ 下降；但分段线性的转折点也更多，C0 的“折角”仍存在。"},
                 {
                     "name": "eps",
                     "label": "节点两侧采样偏移 eps",
@@ -303,8 +303,8 @@ MANIFEST: dict[str, Any] = {
             "time": {"mode": "none"},
             "requiredAux": ["residual", "error"],
             "axes": [
-                {"id": "main", "autoscaled": True, "title": "三条插值曲线", "ylabel": "y"},
-                {"id": "d2", "autoscaled": True, "title": "二阶导 S''（节点两侧分别采样）", "ylabel": "S''"},
+                {"id": "main", "autoscaled": True, "title": "三条插值曲线", "ylabel": "$y$"},
+                {"id": "d2", "autoscaled": True, "title": "二阶导 $S''$（节点两侧分别采样）", "ylabel": "$S''$"},
                 {"id": "jump", "autoscaled": True, "title": "节点处的跳变量级", "ylabel": "|jump|", "scale": "log"},
             ],
             "pitfalls": (
@@ -343,9 +343,9 @@ MANIFEST: dict[str, Any] = {
             "time": {"mode": "scrub", "tMax": 4.0, "dt": 1.0, "label": "节点插入次数"},
             "requiredAux": ["error", "residual"],
             "axes": [
-                {"id": "main", "autoscaled": False, "title": "曲线、控制多边形与基函数（固定参数域）", "ylabel": "y"},
+                {"id": "main", "autoscaled": False, "title": "曲线、控制多边形与基函数（固定参数域）", "ylabel": "$y$"},
                 {"id": "invariance", "autoscaled": True, "title": "插入前后的逐点差", "ylabel": "|dC|", "scale": "log"},
-                {"id": "support", "autoscaled": True, "title": "支撑外的基函数值（应恒为 0）", "ylabel": "max|B_i| 支撑外", "scale": "log"},
+                {"id": "support", "autoscaled": True, "title": "支撑外的基函数值（应恒为 0）", "ylabel": "$\\max|B_i|$（支撑外）", "scale": "log"},
             ],
             "pitfalls": (
                 "第一，B 样条的控制点**不是曲线上的点**：曲线在控制多边形的凸包内，"
@@ -374,7 +374,7 @@ MANIFEST: dict[str, Any] = {
             ),
             "dataSource": "backend",
             "params": [
-                {"name": "n", "label": "节点数 n", "type": "int", "min": 4, "max": 20, "default": 9, "critical": [], "criticalNote": "", "help": "插值节点数。对多项式，$n$ 增大不保证更好（Runge 现象）；对三次样条，$n$ 增大通常让误差按 $h^4$ 下降，直到舍入地板。"},
+                {"name": "n", "label": "节点数 $n$", "type": "int", "min": 4, "max": 20, "default": 9, "critical": [], "criticalNote": "", "help": "插值节点数。对多项式，$n$ 增大不保证更好（Runge 现象）；对三次样条，$n$ 增大通常让误差按 $h^4$ 下降，直到舍入地板。"},
                 {
                     "name": "function",
                     "label": "被插函数",
@@ -409,9 +409,9 @@ MANIFEST: dict[str, Any] = {
             "time": {"mode": "none"},
             "requiredAux": ["error", "residual"],
             "axes": [
-                {"id": "main", "autoscaled": False, "title": "函数、样条与多项式（固定坐标，溢出显式报告）", "ylabel": "y"},
+                {"id": "main", "autoscaled": False, "title": "函数、样条与多项式（固定坐标，溢出显式报告）", "ylabel": "$y$"},
                 {"id": "error", "autoscaled": True, "title": "两条误差曲线与地板", "ylabel": "|误差|", "scale": "log"},
-                {"id": "growth", "autoscaled": True, "title": "误差随 n 的增长", "ylabel": "max|误差|", "scale": "log"},
+                {"id": "growth", "autoscaled": True, "title": "误差随 $n$ 的增长", "ylabel": "$\\max|e|$", "scale": "log"},
             ],
             "pitfalls": (
                 "第一，多项式在**节点上**是精确的（残差贴 $u$），误差全部长在节点之间——"
@@ -848,7 +848,7 @@ def _spline_vs_poly(params: Mapping[str, Any], t: float) -> Frame:
     fr.add("error_floor_line", floor_line, unit="1", label="舍入地板参考线")
     fr.add("error", np.array([float(np.max(err_spl)), float(np.max(err_poly))]), unit="1", label="两条最大误差")
     fr.add("residual", nodal_res, unit="1", label="多项式在节点处的残差（0 以 u 显示）")
-    fr.add("n_history", ns, unit="1", label="节点数 n")
+    fr.add("n_history", ns, unit="1", label="节点数 $n$")
     fr.add("error_poly_history", hist_poly, unit="1", label="多项式最大误差随 n")
     fr.add("error_spline_history", hist_spl, unit="1", label="样条最大误差随 n")
     fr.set_meta(

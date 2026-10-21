@@ -268,7 +268,7 @@ export const singularEndpointModel: SceneModel = (frame, opts) => {
     lineLayer("tail", segmentedSeries(nodesRev, head(tsTail, m), pal.warn, { width: 2, marker: "o", accept: (v) => v > 0, label: "未采样尾巴" })),
   );
   scene.layers.push(
-    lineLayer("tail", segmentedSeries(nodesRev, head(tsXmin, m), pal.muted, { width: 1.6, accept: (v) => v > 0, label: "`x_min`" })),
+    lineLayer("tail", segmentedSeries(nodesRev, head(tsXmin, m), pal.muted, { width: 1.6, accept: (v) => v > 0, label: "$x_{\\min}$" })),
   );
   const satHead = head(tsSat, m);
   const satPositive = Array.from(satHead).some((v) => Number.isFinite(v) && v > 0);

@@ -97,7 +97,7 @@ MANIFEST: dict[str, Any] = {
                 },
                 {
                     "name": "omega",
-                    "label": "SOR 松弛因子 ω",
+                    "label": "SOR 松弛因子 $\\omega$",
                     "type": "float",
                     "min": 0.5,
                     "max": 1.99,
@@ -114,7 +114,7 @@ MANIFEST: dict[str, Any] = {
                 },
                 {
                     "name": "kappa",
-                    "label": "条件数 κ（目标）",
+                    "label": "条件数 $\\kappa$（目标）",
                     "type": "float",
                     "min": 1.5,
                     "max": 200.0,
@@ -130,7 +130,7 @@ MANIFEST: dict[str, Any] = {
                 },
                 {
                     "name": "angle",
-                    "label": "特征向量方向 θ（度）",
+                    "label": "特征向量方向 $\\theta$（度）",
                     "type": "float",
                     "min": 0.0,
                     "max": 180.0,
@@ -141,14 +141,14 @@ MANIFEST: dict[str, Any] = {
                     "help": "特征向量与坐标轴的夹角。它改变初始误差在快、慢特征方向上的分量比例；谱半径只给最坏情况，实际前几步的快慢取决于这个角度。",
                 },
             ],
-            "time": {"mode": "scrub", "tMax": float(_MAX_STEPS), "dt": 1.0, "label": "迭代步 k"},
+            "time": {"mode": "scrub", "tMax": float(_MAX_STEPS), "dt": 1.0, "label": "迭代步 $k$"},
             "requiredAux": ["residual"],
             "axes": [
                 {
                     "id": "plane",
                     "autoscaled": False,
                     "title": "等高线与迭代轨迹（物理坐标，固定轴）",
-                    "ylabel": "x2",
+                    "ylabel": "$x_2$",
                 },
                 {
                     "id": "convergence",
@@ -208,7 +208,7 @@ MANIFEST: dict[str, Any] = {
                 },
                 {
                     "name": "omega",
-                    "label": "SOR 松弛因子 ω",
+                    "label": "SOR 松弛因子 $\\omega$",
                     "type": "float",
                     "min": 0.5,
                     "max": 1.99,
@@ -234,14 +234,14 @@ MANIFEST: dict[str, Any] = {
                     "help": "初始误差包含哪些模态：all_modes 全都有，low_mode 只有低频，high_mode 只有高频。低模衰减慢，所以“看起来收敛很慢”可能只是初始误差选在了慢方向。",
                 },
             ],
-            "time": {"mode": "scrub", "tMax": float(_MAX_STEPS), "dt": 1.0, "label": "迭代步 k"},
+            "time": {"mode": "scrub", "tMax": float(_MAX_STEPS), "dt": 1.0, "label": "迭代步 $k$"},
             "requiredAux": ["error", "residual"],
             "axes": [
                 {
                     "id": "modes",
                     "autoscaled": False,
                     "title": "各模态的误差分量（对数色阶条形）",
-                    "ylabel": "模态 j",
+                    "ylabel": "模态 $j$",
                 },
                 {
                     "id": "decay",
@@ -302,7 +302,7 @@ MANIFEST: dict[str, Any] = {
                 },
                 {
                     "name": "stretch",
-                    "label": "对角反差 s（A = D S D）",
+                    "label": "对角反差 $s$（$A=DSD$）",
                     "type": "float",
                     "min": 1.0,
                     "max": 8.0,
@@ -313,20 +313,20 @@ MANIFEST: dict[str, Any] = {
                     "help": "对角反差 $s$，矩阵取 $A=DSD$。$s$ 越大，条件数越差，Krylov 多项式越难同时压低所有方向；曲线会出现先快后慢或平台。",
                 },
             ],
-            "time": {"mode": "scrub", "tMax": 3.0, "dt": 1.0, "label": "Krylov 步 k"},
+            "time": {"mode": "scrub", "tMax": 3.0, "dt": 1.0, "label": "Krylov 步 $k$"},
             "requiredAux": ["residual"],
             "axes": [
                 {
                     "id": "space",
                     "autoscaled": True,
                     "title": "Krylov 基与解轨迹（2D/3D）",
-                    "ylabel": "x2",
+                    "ylabel": "$x_2$",
                 },
                 {
                     "id": "orth",
                     "autoscaled": False,
                     "title": "残差正交性实测矩阵",
-                    "ylabel": "步 i / 基 j",
+                    "ylabel": "步 $i$ / 基 $j$",
                 },
             ],
             "pitfalls": (
@@ -368,7 +368,7 @@ MANIFEST: dict[str, Any] = {
                 },
                 {
                     "name": "grid",
-                    "label": "二维网格 k（n = k²）",
+                    "label": "二维网格 $k$（$n=k^2$）",
                     "type": "int",
                     "min": 4,
                     "max": 14,
@@ -379,7 +379,7 @@ MANIFEST: dict[str, Any] = {
                 },
                 {
                     "name": "omega",
-                    "label": "SSOR 松弛因子 ω",
+                    "label": "SSOR 松弛因子 $\\omega$",
                     "type": "float",
                     "min": 0.5,
                     "max": 1.9,
@@ -410,7 +410,7 @@ MANIFEST: dict[str, Any] = {
                 {
                     "id": "spectrum",
                     "autoscaled": False,
-                    "title": "M⁻¹A 的谱（Ritz 值，按序号排列）",
+                    "title": "$M^{-1}A$ 的谱（Ritz 值，按序号排列）",
                     "ylabel": "$\\lambda(M^{-1}A)$",
                 },
                 {

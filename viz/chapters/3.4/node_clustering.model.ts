@@ -206,7 +206,7 @@ export const nodeClusteringModel: SceneModel = (frame, opts) => {
     const spacingAxis = makeAxis("spacing", [L.left, L.botY, L.leftW, L.botH], {
       xlim: [-1.02, 1.02],
       ylim: [0, yMax],
-      title: "间距 vs 位置：端点 ~N^-2，中心 ~N^-1",
+      title: "间距 vs 位置：端点 $\\sim N^{-2}$，中心 $\\sim N^{-1}$",
       ylabel: "间距 / $1-ρ$",
       xlabel: "$x$",
       autoscaled: false,

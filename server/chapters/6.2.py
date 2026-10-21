@@ -281,7 +281,7 @@ MANIFEST: dict[str, Any] = {
                     "id": "error",
                     "autoscaled": False,
                     "title": "时间误差：内容时刻与 GIF 播放时刻（$\\Delta t$）",
-                    "ylabel": "时间误差 $\\Delta t$（s）",
+                    "ylabel": "时间误差 $\\Delta t$（$s$）",
                 },
             ],
             pitfalls=_PITFALLS["export_timeline"],

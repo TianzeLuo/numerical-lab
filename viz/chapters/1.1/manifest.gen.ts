@@ -178,7 +178,7 @@ export const manifest: ChapterManifestJson = {
           "criticalNote": "",
           "default": 0.8,
           "help": "只对 shear 族生效。$s$ 控制剪切矩阵 $S$（把点 $(x_1,x_2)$ 变成 $(x_1+s x_2,\\,x_2)$） 的强度：$s=0$ 时拉伸轴与坐标轴对齐；$s$ 越大，椭圆越倾斜，但行列式（面积缩放）不变。",
-          "label": "剪切强度 s（仅 shear 族）",
+          "label": "剪切强度 $s$（仅 shear 族）",
           "max": 2.0,
           "min": 0.0,
           "name": "shear",
@@ -190,10 +190,10 @@ export const manifest: ChapterManifestJson = {
           "critical": [
             1.1e-16,
           ],
-          "criticalNote": "δb 低于单位舍入 u = 1.11e-16 时，扰动在 float64 里根本表示不出来，实测放大比会退化成舍入噪声；滑块下限取 u 量级正是为了让这件事可见。",
+          "criticalNote": "$\\delta b$ 低于单位舍入 $u=1.11\\times10^{-16}$ 时，扰动在 float64 里根本表示不出来，实测放大比会退化成舍入噪声；滑块下限取 u 量级正是为了让这件事可见。",
           "default": 1e-12,
           "help": "右端项 $b$ 的相对扰动大小。它决定数值解 $\\hat{x}$ 与扰动解 $\\hat{x}'$ 差多少。低于 $u\\approx1.11\\times10^{-16}$ 的扰动在 double 里无法表示，实测放大比会只剩舍入噪声。",
-          "label": "右端项相对扰动 ‖δb‖/‖b‖",
+          "label": "右端项相对扰动 $\\|\\delta b\\|/\\|b\\|$",
           "max": 0.01,
           "min": 1e-16,
           "name": "delta_b",
@@ -232,7 +232,7 @@ export const manifest: ChapterManifestJson = {
         "mode": "scrub",
         "tMax": 16.0,
       },
-      "title": "条件数 κ(A)：输入的小误差会被放大多少倍",
+      "title": "条件数 $\\kappa(A)$：输入的小误差会被放大多少倍",
     },
     {
       "axes": [
@@ -258,7 +258,7 @@ export const manifest: ChapterManifestJson = {
           "critical": [
             9007199254740992.0,
           ],
-          "criticalNote": "big ≥ 1/u = 2^53 ≈ 9.0e15 时，1.0 这个「小项」已经落在 big 的半个 ulp 之内，朴素求和会把它整项丢掉。默认值取 2^53−1：第一次加 1 恰好到边界，之后每个 1 都被丢掉，既演示了问题，又不会一打开就亮红色越界提示。",
+          "criticalNote": "$big\\ge1/u=2^{53}\\approx9.0\\times10^{15}$ 时，$1.0$ 这个「小项」已经落在 $big$ 的半个 ulp 之内，朴素求和会把它整项丢掉。默认值取 $2^{53}-1$：第一次加 $1$ 恰好到边界，之后每个 $1$ 都被丢掉，既演示了问题，又不会一打开就亮红色越界提示。",
           "default": 9007199254740991.0,
           "help": "最大的一项。默认取 $2^{53}-1$：第一次加 1 就到达 $2^{53}$，之后每个 1 都小于半个 ulp，朴素加法会把它整项吞掉。超过 $2^{53}$ 后红色临界提示会亮起。",
           "label": "大项 big",

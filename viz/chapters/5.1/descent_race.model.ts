@@ -126,9 +126,9 @@ export const descentRaceModel: SceneModel = (frame, opts) => {
   const main = makeAxis("main", [L.left, L.topY, L.leftW, L.topH], {
     xlim: [-0.4, 1.7],
     ylim: [-0.5, 1.6],
-    xlabel: "`x_1`",
+    xlabel: "$x_1$",
     ylabel: axisYlabelOf(SPEC?.axes, "main", "x_2"),
-    title: axisTitleOf(SPEC?.axes, "main", "等高线 f(x)=const 与四条下降路径"),
+    title: axisTitleOf(SPEC?.axes, "main", "等高线 $f(x)=\\mathrm{const}$ 与四条下降路径"),
     autoscaled: false,
   });
 

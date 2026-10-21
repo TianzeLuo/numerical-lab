@@ -187,7 +187,7 @@ export const forwardAdjointPlaybackModel: SceneModel = (frame, opts) => {
       yscale: "log",
       xlabel: "",
       ylabel: "残差",
-      title: "对偶残差 |μ − dJ/dy|",
+      title: "对偶残差 $|\\mu-\\mathrm{d}J/\\mathrm{d}y|$",
       autoscaled: true,
       tickTarget: 3,
     });

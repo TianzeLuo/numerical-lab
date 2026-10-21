@@ -10,13 +10,13 @@
           "autoscaled": false,
           "id": "main",
           "title": "$\\log_{10}|M|$（当前工作矩阵）",
-          "ylabel": "行 i"
+          "ylabel": "行 $i$"
         },
         {
           "autoscaled": true,
           "id": "aux",
           "scale": "log",
-          "title": "增长因子 ρ(k) 与残差",
+          "title": "增长因子 $\\rho(k)$ 与残差",
           "ylabel": "$\\rho$ 与 $\\|PA-LU\\|/\\|A\\|$"
         }
       ],
@@ -43,7 +43,7 @@
           "criticalNote": "严格对角占优（比值 $>1$）是「不选主元也稳定」的**充分条件**：此时 $A$ 非奇异且所有顺序主子式非零，乘子 $|m_{ik}|<1$。比值 $\\le 1$ 时不保证出事，但已经进入「可能遇到小主元」的区域——把它拖到 $1$ 以下看 $\\rho$ 何时开始爆。",
           "default": 1.6,
           "help": "对角占优比 $|a_{ii}|/\\sum_{j\\ne i}|a_{ij}|$。它越大，对角元越“稳”，不用主元也不容易遇到小主元；接近或小于 $1$ 时，无主元消元的乘子可能很大。",
-          "label": "对角占优比 |a_ii| / Σ|a_ij|",
+          "label": "对角占优比 $|a_{ii}|/\\sum_j|a_{ij}|$",
           "max": 3.0,
           "min": 0.1,
           "name": "dominance",
@@ -78,7 +78,7 @@
       ],
       "time": {
         "dt": 1.0,
-        "label": "消元步 k",
+        "label": "消元步 $k$",
         "mode": "scrub",
         "tMax": 15.0
       },
@@ -90,7 +90,7 @@
           "autoscaled": false,
           "id": "main",
           "title": "单位圆与它的三个像（固定坐标）",
-          "ylabel": "y"
+          "ylabel": "$y$"
         },
         {
           "autoscaled": true,
@@ -155,7 +155,7 @@
       ],
       "time": {
         "dt": 0.25,
-        "label": "log10 κ",
+        "label": "$\\log_{10}\\kappa$",
         "mode": "scrub",
         "tMax": 17.0
       },
@@ -167,7 +167,7 @@
           "autoscaled": false,
           "id": "main",
           "title": "矩阵结构（行 0 在上）",
-          "ylabel": "行 i"
+          "ylabel": "行 $i$"
         },
         {
           "autoscaled": true,
@@ -186,7 +186,7 @@
           "criticalNote": "",
           "default": 8,
           "help": "二维网格每边的点数 $k$，矩阵规模 $n=k^2$。$k$ 越大，非零结构越稀疏，消元产生的填充也越多；比较不同排序时要在同一个 $k$ 下看。",
-          "label": "网格 k（矩阵规模 n=k²）",
+          "label": "网格 $k$（矩阵规模 $n=k^2$）",
           "max": 14,
           "min": 3,
           "name": "grid",
@@ -221,7 +221,7 @@
       ],
       "time": {
         "dt": 1.0,
-        "label": "消元步 k",
+        "label": "消元步 $k$",
         "mode": "scrub",
         "tMax": 195.0
       },

@@ -189,7 +189,7 @@ export const schemeZooModel: SceneModel = (frame, opts) => {
       xticks: [],
       xlabel: "",
       title: axisTitleOf(SPEC?.axes, "solution", "解曲线与精确平移解"),
-      ylabel: axisYlabelOf(SPEC?.axes, "solution", "u(x,t)"),
+      ylabel: axisYlabelOf(SPEC?.axes, "solution", "$u(x,t)$"),
       autoscaled: false,
     },
   );

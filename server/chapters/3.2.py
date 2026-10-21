@@ -149,7 +149,7 @@ MANIFEST: dict[str, Any] = {
         # ------------------------------------------------------------------ #
         {
             "id": "stability_region",
-            "title": "稳定域交互图：λh 落点与解的真实发散",
+            "title": "稳定域交互图：$\\lambda h$ 落点与解的真实发散",
             "description": (
                 "复平面上固定坐标画出当前方法的绝对稳定域边界 $|R(z)|=1$（精确参数化），"
                 "灰蓝热力图是 $|R(z)|$。橙点/橙线是当前 $\\lambda h$ 与整条 $h$ 扫描射线；"
@@ -170,13 +170,13 @@ MANIFEST: dict[str, Any] = {
                     "help": (
                         "选择方法，稳定域的形状随之改变：前向 Euler 是圆盘，RK4 是有界花瓣，"
                         "隐式 Euler 与梯形法覆盖整个左半平面，BDF2 的域更大。看白色边界与热力图的冷暖分界。"
-                        "它和 λ 的实部、虚部一起决定当前 λh 落在域内还是域外。"
+                        "它和 $\\lambda$ 的实部、虚部一起决定当前 λh 落在域内还是域外。"
                         "先选 RK4 看有界域，再切隐式方法看边界如何退出窗口。"
                     ),
                 },
                 {
                     "name": "lam_re",
-                    "label": "λ 的实部",
+                    "label": "$\\lambda$ 的实部",
                     "type": "float",
                     "min": -60.0,
                     "max": 10.0,
@@ -189,14 +189,14 @@ MANIFEST: dict[str, Any] = {
                     ),
                     "beyond": "above",
                     "help": (
-                        "特征值 λ 的实部，单位是 1/时间。调大（向 0 靠近）会让真解衰减变慢、橙色落点向右移；"
+                        "特征值 $\\lambda$ 的实部，单位是 1/时间。调大（向 0 靠近）会让真解衰减变慢、橙色落点向右移；"
                         "越过 0 后真解本身开始增长，曲线上升不再等于方法不稳定。看橙点是否在白色边界内，"
                         "以及副图误差是否随 t 放大。它和虚部共同决定扫描射线的方向，和步长 h 共同决定 z 的远近。"
                     ),
                 },
                 {
                     "name": "lam_im",
-                    "label": "λ 的虚部",
+                    "label": "$\\lambda$ 的虚部",
                     "type": "float",
                     "min": -40.0,
                     "max": 40.0,
@@ -205,7 +205,7 @@ MANIFEST: dict[str, Any] = {
                     "critical": [],
                     "criticalNote": "",
                     "help": (
-                        "特征值 λ 的虚部，单位是 1/时间，控制振荡频率。调大让 λh 射线向上偏转，"
+                        "特征值 $\\lambda$ 的虚部，单位是 1/时间，控制振荡频率。调大让 λh 射线向上偏转，"
                         "更容易碰到稳定域的上边界；对显式方法，虚轴方向的稳定区间通常比实轴更宽。"
                         "看橙点轨迹与边界的交点。它和实部一起决定复平面上这条射线的斜率，"
                         "也决定真解是纯衰减还是带振荡。"
@@ -229,20 +229,20 @@ MANIFEST: dict[str, Any] = {
                     ),
                 },
             ],
-            "time": {"mode": "scrub", "tMax": 4.0, "dt": 0.05, "label": "log10 h（步长扫描）"},
+            "time": {"mode": "scrub", "tMax": 4.0, "dt": 0.05, "label": "$\\log_{10}h$（步长扫描）"},
             "requiredAux": ["error"],
             "axes": [
                 {
                     "id": "main",
                     "autoscaled": False,
                     "title": "复平面 $z=\\lambda h$（固定窗口，域外不裁剪）",
-                    "ylabel": "Im z",
+                    "ylabel": "$\\mathrm{Im}\\,z$",
                 },
                 {
                     "id": "aux",
                     "autoscaled": True,
                     "title": "$|R(\\lambda h)|$（右轴）与数值解误差（左轴对数）",
-                    "ylabel": "|R| 与误差",
+                    "ylabel": "$|R|$ 与误差",
                     "scale": "log",
                 },
             ],
@@ -265,7 +265,7 @@ MANIFEST: dict[str, Any] = {
         # ------------------------------------------------------------------ #
         {
             "id": "stiff_dilemma",
-            "title": "刚性困境：解那么平缓，步长却被 λ_max 掐住",
+            "title": "刚性困境：解那么平缓，步长却被 $\\lambda_{\\max}$ 掐住",
             "description": (
                 "解 $y'=-\\lambda(y-\\mathrm{cos}(t))-\\mathrm{sin}(t)$ 的精确解是 $\\mathrm{cos}(t)$（快模态系数恰好为 $0$），"
                 "平缓得不能再平缓；可显式方法只能走 $h\\le c/\\lambda$，副轴的误差曲线就是它的代价。"
@@ -276,7 +276,7 @@ MANIFEST: dict[str, Any] = {
             "params": [
                 {
                     "name": "stiffness_ratio",
-                    "label": "刚性比 λ_max/λ_min",
+                    "label": "刚性比 $\\lambda_{\\max}/\\lambda_{\\min}$",
                     "type": "float",
                     "min": 20.0,
                     "max": 1000000.0,
@@ -341,19 +341,19 @@ MANIFEST: dict[str, Any] = {
                     ),
                 },
             ],
-            "time": {"mode": "scrub", "tMax": 6.2831853, "dt": 0.062831853, "label": "时间 t（一个周期）"},
+            "time": {"mode": "scrub", "tMax": 6.2831853, "dt": 0.062831853, "label": "时间 $t$（一个周期）"},
             "requiredAux": ["error"],
             "axes": [
                 {
                     "id": "main",
                     "autoscaled": False,
                     "title": "解曲线（固定纵轴 ±2）与两种方法的步点",
-                    "ylabel": "y(t)",
+                    "ylabel": "$y(t)$",
                 },
                 {
                     "id": "aux",
                     "autoscaled": True,
-                    "title": "显式方法误差 |y_num − cos t| 与步长比",
+                    "title": "显式方法误差 $|y_{\\mathrm{num}}-\\cos t|$ 与步长比",
                     "ylabel": "误差 / 步长",
                     "scale": "log",
                 },
@@ -460,13 +460,13 @@ MANIFEST: dict[str, Any] = {
                 {
                     "id": "main",
                     "autoscaled": False,
-                    "title": "|R(z)|（固定窗口）与 |R|=1 等高线",
-                    "ylabel": "Im z",
+                    "title": "$|R(z)|$（固定窗口）与 $|R|=1$ 等高线",
+                    "ylabel": "$\\mathrm{Im}\\,z$",
                 },
                 {
                     "id": "aux",
                     "autoscaled": True,
-                    "title": "边界残差 ||R|−1|（实线）与双路径之差（虚线）",
+                    "title": "边界残差 $||R|-1|$（实线）与双路径之差（虚线）",
                     "ylabel": "残差",
                     "scale": "log",
                 },
@@ -522,7 +522,7 @@ MANIFEST: dict[str, Any] = {
                 },
                 {
                     "name": "stiffness_ratio",
-                    "label": "刚性比 λ_max/λ_min",
+                    "label": "刚性比 $\\lambda_{\\max}/\\lambda_{\\min}$",
                     "type": "float",
                     "min": 20.0,
                     "max": 100000.0,
@@ -567,14 +567,14 @@ MANIFEST: dict[str, Any] = {
                     ),
                 },
             ],
-            "time": {"mode": "scrub", "tMax": 6.2831853, "dt": 0.062831853, "label": "时间 t（一个周期）"},
+            "time": {"mode": "scrub", "tMax": 6.2831853, "dt": 0.062831853, "label": "时间 $t$（一个周期）"},
             "requiredAux": ["error"],
             "axes": [
                 {
                     "id": "main",
                     "autoscaled": False,
                     "title": "解曲线（固定纵轴 ±2）",
-                    "ylabel": "y(t)",
+                    "ylabel": "$y(t)$",
                 },
                 {
                     "id": "aux",
@@ -603,7 +603,7 @@ MANIFEST: dict[str, Any] = {
         # ------------------------------------------------------------------ #
         {
             "id": "bdf_angle",
-            "title": "BDF 的 A(α)-稳定角：阶数越高，楔形越窄",
+            "title": "BDF 的 $A(\\alpha)$-稳定角：阶数越高，楔形越窄",
             "description": (
                 "把 BDF-$k$（$k=1\\ldots 6$）的稳定域边界画在一起（浅色家族），当前 $k$ 高亮。"
                 "青色楔形是以负实轴为轴、半角为 $\\alpha$ 的区域；时间轴就是测试角 $\\alpha$："
@@ -635,7 +635,7 @@ MANIFEST: dict[str, Any] = {
                 },
                 {
                     "name": "show_family",
-                    "label": "显示 k=1…6 全家族",
+                    "label": "显示 $k=1,\\ldots,6$ 全家族",
                     "type": "bool",
                     "default": True,
                     "critical": [],
@@ -647,19 +647,19 @@ MANIFEST: dict[str, Any] = {
                     ),
                 },
             ],
-            "time": {"mode": "scrub", "tMax": 90.0, "dt": 1.0, "label": "测试角 α（度）"},
+            "time": {"mode": "scrub", "tMax": 90.0, "dt": 1.0, "label": "测试角 $\\alpha$（度）"},
             "requiredAux": ["error", "residual"],
             "axes": [
                 {
                     "id": "main",
                     "autoscaled": False,
-                    "title": "稳定域边界家族与 A(α) 楔形（固定窗口）",
-                    "ylabel": "Im z",
+                    "title": "稳定域边界家族与 $A(\\alpha)$ 楔形（固定窗口）",
+                    "ylabel": "$\\mathrm{Im}\\,z$",
                 },
                 {
                     "id": "aux",
                     "autoscaled": True,
-                    "title": "测试射线上的超界量 max(0,|R|−1) 与各阶实测角",
+                    "title": "测试射线上的超界量 $\\max(0,|R|-1)$ 与各阶实测角",
                     "ylabel": "超界量 / 角度",
                     "scale": "log",
                 },
@@ -823,12 +823,12 @@ def _stability_region(params: Mapping[str, Any], t: float) -> Frame:
     fr.add("z_point_x", np.array([current_z.real]), unit="1", label="当前 λh 的 Re")
     fr.add("z_point_y", np.array([current_z.imag]), unit="1", label="当前 λh 的 Im")
     fr.add("t_solution", tt, unit="s", label="时间")
-    fr.add("y1_num", y_num[:, 0], unit="1", label="数值解 y₁（实 2×2 系统的第一分量）")
-    fr.add("y2_num", y_num[:, 1], unit="1", label="数值解 y₂")
-    fr.add("y1_exact", y_ex[:, 0], unit="1", label="精确解 y₁")
-    fr.add("y2_exact", y_ex[:, 1], unit="1", label="精确解 y₂")
+    fr.add("y1_num", y_num[:, 0], unit="1", label="数值解 $y_1$（实 2×2 系统的第一分量）")
+    fr.add("y2_num", y_num[:, 1], unit="1", label="数值解 $y_2$")
+    fr.add("y1_exact", y_ex[:, 0], unit="1", label="精确解 $y_1$")
+    fr.add("y2_exact", y_ex[:, 1], unit="1", label="精确解 $y_2$")
     fr.add("y_magnitude", y_mag_display, unit="1", label="|y|（发散时截断显示）")
-    fr.add("error", err, unit="1", label="数值解误差 max|y_num−y_exact|（0 以 u/2 显示）")
+    fr.add("error", err, unit="1", label="数值解误差 $\\max|y_{\\mathrm{num}}-y_{\\mathrm{exact}}|$（0 以 $u/2$ 显示）")
     fr.add("error_mark", np.array([err[-1]], dtype=float), unit="1", label="当前时刻误差")
     fr.set_meta(
         log10_h=_fin(log10_h),

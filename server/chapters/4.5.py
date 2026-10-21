@@ -57,8 +57,8 @@ _PRESENT = 1.0e-13
 _T_MAX = {"smoothing_spectrum": 30.0, "vcycle_hierarchy": 5.0, "residual_transfer": 6.0}
 
 _TIME_SEMANTICS = {
-    "smoothing_spectrum": "迭代步 k：对同一个初值误差做 k 次平滑（k=0 即初值），不是物理时间",
-    "vcycle_hierarchy": "周期 c：做 c 个完整的 V/W 循环（c=0 即初值误差）",
+    "smoothing_spectrum": "迭代步 $k$：对同一个初值误差做 k 次平滑（k=0 即初值），不是物理时间",
+    "vcycle_hierarchy": "周期 $c$：做 c 个完整的 V/W 循环（c=0 即初值误差）",
     "grid_independence": "无时间轴（一次性扫完整个网格序列）",
     "residual_transfer": "预平滑步数 nu：限制之前先做 nu 次平滑（nu=0 即直接限制未平滑的残差）",
 }
@@ -750,7 +750,7 @@ MANIFEST: dict[str, Any] = {
                      "迅速消失；它和 n、omega 一起决定主图三条曲线的形状。"
                  )},
             ],
-            "time": {"mode": "scrub", "tMax": 30.0, "dt": 1.0, "fps": 30, "label": "迭代步 k"},
+            "time": {"mode": "scrub", "tMax": 30.0, "dt": 1.0, "fps": 30, "label": "迭代步 $k$"},
             "requiredAux": ["error"],
             "axes": [
                 {"id": "spectrum", "autoscaled": True, "title": "逐模态振幅（对数轴，地板 $10^{-16}$）",
@@ -812,7 +812,7 @@ MANIFEST: dict[str, Any] = {
             ),
             "dataSource": "backend",
             "params": [
-                {"name": "levels", "label": "网格层数 L（n=2^L-1）", "type": "int", "min": 3, "max": 6,
+                {"name": "levels", "label": "网格层数 $L$（$n=2^L-1$）", "type": "int", "min": 3, "max": 6,
                  "step": 1, "default": 4, "critical": [], "criticalNote": "",
                  "help": (
                      "多重网格的层数 L，最细层内点数约为 2^L-1，每加一层网格规模减半。调大后能看到更多粗细层与"
@@ -848,7 +848,7 @@ MANIFEST: dict[str, Any] = {
                      "各层范数的相对大小。"
                  )},
             ],
-            "time": {"mode": "scrub", "tMax": 5.0, "dt": 1.0, "fps": 30, "label": "周期 c"},
+            "time": {"mode": "scrub", "tMax": 5.0, "dt": 1.0, "fps": 30, "label": "周期 $c$"},
             "requiredAux": ["error", "residual"],
             "axes": [
                 {"id": "profile", "autoscaled": True, "title": "误差形态（细网格与各层的限制结果）",
@@ -922,7 +922,7 @@ MANIFEST: dict[str, Any] = {
             ),
             "dataSource": "backend",
             "params": [
-                {"name": "levels_max", "label": "最大层数（n 到 2^L-1）", "type": "int", "min": 4, "max": 7,
+                {"name": "levels_max", "label": "最大层数（$n$ 至 $2^L-1$）", "type": "int", "min": 4, "max": 7,
                  "step": 1, "default": 7, "critical": [], "criticalNote": "",
                  "help": (
                      "扫描的最大层数，最细网格内点数到 2 的 levels_max 次方减一。调大后横轴范围更宽，更能看清"
@@ -1018,7 +1018,7 @@ MANIFEST: dict[str, Any] = {
             "time": {"mode": "scrub", "tMax": 6.0, "dt": 1.0, "fps": 30, "label": "预平滑步数 nu"},
             "requiredAux": ["residual"],
             "axes": [
-                {"id": "profiles", "autoscaled": True, "title": "细网格残差与粗层可见部分", "ylabel": "r(x)"},
+                {"id": "profiles", "autoscaled": True, "title": "细网格残差与粗层可见部分", "ylabel": "$r(x)$"},
                 {"id": "visibility", "autoscaled": True,
                  "title": "逐频率的不可见比例与互补性（对数轴）", "ylabel": "比值", "scale": "log"},
             ],

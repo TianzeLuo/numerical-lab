@@ -340,8 +340,8 @@ export const convergenceRateModel: SceneModel = (frame, opts) => {
   // —— 右列文字 ——
   if (L.columns) {
     const head = paramSummary(frame, opts, [
-      { name: "nmax", label: "nmax" },
-      { name: "bc_order", label: "`bc_order`" },
+      { name: "nmax", label: "$N_{\\max}$" },
+      { name: "bc_order", label: "$p_{\\mathrm{BC}}$" },
     ]);
     degraded.push(...head.degraded);
     const lines: string[] = [];

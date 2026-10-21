@@ -310,8 +310,9 @@ export function mountControls(
     head.className = "nl-control-head";
     const label = document.createElement("label");
     label.className = "nl-control-label";
-    label.textContent = spec.label;
+    label.innerHTML = renderRichText(spec.label);
     label.htmlFor = `nl-${viz.id}-${spec.name}`;
+    const plainLabel = label.textContent?.trim() || spec.label;
     const valueBox = document.createElement("span");
     valueBox.className = "nl-control-value-box";
 
@@ -328,7 +329,7 @@ export function mountControls(
       editor.autocomplete = "off";
       editor.className = "nl-control-value nl-control-value-input";
       editor.id = label.htmlFor;
-      editor.setAttribute("aria-label", `${spec.label}：可直接输入精确数值`);
+      editor.setAttribute("aria-label", `${plainLabel}：可直接输入精确数值`);
       output = editor;
     } else {
       const textOut = document.createElement("output");
@@ -365,7 +366,7 @@ export function mountControls(
       const group = document.createElement("div");
       group.className = "nl-segmented";
       group.setAttribute("role", "group");
-      group.setAttribute("aria-label", spec.label);
+      group.setAttribute("aria-label", plainLabel);
       const buttons: HTMLButtonElement[] = [];
       for (const option of spec.options) {
         const btn = document.createElement("button");
@@ -373,7 +374,7 @@ export function mountControls(
         btn.className = "nl-segment";
         btn.textContent = option;
         btn.title = option;
-        btn.setAttribute("aria-label", `${spec.label}：${option}`);
+        btn.setAttribute("aria-label", `${plainLabel}：${option}`);
         btn.addEventListener("click", () => {
           const value = clampParam(param, option);
           current[spec.name] = value;
@@ -435,7 +436,7 @@ export function mountControls(
       if (spec.max !== null) input.max = String(spec.max);
       input.step = String(stepOf(spec));
       input.value = String(spec.value);
-      input.setAttribute("aria-label", `${spec.label}（滑轨）`);
+      input.setAttribute("aria-label", `${plainLabel}（滑轨）`);
       input.setAttribute("aria-describedby", `${label.htmlFor}-note`);
       trackWrap.append(input);
 
@@ -490,7 +491,7 @@ export function mountControls(
         const more = document.createElement("details");
         more.className = "nl-control-more";
         const summary = document.createElement("summary");
-        summary.textContent = "这个临界值意味着什么";
+        summary.textContent = "临界值说明";
         const body = document.createElement("div");
         body.className = "nl-control-more-body";
         body.innerHTML = renderRichText(spec.criticalNote);
@@ -574,7 +575,7 @@ export function mountControls(
       const help = document.createElement("details");
       help.className = "nl-control-more nl-control-help";
       const summary = document.createElement("summary");
-      summary.textContent = "这个参数是做什么的";
+      summary.textContent = "参数解释";
       const body = document.createElement("div");
       body.className = "nl-control-more-body";
       body.innerHTML = renderRichText(helpText);

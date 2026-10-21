@@ -68,10 +68,10 @@ _NONFINITE_POLICY = (
 )
 
 _TIME_SEMANTICS = {
-    "scheme_zoo": "真实时间 t：从初值推进到当前 t（meta.t_actual 是实际到达的时刻，未必正好等于 t）",
+    "scheme_zoo": "真实时间 $t$：从初值推进到当前 t（meta.t_actual 是实际到达的时刻，未必正好等于 t）",
     "phase_error": "无时间轴（一次性扫描整条波数轴）",
-    "limiter_interaction": "真实时间 t：阶跃解随时间推进，meta.tv_now 是当前总变差",
-    "packet_long_time": "真实时间 t：波包平移过的长度（meta.periods_done = t/L 个单位长度）",
+    "limiter_interaction": "真实时间 $t$：阶跃解随时间推进，meta.tv_now 是当前总变差",
+    "packet_long_time": "真实时间 $t$：波包平移过的长度（meta.periods_done = t/L 个单位长度）",
 }
 
 
@@ -625,7 +625,7 @@ MANIFEST: dict[str, Any] = {
                 },
                 {
                     "name": "nu",
-                    "label": "CFL 数 ν = aΔt/Δx",
+                    "label": "CFL 数 $\\nu=a\\Delta t/\\Delta x$",
                     "type": "float",
                     "min": 0.1,
                     "max": 1.05,
@@ -690,7 +690,7 @@ MANIFEST: dict[str, Any] = {
                     ),
                 },
             ],
-            "time": {"mode": "scrub", "tMax": 0.6, "dt": 0.006, "label": "t（真实时间，域长 L=1）"},
+            "time": {"mode": "scrub", "tMax": 0.6, "dt": 0.006, "label": "$t$（真实时间，域长 $L=1$）"},
             "requiredAux": ["error", "residual"],
             "axes": [
                 {
@@ -791,7 +791,7 @@ MANIFEST: dict[str, Any] = {
                 },
                 {
                     "name": "nu",
-                    "label": "CFL 数 ν",
+                    "label": "CFL 数 $\\nu$",
                     "type": "float",
                     "min": 0.1,
                     "max": 1.0,
@@ -934,7 +934,7 @@ MANIFEST: dict[str, Any] = {
                 },
                 {
                     "name": "nu",
-                    "label": "CFL 数 ν",
+                    "label": "CFL 数 $\\nu$",
                     "type": "float",
                     "min": 0.1,
                     "max": 1.2,
@@ -976,7 +976,7 @@ MANIFEST: dict[str, Any] = {
                     ),
                 },
             ],
-            "time": {"mode": "scrub", "tMax": 0.6, "dt": 0.006, "label": "t（真实时间，域长 L=1）"},
+            "time": {"mode": "scrub", "tMax": 0.6, "dt": 0.006, "label": "$t$（真实时间，域长 $L=1$）"},
             "requiredAux": ["residual", "error"],
             "axes": [
                 {
@@ -1101,7 +1101,7 @@ MANIFEST: dict[str, Any] = {
                 },
                 {
                     "name": "nu",
-                    "label": "CFL 数 ν",
+                    "label": "CFL 数 $\\nu$",
                     "type": "float",
                     "min": 0.1,
                     "max": 1.0,
@@ -1158,7 +1158,7 @@ MANIFEST: dict[str, Any] = {
                     ),
                 },
             ],
-            "time": {"mode": "scrub", "tMax": 4.0, "dt": 0.04, "label": "t（域长的倍数）"},
+            "time": {"mode": "scrub", "tMax": 4.0, "dt": 0.04, "label": "$t$（域长的倍数）"},
             "requiredAux": ["error", "residual"],
             "axes": [
                 {

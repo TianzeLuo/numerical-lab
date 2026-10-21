@@ -132,7 +132,7 @@
 | G6 | `python3 tools/gen_manifests.py --check && python3 tools/gen_colorscales.py --check` | **两类生成物都**与真源一致（无漂移）：manifest（`manifest.gen.ts`/`data/manifests`）+ 色标 LUT（`colorscale_data.gen.ts`/`colorscales.json`） |
 | G7 | `python3 tools/parity.py` | Python↔TS 基准数据逐点一致（容差取自 `tests/parity/tolerances.yaml`）；失败时打印每个 case 的 `max\|Δ\|` 与点位数 |
 | G8 | `python3 tools/precompute.py --n 6 --quiet && npm run scene --silent && python3 tools/visual_regression.py --check --require-scenes` | 场景/像素快照与基线一致（或已显式 `--update` 并附原因）。**三步必须一起跑**，理由见下 |
-| G9 | `python3 tools/build_book.py --check` | 结构检查（`notes.tex` 有 `\begin{theorem}`、`\input{chapters/<id>/asserts_table}`、附表与 `dist/reports/assertions.json` 一致）+ 有 xelatex 时逐章/合并本编译通过、无未定义引用 |
+| G9 | `python3 tools/check_chapter_content.py --all && python3 tools/build_book.py --check` | 内容体检（标签数学标记、控制字符、help/推导长度）+ 结构检查（`notes.tex` 有 `\begin{theorem}`、`\input{chapters/<id>/asserts_table}`、附表与 `dist/reports/assertions.json` 一致）+ 有 xelatex 时逐章/合并本编译通过、无未定义引用 |
 | G10 | `python3 tools/gen_progress.py --check` | `docs/PROGRESS.md` 与仓库状态一致 |
 
 **G3 的坑（argparse 前缀匹配）**：`tools/run_asserts.py` **没有** `--all` 这个选项。

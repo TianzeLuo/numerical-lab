@@ -222,7 +222,7 @@ export const unitBallModel: SceneModel = (frame, opts) => {
     xlim: MAIN_LIM,
     ylim: MAIN_LIM,
     xlabel: "$x$",
-    ylabel: axisYlabel("main", "y"),
+    ylabel: axisYlabel("main", "$y$"),
     title: axisTitle("main", "单位圆与它的三个像（固定坐标）"),
     autoscaled: false,
   });
@@ -245,7 +245,7 @@ export const unitBallModel: SceneModel = (frame, opts) => {
     yscale: "log",
     xlabel: "$\\log_{10}\\kappa$",
     ylabel: axisYlabel("aux", "相对误差"),
-    title: axisTitle("aux", "前向误差 ‖x̂−x‖/‖x‖ 随 κ"),
+    title: axisTitle("aux", "前向误差 $\\|\\hat{x}-x\\|/\\|x\\|$ 随 $\\kappa$"),
     autoscaled: true,
   });
   scene.axes.push(mainAxis, auxAxis);

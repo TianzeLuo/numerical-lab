@@ -201,7 +201,7 @@ MANIFEST: dict[str, Any] = {
                     ),
                 },
             ],
-            "time": {"mode": "scrub", "tMax": 8.0, "dt": 0.25, "label": "斜率序号 j（整族轨迹同时显示；tMax 对应 m=9）"},
+            "time": {"mode": "scrub", "tMax": 8.0, "dt": 0.25, "label": "斜率序号 $j$（整族轨迹同时显示；$t_{\\max}$ 对应 $m=9$）"},
             "requiredAux": ["error"],
             "axes": [
                 {
@@ -322,7 +322,7 @@ MANIFEST: dict[str, Any] = {
                 },
                 {
                     "name": "nmax",
-                    "label": "最大 N",
+                    "label": "最大 $N$",
                     "type": "int",
                     "min": 16,
                     "max": 512,
@@ -545,7 +545,7 @@ MANIFEST: dict[str, Any] = {
         # ------------------------------------------------------------------ #
         {
             "id": "diff_matrix_structure",
-            "title": "谱微分矩阵：稠密、奇异、条件数 N^2",
+            "title": "谱微分矩阵：稠密、奇异、条件数 $N^2$",
             "description": (
                 "热力图画出 $N+1$ 阶 Chebyshev 微分矩阵 $D_N$（用 $\\mathrm{log}_{10}|D|$ 着色，符号单独给掩码），"
                 "对角元由行和为零反解（$D_{00}=(2N^2+1)/6$，不是 $0$）；右边两条副轴分别是行和 $D_N\\cdot 1$（恒为 $0$，"

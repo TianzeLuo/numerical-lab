@@ -119,7 +119,7 @@ export const pivotStrategyModel: SceneModel = (frame, opts) => {
   if (n === undefined) degraded.push("帧 meta 缺 n：不显示矩阵阶数（不按参数猜）");
   const matrixSize = metaNumber(frame, "matrix_size");
   const kappa1 = metaNumber(frame, "kappa_1");
-  if (kappa1 === undefined) degraded.push("帧 meta 缺 kappa_1：不显示 κ₁（不重算）");
+  if (kappa1 === undefined) degraded.push("帧 meta 缺 kappa_1：不显示 $\\kappa_1$（不重算）");
   const rhoBound = metaNumber(frame, "rho_bound");
   // 后端 2026-10-18 起把语义拆开了：`rho_max` 是真正的最大增长因子，
   // `rho_log10_max` 才是柱高用的对数；这里用的是后者（旧版只有一个错名的字段）。
@@ -162,8 +162,8 @@ export const pivotStrategyModel: SceneModel = (frame, opts) => {
   const mainAxis = makeAxis("main", mainRect, {
     ylim: rhoYlim(rhoLog10),
     xlabel: "",
-    ylabel: axisYlabel("main", "log10 ρ"),
-    title: axisTitle("main", "log10 ρ（增长因子）"),
+    ylabel: axisYlabel("main", "$\\log_{10}\\rho$"),
+    title: axisTitle("main", "$\\log_{10}\\rho$（增长因子）"),
     autoscaled: false,
     // 类别名用 text 手写（AxisOptions 没有 xtickLabels）：先清空数字刻度，免得两行叠字。
     xticks: [],
@@ -273,7 +273,7 @@ export const pivotStrategyModel: SceneModel = (frame, opts) => {
   const head: string[] = [summary.text];
   if (matrixName !== undefined) head.push(`矩阵=${matrixName}`);
   if (matrixSize !== undefined) head.push(`阶数=${formatNumber(matrixSize, 4)}`);
-  if (kappa1 !== undefined) head.push(`κ₁=${formatNumber(kappa1, 4)}`);
+  if (kappa1 !== undefined) head.push(`$\\kappa_1=${formatNumber(kappa1, 4)}$`);
   if (strategyKeys !== undefined) head.push(`策略顺序=${strategyKeys}`);
   // 右列文字宽 ~346px → 约 47 个显示单位一行。
   const textBudget = unitBudget(textW);

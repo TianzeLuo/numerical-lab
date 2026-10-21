@@ -10,7 +10,7 @@
           "autoscaled": false,
           "id": "main",
           "title": "稳态涡量与流函数等值线",
-          "ylabel": "y"
+          "ylabel": "$y$"
         },
         {
           "autoscaled": true,
@@ -43,7 +43,7 @@
           "criticalNote": "",
           "default": 41,
           "help": "每边节点数。$n$ 越大，涡量和边界层分辨率越高，但 Poisson 解与 SOR 迭代成本增长很快；与 Ghia 基准比较时，网格不足会表现为 RMSE 偏大。",
-          "label": "每边节点数 n",
+          "label": "每边节点数 $n$",
           "name": "n",
           "options": [
             25,
@@ -76,21 +76,21 @@
         {
           "autoscaled": false,
           "id": "main",
-          "title": "竖直中心线 u(y) vs Ghia",
-          "ylabel": "y"
+          "title": "竖直中心线 $u(y)$ vs Ghia",
+          "ylabel": "$y$"
         },
         {
           "autoscaled": true,
           "id": "error",
           "scale": "log",
-          "title": "RMSE 随网格 n 的收敛",
+          "title": "RMSE 随网格 $n$ 的收敛",
           "ylabel": "RMSE"
         },
         {
           "autoscaled": true,
           "id": "vprofile",
-          "title": "水平中心线 v(x) vs Ghia",
-          "ylabel": "v"
+          "title": "水平中心线 $v(x)$ vs Ghia",
+          "ylabel": "$v$"
         }
       ],
       "dataSource": "backend",
@@ -150,14 +150,14 @@
         {
           "autoscaled": false,
           "id": "main",
-          "title": "v(x,y)：Gray--Scott 斑图",
-          "ylabel": "y"
+          "title": "$v(x,y)$：Gray–Scott 斑图",
+          "ylabel": "$y$"
         },
         {
           "autoscaled": true,
           "id": "error",
           "scale": "log",
-          "title": "五点模板增长率误差 vs n",
+          "title": "五点模板增长率误差 vs $n$",
           "ylabel": "相对误差"
         },
         {
@@ -226,14 +226,14 @@
         {
           "autoscaled": false,
           "id": "main",
-          "title": "水深 h(x) 与 Ritter 精确解",
-          "ylabel": "h"
+          "title": "水深 $h(x)$ 与 Ritter 精确解",
+          "ylabel": "$h$"
         },
         {
           "autoscaled": true,
           "id": "error",
           "scale": "log",
-          "title": "|h_num - h_exact|（逐点）",
+          "title": "$|h_{\\mathrm{num}}-h_{\\mathrm{exact}}|$（逐点）",
           "ylabel": "绝对误差"
         }
       ],
@@ -283,7 +283,7 @@
       ],
       "time": {
         "dt": 0.01,
-        "label": "物理时间 t",
+        "label": "物理时间 $t$",
         "mode": "scrub",
         "tMax": 0.06
       },

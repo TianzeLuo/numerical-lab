@@ -209,6 +209,7 @@ def _lu_frame(params: Mapping[str, Any], t: float) -> Frame:
 | `vizzes[].axes[]` | ✅ 非空 | 每项要有 `id`（唯一）、显式的 `autoscaled`（bool，规则 1/4）、可选 `scale: linear/log` |
 | `vizzes[].pitfalls` | ✅ | ≥ **60 字**（脚本按字符数算，规则 7） |
 | `vizzes[].theory[]` | ✅ 至少 4 步 | 面向初学者的分步推导（每步以 `**标题**。` 开头），从假设推到图上的量；`notes.tex` 里要有对应推导 |
+| 标签里的数学 | ✅ | 轴名、参数名、时间轴名与标题里的符号/公式必须放进 `$...$`（轴名里禁止用反引号冒充公式）；`tools/check_chapter_content.py --all`（G9）会拒绝裸希腊字母、裸 `_`/`^` 与控制字符 |
 
 **`compute` 的签名与返回值**：`compute(viz_id: str, params: Mapping[str, Any], t: float) -> Frame`。
 `params` 已经过 `server/frames.normalize_params` 规范化（缺省值填充 + 区间校验 + 类型转换），

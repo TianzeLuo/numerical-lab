@@ -134,7 +134,7 @@ MANIFEST: dict[str, Any] = {
                     "help": "面板数上限（$4$ 到 $512$）；自适应模式下表示区间预算。调大能让误差曲线延伸到更细的尺度，也更容易触到舍入地板；调小则只看到粗网格段，拟合窗口可能不够。时间轴只揭示前 $k$ 个面板，$k$ 不会超过这个上限。",
                 },
             ],
-            "time": {"mode": "scrub", "tMax": 64.0, "dt": 1.0, "label": "已揭示的面板数 k"},
+            "time": {"mode": "scrub", "tMax": 64.0, "dt": 1.0, "label": "已揭示的面板数 $k$"},
             "requiredAux": ["error"],
             "axes": [
                 {"id": "main", "autoscaled": False, "title": "$f$ 与分段逼近", "ylabel": "$f(x)$"},
@@ -174,7 +174,7 @@ MANIFEST: dict[str, Any] = {
             "params": [
                 {
                     "name": "n",
-                    "label": "节点数 n",
+                    "label": "节点数 $n$",
                     "type": "int",
                     "min": 2,
                     "max": 20,
@@ -200,7 +200,7 @@ MANIFEST: dict[str, Any] = {
                     "help": "收敛对比使用的被积函数：$e^x$、Runge 函数或 $\\sqrt{x}$。它只影响同一求值预算下 Gauss 与等距梯形的误差曲线，不改变节点、权重和矩误差面板；光滑函数上 Gauss 呈几何收敛，$\\sqrt{x}$ 上两者都受端点奇异性限制。切换后右列文字会更新实测速率与阶。",
                 },
             ],
-            "time": {"mode": "scrub", "tMax": 42.0, "dt": 1.0, "label": "测试到 k 次多项式"},
+            "time": {"mode": "scrub", "tMax": 42.0, "dt": 1.0, "label": "测试到 $k$ 次多项式"},
             "requiredAux": ["error"],
             "axes": [
                 {"id": "nodes", "autoscaled": False, "title": "节点与权重 $w_k$", "ylabel": "$w_k$"},
@@ -271,7 +271,7 @@ MANIFEST: dict[str, Any] = {
                     "help": "最大外推层数 $m$（$2$ 到 $10$）。调大后三角表向下多几行，能看到更高列的理论阶和对角线触到舍入地板的时刻；调小则高列没有足够多的点，右列会留白而不是硬凑一个阶。第 $6$ 层附近是对角线触底的临界，再往上只放大噪声。",
                 },
             ],
-            "time": {"mode": "scrub", "tMax": 10.0, "dt": 1.0, "label": "已算到的层数 k"},
+            "time": {"mode": "scrub", "tMax": 10.0, "dt": 1.0, "label": "已算到的层数 $k$"},
             "requiredAux": ["error"],
             "axes": [
                 {
@@ -358,7 +358,7 @@ MANIFEST: dict[str, Any] = {
                     "help": "节点数上限（$9$ 到 $513$，实际取奇数）。调大能让误差曲线延伸到更多节点，但一旦越过饱和点，误差会停在地板不再下降；调小则可能还没进入双指数收敛段。时间轴控制每侧节点数 $m$，总节点数 $2m+1$ 不超过这个上限。",
                 },
             ],
-            "time": {"mode": "scrub", "tMax": 256.0, "dt": 2.0, "label": "每侧节点数 m"},
+            "time": {"mode": "scrub", "tMax": 256.0, "dt": 2.0, "label": "每侧节点数 $m$"},
             "requiredAux": ["error"],
             "axes": [
                 {
@@ -1127,17 +1127,17 @@ def _singular_endpoint(params: Mapping[str, Any], t: float) -> Frame:
             sl = fit_semilog(nodes[reveal][wts[0] : wts[1] + 1], ts_c[reveal][wts[0] : wts[1] + 1])
 
     fr = Frame(chapter="2.4", viz="singular_endpoint")
-    fr.add("ts_m", ms.astype(float), label="每侧节点数 m")
-    fr.add("ts_nodes", nodes, label="总节点数 2m+1")
+    fr.add("ts_m", ms.astype(float), label="每侧节点数 $m$")
+    fr.add("ts_nodes", nodes, label="总节点数 $2m+1$")
     fr.add("error_ts", np.where(reveal, ts_c, floor), label="tanh–sinh 误差")
     fr.add("ts_saturated", ts_sat, label="饱和节点数（权重下溢到 0）")
-    fr.add("ts_xmin", np.maximum(ts_xmin, floor), label="最靠近奇异端点的节点 x_min")
-    fr.add("ts_tail", tail_c, label="未采样尾巴 |∫₀^{x_min} f|")
+    fr.add("ts_xmin", np.maximum(ts_xmin, floor), label="最靠近奇异端点的节点 $x_{\\min}$")
+    fr.add("ts_tail", tail_c, label="未采样尾巴 $\\left|\\int_0^{x_{\\min}} f\\right|$")
     fr.add("sub_nodes", (sub_counts + 1).astype(float), label="换元后等距规则的节点数")
     fr.add("error_sub", sub_c, label="换元 + 等距规则的误差")
     fr.add("floor_nodes", nodes, label="地板参考线的横坐标（节点数）")
     fr.add("floor_value", np.full(nodes.size, abs(tail_theory) if tail_theory is not None else floor),
-           label="地板理论值 |∫₀^{u/2} f|")
+           label="地板理论值 $\\left|\\int_0^{u/2} f\\right|$")
     xd = _dense_grid(item)
     fd = item.values(xd)
     defined = np.isfinite(fd)
@@ -1182,8 +1182,8 @@ def _singular_endpoint(params: Mapping[str, Any], t: float) -> Frame:
         h_label=f"h = {h_key} = {h:.6g}",
         smoothness=item.smoothness,
         floor_note=(
-            "tanh–sinh 的地板不是 u 而是未被采样的尾巴 ∫₀^{x_min}f："
-            "x_min≈u/2，x^{-1/2} 型给出 2√x_min≈√(2u)≈1.5e-8，"
+            "tanh–sinh 的地板不是 $u$ 而是未被采样的尾巴 $\\int_0^{x_{\\min}}f$："
+            "$x_{\\min}\\approx u/2$，$x^{-1/2}$ 型给出 $2\\sqrt{x_{\\min}}\\approx\\sqrt{2u}\\approx1.5\\times10^{-8}$，"
             "对数型给出 x_min|ln x_min|≈2e-15。"
         ),
         saturation_note=(

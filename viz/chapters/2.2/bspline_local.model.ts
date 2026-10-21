@@ -206,7 +206,7 @@ export const bsplineLocalModel: SceneModel = (frame, opts) => {
     xlim: [-0.02, 1.02],
     ylim: yLim,
     xlabel: "",
-    ylabel: axisYlabel("main", "y"),
+    ylabel: axisYlabel("main", "$y$"),
     title:
       hullGap === undefined
         ? axisTitle("main", "曲线、控制多边形与基函数（固定参数域）")
@@ -362,7 +362,7 @@ export const bsplineLocalModel: SceneModel = (frame, opts) => {
           label: "受影响区间",
         }),
       );
-      vLine(scene, mainAxis, lo, pal.curves[0], { label: "`t_i`" });
+      vLine(scene, mainAxis, lo, pal.curves[0], { label: "$t_i$" });
       vLine(scene, mainAxis, hi, pal.curves[0], { label: "$t_{i+k+1}$" });
     }
   }

@@ -90,7 +90,7 @@ import { manifest } from "./manifest.gen.js";
 const CHAPTER = "1.1";
 const VIZ = "cond_ellipsoid";
 const SPEC = manifest.vizzes.find((v) => v.id === VIZ);
-const TITLE = SPEC?.title ?? "条件数 κ(A)：输入的小误差会被放大多少倍";
+const TITLE = SPEC?.title ?? "条件数 $\\kappa(A)$：输入的小误差会被放大多少倍";
 
 /** 固定角标槽位（见 `model.ts::BADGE_LAYOUT`）。 */
 const SLOT = {
@@ -238,8 +238,8 @@ export const condEllipsoidModel: SceneModel = (frame, opts) => {
   const mainAxis = makeAxis("geometry", mainRect, {
     xlim: MAIN_LIM,
     ylim: MAIN_LIM,
-    xlabel: "`x_1`",
-    ylabel: axisYlabelOf(SPEC?.axes, "geometry", "x₂"),
+    xlabel: "$x_1$",
+    ylabel: axisYlabelOf(SPEC?.axes, "geometry", "$x_2$"),
     title: axisTitleOf(SPEC?.axes, "geometry", "单位圆与 $A$ 作用后的椭圆"),
     autoscaled: false,
   });
@@ -347,16 +347,16 @@ export const condEllipsoidModel: SceneModel = (frame, opts) => {
   // —— 文本 ——
   const summary = paramSummary(frame, opts, [
     { name: "shear", label: "剪切 $s$" },
-    { name: "delta_b", label: "$δb$" },
+    { name: "delta_b", label: "$\\delta b$" },
     { name: "b_angle", label: "$b$ 方向（度）" },
   ]);
   degraded.push(...summary.degraded);
 
   const head: string[] = [summary.text];
   if (family !== undefined) head.push(`族=${family}`);
-  if (shear !== undefined) head.push(`剪切 s=${formatNumber(shear, 4)}`);
+  if (shear !== undefined) head.push(`剪切 $s$=${formatNumber(shear, 4)}`);
   if (normLabel !== undefined) head.push(`范数=${normLabel}`);
-  if (log10Kappa !== undefined) head.push(`log10 κ=${formatNumber(log10Kappa, 4)}`);
+  if (log10Kappa !== undefined) head.push(`$\\log_{10}\\kappa$=${formatNumber(log10Kappa, 4)}`);
   const mainBudget = unitBudget(mainRect[2]);
   scene.texts.push(...textBlock(mainRect[0] + 6, textTop(mainRect), textBottom(mainRect), [head.join("　")], pal.muted, mainBudget, "top"));
 
@@ -377,43 +377,44 @@ export const condEllipsoidModel: SceneModel = (frame, opts) => {
     );
   }
   legend.push("灰虚=单位圆　蓝=像（半轴比 $=\\kappa_2$）　蓝虚=$b$　黑虚=$x$　红=$\\hat{x}$　紫虚=$\\hat{x}'$");
-  if (clipped.length > 0) legend.push(`⚠ ${clipped.length} 条向量冲出 ±3：${clipped.join("；")}——看不到不等于不存在`);
-  legend.push("δb 在 ±3 的尺度下与原点重合（‖δb‖ ~ 1e-12）：它造成的位移要看 x 与 x̂′ 的夹角，不看箭头长度");
+  if (clipped.length > 0) legend.push(`⚠ ${clipped.length} 条向量冲出 $\\pm3$：${clipped.join("；")}——看不到不等于不存在`);
+  legend.push("$\\delta b$ 在 $\\pm3$ 的尺度下与原点重合（$\\|\\delta b\\|\\sim10^{-12}$）：它造成的位移要看 $x$ 与 $\\hat{x}'$ 的夹角，不看箭头长度");
   scene.texts.push(...textBlock(mainRect[0] + 6, textTop(mainRect), textBottom(mainRect), legend, clipped.length > 0 ? pal.warn : pal.muted, mainBudget, "bottom"));
 
   const auxLines: string[] = [];
+  const normSub = normLabel === "inf" ? "\\infty" : normLabel === "fro" ? "\\mathrm{F}" : (normLabel ?? "?");
   const nums1: string[] = [];
-  if (kappaTarget !== undefined) nums1.push(`目标 κ=${formatNumber(kappaTarget, 4)}`);
-  if (kappaMeasured !== undefined) nums1.push(`实测 κ_${normLabel ?? "?"}=${formatNumber(kappaMeasured, 4)}`);
+  if (kappaTarget !== undefined) nums1.push(`目标 $\\kappa=${formatNumber(kappaTarget, 4)}$`);
+  if (kappaMeasured !== undefined) nums1.push(`实测 $\\kappa_{${normSub}}=${formatNumber(kappaMeasured, 4)}$`);
   if (nums1.length > 0) auxLines.push(`${nums1.join("　")}（目标 $\\kappa$ 与实测 $\\kappa$ 不同：族不同差得不同，两个都必须给）`);
   const nums2: string[] = [];
-  if (kappa1 !== undefined) nums2.push(`κ₁=${formatNumber(kappa1, 3)}`);
-  if (kappa2 !== undefined) nums2.push(`κ₂=${formatNumber(kappa2, 3)}`);
-  if (kappaInf !== undefined) nums2.push(`κ∞=${formatNumber(kappaInf, 3)}`);
-  if (kappaFro !== undefined) nums2.push(`κ_F=${formatNumber(kappaFro, 3)}`);
-  if (nums2.length > 0) auxLines.push(`${nums2.join("　")}（不同范数可差一个 n 因子）`);
+  if (kappa1 !== undefined) nums2.push(`$\\kappa_1=${formatNumber(kappa1, 3)}$`);
+  if (kappa2 !== undefined) nums2.push(`$\\kappa_2=${formatNumber(kappa2, 3)}$`);
+  if (kappaInf !== undefined) nums2.push(`$\\kappa_\\infty=${formatNumber(kappaInf, 3)}$`);
+  if (kappaFro !== undefined) nums2.push(`$\\kappa_{\\mathrm{F}}=${formatNumber(kappaFro, 3)}$`);
+  if (nums2.length > 0) auxLines.push(`${nums2.join("　")}（不同范数可差一个 $n$ 因子）`);
   const nums3: string[] = [];
-  if (sigmaMin !== undefined && sigmaMax !== undefined) nums3.push(`σ ∈ [${formatNumber(sigmaMin, 3)}, ${formatNumber(sigmaMax, 3)}]`);
-  if (detA !== undefined) nums3.push(`det A=${formatNumber(detA, 3)}`);
-  if (nTheta !== undefined) nums3.push(`n_θ=${formatNumber(nTheta, 4)}`);
+  if (sigmaMin !== undefined && sigmaMax !== undefined) nums3.push(`$\\sigma\\in[${formatNumber(sigmaMin, 3)}, ${formatNumber(sigmaMax, 3)}]$`);
+  if (detA !== undefined) nums3.push(`$\\det A=${formatNumber(detA, 3)}$`);
+  if (nTheta !== undefined) nums3.push(`$n_\\theta=${formatNumber(nTheta, 4)}$`);
   if (nums3.length > 0) auxLines.push(nums3.join("　"));
   const nums4: string[] = [];
   if (amplification !== undefined) nums4.push(`实测放大比=${formatNumber(amplification, 3)}`);
-  if (ampOverKappa !== undefined) nums4.push(`实测/κ=${formatNumber(ampOverKappa, 3)}`);
+  if (ampOverKappa !== undefined) nums4.push(`实测/$\\kappa$=${formatNumber(ampOverKappa, 3)}`);
   if (forwardError !== undefined) nums4.push(`前向误差=${formatNumber(forwardError, 3)}`);
   if (backwardError !== undefined) nums4.push(`后向误差=${formatNumber(backwardError, 3)}`);
   if (residual !== undefined) nums4.push(`残差=${formatNumber(residual, 3)}`);
   if (nums4.length > 0) auxLines.push(nums4.join("　"));
   const nums5: string[] = [];
-  if (deltaB !== undefined) nums5.push(`δb=${formatNumber(deltaB, 3)}`);
-  if (bAngle !== undefined) nums5.push(`b 方向=${formatNumber(bAngle, 4)}°`);
-  if (boundRhs !== undefined) nums5.push(`κ·δb=${formatNumber(boundRhs, 3)}`);
-  if (kappaU !== undefined) nums5.push(`κu=${formatNumber(kappaU, 3)}`);
+  if (deltaB !== undefined) nums5.push(`$\\delta b=${formatNumber(deltaB, 3)}$`);
+  if (bAngle !== undefined) nums5.push(`$b$ 方向=${formatNumber(bAngle, 4)}°`);
+  if (boundRhs !== undefined) nums5.push(`$\\kappa\\cdot\\delta b=${formatNumber(boundRhs, 3)}$`);
+  if (kappaU !== undefined) nums5.push(`$\\kappa u=${formatNumber(kappaU, 3)}$`);
   if (nums5.length > 0) auxLines.push(nums5.join("　"));
   if (normNote !== undefined) auxLines.push(normNote);
   if (floorNote !== undefined) auxLines.push(floorNote);
   auxLines.push("实测曲线一般**低于**理论上界：界是对**所有**方向的保证，随机方向不在最坏方向上——这不是界太松");
-  if (note !== undefined) auxLines.push(`帧 note：${note}`);
+  if (note !== undefined) auxLines.push(`本帧说明：${note}`);
   const auxBudget = unitBudget(auxRect[2]);
   scene.texts.push(...textBlock(auxRect[0] + 6, textTop(auxRect), textBottom(auxRect), auxLines, pal.muted, auxBudget, "top"));
 

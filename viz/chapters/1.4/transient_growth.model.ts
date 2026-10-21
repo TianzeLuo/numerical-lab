@@ -37,7 +37,7 @@
  * 4. **`meta.non_normal` 不能当主判据**：它的定义是 `peak > 1 且 ρ < 1`，而 shear 族的 ρ 恰好 = 1，
  *    于是这个布尔量是 `False` —— 但图上的曲线明明涨了 9 个量级。文本里以**曲线与数字**为准，
  *    并把这件事写出来（这正是"别用一个布尔量代替看数据"）。
- * 5. **峰值可能还没到**：帧只算到 `k_max`，`peak_hit_max=True` 表示"峰值贴着右边界"。
+ * 5. **峰值可能还没到**：帧只算到 $k_{\max}$，`peak_hit_max=True` 表示"峰值贴着右边界"。
  *    此时峰值标记只能画在 k_max 处并注明"可能还在后面"（不许把右端点说成峰值）。
  */
 
@@ -188,7 +188,7 @@ export const transientGrowthModel: SceneModel = (frame, opts) => {
       yscale: "log",
       xlabel: "幂次 $k$",
       ylabel: axisYlabelOf(AXES, "main", "倍数"),
-      title: axisTitleOf(AXES, "main", "增长倍数 ‖A^k‖ / ρ(A)^k"),
+      title: axisTitleOf(AXES, "main", "增长倍数 $\\|A^k\\|/\\rho(A)^k$"),
       autoscaled: true,
       xticks: integerTicks(mainRect[2], steps.length),
     }),
@@ -237,7 +237,7 @@ export const transientGrowthModel: SceneModel = (frame, opts) => {
       yscale: "log",
       xlabel: "幂次 $k$",
       ylabel: axisYlabelOf(AXES, "aux", "2-范数"),
-      title: axisTitleOf(AXES, "aux", "‖A^k‖₂ 与 ρ(A)^k"),
+      title: axisTitleOf(AXES, "aux", "$\\|A^k\\|_2$ 与 $\\rho(A)^k$"),
       autoscaled: true,
       xticks: integerTicks(normRect[2], steps.length),
     }),
@@ -281,7 +281,7 @@ export const transientGrowthModel: SceneModel = (frame, opts) => {
   const summary = paramSummary(frame, opts, [
     { name: "n", label: "$n$" },
     { name: "nonnormal", label: "非正规度 $s$" },
-    { name: "k_max", label: "`k_max`" },
+    { name: "k_max", label: "$k_{\\max}$" },
   ]);
   degraded.push(...summary.degraded);
 

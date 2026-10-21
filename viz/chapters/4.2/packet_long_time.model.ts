@@ -190,7 +190,7 @@ export const packetLongTimeModel: SceneModel = (frame, opts) => {
       xticks: [],
       xlabel: "",
       title: axisTitleOf(SPEC?.axes, "packet", "波包与精确解（固定窗口）"),
-      ylabel: axisYlabelOf(SPEC?.axes, "packet", "u(x,t)"),
+      ylabel: axisYlabelOf(SPEC?.axes, "packet", "$u(x,t)$"),
       autoscaled: false,
     },
   );

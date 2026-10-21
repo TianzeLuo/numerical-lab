@@ -156,7 +156,7 @@ MANIFEST: dict[str, Any] = {
             "params": [
                 {
                     "name": "kappa",
-                    "label": "条件数 κ = λmax/λmin",
+                    "label": "条件数 $\\kappa=\\lambda_{\\max}/\\lambda_{\\min}$",
                     "type": "float",
                     "min": 2.0,
                     "max": 10000.0,
@@ -178,7 +178,7 @@ MANIFEST: dict[str, Any] = {
                 "help": "椭圆主轴与坐标轴的夹角。它改变初始梯度方向与最优路径的相对位置，从而改变前几步的锯齿形状；收敛率本身由 $\\kappa$ 决定。"},
                 {
                     "name": "step_scale",
-                    "label": "GD 步长 / 最优步长 α* = 2/(L+μ)",
+                    "label": "GD 步长 / 最优步长 $\\alpha^\\ast=2/(L+\\mu)$",
                     "type": "float",
                     "min": 0.1,
                     "max": 1.6,
@@ -204,10 +204,10 @@ MANIFEST: dict[str, Any] = {
                     "criticalNote": "",
                 "help": "最多画多少步。步数增加能看见长期收敛趋势，也会让发散方法彻底冲出画面；它不改变方法本身。"},
             ],
-            "time": {"mode": "scrub", "tMax": 60.0, "dt": 1.0, "fps": 30, "label": "迭代 k"},
+            "time": {"mode": "scrub", "tMax": 60.0, "dt": 1.0, "fps": 30, "label": "迭代 $k$"},
             "requiredAux": ["error"],
             "axes": [
-                {"id": "main", "autoscaled": False, "title": "等高线 f(x)=const 与四条下降路径", "ylabel": "x_2"},
+                {"id": "main", "autoscaled": False, "title": "等高线 $f(x)=\\mathrm{const}$ 与四条下降路径", "ylabel": "$x_2$"},
                 {"id": "aux", "autoscaled": True, "title": "到最优解的距离 $\\|x_k-x^*\\|$", "ylabel": "$\\|x_k-x^*\\|$", "scale": "log"},
             ],
             "pitfalls": _MANIFEST_PITFALLS,
@@ -233,7 +233,7 @@ MANIFEST: dict[str, Any] = {
             "params": [
                 {
                     "name": "kappa",
-                    "label": "条件数 κ（二次部分）",
+                    "label": "条件数 $\\kappa$（二次部分）",
                     "type": "float",
                     "min": 2.0,
                     "max": 1000.0,
@@ -244,7 +244,7 @@ MANIFEST: dict[str, Any] = {
                 "help": "二次部分的条件数。它决定 GD/动量的线性收敛因子，也影响牛顿法进入二次收敛区前的过渡段长度。"},
                 {
                     "name": "start",
-                    "label": "初值尺度（x0 = (s, s)）",
+                    "label": "初值尺度（$x_0=(s,s)$）",
                     "type": "float",
                     "min": 0.02,
                     "max": 2.0,
@@ -255,7 +255,7 @@ MANIFEST: dict[str, Any] = {
                 "help": "初值尺度 $x_0=(s,s)$。离最优点越远，非线性四次项越重要，牛顿法的二次收敛段越晚出现。"},
                 {
                     "name": "beta",
-                    "label": "四次项系数 β（β=0 退化成二次型）",
+                    "label": "四次项系数 $\\beta$（$\\beta=0$ 退化成二次型）",
                     "type": "float",
                     "min": 0.0,
                     "max": 0.5,
@@ -271,7 +271,7 @@ MANIFEST: dict[str, Any] = {
                 "help": "四次项系数 $\\beta$。$\\beta=0$ 是纯二次型，牛顿一步到位；$\\beta>0$ 时 Hessian 随位置变化，牛顿法表现为局部二次收敛。"},
                 {
                     "name": "alpha_cap",
-                    "label": "牛顿步长上限 α_cap",
+                    "label": "牛顿步长上限 $\\alpha_{\\mathrm{cap}}$",
                     "type": "float",
                     "min": 0.1,
                     "max": 1.0,
@@ -331,7 +331,7 @@ MANIFEST: dict[str, Any] = {
             "params": [
                 {
                     "name": "neg",
-                    "label": "负特征值 λ-",
+                    "label": "负特征值 $\\lambda_-$",
                     "type": "float",
                     "min": -2.0,
                     "max": -0.001,
@@ -342,7 +342,7 @@ MANIFEST: dict[str, Any] = {
                 "help": "负特征值 $\\lambda_-$。它决定不稳定方向上的逃逸速度：$|\\lambda_-|$ 越大，同样的扰动越早被放大，逃逸阈值越低。"},
                 {
                     "name": "delta",
-                    "label": "扰动量级 δ",
+                    "label": "扰动量级 $\\delta$",
                     "type": "float",
                     "min": 1e-09,
                     "max": 0.1,
@@ -371,10 +371,10 @@ MANIFEST: dict[str, Any] = {
                     "criticalNote": "",
                 "help": "GD 步数。步数越多，扰动被放大的机会越多，表观逃逸阈值越低；阈值公式 $\\delta^*=R(1+|\\lambda_-|\\alpha)^{-N}$ 明确依赖 $N$。"},
             ],
-            "time": {"mode": "scrub", "tMax": 200.0, "dt": 1.0, "fps": 30, "label": "GD 步 k"},
+            "time": {"mode": "scrub", "tMax": 200.0, "dt": 1.0, "fps": 30, "label": "GD 步 $k$"},
             "requiredAux": ["residual"],
             "axes": [
-                {"id": "main", "autoscaled": False, "title": "鞍点等高线（双曲线族）与扰动轨迹", "ylabel": "x_2"},
+                {"id": "main", "autoscaled": False, "title": "鞍点等高线（双曲线族）与扰动轨迹", "ylabel": "$x_2$"},
                 {"id": "aux", "autoscaled": True, "title": "梯度范数与到驻点距离", "ylabel": "$\\|\\nabla f\\|/\\|x-x^*\\|$", "scale": "log"},
             ],
             "pitfalls": (
@@ -406,7 +406,7 @@ MANIFEST: dict[str, Any] = {
             "params": [
                 {
                     "name": "t2",
-                    "label": "扩张阈值 t2（ρ>t2 且撞边界才扩张）",
+                    "label": "扩张阈值 $t_2$（$\\rho>t_2$ 且撞边界才扩张）",
                     "type": "float",
                     "min": 0.05,
                     "max": 1.5,
@@ -422,7 +422,7 @@ MANIFEST: dict[str, Any] = {
                 "help": "扩张阈值：只有 $\\rho>t_2$ 且步长撞到信赖域边界时才把半径放大。调大 $t_2$ 更保守，半径增长更慢；调小更容易扩张。"},
                 {
                     "name": "delta0",
-                    "label": "初始半径 Δ0",
+                    "label": "初始半径 $\\Delta_0$",
                     "type": "float",
                     "min": 0.05,
                     "max": 10.0,
@@ -451,10 +451,10 @@ MANIFEST: dict[str, Any] = {
                     "criticalNote": "",
                 "help": "最大迭代步数。它决定能看多长的半径/ρ 历史；Rosenbrock 的窄谷需要足够步数才能看到半径的反复扩张与收缩。"},
             ],
-            "time": {"mode": "scrub", "tMax": 24.0, "dt": 1.0, "fps": 30, "label": "迭代 k"},
+            "time": {"mode": "scrub", "tMax": 24.0, "dt": 1.0, "fps": 30, "label": "迭代 $k$"},
             "requiredAux": ["residual"],
             "axes": [
-                {"id": "main", "autoscaled": False, "title": "Rosenbrock 等高线与信赖域圆", "ylabel": "y"},
+                {"id": "main", "autoscaled": False, "title": "Rosenbrock 等高线与信赖域圆", "ylabel": "$y$"},
                 {"id": "aux", "autoscaled": True, "title": "半径 $\\Delta_k$、比值 $\\rho_k$ 与梯度范数", "ylabel": "$\\Delta_k/\\rho_k/\\|\\nabla f\\|$", "scale": "log"},
             ],
             "pitfalls": (
@@ -528,9 +528,9 @@ def _descent_race_frame(params: Mapping[str, Any], t: float) -> Frame:
 
     fr = Frame(chapter="5.1", viz="descent_race", kind="frame")
     fr.add("contour_x", X[0, :], unit="", label="x_1")
-    fr.add("contour_y", Y[:, 0], unit="", label="x_2")
+    fr.add("contour_y", Y[:, 0], unit="", label="$x_2$")
     fr.add("contour_z", Z, unit="", label="f(x)（等高线用）")
-    fr.add("iterations", np.arange(max_iter + 1, dtype=float), unit="", label="迭代 k")
+    fr.add("iterations", np.arange(max_iter + 1, dtype=float), unit="", label="迭代 $k$")
 
     meta: dict[str, Any] = {}
     strings: dict[str, str] = {}
@@ -607,7 +607,7 @@ def _convergence_rates_frame(params: Mapping[str, Any], t: float) -> Frame:
     }
 
     fr = Frame(chapter="5.1", viz="convergence_rates", kind="frame")
-    fr.add("iterations", np.arange(max_iter + 1, dtype=float), unit="", label="迭代 k")
+    fr.add("iterations", np.arange(max_iter + 1, dtype=float), unit="", label="迭代 $k$")
     for name in ("gd", "momentum", "bfgs", "newton"):
         fr.add(f"error_{name}", _pad_tail(_floored(traces[name].dist), max_iter + 1), unit="", label=f"{name}: ‖x_k - x*‖")
 
@@ -756,7 +756,7 @@ def _saddle_escape_frame(params: Mapping[str, Any], t: float) -> Frame:
 
     fr = Frame(chapter="5.1", viz="saddle_escape", kind="frame")
     fr.add("contour_x", X[0, :], unit="", label="x_1")
-    fr.add("contour_y", Y[:, 0], unit="", label="x_2")
+    fr.add("contour_y", Y[:, 0], unit="", label="$x_2$")
     fr.add("contour_z", Z, unit="", label="f(x)（双曲线族）")
     tx, ty = _slice_traj(traj.xs[:, 0], traj.xs[:, 1], k)
     fr.add("traj_x", tx, unit="", label="扰动轨迹 x_1")
@@ -801,7 +801,7 @@ def _saddle_escape_frame(params: Mapping[str, Any], t: float) -> Frame:
             "不是把参数 neg 抄回来；两者在 λ-<0 时逐位一致。"
         ),
         threshold_note=(
-            "实测逃逸阈值 = 二分出来的最小扰动量级 δ*（判据：meta.escape_steps 步 GD 之后离驻点 ≥ 1，"
+            "实测逃逸阈值 = 二分出来的最小扰动量级 $\\delta$*（判据：meta.escape_steps 步 GD 之后离驻点 ≥ 1，"
             "二分相对容差 1e-4）。"
             "沿 u_min 的阈值与解析式 R·(1+|λ-|α)^(-N) 吻合；随机方向的阈值是它的 "
             "1/|<u_min,d>| 倍——这就是「随机扰动跑掉了」的全部内容。"
@@ -851,7 +851,7 @@ def _trust_region_frame(params: Mapping[str, Any], t: float) -> Frame:
     tx, ty = _slice_traj(tr.xs[:, 0], tr.xs[:, 1], k)
     fr.add("traj_x", tx, unit="", label="迭代点 x")
     fr.add("traj_y", ty, unit="", label="迭代点 y")
-    fr.add("iterations", np.arange(max_iter + 1, dtype=float), unit="", label="迭代 k")
+    fr.add("iterations", np.arange(max_iter + 1, dtype=float), unit="", label="迭代 $k$")
     fr.add("gradient_residual", _pad_tail(_floored(tr.gnorm), max_iter + 1), unit="", label="‖∇f‖")
     fr.add("radius_history", _pad_tail(_floored(radius_clean, 1e-14), max_iter + 1), unit="", label="信赖域半径 Δ_k")
     ratio_series, ratio_ok = _finite_array(tr.ratio, fill=0.0)
@@ -887,7 +887,7 @@ def _trust_region_frame(params: Mapping[str, Any], t: float) -> Frame:
         status="ok",
         stop=tr.stop,
         radius_note=(
-            "半径只在「ρ>t2 且步撞到边界」时扩张、在「ρ<t1=0.25」时按 γ₁=0.25 收缩；"
+            "半径只在「$\\rho>t_2$ 且步撞到边界」时扩张、在「$\\rho<t_1=0.25$」时按 $\\gamma_1=0.25$ 收缩；"
             "被拒绝的步不进轨迹，但 ratio_history / accepted 里都有记录。"
         ),
         ratio_note=(

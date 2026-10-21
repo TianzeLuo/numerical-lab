@@ -93,7 +93,7 @@
       "time": {
         "dt": 1.0,
         "fps": 30,
-        "label": "迭代步 k",
+        "label": "迭代步 $k$",
         "mode": "scrub",
         "tMax": 30.0
       },
@@ -124,7 +124,7 @@
           "criticalNote": "",
           "default": 4,
           "help": "多重网格的层数 L，最细层内点数约为 2^L-1，每加一层网格规模减半。调大后能看到更多粗细层与更长的 V 形事件序列，粗层求解的相对代价也更能体现；调小则层数少、最粗层很快出现，V 循环更像两网格。读图时看各层虚线与事件分段。",
-          "label": "网格层数 L（n=2^L-1）",
+          "label": "网格层数 $L$（$n=2^L-1$）",
           "max": 6,
           "min": 3,
           "name": "levels",
@@ -201,7 +201,7 @@
       "time": {
         "dt": 1.0,
         "fps": 30,
-        "label": "周期 c",
+        "label": "周期 $c$",
         "mode": "scrub",
         "tMax": 5.0
       },
@@ -232,7 +232,7 @@
           "criticalNote": "",
           "default": 7,
           "help": "扫描的最大层数，最细网格内点数到 2 的 levels_max 次方减一。调大后横轴范围更宽，更能看清因子是否随 h 漂移、CG 与 MGCG 迭代数差距是否扩大；调小则点少、趋势不明显。读图时注意最右端是否还在渐近区。",
-          "label": "最大层数（n 到 2^L-1）",
+          "label": "最大层数（$n$ 至 $2^L-1$）",
           "max": 7,
           "min": 4,
           "name": "levels_max",
@@ -314,7 +314,7 @@
           "autoscaled": true,
           "id": "profiles",
           "title": "细网格残差与粗层可见部分",
-          "ylabel": "r(x)"
+          "ylabel": "$r(x)$"
         },
         {
           "autoscaled": true,

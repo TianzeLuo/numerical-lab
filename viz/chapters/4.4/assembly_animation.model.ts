@@ -268,7 +268,7 @@ export const assemblyAnimationModel: SceneModel = (frame, opts) => {
       vmin: -scaleAbs,
       vmax: scaleAbs,
       clipBelow,
-      label: "`K_ij`",
+      label: "$K_{ij}$",
     }),
   );
 
@@ -341,7 +341,7 @@ export const assemblyAnimationModel: SceneModel = (frame, opts) => {
         cmap: "rdbu",
         vmin: lo,
         vmax: hi,
-        label: "`ke_ij`",
+        label: "$k^e_{ij}$",
       }),
     );
   }
@@ -437,8 +437,8 @@ export const assemblyAnimationModel: SceneModel = (frame, opts) => {
 
   if (L.columns && !short && L.floor > L.textTop + 8) {
     const head = paramSummary(frame, opts, [
-      { name: "n_elem", label: "`n_elem`" },
-      { name: "n_dof", label: "`n_dof`" },
+      { name: "n_elem", label: "$n_{\\mathrm{elem}}$" },
+      { name: "n_dof", label: "$n_{\\mathrm{dof}}$" },
     ]);
     degraded.push(...head.degraded);
     const lines: string[] = [];

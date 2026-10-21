@@ -124,7 +124,7 @@ MANIFEST: dict[str, Any] = {
                 },
                 {
                     "name": "n_max",
-                    "label": "展开上限 N_max（时间轴右端）",
+                    "label": "展开上限 $N_{\\max}$（时间轴右端）",
                     "type": "int",
                     "min": 256,
                     "max": 4096,
@@ -140,7 +140,7 @@ MANIFEST: dict[str, Any] = {
                     ),
                 },
             ],
-            "time": {"mode": "scrub", "tMax": 2048.0, "dt": 64.0, "label": "已铺开的点数 k"},
+            "time": {"mode": "scrub", "tMax": 2048.0, "dt": 64.0, "label": "已铺开的点数 $k$"},
             "requiredAux": ["error"],
             "axes": [
                 {
@@ -623,7 +623,7 @@ MANIFEST: dict[str, Any] = {
                 },
                 {
                     "name": "extrap",
-                    "label": "外推倍率（1 = 不外推）",
+                    "label": "外推倍率（$1$ 表示不外推）",
                     "type": "float",
                     "min": 1.0,
                     "max": 2.0,
@@ -892,7 +892,7 @@ def _point_fill(params: Mapping[str, Any], t: float) -> Frame:
     for name, m in (("mc", "mc"), ("sobol", "sobol"), ("lattice", "lattice")):
         pts = _points_cached(m, randomize, integrand, k)
         fr.add(f"{name}_x", pts[:, 0], unit="1", label=f"{name} 点的 x_1")
-        fr.add(f"{name}_y", pts[:, 1], unit="1", label=f"{name} 点的 x_2")
+        fr.add(f"{name}_y", pts[:, 1], unit="1", label=f"{name} 点的 $x_2$")
     fr.add("n_axis", ns.astype(np.float64), unit="1", label="样本数 N")
     fr.add("error", err_log, unit="1", label=f"log10({method} 的误差)")
     fr.add("error_valid", err_valid, unit="1", label="error 有效掩码（0 = 触地板/未定义）")

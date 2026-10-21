@@ -10,7 +10,7 @@
           "autoscaled": false,
           "id": "plane",
           "title": "等高线与迭代轨迹（物理坐标，固定轴）",
-          "ylabel": "x2"
+          "ylabel": "$x_2$"
         },
         {
           "autoscaled": true,
@@ -47,7 +47,7 @@
           "criticalNote": "$\\omega=1$ 时 SOR 退化为 Gauss–Seidel；收敛的必要条件是 $0<\\omega<2$（$\\omega\\ge 2$ 时 $\\rho(T_\\omega)\\ge 1$，迭代发散）。最优值 $\\omega_{\\text{opt}}=2/(1+\\sqrt{1-\\mu^{2}})$ 由当前矩阵的 Jacobi 谱半径 $\\mu$ 决定，帧里的 meta.omega_opt 给出它的真实取值。",
           "default": 1.3,
           "help": "SOR 的松弛因子 $\\omega$。$\\omega=1$ 退化为 Gauss–Seidel；$1<\\omega<2$ 通常加速；过大时会振荡甚至发散。最优值约为 $2/(1+\\sqrt{1-\\rho_J^2})$，图上会用当前矩阵估算。",
-          "label": "SOR 松弛因子 ω",
+          "label": "SOR 松弛因子 $\\omega$",
           "max": 1.99,
           "min": 0.5,
           "name": "omega",
@@ -62,7 +62,7 @@
           "criticalNote": "$\\kappa=\\lambda_{\\max}/\\lambda_{\\min}=1$ 时等高线是正圆，任何方法一步到解；$\\kappa$ 越大椭圆越扁，沿长轴方向的误差衰减越慢——Jacobi 的谱半径 $\\mu$ 与 SOR 的最优 $\\omega$ 都由它决定。",
           "default": 20.0,
           "help": "测试矩阵的条件数（目标值）。$\\kappa$ 越大，椭圆越扁，Krylov 方法需要更多步才能压低误差；定常迭代的谱半径也随之接近 1。",
-          "label": "条件数 κ（目标）",
+          "label": "条件数 $\\kappa$（目标）",
           "max": 200.0,
           "min": 1.5,
           "name": "kappa",
@@ -74,7 +74,7 @@
           "criticalNote": "",
           "default": 35.0,
           "help": "特征向量与坐标轴的夹角。它改变初始误差在快、慢特征方向上的分量比例；谱半径只给最坏情况，实际前几步的快慢取决于这个角度。",
-          "label": "特征向量方向 θ（度）",
+          "label": "特征向量方向 $\\theta$（度）",
           "max": 180.0,
           "min": 0.0,
           "name": "angle",
@@ -95,7 +95,7 @@
       ],
       "time": {
         "dt": 1.0,
-        "label": "迭代步 k",
+        "label": "迭代步 $k$",
         "mode": "scrub",
         "tMax": 60.0
       },
@@ -107,7 +107,7 @@
           "autoscaled": false,
           "id": "modes",
           "title": "各模态的误差分量（对数色阶条形）",
-          "ylabel": "模态 j"
+          "ylabel": "模态 $j$"
         },
         {
           "autoscaled": true,
@@ -153,7 +153,7 @@
           "criticalNote": "$\\omega=1$ 退化为 Gauss–Seidel；$n=32$ 时 $\\mu=\\cos(\\pi/33)\\approx 0.99547$，$\\omega_{\\text{opt}}=2/(1+\\sqrt{1-\\mu^{2}})\\approx 1.8236$，此时 $\\rho=\\omega_{\\text{opt}}-1\\approx 0.8236$。拖过 $\\omega_{\\text{opt}}$ 之后主特征值变成复共轭对，误差会一边旋转一边衰减。",
           "default": 1.6,
           "help": "SOR 松弛因子。它主要影响高频和低频模态的衰减比例；选得合适时谱半径显著下降，选得过大时某些模态会放大。",
-          "label": "SOR 松弛因子 ω",
+          "label": "SOR 松弛因子 $\\omega$",
           "max": 1.99,
           "min": 0.5,
           "name": "omega",
@@ -189,7 +189,7 @@
       ],
       "time": {
         "dt": 1.0,
-        "label": "迭代步 k",
+        "label": "迭代步 $k$",
         "mode": "scrub",
         "tMax": 60.0
       },
@@ -201,13 +201,13 @@
           "autoscaled": true,
           "id": "space",
           "title": "Krylov 基与解轨迹（2D/3D）",
-          "ylabel": "x2"
+          "ylabel": "$x_2$"
         },
         {
           "autoscaled": false,
           "id": "orth",
           "title": "残差正交性实测矩阵",
-          "ylabel": "步 i / 基 j"
+          "ylabel": "步 $i$ / 基 $j$"
         }
       ],
       "dataSource": "backend",
@@ -243,7 +243,7 @@
           "criticalNote": "",
           "default": 2.0,
           "help": "对角反差 $s$，矩阵取 $A=DSD$。$s$ 越大，条件数越差，Krylov 多项式越难同时压低所有方向；曲线会出现先快后慢或平台。",
-          "label": "对角反差 s（A = D S D）",
+          "label": "对角反差 $s$（$A=DSD$）",
           "max": 8.0,
           "min": 1.0,
           "name": "stretch",
@@ -264,7 +264,7 @@
       ],
       "time": {
         "dt": 1.0,
-        "label": "Krylov 步 k",
+        "label": "Krylov 步 $k$",
         "mode": "scrub",
         "tMax": 3.0
       },
@@ -275,7 +275,7 @@
         {
           "autoscaled": false,
           "id": "spectrum",
-          "title": "M⁻¹A 的谱（Ritz 值，按序号排列）",
+          "title": "$M^{-1}A$ 的谱（Ritz 值，按序号排列）",
           "ylabel": "$\\lambda(M^{-1}A)$"
         },
         {
@@ -310,7 +310,7 @@
           "criticalNote": "",
           "default": 8,
           "help": "二维网格每边点数 $k$，未知数 $n=k^2$。无预条件时 2D Poisson 的 $\\kappa$ 随 $k^2$ 增长；好的预条件可以让迭代次数接近与 $k$ 无关。",
-          "label": "二维网格 k（n = k²）",
+          "label": "二维网格 $k$（$n=k^2$）",
           "max": 14,
           "min": 4,
           "name": "grid",
@@ -323,7 +323,7 @@
           "criticalNote": "$\\omega=1$ 时 SSOR 退化为对称 Gauss–Seidel（SSGS）；SSOR 预条件子要求 $0<\\omega<2$ 才能保持对称正定，否则 PCG 的前提就不成立。",
           "default": 1.2,
           "help": "SSOR 的松弛因子。它影响预条件子对高频/低频的平衡；$\\omega=1$ 是普通对称 GS，$\\omega$ 过大会让预条件子本身变坏。",
-          "label": "SSOR 松弛因子 ω",
+          "label": "SSOR 松弛因子 $\\omega$",
           "max": 1.9,
           "min": 0.5,
           "name": "omega",

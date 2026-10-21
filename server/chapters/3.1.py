@@ -55,7 +55,7 @@ _NONFINITE_POLICY = (
 
 #: 时间轴语义逐个写清（PROTOCOLS：时间轴的含义必须在帧里说得出）。
 _TIME_SEMANTICS = {
-    "order_convergence": "真实时间 t：0 → 当前 t，解曲线按当前 h 步进到 t",
+    "order_convergence": "真实时间 $t$：0 → 当前 t，解曲线按当前 h 步进到 t",
     "adaptive_step": "试步进度（0–100）：0 = 还没开始，100 = 整段积分走完；第 k 次试步见 meta.attempt_index",
     "order_conditions": "阶条件序号：第 k 条（按有根树枚举顺序），tMax=17 是 5 阶树的条数",
     "work_precision": "无时间轴（一次性扫描）",
@@ -252,13 +252,13 @@ MANIFEST: dict[str, Any] = {
                     "critical": [],
                     "criticalNote": "",
                     "help": (
-                        "当前步长，单位与时间 t 相同。调小会让节点更密、误差按 h^p 下降，但接近 1e-17 后就进入双精度地板；"
+                        "当前步长，单位与时间 $t$ 相同。调小会让节点更密、误差按 h^p 下降，但接近 1e-17 后就进入双精度地板；"
                         "调大则当前点沿阶梯右移，误差迅速上升。竖线标出当前 h，四个高亮点是同一个 h 上的四种误差，"
                         "比较它们的竖直间距就知道该读哪个量。它和方法联动：高阶方法在粗 h 上也可能比低阶方法准。"
                     ),
                 },
             ],
-            "time": {"mode": "scrub", "tMax": 10.0, "dt": 0.05, "label": "t（真实时间，积分推进）"},
+            "time": {"mode": "scrub", "tMax": 10.0, "dt": 0.05, "label": "$t$（真实时间，积分推进）"},
             "requiredAux": ["error"],
             "axes": [
                 {
@@ -527,7 +527,7 @@ MANIFEST: dict[str, Any] = {
                 },
                 {
                     "name": "use_hat",
-                    "label": "用 b_hat（低阶嵌入权）",
+                    "label": "用 $\\hat{b}$（低阶嵌入权）",
                     "type": "bool",
                     "default": False,
                     "critical": [],

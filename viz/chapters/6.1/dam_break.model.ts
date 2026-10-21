@@ -158,7 +158,7 @@ export const damBreakModel: SceneModel = (frame, opts) => {
     );
   }
   scene.layers.push(
-    lineLayer("main", { x, y: hInitial, color: pal.reference, width: 0.9, dash: [3, 3], label: "初始水深 $h₀$" }),
+    lineLayer("main", { x, y: hInitial, color: pal.reference, width: 0.9, dash: [3, 3], label: "初始水深 $h_0$" }),
     lineLayer("main", { x, y: hExact, color: pal.exact, width: 1.4, dash: [6, 3], label: "Ritter 精确解" }),
     lineLayer("main", { x, y: h, color: pal.curves[0] as string, width: 2, label: "数值解" }),
   );

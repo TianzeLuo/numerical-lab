@@ -141,7 +141,7 @@ export const characteristicsModel: SceneModel = (frame, opts) => {
     xlim: [0, 1],
     ylim: U_WINDOW,
     title: axisTitleOf(SPEC?.axes, "profile", "当前时刻的解"),
-    ylabel: axisYlabelOf(SPEC?.axes, "profile", "u(x,t)"),
+    ylabel: axisYlabelOf(SPEC?.axes, "profile", "$u(x,t)$"),
     xlabel: "$x$（时间 $t$ 见左图切线）",
     autoscaled: false,
   });

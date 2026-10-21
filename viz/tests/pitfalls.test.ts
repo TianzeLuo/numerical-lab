@@ -51,7 +51,7 @@ test("pitfallsModel：临界参数被单独成段，带上 criticalNote 与默�
   const model = pitfallsModel(heat);
   const criticalLine = model.paragraphs.find((p) => p.includes("理论临界"));
   assert.ok(criticalLine, "必须有一段讲临界值（规则 6）");
-  assert.match(criticalLine, /网格比 r/);
+  assert.match(criticalLine, /网格比 \$r/);
   assert.match(criticalLine, /0\.5/);
   assert.match(criticalLine, /FTCS 的放大因子/);
   assert.match(criticalLine, /默认值 0\.4 尚在阈值内/);
@@ -109,5 +109,5 @@ test("pitfallsModel：真实 manifest 的每个 viz 都能生成非空面板", (
     assert.ok(model.badges.every((b) => b.trim().length > 0), viz.id);
   }
   const osc = pitfallsModel(oscillator);
-  assert.ok(osc.paragraphs.some((p) => p.includes("ζ")), "保留原文里的特殊符号");
+  assert.ok(osc.paragraphs.some((p) => /ζ|\\zeta/.test(p)), "保留原文里的特殊符号");
 });

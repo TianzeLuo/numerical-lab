@@ -72,7 +72,7 @@ MANIFEST: dict[str, Any] = {
             "params": [
                 {
                     "name": "b_theta",
-                    "label": "b 的方位角 θ（度）",
+                    "label": "$b$ 的方位角 $\\theta$（度）",
                     "type": "float",
                     "min": 0.0,
                     "max": 360.0,
@@ -84,7 +84,7 @@ MANIFEST: dict[str, Any] = {
                 },
                 {
                     "name": "b_phi",
-                    "label": "b 的天顶角 φ（度，从 +z 量起）",
+                    "label": "$b$ 的天顶角 $\\varphi$（度，从 $+z$ 量起）",
                     "type": "float",
                     "min": 0.0,
                     "max": 180.0,
@@ -96,7 +96,7 @@ MANIFEST: dict[str, Any] = {
                 },
                 {
                     "name": "log10_kappa",
-                    "label": "A 的条件数 log10 κ",
+                    "label": "$A$ 的条件数 $\\log_{10}\\kappa$",
                     "type": "float",
                     "min": 0.0,
                     "max": 12.0,
@@ -121,7 +121,7 @@ MANIFEST: dict[str, Any] = {
                     "help": "主场景里选中的求解路线，只影响突出显示的数值解与状态，不改数据；副轴始终同时比较正规方程、QR 与 SVD（截断 SVD）三条路线，便于直接对照。",
                 },
             ],
-            "time": {"mode": "scrub", "tMax": 1.0, "dt": 0.05, "label": "分解动画 t", "initial": 1.0},
+            "time": {"mode": "scrub", "tMax": 1.0, "dt": 0.05, "label": "分解动画 $t$", "initial": 1.0},
             "requiredAux": ["residual", "error"],
             "axes": [
                 {
@@ -160,7 +160,7 @@ MANIFEST: dict[str, Any] = {
         # ------------------------------------------------------------------ #
         {
             "id": "normal_vs_qr",
-            "title": "精度对决：正规方程的 κ² 与 QR 的 κ",
+            "title": "精度对决：正规方程的 $\\kappa^2$ 与 QR 的 $\\kappa$",
             "description": (
                 "同一批构造问题（$\\kappa$ 从 $10^{2}$ 到 $10^{12}$）上跑三条路线：正规方程、QR、SVD，"
                 "双对数画前向误差并叠加 $\\kappa u$ 与 $\\kappa^{2}u$ 两条理论参考线（含实测斜率）。"
@@ -170,7 +170,7 @@ MANIFEST: dict[str, Any] = {
             "params": [
                 {
                     "name": "exp_max",
-                    "label": "扫描上限 log10 κ_max",
+                    "label": "扫描上限 $\\log_{10}\\kappa_{\\max}$",
                     "type": "float",
                     "min": 4.0,
                     "max": 14.0,
@@ -285,7 +285,7 @@ MANIFEST: dict[str, Any] = {
                 },
                 {
                     "name": "log10_kappa",
-                    "label": "谱的条件数 log10 κ",
+                    "label": "谱的条件数 $\\log_{10}\\kappa$",
                     "type": "float",
                     "min": 2.0,
                     "max": 12.0,
@@ -301,7 +301,7 @@ MANIFEST: dict[str, Any] = {
                 },
                 {
                     "name": "noise_exp",
-                    "label": "数据噪声 log10(‖δb‖/‖b‖)",
+                    "label": "数据噪声 $\\log_{10}(\\|\\delta b\\|/\\|b\\|)$",
                     "type": "float",
                     "min": -14.0,
                     "max": -2.0,
@@ -317,7 +317,7 @@ MANIFEST: dict[str, Any] = {
                 },
                 {
                     "name": "n",
-                    "label": "未知数个数 n（= 截断阶上限）",
+                    "label": "未知数个数 $n$（同时是截断阶上限）",
                     "type": "int",
                     "min": 6,
                     "max": 16,
@@ -344,7 +344,7 @@ MANIFEST: dict[str, Any] = {
                 {
                     "id": "lcurve",
                     "autoscaled": True,
-                    "title": "L 曲线：$\\|x_k\\|$ 与 $\\|Ax_k-b\\|/\\|b\\|$（双对数）",
+                    "title": "$L$ 曲线：$\\|x_k\\|$ 与 $\\|Ax_k-b\\|/\\|b\\|$（双对数）",
                     "ylabel": "$\\|x_k\\|$",
                     "scale": "log",
                 },
@@ -358,7 +358,7 @@ MANIFEST: dict[str, Any] = {
                 {
                     "id": "tradeoff",
                     "autoscaled": True,
-                    "title": "三个量随截断阶 k 的变化（对数）",
+                    "title": "三个量随截断阶 $k$ 的变化（对数）",
                     "ylabel": "$\\|x_k\\|$ / 残差 / 相对误差",
                     "scale": "log",
                 },
@@ -396,7 +396,7 @@ MANIFEST: dict[str, Any] = {
             "params": [
                 {
                     "name": "log10_kappa",
-                    "label": "A 的条件数 log10 κ",
+                    "label": "$A$ 的条件数 $\\log_{10}\\kappa$",
                     "type": "float",
                     "min": 0.0,
                     "max": 12.0,
@@ -412,7 +412,7 @@ MANIFEST: dict[str, Any] = {
                 },
                 {
                     "name": "noise_exp",
-                    "label": "噪声水平 log10(‖δb‖/‖b‖)",
+                    "label": "噪声水平 $\\log_{10}(\\|\\delta b\\|/\\|b\\|)$",
                     "type": "float",
                     "min": -14.0,
                     "max": -2.0,
@@ -428,7 +428,7 @@ MANIFEST: dict[str, Any] = {
                 },
                 {
                     "name": "rho_exp",
-                    "label": "等残差水平 log10(ρ/‖b‖)",
+                    "label": "等残差水平 $\\log_{10}(\\rho/\\|b\\|)$",
                     "type": "float",
                     "min": -12.0,
                     "max": -1.0,
@@ -461,7 +461,7 @@ MANIFEST: dict[str, Any] = {
                     "help": "沿噪声方向采多少个角度。采样越密，扇面边界越平滑，也越容易看见最坏方向；它不改变真实的不确定度。",
                 },
             ],
-            "time": {"mode": "scrub", "tMax": 360.0, "dt": 5.0, "label": "噪声方向角 θ（度）"},
+            "time": {"mode": "scrub", "tMax": 360.0, "dt": 5.0, "label": "噪声方向角 $\\theta$（度）"},
             "requiredAux": ["error", "residual"],
             "axes": [
                 {
@@ -761,7 +761,7 @@ def _normal_vs_qr(params: Mapping[str, Any], t: float) -> Frame:
     has_ir = refine > 0
 
     fr = Frame()
-    fr.add("kappa_grid", log10_kappa, label="log10 κ 网格")
+    fr.add("kappa_grid", log10_kappa, label="$\\log_{10}\\kappa$ 网格")
     fr.add("error_normal", err_normal, label="正规方程前向误差")
     fr.add("error_qr", err_qr, label="QR 前向误差")
     fr.add("error_svd", err_svd, label="SVD 前向误差")
@@ -983,8 +983,8 @@ def _uncertainty_fan(params: Mapping[str, Any], t: float) -> Frame:
     fr.add("theta_deg", theta, label="各方向的角度")
     fr.add("sol_now", x_now, label="当前方向的解")
     fr.add("center", center, label="x*（谷底中心）")
-    fr.add("v1_dir", fit.V[:, 0], label="右奇异向量 v₁")
-    fr.add("v2_dir", fit.V[:, -1], label="右奇异向量 v₂")
+    fr.add("v1_dir", fit.V[:, 0], label="右奇异向量 $v_1$")
+    fr.add("v2_dir", fit.V[:, -1], label="右奇异向量 $v_2$")
     fr.add("sigma", _floor(fit.s), label="奇异值")
     fr.add("semi_axes", np.array([semi, 1.0]), label="等残差椭圆长短轴之比（第二个归一为 1）")
     fr.add("kappa_grid", kappa_grid, label="κ 网格")

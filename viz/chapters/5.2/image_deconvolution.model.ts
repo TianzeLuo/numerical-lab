@@ -203,7 +203,7 @@ export const imageDeconvolutionModel: SceneModel = (frame, opts) => {
   const thumbs: ThumbDef[] = [
     { key: "image_true", title: "真解 x*", cmap: "viridis", vmin: trueLo, vmax: trueHi, rows: n, cols: n },
     { key: "image_data", title: dataTitle, cmap: "viridis", vmin: dataLo, vmax: dataHi, rows: dataRows, cols: dataCols },
-    { key: "image_recon", title: "重建 x_k", cmap: "viridis", vmin: reconLo, vmax: reconHi, rows: n, cols: n },
+    { key: "image_recon", title: "重建 $x_k$", cmap: "viridis", vmin: reconLo, vmax: reconHi, rows: n, cols: n },
     { key: "image_abs_error", title: "|重建−x*|", cmap: "magma", vmin: 0, vmax: absMax, rows: n, cols: n },
   ];
   const drawThumbs = roomy ? thumbs : thumbs.slice(2); // 窄画布只画重建与误差
@@ -438,8 +438,8 @@ export const imageDeconvolutionModel: SceneModel = (frame, opts) => {
         {
           body:
             kappa1d !== undefined && Number.isFinite(kappa1d)
-              ? `κ₂D=${formatNumber(kappa ?? Number.NaN, 2)}，κ₁D=${formatNumber(kappa1d, 2)}`
-              : `κ₂D=${formatNumber(kappa ?? Number.NaN, 2)}（CT 无 κ₁D）`,
+              ? `$\\kappa_{2D}=${formatNumber(kappa ?? Number.NaN, 2)}$、$\\kappa_{1D}=${formatNumber(kappa1d, 2)}$`
+              : `$\\kappa_{2D}=${formatNumber(kappa ?? Number.NaN, 2)}$（CT 无 $\\kappa_{1D}$）`,
           color: pal.ink,
         },
         {
@@ -451,9 +451,15 @@ export const imageDeconvolutionModel: SceneModel = (frame, opts) => {
           color: pal.muted,
         },
       ].slice(0, rows);
-      readings.forEach((r, i) => {
-        scene.texts.push(...textBlock(L.rightX, readTop + i * TEXT_ROW_H, L.floor, [r.body], r.color, rbudget, "top"));
-      });
+      // 逐行推进：TeX 读数可能折成两行，下一块必须让开实际行数，不能按固定步长硬排。
+      let readY = readTop;
+      for (const r of readings) {
+        const block = textBlock(L.rightX, readY, L.floor, [r.body], r.color, rbudget, "top");
+        if (block.length === 0) break;
+        scene.texts.push(...block);
+        readY += block.length * TEXT_ROW_H;
+        if (readY > L.floor) break;
+      }
     }
   } else {
     // 窄画布：没有右列与文字区，把最要紧的两句塞到热图与历史之间。

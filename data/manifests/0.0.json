@@ -8,19 +8,19 @@
         {
           "autoscaled": false,
           "id": "main",
-          "title": "x(t)",
-          "ylabel": "位移 x"
+          "title": "$x(t)$",
+          "ylabel": "位移 $x$"
         },
         {
           "autoscaled": true,
           "id": "error",
           "scale": "log",
           "title": "ODE 残差",
-          "ylabel": "|x''+2ζωx'+ω²x|"
+          "ylabel": "$|x''+2\\zeta\\omega x'+\\omega^2x|$"
         }
       ],
       "dataSource": "backend",
-      "description": "ζ<1 振荡衰减、ζ=1 临界、ζ>1 过阻尼；副轴给出解析解代回原方程的残差。",
+      "description": "$\\zeta<1$ 振荡衰减、$\\zeta=1$ 临界、$\\zeta>1$ 过阻尼；副轴给出解析解代回原方程的残差。",
       "id": "oscillator_regimes",
       "params": [
         {
@@ -28,7 +28,7 @@
           "criticalNote": "",
           "default": 1.0,
           "help": "无阻尼固有频率，单位是弧度/秒。$\\omega$ 越大，振荡越快、周期越短；图上的时间轴按 $\\omega$ 归一化后，不同 $\\omega$ 的曲线会落在相同的周期刻度上。",
-          "label": "固有频率 ω",
+          "label": "固有频率 $\\omega$",
           "max": 5.0,
           "min": 0.1,
           "name": "omega",
@@ -39,10 +39,10 @@
           "critical": [
             1.0
           ],
-          "criticalNote": "ζ=1 是临界阻尼：ζ<1 会穿过平衡位置，ζ≥1 不再穿过；ζ=0 时能量才严格守恒。",
+          "criticalNote": "$\\zeta=1$ 是临界阻尼：$\\zeta<1$ 会穿过平衡位置，$\\zeta\\ge1$ 不再穿过；$\\zeta=0$ 时能量才严格守恒。",
           "default": 0.05,
           "help": "阻尼比 $\\zeta$。$\\zeta=0$ 时振幅不衰减；$0<\\zeta<1$ 时振荡并逐渐衰减；$\\zeta=1$ 是临界阻尼，刚好不振荡；$\\zeta>1$ 过阻尼，缓慢返回平衡。它决定包络 $e^{-\\zeta\\omega t}$ 的衰减速度。",
-          "label": "阻尼比 ζ",
+          "label": "阻尼比 $\\zeta$",
           "max": 2.0,
           "min": 0.0,
           "name": "zeta",
@@ -61,7 +61,7 @@
           "type": "int"
         }
       ],
-      "pitfalls": "把纵轴设成自适应时，过阻尼曲线看起来和欠阻尼一样「陡」——因为看到的只是衰减尾巴被拉满；另外 ζ=0 时能量守恒只是「解析解的性质」，任何数值积分都会缓慢漂移，别把这两件事混为一谈。",
+      "pitfalls": "把纵轴设成自适应时，过阻尼曲线看起来和欠阻尼一样「陡」——因为看到的只是衰减尾巴被拉满；另外 $\\zeta=0$ 时能量守恒只是「解析解的性质」，任何数值积分都会缓慢漂移，别把这两件事混为一谈。",
       "requiredAux": [
         "residual"
       ],
@@ -75,7 +75,7 @@
       "time": {
         "dt": 0.05,
         "fps": 30,
-        "label": "t",
+        "label": "$t$",
         "mode": "stream",
         "tMax": 20.0
       },
@@ -86,19 +86,19 @@
         {
           "autoscaled": false,
           "id": "main",
-          "title": "u(x,t)",
-          "ylabel": "温度 u"
+          "title": "$u(x,t)$",
+          "ylabel": "温度 $u$"
         },
         {
           "autoscaled": true,
           "id": "error",
           "scale": "log",
-          "title": "误差 u−u_exact",
-          "ylabel": "|误差|"
+          "title": "误差 $u-u_{\\mathrm{exact}}$",
+          "ylabel": "$|u-u_{\\mathrm{exact}}|$"
         }
       ],
       "dataSource": "backend",
-      "description": "FTCS（时间前向、空间中心）解 u_t = αu_xx；副轴给出与精确解的差。",
+      "description": "FTCS（时间前向、空间中心）解 $u_t=\\alpha u_{xx}$；副轴给出与精确解的差。",
       "id": "heat_ftcs",
       "params": [
         {
@@ -116,10 +116,10 @@
           "critical": [
             0.5
           ],
-          "criticalNote": "FTCS 的放大因子 g=1−4r sin²(kπΔx/2)，|g|≤1 对全部模态成立当且仅当 r ≤ 1/2。",
+          "criticalNote": "FTCS 的放大因子 $g=1-4r\\sin^2(k\\pi\\Delta x/2)$，$|g|\\le1$ 对全部模态成立当且仅当 $r\\le1/2$。",
           "default": 0.4,
-          "help": "网格比 $r=\u0007lpha\\Delta t/\\Delta x^2$。FTCS 要求 $r\\le1/2$；超过它时最快的高频模态会被放大，数值解出现非物理振荡并迅速失控。$r$ 接近 $1/2$ 时误差也偏大。",
-          "label": "网格比 r = αΔt/Δx²",
+          "help": "网格比 $r=\\alpha\\Delta t/\\Delta x^2$。FTCS 要求 $r\\le1/2$；超过它时最快的高频模态会被放大，数值解出现非物理振荡并迅速失控。$r$ 接近 $1/2$ 时误差也偏大。",
+          "label": "网格比 $r=\\alpha\\Delta t/\\Delta x^2$",
           "max": 0.7,
           "min": 0.05,
           "name": "r",
@@ -152,7 +152,7 @@
       ],
       "time": {
         "dt": 0.005,
-        "label": "t",
+        "label": "$t$",
         "mode": "scrub",
         "tMax": 0.2
       },

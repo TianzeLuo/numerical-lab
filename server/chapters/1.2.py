@@ -82,7 +82,7 @@ MANIFEST: dict[str, Any] = {
                 },
                 {
                     "name": "dominance",
-                    "label": "对角占优比 |a_ii| / Σ|a_ij|",
+                    "label": "对角占优比 $|a_{ii}|/\\sum_j|a_{ij}|$",
                     "type": "float",
                     "min": 0.1,
                     "max": 3.0,
@@ -108,19 +108,19 @@ MANIFEST: dict[str, Any] = {
                     "help": "主元策略：partial 只在本列选最大元，none 按自然顺序，complete 在整个剩余子矩阵选最大元。partial 是默认的稳定折中；complete 更稳但更贵；none 用来展示小主元如何放大误差。",
                 },
             ],
-            "time": {"mode": "scrub", "tMax": 15.0, "dt": 1.0, "label": "消元步 k"},
+            "time": {"mode": "scrub", "tMax": 15.0, "dt": 1.0, "label": "消元步 $k$"},
             "requiredAux": ["residual"],
             "axes": [
                 {
                     "id": "main",
                     "autoscaled": False,
                     "title": "$\\log_{10}|M|$（当前工作矩阵）",
-                    "ylabel": "行 i",
+                    "ylabel": "行 $i$",
                 },
                 {
                     "id": "aux",
                     "autoscaled": True,
-                    "title": "增长因子 ρ(k) 与残差",
+                    "title": "增长因子 $\\rho(k)$ 与残差",
                     "ylabel": "$\\rho$ 与 $\\|PA-LU\\|/\\|A\\|$",
                     "scale": "log",
                 },
@@ -185,14 +185,14 @@ MANIFEST: dict[str, Any] = {
                     "help": "右端项 $b$ 的方向（度）。沿着短轴方向的扰动会被放大最多；沿着长轴方向则相对温和。转动它可以直接看到条件数界在不同方向上的松紧。",
                 },
             ],
-            "time": {"mode": "scrub", "tMax": 17.0, "dt": 0.25, "label": "log10 κ"},
+            "time": {"mode": "scrub", "tMax": 17.0, "dt": 0.25, "label": "$\\log_{10}\\kappa$"},
             "requiredAux": ["error"],
             "axes": [
                 {
                     "id": "main",
                     "autoscaled": False,
                     "title": "单位圆与它的三个像（固定坐标）",
-                    "ylabel": "y",
+                    "ylabel": "$y$",
                 },
                 {
                     "id": "aux",
@@ -233,7 +233,7 @@ MANIFEST: dict[str, Any] = {
             "params": [
                 {
                     "name": "grid",
-                    "label": "网格 k（矩阵规模 n=k²）",
+                    "label": "网格 $k$（矩阵规模 $n=k^2$）",
                     "type": "int",
                     "min": 3,
                     "max": 14,
@@ -253,14 +253,14 @@ MANIFEST: dict[str, Any] = {
                     "help": "消元顺序：natural 按行号，RCM 反向 Cuthill–McKee 减小带宽，AMD 近似最小度减少填充。改变顺序不改变解，只改变消元过程中产生多少新非零元。",
                 },
             ],
-            "time": {"mode": "scrub", "tMax": 195.0, "dt": 1.0, "label": "消元步 k"},
+            "time": {"mode": "scrub", "tMax": 195.0, "dt": 1.0, "label": "消元步 $k$"},
             "requiredAux": ["error"],
             "axes": [
                 {
                     "id": "main",
                     "autoscaled": False,
                     "title": "矩阵结构（行 0 在上）",
-                    "ylabel": "行 i",
+                    "ylabel": "行 $i$",
                 },
                 {
                     "id": "aux",
@@ -449,7 +449,7 @@ def _lu_heatmap(params: Mapping[str, Any], t: float) -> Frame:
     fr = Frame(chapter="1.2", viz="lu_heatmap", kind="frame")
     fr.add("matrix", M, unit="1", label="当前工作矩阵（乘子在下三角）")
     fr.add("indicator", indicator, unit="1", label="区域标记 0/1/2")
-    fr.add("rho_history", rho_hist, unit="1", label="增长因子 ρ(k)")
+    fr.add("rho_history", rho_hist, unit="1", label="增长因子 $\\rho(k)$")
     fr.add("residual_history", res_hist, unit="1", label="前导块残差（0 以 u/2 显示）")
     # MANIFEST 里 requiredAux 声明的是 "residual"：那个名字必须是**帧里真实存在**的数组，
     # 否则前端的"必备对照量"面板会静默空着。这里给一个 1 元的当前值，方便模型直接标点。
@@ -584,7 +584,7 @@ def _unit_ball(params: Mapping[str, Any], t: float) -> Frame:
     fr.add("b_vec", np.array([0.0, b[0], 0.0, b[1]]), unit="1", label="b（两段折线）")
     fr.add("x_num", np.array([0.0, x_num[0], 0.0, x_num[1]]), unit="1", label="数值解 x̂")
     fr.add("x_exact", np.array([0.0, x_exact[0], 0.0, x_exact[1]]), unit="1", label="精确解 x")
-    fr.add("kappa_grid", exps, unit="1", label="log10 κ")
+    fr.add("kappa_grid", exps, unit="1", label="$\\log_{10}\\kappa$")
     fr.add(
         "error",
         errs,
@@ -599,7 +599,7 @@ def _unit_ball(params: Mapping[str, Any], t: float) -> Frame:
         label="当前位置的误差" if err_mark_valid else "当前位置的误差（不可解：占位 0）",
     )
     fr.add("x_num_valid", np.array([1.0 - float(singular)]), unit="1", label="1=x̂ 有有限值，0=奇异（占位 0）")
-    fr.add("kappa_mark", np.array([exps[j]], dtype=float), unit="1", label="当前位置的 log10 κ")
+    fr.add("kappa_mark", np.array([exps[j]], dtype=float), unit="1", label="当前位置的 $\\log_{10}\\kappa$")
     smin, smax = singular_values_2x2(A)
     fr.set_meta(
         shear=shear,

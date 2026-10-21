@@ -350,8 +350,8 @@ export const projection3dModel: SceneModel = (frame, opts) => {
   };
   const colSeries: LineSeries[] = [];
   for (const [vec, label] of [
-    [a1, "a₁（A 的第 1 列）"],
-    [a2, "a₂（A 的第 2 列）"],
+    [a1, "$a_1$（$A$ 的第 1 列）"],
+    [a2, "$a_2$（$A$ 的第 2 列）"],
   ] as const) {
     const seg = clipSegment(origin, toScreen(vec), win);
     if (seg === undefined) {
@@ -363,7 +363,7 @@ export const projection3dModel: SceneModel = (frame, opts) => {
     colSeries.push(...arrow(origin, seg.b, pal.curves[0], { width: 1.8, label }));
   }
   if (colSeries.length > 0) scene.layers.push(lineLayer("scene", colSeries));
-  else degraded.push("a₁/a₂ 的投影全部落在窗口外：主场景看不到列向量");
+  else degraded.push("$a_1$/$a_2$ 的投影全部落在窗口外：主场景看不到列向量");
 
   // —— 图层 7：b ——
   const bScreen = toScreen(bWorld);

@@ -215,7 +215,7 @@ export const precondEffectModel: SceneModel = (frame, opts) => {
     xlim: [-1, nIdx],
     ylim: SPECTRUM_YLIM,
     xlabel: "Ritz 序号",
-    ylabel: axisYlabel("spectrum", "λ(M⁻¹A)"),
+    ylabel: axisYlabel("spectrum", "$\\lambda(M^{-1}A)$"),
     title: axisTitle("spectrum", "预条件前后的谱散点（Ritz 值，按序号排列）"),
     autoscaled: false,
     xticks: niceTicks(0, nIdx - 1, Math.max(3, Math.round(specRect[2] / 90))),

@@ -10,20 +10,20 @@
           "autoscaled": false,
           "id": "solution",
           "title": "解与精确解（窗口固定，失控时截断）",
-          "ylabel": "u(x,t)"
+          "ylabel": "$u(x,t)$"
         },
         {
           "autoscaled": false,
           "id": "flux",
           "title": "逐单元界面通量（窗口固定 ±0.75）",
-          "ylabel": "F_(j±1/2)"
+          "ylabel": "$F_{j\\pm1/2}$"
         },
         {
           "autoscaled": false,
           "id": "error",
           "scale": "log",
           "title": "逐点误差（对数轴，地板掩码）",
-          "ylabel": "|u - u_exact|"
+          "ylabel": "$|u-u_{\\mathrm{exact}}|$"
         }
       ],
       "dataSource": "backend",
@@ -65,7 +65,7 @@
           "criticalNote": "",
           "default": "none",
           "help": "限制器：none 是一阶（很耗散、但无振荡），minmod/mc/vanleer 是二阶 TVD 限制器，能在光滑区提高精度、在激波附近压住过冲。限制越强越稳定，但抹平细节。",
-          "label": "限制器（none=一阶）",
+          "label": "限制器（`none` 表示一阶）",
           "name": "limiter",
           "options": [
             "none",
@@ -94,7 +94,7 @@
           "criticalNote": "$\\mathrm{cfl}=1$ 是这些单调通量格式在 Burgers 上的稳定界：实测 $\\mathrm{cfl}=0.9$ 时 $\\max|u|=1.0000$、总变差单调不增（$\\mathrm{TV}$ 1.0000 $\\to$ 1.0000）；$\\mathrm{cfl}=1.2$ 时格式越界，$\\max|u|$ 指数增长（帧把显示截到 $\\pm 2.5$ 并置 meta.overflow）——越界不是「更不准」，是「不再是一个解」。",
           "default": 0.4,
           "help": "CFL 数 $\\mathrm{CFL}=\\Delta t\\max|f'|/\\Delta x$。显式格式要求 CFL 不超过约 1；越接近 1 效率越高，但激波附近可能更敏感。",
-          "label": "CFL 数 cfl = dt*max|f'|/dx",
+          "label": "CFL 数 $\\mathrm{CFL}=\\Delta t\\max|f'|/\\Delta x$",
           "max": 1.2,
           "min": 0.1,
           "name": "cfl",
@@ -116,7 +116,7 @@
       ],
       "time": {
         "dt": 0.02,
-        "label": "t（真实时间，域长 L=1）",
+        "label": "$t$（真实时间，域长 $L=1$）",
         "mode": "scrub",
         "tMax": 0.6
       },
@@ -127,21 +127,21 @@
         {
           "autoscaled": false,
           "id": "characteristics",
-          "title": "特征线平面 (x,t)（固定窗口）",
-          "ylabel": "t"
+          "title": "特征线平面 $(x,t)$（固定窗口）",
+          "ylabel": "$t$"
         },
         {
           "autoscaled": false,
           "id": "profile",
           "title": "当前时刻解与回溯精确解",
-          "ylabel": "u(x,t)"
+          "ylabel": "$u(x,t)$"
         },
         {
           "autoscaled": false,
           "id": "error",
           "scale": "log",
           "title": "回溯解误差（对数轴，掩码点断开）",
-          "ylabel": "|u - u_exact|"
+          "ylabel": "$|u-u_{\\mathrm{exact}}|$"
         }
       ],
       "dataSource": "backend",
@@ -200,7 +200,7 @@
       ],
       "time": {
         "dt": 0.02,
-        "label": "t（真实时间；tMax=0.8 覆盖破散前后）",
+        "label": "$t$（真实时间；$t_{\\max}=0.8$ 覆盖破散前后）",
         "mode": "scrub",
         "tMax": 0.8
       },
@@ -211,21 +211,21 @@
         {
           "autoscaled": false,
           "id": "mass",
-          "title": "总质量 M(t)（出流下它本来就该变）",
-          "ylabel": "M = sum u_j dx"
+          "title": "总质量 $M(t)$（出流下它本来就该变）",
+          "ylabel": "$M=\\sum_j u_j\\,\\Delta x$"
         },
         {
           "autoscaled": false,
           "id": "defect",
           "scale": "log",
           "title": "账本残差（对数轴 1e-18–10）",
-          "ylabel": "|M(t)-M(0)+(out-in)|"
+          "ylabel": "$|M(t)-M(0)+(\\mathrm{out}-\\mathrm{in})|$"
         },
         {
           "autoscaled": false,
           "id": "shock",
           "title": "激波位置-时间与 RH 参考线",
-          "ylabel": "x_shock(t)"
+          "ylabel": "$x_{\\mathrm{shock}}(t)$"
         }
       ],
       "dataSource": "backend",
@@ -283,7 +283,7 @@
       ],
       "time": {
         "dt": 0.02,
-        "label": "t（真实时间，域长 L=1）",
+        "label": "$t$（真实时间，域长 $L=1$）",
         "mode": "scrub",
         "tMax": 0.6
       },
@@ -301,13 +301,13 @@
           "autoscaled": false,
           "id": "velocity",
           "title": "速度（接触两侧连续）",
-          "ylabel": "u"
+          "ylabel": "$u$"
         },
         {
           "autoscaled": false,
           "id": "pressure",
           "title": "压强（跨激波跳、跨接触连续）",
-          "ylabel": "p"
+          "ylabel": "$p$"
         },
         {
           "autoscaled": false,
@@ -354,7 +354,7 @@
           "criticalNote": "",
           "default": "minmod",
           "help": "限制器：none 一阶，minmod/mc 二阶 TVD。高阶限制器在光滑区更准，在间断处仍能压住过冲；限制越强，接触面越被抹宽。",
-          "label": "限制器（none=一阶）",
+          "label": "限制器（`none` 表示一阶）",
           "name": "limiter",
           "options": [
             "none",
@@ -390,7 +390,7 @@
       ],
       "time": {
         "dt": 0.01,
-        "label": "t（真实时间；t=0 时自相似解未定义，见 t_clamped）",
+        "label": "$t$（真实时间；$t=0$ 时自相似解未定义，见 `t_clamped`）",
         "mode": "scrub",
         "tMax": 0.2
       },

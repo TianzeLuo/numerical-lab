@@ -16,14 +16,14 @@
           "autoscaled": false,
           "id": "recon",
           "title": "逐层重构（当前层）",
-          "ylabel": "x"
+          "ylabel": "$x$"
         },
         {
           "autoscaled": true,
           "id": "error",
           "scale": "log",
-          "title": "重构误差 |x_hat - x|",
-          "ylabel": "max|delta|"
+          "title": "重构误差 $|\\hat{x}-x|$",
+          "ylabel": "$\\max|\\delta|$"
         }
       ],
       "dataSource": "backend",
@@ -143,7 +143,7 @@
           "id": "error",
           "scale": "log",
           "title": "SWT 往返误差",
-          "ylabel": "max|delta|"
+          "ylabel": "$\\max|\\delta|$"
         }
       ],
       "dataSource": "backend",
@@ -240,20 +240,20 @@
           "autoscaled": false,
           "id": "signals",
           "title": "干净 / 含噪 / 去噪",
-          "ylabel": "x"
+          "ylabel": "$x$"
         },
         {
           "autoscaled": true,
           "id": "curves",
-          "title": "偏差^2、方差、MSE vs lambda",
+          "title": "偏差平方、方差、MSE vs $\\lambda$",
           "ylabel": "MSE"
         },
         {
           "autoscaled": true,
           "id": "error",
           "scale": "log",
-          "title": "去噪残差 |x_hat - x|",
-          "ylabel": "max|delta|"
+          "title": "去噪残差 $|\\hat{x}-x|$",
+          "ylabel": "$\\max|\\delta|$"
         }
       ],
       "dataSource": "backend",
@@ -373,14 +373,14 @@
         {
           "autoscaled": false,
           "id": "poly",
-          "title": "多项式信号 t^k 与它的细节系数",
-          "ylabel": "x"
+          "title": "多项式信号 $t^k$ 与它的细节系数",
+          "ylabel": "$x$"
         },
         {
           "autoscaled": true,
           "id": "ratio",
           "scale": "log",
-          "title": "内部量级比 max|d|/max|a|（对数轴）",
+          "title": "内部量级比 $\\max|d|/\\max|a|$（对数轴）",
           "ylabel": "ratio"
         },
         {
@@ -388,7 +388,7 @@
           "id": "error",
           "scale": "log",
           "title": "该模式的往返误差",
-          "ylabel": "max|delta|"
+          "ylabel": "$\\max|\\delta|$"
         }
       ],
       "dataSource": "backend",

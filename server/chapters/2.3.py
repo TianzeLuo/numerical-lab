@@ -116,7 +116,7 @@ MANIFEST: dict[str, Any] = {
                     "help": "目标投影维数，也就是灰虚线使用的基函数个数（$2$ 到 $24$）。调大后灰虚线更贴近 $f$、目标误差下降，但系数柱变多；单项式基的 Gram 条件数会随维数迅速增大。时间轴上的 $k$ 不会超过这个值；想看条件数越过 $1/u$，请切到单项式基并把 $n$ 调到 $23$ 以上。",
                 },
             ],
-            "time": {"mode": "scrub", "tMax": 24.0, "dt": 1.0, "label": "已展开的基函数个数 k"},
+            "time": {"mode": "scrub", "tMax": 24.0, "dt": 1.0, "label": "已展开的基函数个数 $k$"},
             "requiredAux": ["error"],
             "axes": [
                 {"id": "main", "autoscaled": False, "title": "$f$ 与两种投影", "ylabel": "$y$"},
@@ -153,7 +153,7 @@ MANIFEST: dict[str, Any] = {
             "params": [
                 {
                     "name": "scale",
-                    "label": "解析函数参数 s（1/(1+s x²)）",
+                    "label": "解析函数参数 $s$（$1/(1+sx^2)$）",
                     "type": "float",
                     "min": 4.0,
                     "max": 200.0,
@@ -244,7 +244,7 @@ MANIFEST: dict[str, Any] = {
                     "help": "逼近多项式的次数 $n$（$2$ 到 $16$）。调大后误差通常下降，但交错点个数固定为 $n+2$，误差曲线振荡更密；次数过高时会很快触到舍入地板，振幅比不再接近 $1$。它同时决定图中理论交错点个数和每轮线性系统的规模。",
                 },
             ],
-            "time": {"mode": "scrub", "tMax": 24.0, "dt": 1.0, "label": "Remez 迭代轮次 k"},
+            "time": {"mode": "scrub", "tMax": 24.0, "dt": 1.0, "label": "Remez 迭代轮次 $k$"},
             "requiredAux": ["error"],
             "axes": [
                 {"id": "main", "autoscaled": False, "title": "误差曲线 $e(x)=f-p$", "ylabel": "$e(x)$"},
@@ -301,7 +301,7 @@ MANIFEST: dict[str, Any] = {
                     "help": "最高阶数，也是时间轴能拖到的上限（$4$ 到 $40$）。调大后主图多出更高阶的零点行，能看清零点向端点加密的长期趋势；副图的根误差也会暴露出更大的多项式尺度。阶数越高，求根代价和舍入影响越大。",
                 },
             ],
-            "time": {"mode": "scrub", "tMax": 40.0, "dt": 1.0, "label": "最高阶数 n"},
+            "time": {"mode": "scrub", "tMax": 40.0, "dt": 1.0, "label": "最高阶数 $n$"},
             "requiredAux": ["error"],
             "axes": [
                 {"id": "main", "autoscaled": False, "title": "零点位置 vs 阶数 $n$", "ylabel": "零点 $x$"},
@@ -626,7 +626,7 @@ def _equioscillation(params: Mapping[str, Any], t: float) -> Frame:
     fr.set_strings(
         func=func,
         objective="minimax（‖f−p‖∞）",
-        contrast="同阶 L² 投影（‖f−p‖₂）",
+        contrast="同阶 $L^2$ 投影（$\\|f-p\\|_2$）",
         certificate_note=(
             "停机判据是 de la Vallée Poussin 下界 min|e| ≥ (1−ε)·max|e|，"
             "不是“交错点不再移动”（浮点噪声下点集会循环）。"

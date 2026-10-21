@@ -265,7 +265,7 @@ export const shootingScanModel: SceneModel = (frame, opts) => {
       ? axisTitleOf(SPEC?.axes, "aux", "右端打靶残差 |F(s_j)| = |u(b;s_j) - beta|（对数轴）")
       : "打靶残差 |F|（对数）",
     ylabel: axisYlabelOf(SPEC?.axes, "aux", "|F|"),
-    xlabel: "`s_j`",
+    xlabel: "$s_j$",
     autoscaled: false,
   });
   scene.axes.push(main, aux);

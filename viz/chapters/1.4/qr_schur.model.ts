@@ -240,7 +240,7 @@ export const qrSchurModel: SceneModel = (frame, opts) => {
       ylim: auxYlim,
       yscale: "log",
       xlabel: "QR 迭代步 $k$（不是物理时间；拖到头会被夹住）",
-      ylabel: axisYlabelOf(AXES, "aux", "max_i min_j |θ_i − λ_j|"),
+      ylabel: axisYlabelOf(AXES, "aux", "$\\max_i\\min_j|\\theta_i-\\lambda_j|$"),
       title: axisTitleOf(AXES, "aux", "Ritz 值到真谱的距离"),
       autoscaled: true,
       xticks: integerTicks(auxRect[2], nCols),
@@ -288,7 +288,7 @@ export const qrSchurModel: SceneModel = (frame, opts) => {
   scene.texts.push(...textBlock(heatRect[0] + 6, textTop(heatRect), textBottom(heatRect), heatLines, pal.ink, heatBudget, "top"));
 
   const auxLines: string[] = [
-    `实测（实线+点）= Ritz 值到真谱的距离；理论（长虚线）= 无位移 QR 的 |λ₂/λ₁|^k = ${gap === undefined ? "?" : fmtSci(gap)}^k。两条线量纲不同，要比的是斜率`,
+    `实测（实线+点）= Ritz 值到真谱的距离；理论（长虚线）= 无位移 QR 的 $|\\lambda_2/\\lambda_1|^k=${gap === undefined ? "?" : fmtSci(gap)}^k$。两条线量纲不同，要比的是斜率`,
   ];
   if (errCurrent !== undefined || errFinal !== undefined) {
     auxLines.push(

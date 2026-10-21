@@ -8,6 +8,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+import { clipBadgeText } from "../shared/src/model.js";
 import {
   pitfallsBand,
   assertValidScene,
@@ -441,4 +442,16 @@ test("validateScene 拒绝冲出画布的角标（规则 8）", () => {
   s.badges = [badge("source", "数据：后端 .nlf 帧", 8, 34), badge("status", "很长很长".repeat(20), 8, 52)];
   const issues = validateScene(s);
   assert.ok(issues.some((i) => i.includes("超出画布")), `应当报出越界角标，实际：${issues.join(" | ")}`);
+});
+
+test("clipBadgeText：截断不会把 $...$ 切成半截", () => {
+  const text =
+    "converge：64 步后残差 6.02e-15（$|\\lambda_2/\\lambda_1|=0.600$）；帧判 converged；实测残差比 0.600";
+  for (const max of [8, 14, 20, 30, 44, 60]) {
+    const clipped = clipBadgeText(text, max);
+    const dollars = (clipped.match(/\$/g) ?? []).length;
+    assert.equal(dollars % 2, 0, `max=${max} 时留下奇数个 $：${clipped}`);
+    assert.ok(!clipped.includes("\\lambda"), `max=${max} 时留下半截命令：${clipped}`);
+    if (clipped !== text) assert.ok(clipped.endsWith("…"));
+  }
 });

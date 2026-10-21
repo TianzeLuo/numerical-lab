@@ -143,7 +143,7 @@ export const powerIterationModel: SceneModel = (frame, opts) => {
   const nSteps = metaNumber(frame, "n_steps");
   if (nSteps === undefined) degraded.push("帧 meta 缺 n_steps：不显示总步数");
   const ratio = metaNumber(frame, "ratio");
-  if (ratio === undefined) degraded.push("帧 meta 缺 ratio：不显示 |λ₂/λ₁|（不重算）");
+  if (ratio === undefined) degraded.push("帧 meta 缺 ratio：不显示 $|\\lambda_2/\\lambda_1|$（不重算）");
   const lam1 = metaNumber(frame, "lambda1");
   const lam2 = metaNumber(frame, "lambda2");
   const rateMeasured = metaNumber(frame, "rate_measured");
@@ -189,8 +189,8 @@ export const powerIterationModel: SceneModel = (frame, opts) => {
     makeAxis("main", mainRect, {
       xlim: [-WINDOW, WINDOW],
       ylim: [-WINDOW, WINDOW],
-      xlabel: "$x₁$（前两个坐标上的投影）",
-      ylabel: axisYlabelOf(AXES, "main", "x₂"),
+      xlabel: "$x_1$（前两个坐标上的投影）",
+      ylabel: axisYlabelOf(AXES, "main", "$x_2$"),
       title: axisTitleOf(AXES, "main", "单位圆与迭代向量（固定坐标 ±1.05）"),
       autoscaled: false,
       xticks: [-1, -0.5, 0, 0.5, 1],
@@ -210,7 +210,7 @@ export const powerIterationModel: SceneModel = (frame, opts) => {
       ylim: auxYlim,
       yscale: "log",
       xlabel: "迭代步 $k$（不是物理时间；拖到头会被夹住）",
-      ylabel: axisYlabelOf(AXES, "aux", "‖Ax−ρ(x)x‖ 与 |λ₂/λ₁|^k"),
+      ylabel: axisYlabelOf(AXES, "aux", "$\\|Ax-\\rho(x)x\\|$ 与 $|\\lambda_2/\\lambda_1|^k$"),
       title: axisTitleOf(AXES, "aux", "残差与理论收敛率"),
       autoscaled: true,
       xticks: integerTicks(auxRect[2], stepGrid.length),
@@ -302,8 +302,8 @@ export const powerIterationModel: SceneModel = (frame, opts) => {
   const legend: string[] = [];
   if (lam1 !== undefined && lam2 !== undefined) {
     legend.push(
-      `谱 |λ₁|=${formatNumber(lam1, 4)}、|λ₂|=${formatNumber(lam2, 4)}（实测残差比 ${ratioMeasured === undefined ? "?" : formatNumber(ratioMeasured, 4)}）` +
-        (rayleighK === undefined ? "" : `；Rayleigh 商 ρ(x_k)=${formatNumber(rayleighK, 6)}、与 λ₁ 距离 ${rayleighError === undefined ? "?" : formatNumber(rayleighError, 3)}`),
+      `谱 $|\\lambda_1|=${formatNumber(lam1, 4)}$、$|\\lambda_2|=${formatNumber(lam2, 4)}$（实测残差比 ${ratioMeasured === undefined ? "?" : formatNumber(ratioMeasured, 4)}）` +
+        (rayleighK === undefined ? "" : `；Rayleigh 商 $\\rho(x_k)=${formatNumber(rayleighK, 6)}$、与 $\\lambda_1$ 距离 ${rayleighError === undefined ? "?" : formatNumber(rayleighError, 3)}`),
     );
   }
   legend.push(`单位圆=灰虚线；投影轨迹=蓝折线（点=每 ${stride} 步）；当前向量=红；实测残差=实线；两条理论收敛率=点划线（副轴）`);
@@ -318,7 +318,7 @@ export const powerIterationModel: SceneModel = (frame, opts) => {
   }
   scene.texts.push(...textBlock(mainRect[0] + 6, textTop(mainRect), textBottom(mainRect), mainLines, pal.ink, mainBudget, "top"));
 
-  const auxLines: string[] = ["实线=实测残差；长虚线=理论 |λ₂/λ₁|^k；短虚线=理论 |λ₂/λ₁|^(2k)（两条斜率都画出来了）"];
+  const auxLines: string[] = ["实线=实测残差；长虚线=理论 $|\\lambda_2/\\lambda_1|^k$；短虚线=理论 $|\\lambda_2/\\lambda_1|^{2k}$（两条斜率都画出来了）"];
   if (rateNote !== undefined) auxLines.push(`帧 rate_note：${rateNote}`);
   if (residualK !== undefined) {
     auxLines.push(
@@ -330,7 +330,7 @@ export const powerIterationModel: SceneModel = (frame, opts) => {
   }
   if (transientRatio !== undefined && transientRatio > 100) {
     auxLines.push(
-      `瞬态比 max/min = ${fmtSci(transientRatio)}：shear 越大，开头几十步先涨后落（渐近斜率仍是 |λ₂/λ₁|，定理没失效）`,
+      `瞬态比 max/min = ${fmtSci(transientRatio)}：shear 越大，开头几十步先涨后落（渐近斜率仍是 $|\\lambda_2/\\lambda_1|$，定理没失效）`,
     );
   }
   if (converged !== undefined && converged < 0.5) {

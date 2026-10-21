@@ -182,7 +182,7 @@ export const bdfAngleModel: SceneModel = (frame, opts) => {
       xlim: [-zLim, zLim],
       ylim: [-zLim, zLim],
       xlabel: "$\\operatorname{Re} z$",
-      ylabel: axisYlabelOf(SPEC?.axes, "main", "Im z"),
+      ylabel: axisYlabelOf(SPEC?.axes, "main", "$\\mathrm{Im}\\,z$"),
       title: axisTitleOf(SPEC?.axes, "main", "稳定域边界家族与 A(α) 楔形（固定窗口）"),
       autoscaled: false,
     }),

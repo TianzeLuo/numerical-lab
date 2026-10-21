@@ -222,7 +222,7 @@ export const signalSpectrumModel: SceneModel = (frame, opts) => {
         series([f, f], [specAxis.ylim[0], specAxis.ylim[1]], pal.reference, {
           dash: [3, 4],
           width: 1,
-          label: "谐波位置 $f₀$、$2f₀$、$3f₀$",
+          label: "谐波位置 $f_0$、$2f_0$、$3f_0$",
         }),
       );
     }

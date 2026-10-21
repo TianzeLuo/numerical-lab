@@ -183,7 +183,7 @@ export const smoothnessModel: SceneModel = (frame, opts) => {
     xlim: xLim,
     ylim: yLim,
     xlabel: "",
-    ylabel: axisYlabel("main", "y"),
+    ylabel: axisYlabel("main", "$y$"),
     title: axisTitle("main", "三条插值曲线"),
     autoscaled: true,
     xticks: niceTicks(xLim[0], xLim[1], Math.max(3, Math.round(mainRect[2] / 110))),

@@ -201,7 +201,7 @@ MANIFEST: dict[str, Any] = {
         # ------------------------------------------------------------------ #
         {
             "id": "lcurve_tradeoff",
-            "title": "L 曲线交互：拖 lambda 滑动，四个判据同时标出",
+            "title": "$L$ 曲线交互：拖 lambda 滑动，四个判据同时标出",
             "description": (
                 "在 $(\\log\\|x_\\lambda\\|,\\log\\|A x_\\lambda-b\\|/\\|b\\|)$ 平面上画出 L 曲线，"
                 "拖动 $\\lambda$ 时解与残差同步移动；同一张图上标出 oracle（知道真解）、"
@@ -302,7 +302,7 @@ MANIFEST: dict[str, Any] = {
                 {
                     "id": "lcurve",
                     "autoscaled": True,
-                    "title": "L 曲线（横=$\\log_{10}\\|x\\|$，纵=$\\log_{10}$ 残差）",
+                    "title": "$L$ 曲线（横=$\\log_{10}\\|x\\|$，纵=$\\log_{10}$ 残差）",
                     "ylabel": "$\\log_{10}$ 残差",
                 },
                 {
@@ -453,7 +453,7 @@ MANIFEST: dict[str, Any] = {
                 },
                 {
                     "name": "omega_rel",
-                    "label": "步长 omega / (1/sigma_1^2)",
+                    "label": "步长 $\\omega/(1/\\sigma_1^2)$",
                     "type": "float",
                     "min": 0.1,
                     "max": 2.5,
@@ -667,7 +667,7 @@ MANIFEST: dict[str, Any] = {
                     ),
                 },
             ],
-            "time": {"mode": "scrub", "tMax": 60.0, "dt": 1.0, "fps": 30, "label": "迭代 / 截断阶 k"},
+            "time": {"mode": "scrub", "tMax": 60.0, "dt": 1.0, "fps": 30, "label": "迭代 / 截断阶 $k$"},
             "requiredAux": ["error", "residual"],
             "axes": [
                 {

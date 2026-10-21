@@ -1753,13 +1753,6 @@ html[data-theme="dark"] .nl-btn-primary:hover {
   outline-offset: 2px;
 }
 
-.nl-state-more {
-  flex: none;
-  opacity: 0.72;
-  font-size: 9px;
-  border-bottom: 1px dotted currentColor;
-}
-
 /* 时间轴 ---------------------------------------------------------------- */
 
 .nl-timebar-slot {

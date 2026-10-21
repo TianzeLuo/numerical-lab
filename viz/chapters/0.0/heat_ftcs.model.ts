@@ -150,7 +150,7 @@ export const heatFtcsModel: SceneModel = (frame, opts) => {
       ylim: MAIN_YLIM,
       xlabel: "",
       ylabel: "温度 $u$",
-      title: "u(x,t)",
+      title: "$u(x,t)$",
       autoscaled: false,
     }),
   );
@@ -164,8 +164,8 @@ export const heatFtcsModel: SceneModel = (frame, opts) => {
       xlim,
       ylim: errorYlim,
       xlabel: "$x$",
-      ylabel: "|误差|",
-      title: "误差 u−u_exact",
+      ylabel: "误差绝对值",
+      title: "误差 $u-u_{\\mathrm{exact}}$",
       autoscaled: true,
     }),
   );

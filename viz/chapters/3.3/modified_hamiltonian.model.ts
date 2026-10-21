@@ -175,7 +175,7 @@ export const modifiedHamiltonianModel: SceneModel = (frame, opts) => {
     ylim: [-1.35 * maxAbs, 1.35 * maxAbs],
     xlabel: "观测时间 $t$（数组只覆盖已观测步数）",
     title: axisTitleOf(SPEC?.axes, "main", "真实能量的相对误差与它的带"),
-    ylabel: axisYlabelOf(SPEC?.axes, "main", "ΔE/E₀"),
+    ylabel: axisYlabelOf(SPEC?.axes, "main", "$\\Delta E/E_0$"),
     autoscaled: true,
     tickTarget: Math.max(3, Math.round(L.leftW / 100)),
   });

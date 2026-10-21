@@ -129,7 +129,7 @@ MANIFEST: dict[str, Any] = {
                 "help": "雷诺数 $\\mathrm{Re}=UL/\\nu$。$\\mathrm{Re}$ 越大，惯性项越强，边界层越薄、主涡中心位置改变，稳态迭代也更难收敛；超过网格能分辨的范围后，结果主要反映离散误差。"},
                 {
                     "name": "n",
-                    "label": "每边节点数 n",
+                    "label": "每边节点数 $n$",
                     "type": "enum",
                     "options": [25, 33, 41, 49],
                     "default": 41,
@@ -140,7 +140,7 @@ MANIFEST: dict[str, Any] = {
             time={"mode": "none"},
             requiredAux=["residual"],
             axes=[
-                {"id": "main", "autoscaled": False, "title": "稳态涡量与流函数等值线", "ylabel": "y"},
+                {"id": "main", "autoscaled": False, "title": "稳态涡量与流函数等值线", "ylabel": "$y$"},
                 {"id": "residual", "autoscaled": True, "scale": "log", "title": "耦合迭代残差", "ylabel": "相对残差"},
             ],
             pitfalls=_PITFALLS["cavity_vorticity"],
@@ -184,9 +184,9 @@ MANIFEST: dict[str, Any] = {
             time={"mode": "none"},
             requiredAux=["error"],
             axes=[
-                {"id": "main", "autoscaled": False, "title": "竖直中心线 u(y) vs Ghia", "ylabel": "y"},
-                {"id": "error", "autoscaled": True, "scale": "log", "title": "RMSE 随网格 n 的收敛", "ylabel": "RMSE"},
-                {"id": "vprofile", "autoscaled": True, "title": "水平中心线 v(x) vs Ghia", "ylabel": "v"},
+                {"id": "main", "autoscaled": False, "title": "竖直中心线 $u(y)$ vs Ghia", "ylabel": "$y$"},
+                {"id": "error", "autoscaled": True, "scale": "log", "title": "RMSE 随网格 $n$ 的收敛", "ylabel": "RMSE"},
+                {"id": "vprofile", "autoscaled": True, "title": "水平中心线 $v(x)$ vs Ghia", "ylabel": "$v$"},
             ],
             pitfalls=_PITFALLS["ghia_benchmark"],
             theory=[
@@ -231,8 +231,8 @@ MANIFEST: dict[str, Any] = {
             time={"mode": "scrub", "tMax": 10000.0, "dt": 2000.0, "label": "显式步数"},
             requiredAux=["error"],
             axes=[
-                {"id": "main", "autoscaled": False, "title": "v(x,y)：Gray--Scott 斑图", "ylabel": "y"},
-                {"id": "error", "autoscaled": True, "scale": "log", "title": "五点模板增长率误差 vs n", "ylabel": "相对误差"},
+                {"id": "main", "autoscaled": False, "title": "$v(x,y)$：Gray–Scott 斑图", "ylabel": "$y$"},
+                {"id": "error", "autoscaled": True, "scale": "log", "title": "五点模板增长率误差 vs $n$", "ylabel": "相对误差"},
                 {"id": "dispersion", "autoscaled": True, "title": "解析色散关系 $\\lambda(\\phi)$", "ylabel": "$\\lambda_{\\max}$"},
             ],
             pitfalls=_PITFALLS["turing_pattern"],
@@ -275,11 +275,11 @@ MANIFEST: dict[str, Any] = {
                     "criticalNote": "$\\mathrm{CFL}>1$ 不保证稳定；本模块的实测临界值在 $1.2$–$1.5$ 之间，但页面只允许到 $0.9$。",
                 "help": "目标 CFL 数。它决定 $\\Delta t$ 与 $\\Delta x/\\sqrt{gh}$ 的比例；过大时显式 Rusanov 格式可能失稳或把波速估错，过小则计算变慢。"},
             ],
-            time={"mode": "scrub", "tMax": _DAM_T_MAX, "dt": 0.01, "label": "物理时间 t"},
+            time={"mode": "scrub", "tMax": _DAM_T_MAX, "dt": 0.01, "label": "物理时间 $t$"},
             requiredAux=["error"],
             axes=[
-                {"id": "main", "autoscaled": False, "title": "水深 h(x) 与 Ritter 精确解", "ylabel": "h"},
-                {"id": "error", "autoscaled": True, "scale": "log", "title": "|h_num - h_exact|（逐点）", "ylabel": "绝对误差"},
+                {"id": "main", "autoscaled": False, "title": "水深 $h(x)$ 与 Ritter 精确解", "ylabel": "$h$"},
+                {"id": "error", "autoscaled": True, "scale": "log", "title": "$|h_{\\mathrm{num}}-h_{\\mathrm{exact}}|$（逐点）", "ylabel": "绝对误差"},
             ],
             pitfalls=_PITFALLS["dam_break"],
             theory=[

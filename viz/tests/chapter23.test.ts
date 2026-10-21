@@ -579,9 +579,9 @@ test("manifest：2.3 的四个 viz 都声明了 requiredAux=error 与时间轴�
   assert.deepEqual(specOf("convergence_rates").requiredAux, ["error"]);
   assert.equal(specOf("convergence_rates").time.mode, "none");
   assert.equal(specOf("projection").time.mode, "scrub");
-  assert.equal(specOf("projection").time.label, "已展开的基函数个数 k");
-  assert.equal(specOf("equioscillation").time.label, "Remez 迭代轮次 k");
-  assert.equal(specOf("zeros_evolution").time.label, "最高阶数 n");
+  assert.equal(specOf("projection").time.label, "已展开的基函数个数 $k$");
+  assert.equal(specOf("equioscillation").time.label, "Remez 迭代轮次 $k$");
+  assert.equal(specOf("zeros_evolution").time.label, "最高阶数 $n$");
   assert.deepEqual(specOf("projection").params.find((p) => p.name === "n")?.critical, [22, 23, 24]);
 });
 

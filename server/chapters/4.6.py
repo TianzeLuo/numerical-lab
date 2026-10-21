@@ -64,8 +64,8 @@ _NONFINITE_POLICY = (
 _TIME_SEMANTICS = {
     "modal_decay": "无时间轴（一次性扫整条衰减曲线与误差阶梯）",
     "dealias_rule": "无时间轴（对静态测试场做一次乘积，看混叠落在哪）",
-    "convergence_race": "真实时间 t：同一条平流解推进到 t（t=0 时所有格式都精确，误差全 0）",
-    "burgers_cascade": "真实时间 t：从初值推进到 t，能谱/能流/解曲线都取当前时刻",
+    "convergence_race": "真实时间 $t$：同一条平流解推进到 t（t=0 时所有格式都精确，误差全 0）",
+    "burgers_cascade": "真实时间 $t$：从初值推进到 t，能谱/能流/解曲线都取当前时刻",
 }
 
 
@@ -381,7 +381,7 @@ def _viz_dealias_rule(p: Mapping[str, Any], t: float) -> Frame:
     fr.add("prod_floor_mask", _mask(np.maximum(prod_ref, prod_cur), _COEF_FLOOR), unit="", label="1=两条谱都低于地板")
     fr.add("alias_error_spectrum", _floor(_fold_diff(r["spectrum"], n), _COEF_FLOOR), unit="", label="|W_naive-W_ref,full| 折叠到 |k|")
     fr.add("alias_error_mask", _mask(_fold_diff(r["spectrum"], n), _COEF_FLOOR), unit="", label="1=该模偏差低于地板")
-    fr.add("scan_decay", xs, unit="", label="输入谱指数 decay（|a_k|=|k|^-decay）")
+    fr.add("scan_decay", xs, unit="", label="输入谱指数 $\\mathrm{decay}$（$|a_k|=|k|^{-\\mathrm{decay}}$）")
     fr.add("scan_alias", _floor(s_alias), unit="", label="混叠误差（朴素 vs 全带参照）")
     fr.add("scan_truncation", _floor(s_trunc), unit="", label="2/3 截断代价（截断参照 vs 全带参照）")
     fr.add("scan_pad_only", _floor(s_pad), unit="", label="只补零到 3N/2、不截断的偏差")
@@ -945,7 +945,7 @@ MANIFEST: dict[str, Any] = {
                 },
                 {
                     "name": "decay",
-                    "label": "输入谱指数 decay（|a_k|=|k|^-decay）",
+                    "label": "输入谱指数 $\\mathrm{decay}$（$|a_k|=|k|^{-\\mathrm{decay}}$）",
                     "type": "float",
                     "min": 0.5,
                     "max": 2.5,
@@ -1110,7 +1110,7 @@ MANIFEST: dict[str, Any] = {
                 },
                 {
                     "name": "n_max",
-                    "label": "最大自由度 N_max",
+                    "label": "最大自由度 $N_{\\max}$",
                     "type": "int",
                     "min": 64,
                     "max": 512,
@@ -1126,7 +1126,7 @@ MANIFEST: dict[str, Any] = {
                     ),
                 },
             ],
-            "time": {"mode": "scrub", "tMax": 1.0, "dt": 0.1, "label": "t（真实时间）"},
+            "time": {"mode": "scrub", "tMax": 1.0, "dt": 0.1, "label": "$t$（真实时间）"},
             "requiredAux": ["error"],
             "axes": [
                 {
@@ -1298,7 +1298,7 @@ MANIFEST: dict[str, Any] = {
                     ),
                 },
             ],
-            "time": {"mode": "scrub", "tMax": 1.5, "dt": 0.05, "label": "t（真实时间）"},
+            "time": {"mode": "scrub", "tMax": 1.5, "dt": 0.05, "label": "$t$（真实时间）"},
             "requiredAux": ["error", "residual"],
             "axes": [
                 {

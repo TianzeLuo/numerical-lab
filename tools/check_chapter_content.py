@@ -26,6 +26,15 @@ MIN_HELP = 24
 MIN_STEPS = 4
 MIN_THEORY_CHARS = 500
 
+#: 轴名/参数名/时间轴名里不允许出现的“裸数学”：这些字符一旦落在 $...$ 外，
+#: HTML 与画布都会按普通正文绘制，读者看到的是源码而不是公式。
+_GREEK = "αβγδεζηθικλμνξοπρστυφχψωΓΔΘΛΞΠΣΦΨΩ"
+_BARE_MATH = re.compile(
+    "[" + re.escape(_GREEK) + "]"
+    + r"|(?<![\\$A-Za-z0-9_])[A-Za-z]_"
+    + r"|\^|‖|∫|√|[⁰¹²³⁴⁵⁶⁷⁸⁹⁻₀₁₂₃₄₅₆₇₈₉]"
+)
+
 ALLOWED = {
     "alpha", "beta", "gamma", "delta", "epsilon", "varepsilon", "zeta", "eta", "theta",
     "vartheta", "iota", "kappa", "lambda", "mu", "nu", "xi", "pi", "varpi", "rho",
@@ -55,6 +64,36 @@ def _load(path: Path) -> Any:
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+def _check_label(value: str, where: str, errors: list[str], *, axis: bool = False) -> None:
+    """标签里的数学必须走 TeX；轴名里也不允许用反引号冒充公式。"""
+    if not value:
+        return
+    if axis and "`" in value:
+        errors.append(f"{where}: 轴名里有反引号（画布不认 Markdown code，请用 $...$）")
+    bare = re.sub(r"\$[^$]*\$|`[^`]*`", "", value)
+    hit = _BARE_MATH.search(bare)
+    if hit:
+        errors.append(f"{where}: 数学片段 {hit.group(0)!r} 没有放进 $...$")
+
+
+def _walk_strings(value: Any) -> Any:
+    if isinstance(value, str):
+        yield value
+    elif isinstance(value, dict):
+        for item in value.values():
+            yield from _walk_strings(item)
+    elif isinstance(value, (list, tuple)):
+        for item in value:
+            yield from _walk_strings(item)
+
+
+def _check_control_chars(value: Any, errors: list[str]) -> None:
+    for text in _walk_strings(value):
+        bad = next((ch for ch in text if ord(ch) < 32 and ch not in "\n\t"), None)
+        if bad is not None:
+            errors.append(f"MANIFEST 字符串里有控制字符 U+{ord(bad):04X}（多半是 \\u 转义被吃掉了）")
 
 
 def _check_math(text: str, where: str, errors: list[str]) -> None:
@@ -92,8 +131,13 @@ def _check_math(text: str, where: str, errors: list[str]) -> None:
 
 
 def main(argv: list[str]) -> int:
+    if len(argv) == 2 and argv[1] == "--all":
+        rc = 0
+        for chapter in sorted((ROOT / "server" / "chapters").glob("*.py")):
+            rc = main([argv[0], str(chapter)]) or rc
+        return rc
     if len(argv) != 2:
-        print("用法：check_chapter_content.py <server/chapters/X.Y.py>")
+        print("用法：check_chapter_content.py <server/chapters/X.Y.py> | --all")
         return 2
     path = Path(argv[1])
     if not path.is_absolute():
@@ -105,13 +149,17 @@ def main(argv: list[str]) -> int:
     notes: list[str] = []
     manifest = load_manifest(raw)
     for viz in manifest.vizzes:
+        _check_label(viz.title, f"{viz.id}.title", errors)
         for param in viz.params:
+            _check_label(param.label, f"{viz.id}.{param.name}.label", errors)
             if not param.help.strip():
                 errors.append(f"{viz.id}.{param.name}: 缺 help 展开解释")
             elif len(param.help.strip()) < MIN_HELP:
                 errors.append(f"{viz.id}.{param.name}: help 太短（{len(param.help.strip())} < {MIN_HELP} 字）")
             else:
                 _check_math(param.help, f"{viz.id}.{param.name}.help", errors)
+        time_label = getattr(getattr(viz, "time", None), "label", "") or ""
+        _check_label(time_label, f"{viz.id}.time.label", errors)
         if len(viz.theory) < MIN_STEPS:
             errors.append(f"{viz.id}: 推导只有 {len(viz.theory)} 步（至少 {MIN_STEPS} 步）")
         total = sum(len(s.strip()) for s in viz.theory)
@@ -120,10 +168,12 @@ def main(argv: list[str]) -> int:
         for i, line in enumerate(viz.theory):
             _check_math(line, f"{viz.id}.theory[{i}]", errors)
         for i, ax in enumerate(viz.axes):
-            for field in ("title", "ylabel"):
+            for field in ("title", "xlabel", "ylabel"):
                 value = getattr(ax, field, "")
                 if value:
                     _check_math(value, f"{viz.id}.axes[{i}].{field}", errors)
+                    _check_label(value, f"{viz.id}.axes[{i}].{field}", errors, axis=True)
+    _check_control_chars(raw, errors)
     errors.extend(problems)
     if errors:
         print(f"{path}: {len(errors)} 个问题")

@@ -9,7 +9,7 @@
  * | 2 | line | `main` | `x(t)` 全曲线——**整段**帧数组 `t`/`x`，非有限值处断开 |
  * | 3 | scatter | `main` | `meta.t` 处的运动标记（帧内样本线性插值，不外推） |
  * | 4 | line | `error` | `residual` 逐点折线（对数纵轴，**不平滑、不截断**） |
- * | 5 | line | `error` | `meta.residual_max` 参考线（后端给的标量，不是前端算的） |
+ * | 5 | line | `error` | 残差上界 $\max_i|r_i|$ 参考线（后端给的标量，不是前端算的） |
  *
  * 角标槽位（固定，见 `SLOT`；缺一个不会让其余挪位）：0 数据来源 / 1 主面板轴模式 /
  * 2 误差轴自适应 / 3 ζ 临界 / 4 溢出（`checkOverflow` + 帧内非有限值计数）/
@@ -140,7 +140,7 @@ export const oscillatorModel: SceneModel = (frame, opts) => {
       ylim: mainYlim,
       xlabel: "",
       ylabel: "位移 $x$",
-      title: "x(t)",
+      title: "$x(t)$",
       autoscaled: false,
     }),
   );
@@ -204,7 +204,7 @@ export const oscillatorModel: SceneModel = (frame, opts) => {
   else degraded.push(`帧 residual 的 ${residual.length} 个样本没有一个 > 0：对数轴上画不出任何点`);
   if (resSeries.length > 0 && residualMax !== undefined && residualMax > 0) {
     scene.layers.push(
-      lineLayer("error", series(tlim, [residualMax, residualMax], pal.reference, { dash: [5, 4], width: 1, label: "`meta.residual_max`" })),
+      lineLayer("error", series(tlim, [residualMax, residualMax], pal.reference, { dash: [5, 4], width: 1, label: "残差上界 $\\max_i|r_i|$" })),
     );
   }
 
@@ -212,7 +212,7 @@ export const oscillatorModel: SceneModel = (frame, opts) => {
   const summary = paramSummary(frame, opts, [
     { name: "omega", label: "$ω$" },
     { name: "zeta", label: "$ζ$" },
-    { name: "n_periods", label: "`n_periods`" },
+    { name: "n_periods", label: "$n_{\\mathrm{periods}}$" },
   ]);
   degraded.push(...summary.degraded);
   scene.texts.push(

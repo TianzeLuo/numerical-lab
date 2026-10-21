@@ -61,7 +61,7 @@ run_gate G7 "Python ↔ TS 对拍"                "$PY tools/parity.py"
 # G8 的前置：先算 L3 帧（--n 6，与现有基线的场景数**必须一致**），再用真前端模型转储场景，
 # 最后才比对基线。少了前两步，新检出里 dist/scenes 为空 → 全部走兜底 → "一张图都没比"也能绿。
 run_gate G8 "视觉回归（帧→TS 场景→栅格基线）"  "$PY tools/precompute.py --n 6 --quiet && npm run scene --silent && $PY tools/visual_regression.py --check --require-scenes"
-run_gate G9 "LaTeX（逐章 + 合并本）与站点公式"  "$PY tools/build_book.py --no-compile && $PY tools/build_book.py --check && $PY tools/check_site_formulas.py"
+run_gate G9 "内容体检 + LaTeX（逐章 + 合并本）与站点公式"  "$PY tools/check_chapter_content.py --all && $PY tools/build_book.py --no-compile && $PY tools/build_book.py --check && $PY tools/check_site_formulas.py"
 run_gate G10 "进度文档无漂移"                  "$PY tools/gen_progress.py --check"
 
 # --- 汇总 ---

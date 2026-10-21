@@ -179,7 +179,7 @@ export const stabilitySurfaceModel: SceneModel = (frame, opts) => {
       xlim: [x0, x1],
       ylim: [y0, y1],
       xlabel: "$\\operatorname{Re} z$",
-      ylabel: axisYlabelOf(SPEC?.axes, "main", "Im z"),
+      ylabel: axisYlabelOf(SPEC?.axes, "main", "$\\mathrm{Im}\\,z$"),
       title: axisTitleOf(SPEC?.axes, "main", "|R(z)|（固定窗口）与 |R|=1 等高线"),
       autoscaled: false,
     }),

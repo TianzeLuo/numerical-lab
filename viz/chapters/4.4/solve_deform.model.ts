@@ -468,7 +468,7 @@ export const solveDeformModel: SceneModel = (frame, opts) => {
       ylim: [floor, 1],
       yscale: "log",
       xlabel: "节点序号 $i$",
-      title: "节点误差 |u_h−u|（对数）",
+      title: "节点误差 $|u_h-u|$（对数）",
       ylabel: "$|u_h−u|$",
       autoscaled: false,
     });

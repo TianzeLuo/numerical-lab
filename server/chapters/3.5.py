@@ -228,7 +228,7 @@ MANIFEST: dict[str, Any] = {
             "params": [
                 {
                     "name": "sigma",
-                    "label": "σ（Prandtl 数）",
+                    "label": "$\\sigma$（Prandtl 数）",
                     "type": "float",
                     "min": 4.0,
                     "max": 20.0,
@@ -244,7 +244,7 @@ MANIFEST: dict[str, Any] = {
                 },
                 {
                     "name": "rho",
-                    "label": "ρ（Rayleigh 数）",
+                    "label": "$\\rho$（Rayleigh 数）",
                     "type": "float",
                     "min": 5.0,
                     "max": 60.0,
@@ -265,7 +265,7 @@ MANIFEST: dict[str, Any] = {
                 },
                 {
                     "name": "beta",
-                    "label": "β（几何因子）",
+                    "label": "$\\beta$（几何因子）",
                     "type": "float",
                     "min": 1.0,
                     "max": 5.0,
@@ -349,7 +349,7 @@ MANIFEST: dict[str, Any] = {
                     ),
                 },
             ],
-            "time": {"mode": "scrub", "tMax": 30.0, "dt": 0.1, "fps": 20, "label": "时间 t"},
+            "time": {"mode": "scrub", "tMax": 30.0, "dt": 0.1, "fps": 20, "label": "时间 $t$"},
             "axes": [
                 {"id": "scene", "title": "三维相空间（正交投影，等比例）", "autoscaled": False},
                 {"id": "sep", "title": "孪生轨道分离距离 $d(t)$", "ylabel": "$d$", "autoscaled": True, "scale": "log"},
@@ -703,7 +703,7 @@ MANIFEST: dict[str, Any] = {
                 },
                 {
                     "name": "rho",
-                    "label": "ρ（Lorenz）",
+                    "label": "$\\rho$（Lorenz）",
                     "type": "float",
                     "min": 15.0,
                     "max": 60.0,
@@ -723,7 +723,7 @@ MANIFEST: dict[str, Any] = {
                 },
                 {
                     "name": "sigma",
-                    "label": "σ（Lorenz）",
+                    "label": "$\\sigma$（Lorenz）",
                     "type": "float",
                     "min": 4.0,
                     "max": 20.0,
@@ -807,7 +807,7 @@ MANIFEST: dict[str, Any] = {
                     ),
                 },
             ],
-            "time": {"mode": "scrub", "tMax": 60.0, "dt": 0.25, "fps": 20, "label": "时间 t"},
+            "time": {"mode": "scrub", "tMax": 60.0, "dt": 0.25, "fps": 20, "label": "时间 $t$"},
             "axes": [
                 {"id": "scene", "title": "三维相空间与截面平面", "autoscaled": False},
                 {"id": "section", "title": "截面内的落点（原始坐标）", "autoscaled": True},
@@ -881,7 +881,7 @@ MANIFEST: dict[str, Any] = {
                 },
                 {
                     "name": "mu",
-                    "label": "μ（van der Pol / Hopf）",
+                    "label": "$\\mu$（van der Pol / Hopf）",
                     "type": "float",
                     "min": -0.5,
                     "max": 3.0,
@@ -947,7 +947,7 @@ MANIFEST: dict[str, Any] = {
                     ),
                 },
             ],
-            "time": {"mode": "scrub", "tMax": 12.0, "dt": 0.25, "fps": 20, "label": "时间 t"},
+            "time": {"mode": "scrub", "tMax": 12.0, "dt": 0.25, "fps": 20, "label": "时间 $t$"},
             "axes": [
                 {"id": "phase", "title": "相平面（等比例）", "autoscaled": False},
                 {"id": "residual", "title": "零倾线上的 $|f|$ 残差", "ylabel": "$|f|$", "autoscaled": True, "scale": "log"},

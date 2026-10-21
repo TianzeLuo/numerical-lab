@@ -181,7 +181,7 @@ export const trustRegionRadiusModel: SceneModel = (frame, opts) => {
       ylim: [rhoLo, rhoHi],
       xlabel: "迭代 $k$",
       ylabel: "$ρ_k$",
-      title: "ρ_k（线性；窗口随本帧 ρ 扩到 [-5,2] 之外）",
+      title: "$\\rho_k$（线性；窗口随本帧 $\\rho$ 扩到 $[-5,2]$ 之外）",
       autoscaled: false,
     });
   }

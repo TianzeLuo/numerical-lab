@@ -167,7 +167,7 @@ export const burgersShockModel: SceneModel = (frame, opts) => {
     xlim: [0, 1],
     ylim: U_WINDOW,
     title: axisTitleOf(SPEC?.axes, "solution", "解与精确解"),
-    ylabel: axisYlabelOf(SPEC?.axes, "solution", "u(x,t)"),
+    ylabel: axisYlabelOf(SPEC?.axes, "solution", "$u(x,t)$"),
     xlabel: "",
     autoscaled: false,
   });

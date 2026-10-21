@@ -213,7 +213,7 @@ export const boundaryConservationModel: SceneModel = (frame, opts) => {
   const solutionAxis = makeAxis("solution", solutionRect, {
     xlim,
     ylim: SOLUTION_YLIM,
-    ylabel: axisYlabelOf(SPEC, "solution", "u(x,t)"),
+    ylabel: axisYlabelOf(SPEC, "solution", "$u(x,t)$"),
     title: axisTitleFitted(SPEC, "solution", "解 u(x,t)（窗口固定 −0.5–2.2）", solutionRect[2]),
     autoscaled: axisAutoscaledOf(SPEC, "solution", false),
     xticks: [],

@@ -44,7 +44,7 @@
           "criticalNote": "$r=1/2$ 是显式格式的稳定阈值（连续极限），不适用于 BTCS/CN（它们无条件稳定）。有限网格上也各不相同：Dirichlet 略大于 $1/2$（端点钉住后 Nyquist 模态不存在），Neumann 与偶数周期网格恰好等于 $1/2$。",
           "default": 0.45,
           "help": "格点比 $r=\\alpha\\Delta t/\\Delta x^2$，无量纲。调大它相当于放大时间步，显式格式在 $r>1/2$ 附近右端 $|G|$ 越过 $1$，解可能炸；调小则更稳但步数更多。读图看副图 $|G|$ 右端是否翘起、主图是否冲出固定窗口，并注意有限网格阈值略偏离 $1/2$。",
-          "label": "格点比 r = αΔt/Δx²",
+          "label": "格点比 $r=\\alpha\\Delta t/\\Delta x^2$",
           "max": 0.8,
           "min": 0.05,
           "name": "r",
@@ -108,7 +108,7 @@
       ],
       "time": {
         "dt": 0.00025,
-        "label": "t（真实时间）",
+        "label": "$t$（真实时间）",
         "mode": "scrub",
         "tMax": 0.01
       },
@@ -304,7 +304,7 @@
       ],
       "time": {
         "dt": 0.001,
-        "label": "t（真实时间）",
+        "label": "$t$（真实时间）",
         "mode": "scrub",
         "tMax": 0.01
       },
@@ -316,12 +316,12 @@
           "autoscaled": false,
           "id": "solution",
           "title": "解曲线（窗口固定 −0.5–2.2：三种边界的初值都在范围内）",
-          "ylabel": "u(x,t)"
+          "ylabel": "$u(x,t)$"
         },
         {
           "autoscaled": false,
           "id": "mass",
-          "title": "总热量漂移 H(t)−H(0)（窗口固定 −0.7–0.1）",
+          "title": "总热量漂移 $H(t)-H(0)$（窗口固定 $[-0.7,0.1]$）",
           "ylabel": "$\\Delta H$"
         }
       ],
@@ -398,7 +398,7 @@
       ],
       "time": {
         "dt": 0.0025,
-        "label": "t（真实时间）",
+        "label": "$t$（真实时间）",
         "mode": "scrub",
         "tMax": 0.05
       },

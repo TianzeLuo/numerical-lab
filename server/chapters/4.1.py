@@ -63,10 +63,10 @@ _NONFINITE_POLICY = (
 )
 
 _TIME_SEMANTICS = {
-    "stability_threshold": "真实时间 t：从初值推进到当前 t（meta.t_actual 是实际到达的时刻，未必正好等于 t）",
+    "stability_threshold": "真实时间 $t$：从初值推进到当前 t（meta.t_actual 是实际到达的时刻，未必正好等于 t）",
     "convergence_order": "无时间轴（一次性扫描整条误差阶梯）",
-    "numerical_dissipation": "真实时间 t：模态存活率 |a_k(t)/a_k(0)| 随时间衰减，t=0 时全为 1",
-    "boundary_conservation": "真实时间 t：三条总热量曲线 H(t) 从 0 漂移出去（或原地不动）",
+    "numerical_dissipation": "真实时间 $t$：模态存活率 |a_k(t)/a_k(0)| 随时间衰减，t=0 时全为 1",
+    "boundary_conservation": "真实时间 $t$：三条总热量曲线 H(t) 从 0 漂移出去（或原地不动）",
 }
 
 
@@ -715,7 +715,7 @@ MANIFEST: dict[str, Any] = {
                 },
                 {
                     "name": "r",
-                    "label": "格点比 r = αΔt/Δx²",
+                    "label": "格点比 $r=\\alpha\\Delta t/\\Delta x^2$",
                     "type": "float",
                     "min": 0.05,
                     "max": 0.8,
@@ -780,7 +780,7 @@ MANIFEST: dict[str, Any] = {
                     ),
                 },
             ],
-            "time": {"mode": "scrub", "tMax": 0.01, "dt": 0.00025, "label": "t（真实时间）"},
+            "time": {"mode": "scrub", "tMax": 0.01, "dt": 0.00025, "label": "$t$（真实时间）"},
             "requiredAux": ["error", "residual"],
             "axes": [
                 {
@@ -1071,7 +1071,7 @@ MANIFEST: dict[str, Any] = {
                     ),
                 },
             ],
-            "time": {"mode": "scrub", "tMax": 0.01, "dt": 0.001, "label": "t（真实时间）"},
+            "time": {"mode": "scrub", "tMax": 0.01, "dt": 0.001, "label": "$t$（真实时间）"},
             "requiredAux": ["error", "residual"],
             "axes": [
                 {
@@ -1158,19 +1158,19 @@ MANIFEST: dict[str, Any] = {
                     "criticalNote": "",
                 "help": "空间网格点数。网格越细，边界层越窄，离散守恒误差通常越小；但边界条件的实现误差也会以不同方式收敛。"},
             ],
-            "time": {"mode": "scrub", "tMax": 0.05, "dt": 0.0025, "label": "t（真实时间）"},
+            "time": {"mode": "scrub", "tMax": 0.05, "dt": 0.0025, "label": "$t$（真实时间）"},
             "requiredAux": ["error", "residual"],
             "axes": [
                 {
                     "id": "solution",
                     "autoscaled": False,
                     "title": "解曲线（窗口固定 −0.5–2.2：三种边界的初值都在范围内）",
-                    "ylabel": "u(x,t)",
+                    "ylabel": "$u(x,t)$",
                 },
                 {
                     "id": "mass",
                     "autoscaled": False,
-                    "title": "总热量漂移 H(t)−H(0)（窗口固定 −0.7–0.1）",
+                    "title": "总热量漂移 $H(t)-H(0)$（窗口固定 $[-0.7,0.1]$）",
                     "ylabel": "$\\Delta H$",
                 },
             ],

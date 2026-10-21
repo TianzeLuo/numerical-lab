@@ -649,15 +649,43 @@ export function clipRichText(text: string, maxUnits: number): string {
 
 export function clipBadgeText(text: string, maxUnits = 84): string {
   if (textWidthUnits(text) <= maxUnits) return text;
+  const budget = Math.max(1, maxUnits - 1);
   let out = "";
   let used = 0;
-  for (const ch of text) {
+  let i = 0;
+  while (i < text.length) {
+    // 数学段整段保留或整段丢弃：角标宁可少一个公式，也不能留下半截 `$...`。
+    let span = "";
+    let next = i;
+    if (text[i] === "$") {
+      const close = text[i + 1] === "$" ? text.indexOf("$$", i + 2) : text.indexOf("$", i + 1);
+      if (close >= 0) {
+        next = close + (text[i + 1] === "$" ? 2 : 1);
+        span = text.slice(i, next);
+      }
+    } else if (text.startsWith("\\(", i)) {
+      const close = text.indexOf("\\)", i + 2);
+      if (close >= 0) {
+        next = close + 2;
+        span = text.slice(i, next);
+      }
+    }
+    if (span !== "") {
+      const w = textWidthUnits(span);
+      if (used + w > budget) break;
+      out += span;
+      used += w;
+      i = next;
+      continue;
+    }
+    const ch = text[i] as string;
     const w = (ch.codePointAt(0) ?? 0) > 0x2e80 ? 2 : 1;
-    if (used + w > maxUnits - 1) break;
+    if (used + w > budget) break;
     out += ch;
     used += w;
+    i += 1;
   }
-  return `${out}…`;
+  return `${out.trimEnd()}…`;
 }
 
 /**

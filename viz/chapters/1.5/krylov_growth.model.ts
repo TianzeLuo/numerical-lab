@@ -242,8 +242,8 @@ export const krylovGrowthModel: SceneModel = (frame, opts) => {
   const spaceAxis = makeAxis("space", spaceRect, {
     xlim: spaceLim.xlim,
     ylim: spaceLim.ylim,
-    xlabel: dim === 2 ? "x1" : "投影 X（az=30°, el=20°）",
-    ylabel: dim === 2 ? axisYlabel("space", "x2") : "投影 Y",
+    xlabel: dim === 2 ? "$x_1$" : "投影 $X$（az=30°, el=20°）",
+    ylabel: dim === 2 ? axisYlabel("space", "$x_2$") : "投影 $Y$",
     title: axisTitle("space", "Krylov 基与解轨迹（2D/3D）"),
     autoscaled: true,
     xticks: spaceLim.ticks,
