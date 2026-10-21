@@ -216,7 +216,7 @@ export const errorSpectrumModel: SceneModel = (frame, opts) => {
   const modesAxis = makeAxis("modes", heatRect, {
     xlim: [-0.5, nSteps + 0.5],
     ylim: [0.5, nModes + 0.5],
-    xlabel: "迭代步 k",
+    xlabel: "迭代步 $k$",
     ylabel: axisYlabel("modes", "模态 j"),
     title: axisTitle("modes", "各模态的误差分量（对数色阶条形）"),
     autoscaled: false,
@@ -238,7 +238,7 @@ export const errorSpectrumModel: SceneModel = (frame, opts) => {
     xlim: [0, stepLen],
     ylim: decayYlim,
     yscale: "log",
-    xlabel: "迭代步 k",
+    xlabel: "迭代步 $k$",
     ylabel: axisYlabel("decay", "‖e_k‖/‖e_0‖ 与 ‖r_k‖/‖r_0‖"),
     title: axisTitle("decay", "误差与残差（对数）"),
     autoscaled: true,
@@ -260,8 +260,8 @@ export const errorSpectrumModel: SceneModel = (frame, opts) => {
     xlim: [0.5, nModes + 0.5],
     ylim: rateYlim,
     yscale: "log",
-    xlabel: "模态编号 j",
-    ylabel: "衰减因子 |λ_j(T)|",
+    xlabel: "模态编号 $j$",
+    ylabel: "衰减因子 $|\\lambda_j(T)|$",
     title: "解析因子 vs 实测比值（对数）",
     autoscaled: true,
     xticks: modeTicks(nModes),
@@ -280,7 +280,7 @@ export const errorSpectrumModel: SceneModel = (frame, opts) => {
         vmax: vmaxLog,
         // 值已经是 log10（后端在地板处截断过）：再开 logScale 就成了 loglog，是另一张图。
         logScale: false,
-        label: "误差分量大小（log10）",
+        label: "误差分量大小（$\\log_{10}$）",
       }),
     );
   } else {
@@ -387,7 +387,7 @@ export const errorSpectrumModel: SceneModel = (frame, opts) => {
     nowY.push(rNow);
   }
   if (nowX.length > 0) {
-    scene.layers.push(scatterLayer("decay", nowX, nowY, { r: 3.6, color: pal.marker, label: "第 k 步的误差/残差（帧 *_mark）" }));
+    scene.layers.push(scatterLayer("decay", nowX, nowY, { r: 3.6, color: pal.marker, label: "第 $k$ 步的误差/残差（当前点标记）" }));
   }
 
   // —— 图层 7~9：解析因子 vs 实测比值 ——
@@ -410,7 +410,7 @@ export const errorSpectrumModel: SceneModel = (frame, opts) => {
   const measuredY = measuredShown.filter((v) => Number.isFinite(v));
   if (measuredX.length > 0) {
     scene.layers.push(
-      scatterLayer("rates", measuredX, measuredY, { r: 3, color: pal.marker, label: "实测比值（帧 mode_rates_measured，掩码为 1 的才画）" }),
+      scatterLayer("rates", measuredX, measuredY, { r: 3, color: pal.marker, label: "实测比值（帧 $mode_rates_measured$，掩码为 1 的才画）" }),
     );
   } else {
     degraded.push("没有一个模态的实测比值可用（掩码全 0）：rates 面板只画解析因子，不补点");

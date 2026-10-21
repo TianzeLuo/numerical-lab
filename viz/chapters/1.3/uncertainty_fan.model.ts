@@ -60,6 +60,7 @@ import {
 import {
   axisModeBadge,
   badge,
+  clipBadge,
   criticalBadge,
   lineLayer,
   loglogFitLayer,
@@ -269,9 +270,9 @@ export const uncertaintyFanModel: SceneModel = (frame, opts) => {
     ylim: growthYlim,
     xscale: "log",
     yscale: "log",
-    xlabel: "κ（对数）",
+    xlabel: "$\\kappa$（对数）",
     ylabel: axisYlabel("growth", "相对不确定度"),
-    title: axisTitle("growth", "实测不确定度 vs κ（双对数）与 κ·δ 参考线"),
+    title: axisTitle("growth", "实测不确定度 vs $\\kappa$（双对数）与 $\\kappa\\cdot\\delta$ 参考线"),
     autoscaled: true,
   });
   scene.axes.push(planeAxis, growthAxis);
@@ -352,10 +353,10 @@ export const uncertaintyFanModel: SceneModel = (frame, opts) => {
     ]),
   );
   scene.layers.push(
-    scatterLayer("plane", [sx], [sy], { r: 4, color: pal.marker, label: "当前方向的解 x̂" }),
+    scatterLayer("plane", [sx], [sy], { r: 4, color: pal.marker, label: "当前方向的解 $\\hat x$" }),
   );
   scene.layers.push(
-    scatterLayer("plane", [cx], [cy], { r: 3.4, color: pal.ink, label: "谷底中心 x*（帧数组 center）" }),
+    scatterLayer("plane", [cx], [cy], { r: 3.4, color: pal.ink, label: "谷底中心 $x^*$（帧数组 center）" }),
   );
 
   // —— 图层 5~6：增长曲线 ——
@@ -388,7 +389,7 @@ export const uncertaintyFanModel: SceneModel = (frame, opts) => {
         series(Float64Array.from(theoryX), Float64Array.from(theoryY), pal.exact, {
           width: 1,
           dash: [5, 4],
-          label: "κ·δ 参考线（帧数组 theory_kappa，不是前端重算的）",
+          label: "$\\kappa\\cdot\\delta$ 参考线（帧数组 theory_kappa，不是前端重算的）",
         }),
       ]),
     );
@@ -547,20 +548,25 @@ export const uncertaintyFanModel: SceneModel = (frame, opts) => {
     countNonFinite(errorKappa) +
     countNonFinite(theoryKappa) +
     countNonFinite(levelRho);
-  const extra: string[] = [];
+  const clipNotes: string[] = [];
   if (nLevelClipped > 0) {
-    extra.push(
+    clipNotes.push(
       `${nLevelClipped}/${nLevel} 条等残差椭圆被窗口切断（最长的一条延伸到 ±${fmt(maxAbs(levelX, levelY), 3)}，` +
         `窗口只有 center ± ${fmt(radius, 3)}）：切断的段没有画出来，但椭圆本身还在`,
     );
   }
   if (nFanClipped > 0) {
-    extra.push(`${nFanClipped} 个扇面解落在窗口外（按数据保留，图上不可见）`);
+    clipNotes.push(`${nFanClipped} 个扇面解落在窗口外（按数据保留，图上不可见）`);
   }
-  if (resolvable === false) {
-    extra.push("κu ≥ δ：扇面测的是舍入不是噪声（meta.resolvable=false）");
+  // 固定窗口裁剪是这页的设计（不裁就看不见谷底），不是数据坏了。用中性的「视窗裁剪」，
+  // 把红色「溢出」留给真正的非有限值/意外越界。
+  overflowBadgeFor(scene, nBad, [], { slot: SLOT.overflow, width });
+  if (!scene.overflow.flag) {
+    if (clipNotes.length > 0) {
+      const node = placeBadge(clipBadge(clipNotes.join("；")), SLOT.overflow, width);
+      scene.badges.push(node);
+    }
   }
-  overflowBadgeFor(scene, nBad, extra, { slot: SLOT.overflow, width }, "本帧没有采样方向越出等比例窗口");
   // 规则 8 的安全网（两侧校验器都查）：
   //  - 文本层之间不许互相重叠（帧里的说明一变长就会多折一行压住下一块）；
   //  - 文本不许被底部 pitfalls 面板压住（面板高度随帧里 pitfalls 的折行数变，模型事先看不见）。

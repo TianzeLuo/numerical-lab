@@ -272,7 +272,7 @@ export const controlPointsModel: SceneModel = (frame, opts) => {
   scene.layers.push({
     kind: "line",
     axes: "main",
-    series: [{ x: xGrid, y: curve, color: pal.curves[0], width: 2, label: "样条曲线 S(x)（帧 curve）" }],
+    series: [{ x: xGrid, y: curve, color: pal.curves[0], width: 2, label: "样条曲线 $S(x)$（帧 curve）" }],
   });
 
   // —— 图层 2：曲率梳（每根齿一条两点折线；global 时长 ∝ |κ|，local 时等长）——
@@ -283,7 +283,7 @@ export const controlPointsModel: SceneModel = (frame, opts) => {
     scene.layers.push({
       kind: "line",
       axes: "main",
-      series: [{ ...(first as (typeof teeth)[number]), label: "曲率梳（comb_tip）" }, ...rest],
+      series: [{ ...(first as (typeof teeth)[number]), label: "曲率梳（$comb_tip$）" }, ...rest],
     });
   } else {
     degraded.push("帧 comb_base/comb_tip 没有可画的梳齿：主轴只画曲线");
@@ -304,7 +304,7 @@ export const controlPointsModel: SceneModel = (frame, opts) => {
           color: pal.exact,
           width: 1.4,
           dash: [5, 4],
-          label: "折线（τ=1）",
+          label: "折线（$τ=1$）",
         },
       ],
     });
@@ -337,7 +337,7 @@ export const controlPointsModel: SceneModel = (frame, opts) => {
                 y: [py - len * ty * yPerX, py + len * ty * yPerX],
                 color: pal.marker,
                 width: 1.6,
-                label: "切向（probe_tangent）",
+                label: "切向（$probe_tangent$）",
               },
             ],
           });
@@ -357,7 +357,7 @@ export const controlPointsModel: SceneModel = (frame, opts) => {
         color: pal.residual,
         width: 1.6,
         marker: "o",
-        label: "|dS'|（residual）",
+        label: "$|dS'|$（residual）",
       },
       {
         x: jumpNodes,
@@ -366,21 +366,21 @@ export const controlPointsModel: SceneModel = (frame, opts) => {
         width: 1.4,
         dash: [4, 3],
         marker: "s",
-        label: "|dS''|（jump_d2）",
+        label: "$|dS''|$（$jump_d2$）",
       },
     ],
   });
-  hLine(scene, jumpAxis, FLOOR, pal.note, { label: "u/2 地板" });
-  hLine(scene, jumpAxis, KINK_LEVEL, pal.warn, { label: "1e-3 折角" });
+  hLine(scene, jumpAxis, FLOOR, pal.note, { label: "$u/2$ 地板" });
+  hLine(scene, jumpAxis, KINK_LEVEL, pal.warn, { label: "$1e-3$ 折角" });
   if (Number.isFinite(probe[0] as number)) vLine(scene, jumpAxis, probe[0] as number, pal.cursor, { label: undefined });
 
   // —— 图层 8~9：曲率 ——
   scene.layers.push({
     kind: "line",
     axes: "curv",
-    series: [{ x: xGrid, y: curvature, color: pal.curves[1], width: 1.6, label: "κ（curvature）" }],
+    series: [{ x: xGrid, y: curvature, color: pal.curves[1], width: 1.6, label: "$κ$（curvature）" }],
   });
-  hLine(scene, curvAxis, 0, pal.reference, { label: "κ = 0" });
+  hLine(scene, curvAxis, 0, pal.reference, { label: "$κ = 0$" });
   if (Number.isFinite(probe[0] as number)) vLine(scene, curvAxis, probe[0] as number, pal.cursor, { label: "探针位置" });
 
   // —— 图层 10：能量（log）——
@@ -418,14 +418,14 @@ export const controlPointsModel: SceneModel = (frame, opts) => {
       );
     }
   }
-  hLine(scene, energyAxis, FLOOR, pal.note, { label: "u/2" });
+  hLine(scene, energyAxis, FLOOR, pal.note, { label: "$u/2$" });
 
   // —— 文本：三条说明带，一行一个 text 层 ——
   // 说明栏：横坐标固定在所有轴的右侧（`TEXT_COL_X`），纵坐标取该行说明带的顶边——
   // 这样每一格文字都紧挨着它描述的那个面板，又永远不落进任何装饰带。
   const wide = rightColumnFits(width);
   const summary = paramSummary(frame, opts, [
-    { name: "tension", label: "τ", digits: 3 },
+    { name: "tension", label: "$τ$", digits: 3 },
     { name: "n_nodes", label: "节点数" },
   ]);
   degraded.push(...summary.degraded);

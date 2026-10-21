@@ -144,8 +144,8 @@ export const convergenceOrderModel: SceneModel = (frame, opts) => {
   // 面板按通栏 6 行排版，塞不下三段散文；它们的内容在下面按"数字 + 最短判读"重述，
   // 完整口径留在帧里（strings）与底部 pitfalls 面板。
   const grad = paramSummary(frame, opts, [
-    { name: "nx", label: "nx" },
-    { name: "t_end", label: "T" },
+    { name: "nx", label: "$nx$" },
+    { name: "t_end", label: "$T$" },
   ]);
   degraded.push(...grad.degraded);
 

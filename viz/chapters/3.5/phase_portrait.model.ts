@@ -117,8 +117,8 @@ export const phasePortraitModel: SceneModel = (frame, opts) => {
   // —— 可选字段 ——
   const degraded: string[] = [];
   const summary = paramSummary(frame, opts, [
-    { name: "mu", label: "μ" },
-    { name: "c", label: "c" },
+    { name: "mu", label: "$μ$" },
+    { name: "c", label: "$c$" },
   ]);
   degraded.push(...summary.degraded);
   const nullXSeg = frame.has("null_x_seg") ? requireArray(frame, "null_x_seg") : undefined;
@@ -203,8 +203,8 @@ export const phasePortraitModel: SceneModel = (frame, opts) => {
     makeAxis("phase", phaseRect, {
       xlim: [window[0], window[1]],
       ylim: [window[2], window[3]],
-      xlabel: "x",
-      ylabel: "y",
+      xlabel: "$x$",
+      ylabel: "$y$",
       title: "相平面（等比例）",
       autoscaled: false,
     }),
@@ -235,8 +235,8 @@ export const phasePortraitModel: SceneModel = (frame, opts) => {
   }
 
   // —— 图层 2~3：数值零倾线（按分支号断开）——
-  const numX = branchSeries(nullXX, nullXY, nullXSeg, pal.curves[0], { width: 1.6, label: "数值零倾线：dx/dt = 0" });
-  const numY = branchSeries(nullYX, nullYY, nullYSeg, pal.curves[1], { width: 1.6, label: "数值零倾线：dy/dt = 0" });
+  const numX = branchSeries(nullXX, nullXY, nullXSeg, pal.curves[0], { width: 1.6, label: "数值零倾线：$dx/dt = 0$" });
+  const numY = branchSeries(nullYX, nullYY, nullYSeg, pal.curves[1], { width: 1.6, label: "数值零倾线：$dy/dt = 0$" });
   if (numX.length > 0) scene.layers.push(lineLayer("phase", numX));
   if (numY.length > 0) scene.layers.push(lineLayer("phase", numY));
   // —— 图层 4：闭式零倾线（虚线）——
@@ -300,7 +300,7 @@ export const phasePortraitModel: SceneModel = (frame, opts) => {
       ylim: resYLim,
       yscale: "log",
       xlabel: resX.label,
-      ylabel: "|f|",
+      ylabel: "$|f|$",
       title: "零倾线上的 |f| 残差",
       autoscaled: true,
     }),
@@ -548,7 +548,7 @@ function residualAxisX(
     for (let i = 0; i < nullXX.length; i += 1) out[i] = nullXX[i] as number;
     for (let i = 0; i < nullYX.length; i += 1) out[nullXX.length + i] = nullYX[i] as number;
     const mm = finiteMinMax(out) ?? [0, 1];
-    return { x: out, lim: mm[1] > mm[0] ? mm : [mm[0], mm[0] + 1], label: "零倾线点的 x" };
+    return { x: out, lim: mm[1] > mm[0] ? mm : [mm[0], mm[0] + 1], label: "零倾线点的 $x$" };
   }
   const out = new Float64Array(resNull.length);
   for (let i = 0; i < resNull.length; i += 1) out[i] = i;

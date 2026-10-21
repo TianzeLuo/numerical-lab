@@ -107,23 +107,23 @@ export const outputHistModel: SceneModel = (frame, opts) => {
   const main = makeAxis("main", [L.left, L.topY, L.leftW, L.topH], {
     xlim: [xLo - half, xHi + half],
     ylim: [0, Math.max(0.05, yHi * 1.15)],
-    xlabel: "输出 y",
-    ylabel: axisYlabelOf(SPEC?.axes, "main", "p_Y(y)"),
-    title: axisTitleOf(SPEC?.axes, "main", "输出密度（直方图 vs 参考）"),
+    xlabel: "$y$",
+    ylabel: axisYlabelOf(SPEC?.axes, "main", "$p_Y(y)$"),
+    title: axisTitleOf(SPEC?.axes, "main", "输出密度（直方图 $\\hat{p}_Y$ vs 参考 $p_Y$）"),
     autoscaled: true,
   });
   const aux = makeAxis("aux", [L.left, L.botY, L.leftW, L.botH], {
     xlim: [xLo - half, xHi + half],
     ylim: [-18, 1],
-    xlabel: "输出 y",
-    ylabel: axisYlabelOf(SPEC?.axes, "aux", "log10|p̂ − p_ref|"),
-    title: axisTitleOf(SPEC?.axes, "aux", "密度差（log10，地板 −17）"),
+    xlabel: "$y$",
+    ylabel: axisYlabelOf(SPEC?.axes, "aux", "$\\log_{10}|\\hat{p}-p_{\\mathrm{ref}}|$"),
+    title: axisTitleOf(SPEC?.axes, "aux", "$\\log_{10}$ 密度差（地板 $-17$）"),
     autoscaled: true,
   });
   scene.axes.push(main, aux);
 
   scene.layers.push(
-    barsLayer("main", centers, density, { width: (binWidth ?? (xHi - xLo) / centers.length) * 0.9, color: pal.curves[0] as string, label: "直方图密度" }),
+    barsLayer("main", centers, density, { width: (binWidth ?? (xHi - xLo) / centers.length) * 0.9, color: pal.curves[0] as string, label: "直方图密度 $\\hat{p}$" }),
     lineLayer("main", { x: centers, y: densityRef, color: pal.marker, width: 2 }),
   );
 
@@ -142,7 +142,7 @@ export const outputHistModel: SceneModel = (frame, opts) => {
     scene.layers.push(lineLayer("aux", { x: eX, y: eY, color: pal.residual, width: 1.8 }));
   }
   if (eBadX.length > 0) {
-    scene.layers.push(scatterLayer("aux", eBadX, eBadX.map(() => -17), { r: 2.2, color: pal.muted, label: "无效（地板占位）" }));
+    scene.layers.push(scatterLayer("aux", eBadX, eBadX.map(() => -17), { r: 2.2, color: pal.muted, label: "无效（地板 $-17$）" }));
   }
   scene.layers.push(lineLayer("aux", { x: [xLo, xHi], y: [-17, -17], color: pal.muted, width: 1, dash: [3, 3] }));
 
@@ -151,15 +151,15 @@ export const outputHistModel: SceneModel = (frame, opts) => {
   const qq = makeAxis("qq", [L.rightX, L.topY, L.rightW, qqH], {
     xlim: [Math.min(...Array.from(qqRef)), Math.max(...Array.from(qqRef))],
     ylim: [Math.min(...Array.from(qqEmp)), Math.max(...Array.from(qqEmp))],
-    xlabel: "参考分位数",
-    ylabel: "经验分位数",
-    title: "Q-Q 对照（偏离 y=x = 分布差）",
+    xlabel: "$q_{\\mathrm{ref}}$",
+    ylabel: "$q_{\\mathrm{emp}}$",
+    title: "Q-Q 对照（偏离 $y=x$ 表示分布差）",
     autoscaled: true,
   });
   scene.axes.push(qq);
   scene.layers.push(
     lineLayer("qq", { x: qq.xlim, y: qq.ylim, color: pal.reference, width: 1, dash: [4, 3] }),
-    scatterLayer("qq", qqRef, qqEmp, { r: 2, color: pal.curves[0] as string, label: "经验 vs 参考分位数" }),
+    scatterLayer("qq", qqRef, qqEmp, { r: 2, color: pal.curves[0] as string, label: "$q_{\\mathrm{emp}}$ vs $q_{\\mathrm{ref}}$" }),
   );
 
   const budget = unitBudget(L.rightW);
@@ -178,19 +178,19 @@ export const outputHistModel: SceneModel = (frame, opts) => {
     };
     push(
       [
-        `n=${formatNumber(n ?? Number.NaN, 0)}，bin=${formatNumber(nBins ?? Number.NaN, 0)}（h=${formatNumber(binWidth ?? Number.NaN, 3)}）`,
-        `均值 ${formatNumber(mean ?? Number.NaN, 3)}，σ=${formatNumber(std ?? Number.NaN, 3)}。`,
-        `偏度 ${formatNumber(skew ?? Number.NaN, 3)}，峰度 ${formatNumber(kurt ?? Number.NaN, 3)}（超额）。`,
+        `$n=${formatNumber(n ?? Number.NaN, 0)}$，$B=${formatNumber(nBins ?? Number.NaN, 0)}$（$h=${formatNumber(binWidth ?? Number.NaN, 3)}$）`,
+        `均值 $\\mu=${formatNumber(mean ?? Number.NaN, 3)}$，$\\sigma=${formatNumber(std ?? Number.NaN, 3)}$。`,
+        `偏度 $g_1=${formatNumber(skew ?? Number.NaN, 3)}$，超额峰度 $g_2=${formatNumber(kurt ?? Number.NaN, 3)}$。`,
       ],
       pal.ink,
     );
-    push(["蓝=直方图，红=参考；紫=密度差，灰虚=地板"], pal.muted);
+    push(["蓝=直方图，红=参考；紫=密度差，灰虚=地板（$\\hat{p}$ vs $p_{\\mathrm{ref}}$）。"], pal.muted);
     push(
       [
-        refExact ? "参考：精确卷积密度。" : "参考：CLT 近似，不是真值。",
-        refExact ? "密度差主要是抽样误差。" : "（同均值同方差正态）",
-        `KS vs 正态 ${formatNumber(ksNormal ?? Number.NaN, 3)}；vs 参考 ${formatNumber(ksRef ?? Number.NaN, 3)}。`,
-        `±1.96σ 内 ${formatNumber(within !== undefined ? within * 100 : Number.NaN, 2)}%。`,
+        refExact ? "参考：精确卷积密度；密度差主要是抽样误差。" : "参考：CLT 近似，不是真值。",
+        `$D_{\\mathrm{KS}}$ vs 正态 ${formatNumber(ksNormal ?? Number.NaN, 3)}；vs 参考 ${formatNumber(ksRef ?? Number.NaN, 3)}。`,
+        `$\\pm1.96\\sigma$ 内 ${formatNumber(within !== undefined ? within * 100 : Number.NaN, 2)}%。` +
+          (spread !== undefined ? ` 输入 $\\sigma_X=${formatNumber(spread, 2)}$。` : ""),
       ],
       refExact ? pal.muted : pal.warn,
     );
@@ -198,20 +198,12 @@ export const outputHistModel: SceneModel = (frame, opts) => {
       const j = argMinLog(binsError);
       push(
         [
-          `bin 数权衡：实测最小 RMS 在 bin=${formatNumber(binsCurve[j] ?? Number.NaN, 0)}。`,
-          `log10 RMS ${formatNumber(binsError[j] ?? Number.NaN, 2)}；曲线呈 U 形，`,
-          "不是“越多越好”。",
+          `实测最小 RMS 在 bin=${formatNumber(binsCurve[j] ?? Number.NaN, 0)}；不是“越多越好”。`,
+          `$\\log_{10}\\mathrm{RMS}$ ${formatNumber(binsError[j] ?? Number.NaN, 2)}；曲线呈 U 形。`,
         ],
         pal.muted,
       );
     }
-    push(
-      [
-        "CLT 参考下，密度差混有近似偏差。",
-        spread !== undefined ? `输入 spread=${formatNumber(spread, 2)}。` : "",
-      ].filter((s) => s !== ""),
-      pal.muted,
-    );
   } else {
     degraded.push("右列过窄/过矮：数值读数并入角标");
   }

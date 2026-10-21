@@ -426,8 +426,8 @@ test("filter_shapes：ω_rel 越过 2 时挂临界值角标，并点名出界因
     arrays: { filter_landweber_valid: [1, 1, 0, 0, 0] },
     meta: { omega_rel: 2.5, landweber_diverges: true, landweber_max_abs_factor: 1.9e5 },
   });
-  assert.match(badgesOf(scene), /已越界/);
-  assert.ok(scatterOn(scene, "filters").some((s) => s.label?.includes("掩码=0")));
+  assert.match(badgesOf(scene), /已超过临界/);
+  assert.ok(scatterOn(scene, "filters").some((s) => s.label?.includes("掩码为 0")));
 });
 
 // --------------------------------------------------------------------------- //

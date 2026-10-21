@@ -352,7 +352,7 @@ test("descent_race：越界参数触发临界值角标（step_scale > 1+1/κ）"
   const scene = await sceneOf("descent_race", {}, { params: { step_scale: 1.2 } });
   const badges = badgesOf(scene);
   assert.match(badges, /step_scale/);
-  assert.match(badges, /已越界/);
+  assert.match(badges, /已超过临界/);
 });
 
 test("descent_race：缺 error_floor 时降级但不抛错", async () => {
@@ -388,7 +388,7 @@ test("convergence_rates：q 的无效点不参与连线，单独画成轴底散�
   const qLines = lineSeriesOn(scene, "ratio").filter((s) => new Set(Array.from(s.x)).size > 2);
   assert.ok(qLines.length >= 1);
   assert.ok(qLines.every((s) => Array.from(s.x).every((x) => x <= 4)), "无效的第 6 点不应被连进来");
-  const invalid = scatterOn(scene, "ratio").find((s) => s.label === "q 无定义（掩码=0）");
+  const invalid = scatterOn(scene, "ratio").find((s) => (s.label ?? "").replace(/\$/g, "").includes("q 无定义"));
   assert.ok(invalid, "无效点必须有显式散点");
   assert.deepEqual(Array.from(invalid?.y ?? []), [axisOf(scene, "ratio").ylim[0]]);
 });

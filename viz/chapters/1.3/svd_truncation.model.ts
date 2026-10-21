@@ -220,9 +220,9 @@ export const svdTruncationModel: SceneModel = (frame, opts) => {
     ylim: lcurveYlim,
     xscale: "log",
     yscale: "log",
-    xlabel: "解范数 ‖x_k‖（对数）",
+    xlabel: "解范数 $\\|x_k\\|$（对数）",
     ylabel: axisYlabel("lcurve", "相对残差"),
-    title: axisTitle("lcurve", "L 曲线：‖x_k‖ vs ‖Ax_k−b‖/‖b‖（双对数）"),
+    title: axisTitle("lcurve", "L 曲线：$\\|x_k\\|$ 与 $\\|Ax_k-b\\|/\\|b\\|$（双对数）"),
     autoscaled: true,
   });
 
@@ -234,9 +234,9 @@ export const svdTruncationModel: SceneModel = (frame, opts) => {
     xlim: [kRange[0] - 0.4, kRange[1] + 0.4],
     ylim: tradeoffYlim,
     yscale: "log",
-    xlabel: "截断阶 k",
+    xlabel: "截断阶 $k$",
     ylabel: axisYlabel("tradeoff", "三个量（对数）"),
-    title: axisTitle("tradeoff", "三个量随截断阶 k 的变化（对数）"),
+    title: axisTitle("tradeoff", "三个量随截断阶 $k$ 的变化（对数）"),
     autoscaled: true,
   });
 
@@ -246,9 +246,9 @@ export const svdTruncationModel: SceneModel = (frame, opts) => {
     xlim: [1, Math.max(2, sigma.length)],
     ylim: sigmaPos !== undefined ? niceLimits(sigmaPos[0], sigmaPos[1], 6, { log: true, pad: 0.1 }) : [1e-16, 1],
     yscale: "log",
-    xlabel: "奇异值序号 i",
-    ylabel: axisYlabel("spectrum", "σ_i"),
-    title: axisTitle("spectrum", "奇异值谱（双对数；直线 = 幂律衰减，Reference 斜率）"),
+    xlabel: "奇异值序号 $i$",
+    ylabel: axisYlabel("spectrum", "$\\sigma_i$"),
+    title: axisTitle("spectrum", "奇异值谱（双对数；直线表示幂律衰减，虚线是参考斜率）"),
     autoscaled: true,
   });
   const picardPos = finitePositiveMinMax(picard);
@@ -259,9 +259,9 @@ export const svdTruncationModel: SceneModel = (frame, opts) => {
     xlim: spectrumAxis.xlim,
     ylim: Number.isFinite(picLo) && Number.isFinite(picHi) ? niceLimits(picLo, picHi, 6, { log: true, pad: 0.08 }) : [FLOOR, 1e2],
     yscale: "log",
-    xlabel: "奇异值序号 i",
-    ylabel: "|u_iᵀb| 与比值",
-    title: "Picard 量：|u_iᵀb| 与 |u_iᵀb|/σ_i（对数）",
+    xlabel: "奇异值序号 $i$",
+    ylabel: "$|u_i^{\\mathrm{T}}b|$ 与比值",
+    title: "Picard 量：$|u_i^{\\mathrm{T}}b|$ 与 $|u_i^{\\mathrm{T}}b|/\\sigma_i$（对数）",
     autoscaled: true,
   });
   if (!(Number.isFinite(picLo) && Number.isFinite(picHi))) {
@@ -287,11 +287,11 @@ export const svdTruncationModel: SceneModel = (frame, opts) => {
   const lcurveSeries: LineSeries[] = [];
   if (lx.length >= 1) {
     lcurveSeries.push(
-      series(Float64Array.from(lx), Float64Array.from(ly), pal.curves[0], { width: 1.8, label: "L 曲线（k 增大：残差↓、解范数↑）" }),
+      series(Float64Array.from(lx), Float64Array.from(ly), pal.curves[0], { width: 1.8, label: "L 曲线（$k$ 增大：残差下降、解范数上升）" }),
     );
     // 每个 k 一个点（点数少，直接画出来比只看折线清楚）
     lcurveSeries.push(
-      series(Float64Array.from(lx), Float64Array.from(ly), pal.curves[0], { width: 0, marker: "o", label: "每个截断阶 k 的取值" }),
+      series(Float64Array.from(lx), Float64Array.from(ly), pal.curves[0], { width: 0, marker: "o", label: "每个截断阶 $k$ 的取值" }),
     );
   } else {
     degraded.push("L 曲线在 k≥1 上没有 >0 的有限点：只画噪声水平参考线");
@@ -337,7 +337,7 @@ export const svdTruncationModel: SceneModel = (frame, opts) => {
       scatterLayer("lcurve", [lx[kNow - 1] as number], [ly[kNow - 1] as number], {
         r: 5,
         color: pal.marker,
-        label: `当前截断阶 k=${fmt(kNowValue, 0)}`,
+        label: `当前截断阶 $k=${fmt(kNowValue, 0)}$`,
       }),
     );
   }
@@ -391,7 +391,7 @@ export const svdTruncationModel: SceneModel = (frame, opts) => {
         series(Float64Array.from(ratioX), Float64Array.from(ratioY), pal.exact, {
           width: 1.3,
           dash: [4, 3],
-          label: "相邻奇异值之比 σ_{i−1}/σ_i（峰值 = 谱的悬崖）",
+          label: "相邻奇异值之比 $\\sigma_{i-1}/\\sigma_i$（峰值是谱的悬崖）",
         }),
       ]),
     );
@@ -432,7 +432,7 @@ export const svdTruncationModel: SceneModel = (frame, opts) => {
       series(Float64Array.from(coeffX), Float64Array.from(coeffY), pal.curves[1], {
         width: 1.6,
         marker: "o",
-        label: "|u_iᵀb|（数据在奇异方向上的分量）",
+        label: "$|u_i^{\\mathrm{T}}b|$（数据在奇异方向上的分量）",
       }),
     );
   }
@@ -441,7 +441,7 @@ export const svdTruncationModel: SceneModel = (frame, opts) => {
       series(Float64Array.from(picX), Float64Array.from(picY), pal.residual, {
         width: 1.8,
         marker: "s",
-        label: "|u_iᵀb|/σ_i（Picard 比；尾部抬头 = 噪声接管，不是信息）",
+        label: "$|u_i^{\\mathrm{T}}b|/\\sigma_i$（Picard 比；尾部抬头表示噪声接管，不是信息）",
       }),
     );
   }
@@ -469,7 +469,7 @@ export const svdTruncationModel: SceneModel = (frame, opts) => {
   // —— 权衡面板 ——
   const tradeLayers: LineSeries[] = [];
   const tradeSpecs: { arr: ArrayLike<number>; color: string; dash?: number[]; label: string }[] = [
-    { arr: xNorm, color: pal.curves[0], label: "‖x_k‖（单调不减）" },
+    { arr: xNorm, color: pal.curves[0], label: "$\\|x_k\\|$（单调不减）" },
     { arr: residual, color: pal.curves[1], dash: [6, 3], label: "相对残差（单调不增）" },
     { arr: error, color: pal.warn, label: "相对误差（只有知道真解才算得出来）" },
   ];
@@ -511,13 +511,13 @@ export const svdTruncationModel: SceneModel = (frame, opts) => {
         scatterLayer("tradeoff", [kNowValue, kNowValue], [residual[kNow] as number, error[kNow] as number], {
           r: 3.6,
           color: pal.marker,
-          label: `当前 k=${fmt(kNowValue, 0)} 处的残差与真实误差`,
+          label: `当前 $k=${fmt(kNowValue, 0)}$ 处的残差与真实误差`,
         }),
       );
     }
     if (Number.isFinite(xNorm[kNow] as number) && (xNorm[kNow] as number) > 0) {
       scene.layers.push(
-        scatterLayer("tradeoff", [kNowValue], [xNorm[kNow] as number], { r: 3.6, color: pal.marker, label: "当前 k 处的解范数" }),
+        scatterLayer("tradeoff", [kNowValue], [xNorm[kNow] as number], { r: 3.6, color: pal.marker, label: "当前 $k$ 处的解范数" }),
       );
     }
   }
@@ -621,11 +621,9 @@ export const svdTruncationModel: SceneModel = (frame, opts) => {
     countNonFinite(lcurveX) +
     countNonFinite(lcurveY) +
     countNonFinite(noiseLevel);
-  const extra: string[] = [];
-  if (lx.length < lcurveX.length) {
-    extra.push(`L 曲线排除了 ${lcurveX.length - lx.length} 个 k≤0 或非正的点（地板值不是测量值）`);
-  }
-  overflowBadgeFor(scene, nBad, extra, { slot: SLOT.overflow, width }, "本帧所有 k 都在窗口内（k=0 的地板占位没有画进对数轴）");
+  // k=0 的解恒为 0，在对数 L 曲线上本来就没有坐标；把它排除是显示约定，不是数据丢失。
+  // 因此不往 overflow 里塞，也不挂红色角标——真正的非有限值由 nBad 负责。
+  overflowBadgeFor(scene, nBad, [], { slot: SLOT.overflow, width });
   // 规则 8 的安全网（两侧校验器都查）：
   //  - 文本层之间不许互相重叠（帧里的说明一变长就会多折一行压住下一块）；
   //  - 文本不许被底部 pitfalls 面板压住（面板高度随帧里 pitfalls 的折行数变，模型事先看不见）。

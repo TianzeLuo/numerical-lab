@@ -185,7 +185,7 @@ export const modalDecayModel: SceneModel = (frame, opts) => {
     ylim: [coefFloor, 1],
     xscale: "log",
     yscale: "log",
-    xlabel: "k（模态序号，对数）",
+    xlabel: "$k$（模态序号，对数）",
     title: axisTitleOf(SPEC?.axes, "decay", "模态系数 |a_k|（双对数，窗口 1e-18–1）"),
     ylabel: axisYlabelOf(SPEC?.axes, "decay", "|a_k|"),
     autoscaled: false,
@@ -197,7 +197,7 @@ export const modalDecayModel: SceneModel = (frame, opts) => {
   const slopeAxis = makeAxis("slope", [L.left, L.botY, L.leftW, L.botH], {
     xlim: [slopeXLo, Math.max(slopeXLo * 1.2, slopeXHi)],
     ylim: [-24, 0],
-    xlabel: "k（模态序号）",
+    xlabel: "$k$（模态序号）",
     title: axisTitleOf(SPEC?.axes, "slope", "局部斜率（窗口 −24–0）"),
     ylabel: axisYlabelOf(SPEC?.axes, "slope", "dlog|a_k|/dlog k"),
     autoscaled: false,
@@ -211,7 +211,7 @@ export const modalDecayModel: SceneModel = (frame, opts) => {
     ylim: [errFloor, 10],
     xscale: "log",
     yscale: "log",
-    xlabel: "自由度 N",
+    xlabel: "自由度 $N$",
     title: axisTitleOf(SPEC?.axes, "error", "误差 vs N（双对数，1e-17–10）"),
     ylabel: axisYlabelOf(SPEC?.axes, "error", "||f - S_N f||_inf"),
     autoscaled: false,
@@ -222,7 +222,7 @@ export const modalDecayModel: SceneModel = (frame, opts) => {
   scene.layers.push(
     lineLayer("decay", series([decay.xlim[0], decay.xlim[1]], [coefFloor, coefFloor], pal.warn, { dash: [3, 3], width: 1, label: "系数地板" })),
     lineLayer("decay", series(kx, env, pal.exact, { dash: [5, 4], width: 1.5, label: "理论包络" })),
-    lineLayer("decay", series(kx, amp, pal.curves[0], { width: 2.2, label: "模态系数 |a_k|" })),
+    lineLayer("decay", series(kx, amp, pal.curves[0], { width: 2.2, label: "模态系数 $|a_k|$" })),
   );
   if (coeffFloorMask !== undefined && coeffFloorMask.length === modeK.length) {
     const atFloor: number[] = [];
@@ -355,8 +355,8 @@ export const modalDecayModel: SceneModel = (frame, opts) => {
   // —— 右列文字 ——
   if (L.columns && L.floor - L.textTop >= 32) {
     const head = paramSummary(frame, opts, [
-      { name: "n", label: "N" },
-      { name: "rho", label: "ρ", digits: 3 },
+      { name: "n", label: "$N$" },
+      { name: "rho", label: "$ρ$", digits: 3 },
     ]);
     degraded.push(...head.degraded);
     const lines: string[] = [];

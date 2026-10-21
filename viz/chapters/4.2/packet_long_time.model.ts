@@ -221,7 +221,7 @@ export const packetLongTimeModel: SceneModel = (frame, opts) => {
       xticks: narrow ? [] : [0, 0.25, 0.5, 0.75, 1],
       xlabel: narrow ? "" : "x",
       title: "残差：RK 回代 − 积分器（对数）",
-      ylabel: "|r|",
+      ylabel: "$|r|$",
       autoscaled: true,
     },
   );
@@ -263,7 +263,7 @@ export const packetLongTimeModel: SceneModel = (frame, opts) => {
 
   // —— 误差面板 ——
   scene.layers.push(
-    lineLayer("error", series(x, errCurve, pal.curves[0], { width: 2, label: "误差 |u − u_exact|" })),
+    lineLayer("error", series(x, errCurve, pal.curves[0], { width: 2, label: "误差 $|u − u_exact|$" })),
     lineLayer("error", series([0, 1], [floor, floor], pal.reference, { width: 1, dash: [2, 3], label: "舍入地板" })),
   );
   if (atFloor !== undefined) {
@@ -307,8 +307,8 @@ export const packetLongTimeModel: SceneModel = (frame, opts) => {
   const nAbove = countAbove(errCurve, Y_ERROR[1]);
   if (!narrow) {
     const head = paramSummary(frame, opts, [
-      { name: "nu", label: "ν" },
-      { name: "nx", label: "nx" },
+      { name: "nu", label: "$ν$" },
+      { name: "nx", label: "$nx$" },
     ]);
     degraded.push(...head.degraded);
     const lines: string[] = [];

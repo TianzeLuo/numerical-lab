@@ -146,7 +146,7 @@ export const zerosEvolutionModel: SceneModel = (frame, opts) => {
   const { step, notes: stepNotes } = currentStep(frame, opts, {
     lo: 1,
     hi: Math.max(1, Math.round(nCurrent ?? T_MAX)),
-    label: "最高阶数 n",
+    label: "最高阶数 $n$",
   });
   const nCur = step ?? Math.max(1, Math.round(nCurrent ?? 1));
   if (nCurrent !== undefined && Math.round(nCurrent) !== nCur) {
@@ -179,7 +179,7 @@ export const zerosEvolutionModel: SceneModel = (frame, opts) => {
     makeAxis("main", base.main, {
       xlim: xlimMain,
       ylim: ylimMain,
-      xlabel: "阶数 n",
+      xlabel: "阶数 $n$",
       ylabel: axisYlabel(VIZ, "main", "零点 x"),
       title: axisTitle(VIZ, "main", "零点位置 vs 阶数"),
       autoscaled: false,
@@ -219,7 +219,7 @@ export const zerosEvolutionModel: SceneModel = (frame, opts) => {
     scatterLayer("main", degree, rootContrast, { r: 1.8, color: pal.reference, alpha: 0.85, label: "同阶 Chebyshev 零点（对照）" }),
   );
   // 4) 全部零点
-  scene.layers.push(scatterLayer("main", degree, root, { r: 2.1, color: pal.curves[0], label: "零点 (n, x_k)" }));
+  scene.layers.push(scatterLayer("main", degree, root, { r: 2.1, color: pal.curves[0], label: "零点 $(n, x_k)$" }));
   // 5) 当前阶的零点 + 6) 游标
   const degCurrent = new Float64Array(rootCurrentRaw.length);
   for (let i = 0; i < rootCurrentRaw.length; i += 1) degCurrent[i] = nCur;
@@ -238,7 +238,7 @@ export const zerosEvolutionModel: SceneModel = (frame, opts) => {
       xlim: xlimMain,
       ylim: ylimResid,
       yscale: "log",
-      xlabel: "阶数 n",
+      xlabel: "阶数 $n$",
       ylabel: axisYlabel(VIZ, "resid", "根误差"),
       title: axisTitle(VIZ, "resid", "Newton 根误差 |p_n/p_n′|"),
       autoscaled: true,
@@ -251,7 +251,7 @@ export const zerosEvolutionModel: SceneModel = (frame, opts) => {
       lineLayer("resid", segmentedSeries([xlimMain[0], xlimMain[1]], [floor, floor], pal.warn, { width: 1.2, dash: [2, 3], label: `舍入地板 u = ${sci(floor)}` })),
     );
   }
-  scene.layers.push(scatterLayer("resid", degree, error, { r: 1.8, color: pal.curves[1], label: "每个根的 |p_n/p_n′|" }));
+  scene.layers.push(scatterLayer("resid", degree, error, { r: 1.8, color: pal.curves[1], label: "每个根的 $|p_n/p_n′$|" }));
   const curDegX: number[] = [];
   const curDegY: number[] = [];
   for (let i = 0; i < degree.length; i += 1) {

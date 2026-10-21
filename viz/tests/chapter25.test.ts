@@ -493,7 +493,7 @@ test("conv_theorem：n 的临界角标按帧 critical.n 挂（N < 24 时已越�
   const badge = scene.badges.find((b) => b.kind === "critical" && b.text.includes("n"));
   assert.ok(badge, "必须挂 n 的临界角标");
   assert.ok(badge?.text.includes("24"), "临界值取帧 critical.n");
-  assert.ok(badge?.text.includes("已越界"), "N=16 < 24：必须标出已经越界（criticalBadge 的官方措辞）");
+  assert.ok(badge?.text.includes("已超过临界"), "N=16 < 24：必须标出已经越界（criticalBadge 的官方措辞）");
 });
 
 // --------------------------------------------------------------------------- //

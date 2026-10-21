@@ -190,7 +190,7 @@ export const pivotStrategyModel: SceneModel = (frame, opts) => {
       series([mainAxis.xlim[0], mainAxis.xlim[1]], [0, 0], pal.reference, {
         dash: [5, 4],
         width: 1,
-        label: "log10 ρ = 0（ρ = 1：没有增长）",
+        label: "$\\log_{10}\\rho=0$（$\\rho=1$：没有增长）",
       }),
     ),
   );
@@ -201,7 +201,7 @@ export const pivotStrategyModel: SceneModel = (frame, opts) => {
       width: 0.56,
       color: pal.curves[0],
       baseline: 0,
-      label: "log10 ρ",
+      label: "$\\log_{10}\\rho$",
     }),
   );
   // 柱高为 0 的柱子（log10 ρ = 0，即 ρ = 1）在图上是**看不见**的——它和轴底重合。
@@ -219,7 +219,7 @@ export const pivotStrategyModel: SceneModel = (frame, opts) => {
         r: 4,
         color: pal.marker,
         alpha: 0.95,
-        label: "每个策略的 log10 ρ（柱高为 0 时靠它读数值）",
+        label: "每个策略的 $\\log_{10}\\rho$（柱高为 0 时靠它读数值）",
       }),
     );
   }
@@ -249,7 +249,7 @@ export const pivotStrategyModel: SceneModel = (frame, opts) => {
       width: 0.34,
       color: pal.curves[0],
       baseline: barBase,
-      label: "前向误差 ‖x̂−x‖/‖x‖（实测）",
+      label: "前向误差 $‖x̂−x‖/‖x‖$（实测）",
     }),
   );
   scene.layers.push(
@@ -267,7 +267,7 @@ export const pivotStrategyModel: SceneModel = (frame, opts) => {
 
   // —— 文本（一行一个 text 层：render2d 不拆 \n）——
   const summary = paramSummary(frame, opts, [
-    { name: "n", label: "n" },
+    { name: "n", label: "$n$" },
   ]);
   degraded.push(...summary.degraded);
   const head: string[] = [summary.text];

@@ -93,6 +93,7 @@ MANIFEST: dict[str, Any] = {
                     "default": "sor",
                     "critical": [],
                     "criticalNote": "",
+                    "help": "当前高亮的迭代方法。Jacobi、GS、SOR 是定常迭代，收敛速度由迭代矩阵谱半径决定；CG 只适用于对称正定矩阵，GMRES 适用于一般矩阵。它们共享同一个 2×2 测试问题，便于比较。",
                 },
                 {
                     "name": "omega",
@@ -109,6 +110,7 @@ MANIFEST: dict[str, Any] = {
                         "谱半径 $\\mu$ 决定，帧里的 meta.omega_opt 给出它的真实取值。"
                     ),
                     "beyond": "above",
+                    "help": "SOR 的松弛因子 $\\omega$。$\\omega=1$ 退化为 Gauss–Seidel；$1<\\omega<2$ 通常加速；过大时会振荡甚至发散。最优值约为 $2/(1+\\sqrt{1-\\rho_J^2})$，图上会用当前矩阵估算。",
                 },
                 {
                     "name": "kappa",
@@ -124,6 +126,7 @@ MANIFEST: dict[str, Any] = {
                         "沿长轴方向的误差衰减越慢——Jacobi 的谱半径 $\\mu$ 与 SOR 的最优 $\\omega$ 都由它决定。"
                     ),
                     "beyond": "below",
+                    "help": "测试矩阵的条件数（目标值）。$\\kappa$ 越大，椭圆越扁，Krylov 方法需要更多步才能压低误差；定常迭代的谱半径也随之接近 1。",
                 },
                 {
                     "name": "angle",
@@ -135,6 +138,7 @@ MANIFEST: dict[str, Any] = {
                     "default": 35.0,
                     "critical": [],
                     "criticalNote": "",
+                    "help": "特征向量与坐标轴的夹角。它改变初始误差在快、慢特征方向上的分量比例；谱半径只给最坏情况，实际前几步的快慢取决于这个角度。",
                 },
             ],
             "time": {"mode": "scrub", "tMax": float(_MAX_STEPS), "dt": 1.0, "label": "迭代步 k"},
@@ -149,7 +153,7 @@ MANIFEST: dict[str, Any] = {
                 {
                     "id": "convergence",
                     "autoscaled": True,
-                    "title": "各方法的相对残差 ‖r_k‖/‖r_0‖",
+                    "title": "各方法的相对残差 $\\|r_k\\|/\\|r_0\\|$",
                     "ylabel": "相对残差",
                     "scale": "log",
                 },
@@ -164,9 +168,11 @@ MANIFEST: dict[str, Any] = {
                 "（$\\kappa$ 大到 CG 的最坏界 $2{((\\sqrt{\\kappa}-1)/(\\sqrt{\\kappa}+1))}^{k}$ 生效时，CG 也会一步一挪）。"
             ),
             "theory": [
-                "定常迭代收敛 $\\Leftrightarrow$ $\\rho(T)<1$，且渐近收敛因子就是 $\\rho(T)$（误差 $e_k=T^{k}e_0$）",
-                "SOR 在一致次序矩阵上的解析谱半径：$\\omega\\le\\omega_{\\text{opt}}$ 时为 ${((\\omega\\mu+\\sqrt{\\omega^{2}\\mu^{2}-4(\\omega-1)})/2)}^{2}$，$\\omega\\ge\\omega_{\\text{opt}}$ 时为 $\\omega-1$",
-                "CG 在 $n$ 维空间里至多 $n$ 步给出精确解（精确算术）；GMRES(m) 同理，$m\\ge n$ 时一步周期收敛",
+                "**把 A 拆成三块。** 令 $A=D-L-U$，其中 $D$ 是对角、$L$ 和 $U$ 是严格下/上三角。若 $D$ 可逆，原方程 $Ax=b$ 等价于 $x=D^{-1}(L+U)x+D^{-1}b$，于是迭代 $x^{k+1}=Bx^k+D^{-1}b$，误差按 $e^{k}=B^k e^0$ 传播。收敛的充要条件是谱半径 $\\rho(B)<1$。",
+                "**Jacobi、GS、SOR 只是不同的 B。** Jacobi 取 $B_J=D^{-1}(L+U)$；Gauss–Seidel 取 $B_{GS}=(D-L)^{-1}U$；SOR 把 GS 的更新再加上松弛因子 $\\omega$，得到 $B_\\omega=(D-\\omega L)^{-1}((1-\\omega)D+\\omega U)$。$\\omega=1$ 退回 GS，$\\omega>1$ 是超松弛。",
+                "**SOR 的最优值可以估出来。** 对 2×2 或具有“性质 A”的矩阵，最优 $\\omega$ 是 $2/(1+\\sqrt{1-\\rho_J^2})$，此时谱半径从 $\\rho_J$ 降到 $\\rho_\\omega=\\omega-1$。这正是为什么 $\\omega$ 调得好时误差会突然下降，而调过头会振荡。",
+                "**Krylov 方法换了一种收敛机制。** CG 在子空间 $\\mathcal K_k(A,b)$ 里找 A-范数最优解，误差界是 $2\\left(\\frac{\\sqrt{\\kappa}-1}{\\sqrt{\\kappa}+1}\\right)^k$；GMRES 最小化残差，适用于非对称矩阵。它们利用谱，而不是简单地重复一个固定矩阵。",
+                "**角度为什么会影响前几步。** 谱半径只描述 $k\\to\\infty$ 的最坏模态。若初始误差几乎全在快方向，前几步就会掉得很快；若集中在慢方向，即使 $\\rho(B)$ 不大也会显得“卡住”。图中的角度参数就是控制这个分量比例。",
             ],
         },
         # ------------------------------------------------------------------ #
@@ -188,6 +194,7 @@ MANIFEST: dict[str, Any] = {
                     "default": 32,
                     "critical": [],
                     "criticalNote": "",
+                    "help": "一维网格的模态数（内点数）。$n$ 越大，最高频模态越“快”，迭代矩阵的谱越宽；Jacobi/GS/SOR 的收敛因子会随之变化。",
                 },
                 {
                     "name": "method",
@@ -197,6 +204,7 @@ MANIFEST: dict[str, Any] = {
                     "default": "sor",
                     "critical": [],
                     "criticalNote": "",
+                    "help": "迭代方法。Jacobi 同时更新所有点；GS 用已更新的值；SOR 在 GS 上加大步长。图上比较的是各模态误差被乘以多大的因子。",
                 },
                 {
                     "name": "omega",
@@ -213,6 +221,7 @@ MANIFEST: dict[str, Any] = {
                         "拖过 $\\omega_{\\text{opt}}$ 之后主特征值变成复共轭对，误差会一边旋转一边衰减。"
                     ),
                     "beyond": "above",
+                    "help": "SOR 松弛因子。它主要影响高频和低频模态的衰减比例；选得合适时谱半径显著下降，选得过大时某些模态会放大。",
                 },
                 {
                     "name": "init",
@@ -222,6 +231,7 @@ MANIFEST: dict[str, Any] = {
                     "default": "all_modes",
                     "critical": [],
                     "criticalNote": "",
+                    "help": "初始误差包含哪些模态：all_modes 全都有，low_mode 只有低频，high_mode 只有高频。低模衰减慢，所以“看起来收敛很慢”可能只是初始误差选在了慢方向。",
                 },
             ],
             "time": {"mode": "scrub", "tMax": float(_MAX_STEPS), "dt": 1.0, "label": "迭代步 k"},
@@ -237,7 +247,7 @@ MANIFEST: dict[str, Any] = {
                     "id": "decay",
                     "autoscaled": True,
                     "title": "误差与残差（对数）",
-                    "ylabel": "‖e_k‖/‖e_0‖ 与 ‖r_k‖/‖r_0‖",
+                    "ylabel": "$\\|e_k\\|/\\|e_0\\|$ 与 $\\|r_k\\|/\\|r_0\\|$",
                     "scale": "log",
                 },
             ],
@@ -252,9 +262,11 @@ MANIFEST: dict[str, Any] = {
                 "决定整体收敛。"
             ),
             "theory": [
-                "误差传播 $e_{k+1}=T e_k$，故 $e_k=T^{k}e_0$；$\\rho(T)<1$ 是收敛的充要条件",
-                "一维 Laplacian：$\\lambda_j(A)=4\\sin^{2}(j\\pi/(2(n+1)))$，$\\mu_j(T_J)=\\cos(j\\pi/(n+1))$，$T_{\\mathrm{GS}}$ 的谱是 $\\mu_j^{2}$",
-                "SOR 的逐模态因子由 Young 关系给出（$\\omega$ 越过 $\\omega_{\\text{opt}}$ 后为复共轭对，模长 $\\sqrt{\\omega-1}$）",
+                "**一维 Laplacian 的模态是正弦。** 对 $u_{xx}$ 用中心差分，Dirichlet 边界下特征向量是 $v_m(j)=\\sin(m\\pi j/(n+1))$，特征值 $\\lambda_m=\\frac{4}{\\Delta x^2}\\sin^2\\left(\\frac{m\\pi}{2(n+1)}\\right)$。不同模态对应不同的“快慢”。",
+                "**迭代法按模态放大或衰减。** 把误差写成模态之和，每一步乘上该模态的放大因子：Jacobi 为 $1-\\frac{\\Delta t}{2}\\lambda_m$ 形式的 $1-\\frac{4r}{2}\\sin^2$，GS 与 SOR 各有闭式。谱半径是这些因子里最大的绝对值，决定长期收敛速度。",
+                "**低频最慢，高频最快。** 对 Jacobi，$m$ 小（低频）的因子接近 1，衰减很慢；$m$ 大（高频）的因子接近 $-1$ 或 0，衰减快。GS 对低频好一些，SOR 通过 $\\omega$ 进一步压低频。图中每个模态的曲线高度就是它当前被衰减的程度。",
+                "**初始模态决定表观速度。** 如果初值只含高频，几步就干净了；如果只含低频，曲线会长时间贴着 1。因此比较方法时要固定 init，不能用一个“好看的”初值替另一种方法背书。",
+                "**参数怎样读。** $n$ 改变谱的范围；$\\omega$ 改变 SOR 的衰减；method 改变整个放大因子曲线。先看最慢模态的斜率，再看高频是否被过度放大（那会导致振荡）。",
             ],
         },
         # ------------------------------------------------------------------ #
@@ -276,6 +288,7 @@ MANIFEST: dict[str, Any] = {
                     "default": 3,
                     "critical": [],
                     "criticalNote": "",
+                    "help": "空间维数 $n$（2 或 3）。精确算术下 Krylov 方法至多 $n$ 步就到达精确解；维数越大，多项式的选择空间越大，但舍入也让“有限步终止”不再精确。",
                 },
                 {
                     "name": "method",
@@ -285,6 +298,7 @@ MANIFEST: dict[str, Any] = {
                     "default": "gmres",
                     "critical": [],
                     "criticalNote": "",
+                    "help": "CG 利用对称正定的 A-内积，GMRES 最小化残差 2-范数。两者在同样的 Krylov 子空间里选不同的最优解；CG 的残差可能非单调，GMRES 单调。",
                 },
                 {
                     "name": "stretch",
@@ -296,6 +310,7 @@ MANIFEST: dict[str, Any] = {
                     "default": 2.0,
                     "critical": [],
                     "criticalNote": "",
+                    "help": "对角反差 $s$，矩阵取 $A=DSD$。$s$ 越大，条件数越差，Krylov 多项式越难同时压低所有方向；曲线会出现先快后慢或平台。",
                 },
             ],
             "time": {"mode": "scrub", "tMax": 3.0, "dt": 1.0, "label": "Krylov 步 k"},
@@ -324,9 +339,11 @@ MANIFEST: dict[str, Any] = {
                 "「向量还在变长」，要读 meta.subspace_dim 与 $H$ 的次对角元（它变成 $0$ 才是子空间不变）。"
             ),
             "theory": [
-                "$K_k(A,r_0)=\\operatorname{span}\\{r_0,Ar_0,\\ldots,A^{k-1}r_0\\}$；Arnoldi 给出 $AV_m=V_{m+1}\\bar{H}_m$",
-                "CG：$r_k\\perp K_k$ 且 $p_i^{\\mathrm{T}}Ap_j=0$（$i\\ne j$）；GMRES：$r_k\\perp A K_k$（最小残差的法方程）",
-                "精确算术下 Krylov 方法至多 $n$ 步终止（$H$ 的次对角元变 $0$ 即 happy breakdown）",
+                "**Krylov 子空间是 A 反复作用得到的。** 从 $r_0=b-Ax_0$ 出发，$\\mathcal K_k=\\operatorname{span}\\{r_0,Ar_0,\\dots,A^{k-1}r_0\\}$。CG/GMRES 在这个子空间里选一个多项式 $p_k$ 作用于 $r_0$，使误差或残差最小。",
+                "**最优多项式问题。** GMRES 最小化 $\\|p_k(A)r_0\\|_2$，所以收敛速度取决于 A 的谱能被一个 $k$ 次多项式压到多小。特征值越分散，需要的次数越多；特征值聚成几簇时，多项式可以用少数几个根把它们“打掉”。",
+                "**CG 的收敛界。** 对称正定时，CG 的 A-范数误差满足 $\\|e_k\\|_A\\le2\\left(\\frac{\\sqrt{\\kappa}-1}{\\sqrt{\\kappa}+1}\\right)^k\\|e_0\\|_A$。当 $\\kappa$ 很大时，这个界接近 $e^{-2k/\\sqrt{\\kappa}}$，说明需要约 $\\sqrt{\\kappa}$ 步才能把误差压一个数量级。",
+                "**为什么“至多 n 步精确”不等于实际很快。** 在精确算术中，Krylov 子空间最多扩展到 n 维，第 n 步就包含全空间，所以精确终止；但有限精度下正交性丢失、舍入误差积累，实际可能停滞，尤其当 A 病态或非正规时。",
+                "**对角反差的作用。** $A=DSD$ 让不同坐标方向的尺度差 $s$ 倍，谱被拉宽。GMRES 残差通常单调下降，CG 的 A-范数误差单调但残差可能上下跳；两条曲线不必重合。看曲线时先确认画的是残差还是误差。",
             ],
         },
         # ------------------------------------------------------------------ #
@@ -347,6 +364,7 @@ MANIFEST: dict[str, Any] = {
                     "default": "ssor",
                     "critical": [],
                     "criticalNote": "",
+                    "help": "预条件子：none 不改；jacobi 用对角；ssor 用对称 Gauss–Seidel 近似；ilu0 是不完全 LU。预条件把谱压窄，但每一步更贵，目标是减少总时间而不是单步时间。",
                 },
                 {
                     "name": "grid",
@@ -357,6 +375,7 @@ MANIFEST: dict[str, Any] = {
                     "default": 8,
                     "critical": [],
                     "criticalNote": "",
+                    "help": "二维网格每边点数 $k$，未知数 $n=k^2$。无预条件时 2D Poisson 的 $\\kappa$ 随 $k^2$ 增长；好的预条件可以让迭代次数接近与 $k$ 无关。",
                 },
                 {
                     "name": "omega",
@@ -372,6 +391,7 @@ MANIFEST: dict[str, Any] = {
                         "$0<\\omega<2$ 才能保持对称正定，否则 PCG 的前提就不成立。"
                     ),
                     "beyond": "above",
+                    "help": "SSOR 的松弛因子。它影响预条件子对高频/低频的平衡；$\\omega=1$ 是普通对称 GS，$\\omega$ 过大会让预条件子本身变坏。",
                 },
                 {
                     "name": "solver",
@@ -381,6 +401,7 @@ MANIFEST: dict[str, Any] = {
                     "default": "cg",
                     "critical": [],
                     "criticalNote": "",
+                    "help": "外层迭代器：CG 要求预条件子对称正定；GMRES 可用于非对称情形。ILU0 对两种外层都可用，但 CG 需要额外的对称化处理。",
                 },
             ],
             "time": {"mode": "none"},
@@ -390,13 +411,13 @@ MANIFEST: dict[str, Any] = {
                     "id": "spectrum",
                     "autoscaled": False,
                     "title": "M⁻¹A 的谱（Ritz 值，按序号排列）",
-                    "ylabel": "λ(M⁻¹A)",
+                    "ylabel": "$\\lambda(M^{-1}A)$",
                 },
                 {
                     "id": "convergence",
                     "autoscaled": True,
                     "title": "相对残差与 CG 收敛界（对数）",
-                    "ylabel": "‖r_k‖/‖r_0‖",
+                    "ylabel": "$\\|r_k\\|/\\|r_0\\|$",
                     "scale": "log",
                 },
             ],
@@ -413,9 +434,11 @@ MANIFEST: dict[str, Any] = {
                 "（那里丢了 $98$ 次填充、$\\kappa$ 只到 $3.684$，GMRES $23$ 步只降到 $13$ 步）。"
             ),
             "theory": [
-                "预条件 CG 解 $M^{-1}Ax=M^{-1}b$；$M$ 对称正定时 $M^{-1}A$ 关于内积 ${\\langle x,y\\rangle}_M=x^{\\mathrm{T}}My$ 自伴（不是 $M^{-1}$-内积），谱全实",
-                "CG 收敛因子 $\\rho=(\\sqrt{\\kappa}-1)/(\\sqrt{\\kappa}+1)$ 是最坏界；实测因子反推的等效 $\\kappa={((1+\\rho)/(1-\\rho))}^{2}$",
-                "SSOR：$M=(D+\\omega L)D^{-1}(D+\\omega U)/(\\omega(2-\\omega))$；ILU(0)：$M=\\tilde{L}\\tilde{U}$，结构 $=A$ 的结构（零填充）",
+                "**预条件就是把谱压窄。** 解 $Ax=b$ 等价于 $M^{-1}Ax=M^{-1}b$。若 $M\\approx A$ 且 $M^{-1}$ 容易作用，$M^{-1}A$ 的特征值会聚在 1 附近，Krylov 方法需要的步数就少。预条件子不改变精确解，只改变迭代路径。",
+                "**几种常见选择。** Jacobi 取 $M=\\operatorname{diag}(A)$；SSOR 用对称 Gauss–Seidel 的乘积近似 A；ILU0 在 A 的稀疏结构上做不完全 LU，丢掉填充。越复杂的预条件子通常越有效，但每步也更贵。",
+                "**二维 Poisson 的例子。** 五点差分的 $\\kappa(A)=O(k^2)$；Jacobi 预条件只能改善常数，谱仍随 $k^2$ 变宽；SSOR/ILU0 更接近 $O(k)$，迭代次数随网格增长慢得多。多重网格则能做到与 $k$ 基本无关。",
+                "**总成本 = 迭代次数 × 每次迭代成本。** 一个强预条件子可能把 1000 步降到 30 步，但每步要多解一次三角系统。比较时看“到同一精度的时间/运算量”，不能只看迭代次数。",
+                "**CG 与 GMRES 的要求不同。** CG 需要预条件后的矩阵保持对称正定（通常用拆分预条件 $M=LL^{\\mathrm{T}}$ 对称作用）；GMRES 没有这个限制，但存储所有 Krylov 向量，内存随步数增长。",
             ],
         },
     ],

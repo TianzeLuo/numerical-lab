@@ -60,6 +60,7 @@ class ParamSpec:
     critical: tuple[float, ...] = ()
     critical_note: str = ""
     beyond: str = "above"
+    help: str = ""
 
     def to_json(self) -> dict[str, Any]:
         out: dict[str, Any] = {
@@ -70,6 +71,8 @@ class ParamSpec:
             "critical": list(self.critical),
             "criticalNote": self.critical_note,
         }
+        if self.help:
+            out["help"] = self.help
         if self.min is not None:
             out["min"] = self.min
         if self.max is not None:
@@ -116,6 +119,7 @@ class TimeSpec:
     fps: int | None = None
     label: str = "t"
     t_max_param: str | None = None
+    initial: float | None = None
 
     def to_json(self) -> dict[str, Any]:
         out: dict[str, Any] = {"mode": self.mode}
@@ -125,6 +129,7 @@ class TimeSpec:
             ("fps", self.fps),
             ("label", self.label),
             ("tMaxParam", self.t_max_param),
+            ("initial", self.initial),
         ):
             if val is not None:
                 out[key] = val
@@ -265,6 +270,8 @@ def _check_params(viz_id: str, raw: Any, problems: list[str]) -> None:
         beyond = p.get("beyond", "above")
         if beyond not in ("above", "below", "magnitude"):
             problems.append(f"{tag}: beyond 必须是 above/below/magnitude，得到 {beyond!r}")
+        if "help" in p and (not isinstance(p["help"], str) or not p["help"].strip()):
+            problems.append(f"{tag}: help 必须是非空字符串（不需要就整个省略）")
         if ptype == "enum":
             opts = p.get("options")
             if not isinstance(opts, (list, tuple)) or len(opts) < 2:
@@ -307,7 +314,7 @@ def _check_time(viz_id: str, raw: Any, problems: list[str], params: Any = None) 
         problems.append(f"{viz_id}: time.mode 必须是 {TIME_MODES} 之一，得到 {mode!r}")
         return
     if mode == "none":
-        extra = {"tMax", "dt", "fps", "tMaxParam"} & set(raw)
+        extra = {"tMax", "dt", "fps", "tMaxParam", "initial"} & set(raw)
         if extra:
             problems.append(f"{viz_id}: time.mode='none' 时不得声明时间控件 {sorted(extra)}——规则 4")
         return
@@ -320,6 +327,12 @@ def _check_time(viz_id: str, raw: Any, problems: list[str], params: Any = None) 
     fps = raw.get("fps")
     if fps is not None and (not isinstance(fps, int) or not 1 <= fps <= 120):
         problems.append(f"{viz_id}: fps 必须是 1..120 的整数")
+    initial = raw.get("initial")
+    if initial is not None:
+        if not _is_number(initial) or initial < 0:
+            problems.append(f"{viz_id}: time.initial 必须是非负数")
+        elif _is_number(raw.get("tMax")) and initial > raw["tMax"]:
+            problems.append(f"{viz_id}: time.initial 不得大于 tMax")
     cap = raw.get("tMaxParam")
     if cap is not None:
         if not isinstance(cap, str) or not cap.strip():
@@ -433,6 +446,7 @@ def load_manifest(raw: Mapping[str, Any], *, where: str = "") -> ChapterManifest
                 critical=tuple(float(c) for c in p.get("critical", ())),
                 critical_note=p.get("criticalNote", ""),
                 beyond=p.get("beyond", "above"),
+                help=p.get("help", ""),
             )
             for p in v["params"]
         )
@@ -444,6 +458,7 @@ def load_manifest(raw: Mapping[str, Any], *, where: str = "") -> ChapterManifest
             fps=t.get("fps"),
             label=t.get("label", "t"),
             t_max_param=t.get("tMaxParam"),
+            initial=t.get("initial"),
         )
         axes = tuple(
             AxisSpec(id=a["id"], autoscaled=bool(a["autoscaled"]), title=a.get("title", ""), ylabel=a.get("ylabel", ""), scale=a.get("scale", "linear"))

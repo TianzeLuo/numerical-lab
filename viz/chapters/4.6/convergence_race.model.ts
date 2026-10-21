@@ -164,7 +164,7 @@ export const convergenceRaceModel: SceneModel = (frame, opts) => {
     ylim: [errFloor, 1],
     xscale: "log",
     yscale: "log",
-    xlabel: "自由度 N（谱=模态数，差分=格点数）",
+    xlabel: "自由度 $N$（谱=模态数，差分=格点数）",
     title: axisTitleOf(SPEC?.axes, "error", "相对误差 vs N（双对数，1e-17–1）"),
     ylabel: axisYlabelOf(SPEC?.axes, "error", "||u_num-u_exact||_inf/||u_exact||_inf"),
     autoscaled: false,
@@ -175,7 +175,7 @@ export const convergenceRaceModel: SceneModel = (frame, opts) => {
       Math.max((ratioN.length > 0 ? (ratioN[0] as number) : nLo) * 1.2, ratioN.length > 0 ? (ratioN[ratioN.length - 1] as number) : nHi),
     ],
     ylim: [0, 1],
-    xlabel: "自由度 N",
+    xlabel: "自由度 $N$",
     title: axisTitleOf(SPEC?.axes, "ratio", "每加倍误差比（窗口 0–1）"),
     ylabel: axisYlabelOf(SPEC?.axes, "ratio", "e(2N)/e(N)"),
     autoscaled: false,
@@ -184,7 +184,7 @@ export const convergenceRaceModel: SceneModel = (frame, opts) => {
     xlim: [0, Math.max(px[px.length - 1] as number, 1e-6)],
     ylim: [errFloor, 1],
     yscale: "log",
-    xlabel: "网格点 x（线性轴：含 0，不能上对数）",
+    xlabel: "网格点 $x$（线性轴：含 0，不能上对数）",
     title: axisTitleOf(SPEC?.axes, "pointwise", "逐点误差 @ 最大 N（双对数）"),
     ylabel: axisYlabelOf(SPEC?.axes, "pointwise", "|u_num-u_exact|"),
     autoscaled: false,
@@ -293,8 +293,8 @@ export const convergenceRaceModel: SceneModel = (frame, opts) => {
   // —— 右列文字 ——
   if (L.columns && L.floor - L.textTop >= 32) {
     const head = paramSummary(frame, opts, [
-      { name: "n_max", label: "N_max" },
-      { name: "rho", label: "ρ", digits: 3 },
+      { name: "n_max", label: "`N_max`" },
+      { name: "rho", label: "$ρ$", digits: 3 },
     ]);
     degraded.push(...head.degraded);
     const lines: string[] = [];

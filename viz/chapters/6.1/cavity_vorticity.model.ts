@@ -151,7 +151,7 @@ export const cavityVorticityModel: SceneModel = (frame, opts) => {
   const main = makeAxis("main", heat.field, {
     xlim: [x[0] as number, x[x.length - 1] as number],
     ylim: [y[0] as number, y[y.length - 1] as number],
-    xlabel: "x",
+    xlabel: "$x$",
     ylabel: axisYlabelOf(SPEC?.axes, "main", "y"),
     title: axisTitleOf(SPEC?.axes, "main", "稳态涡量与流函数等值线"),
     autoscaled: false,
@@ -162,7 +162,7 @@ export const cavityVorticityModel: SceneModel = (frame, opts) => {
     ylim: [Math.min(-8, (metaNumber(frame, "residual_final") !== undefined ? Math.log10(Math.max(residualFinal ?? 1e-14, 1e-14)) : -8) - 1), 0],
     xlabel: "耦合迭代（记录点，已降采样）",
     ylabel: axisYlabelOf(SPEC?.axes, "residual", "log10 相对残差"),
-    title: "耦合迭代残差（log10；橙虚=容差）",
+    title: "耦合迭代残差（$\\log_{10}$；橙虚=容差）",
     autoscaled: true,
   });
   scene.axes.push(main, aux);
@@ -185,7 +185,7 @@ export const cavityVorticityModel: SceneModel = (frame, opts) => {
         levels,
         color: pal.ink,
         width: 0.7,
-        label: "流函数 ψ 的等值线",
+        label: "流函数 $ψ$ 的等值线",
       }),
     );
   } else {

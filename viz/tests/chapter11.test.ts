@@ -203,6 +203,9 @@ const COND_ELLIPSOID: FrameDef = {
     A("kappa_grid", seq(0, 8, KN), "1", "log10 κ（目标）"),
     A("error", gen(KN, (i) => Math.pow(10, 0.3 * i)), "1", "实测放大比"), A("error_bound", gen(KN, (i) => Math.pow(10, i)), "1", "理论上界 κ"),
     A("error_mark", [2.1568], "1", "当前位置的实测放大比"), A("kappa_mark", [0], "1", "当前位置的 log10 κ"),
+    A("matrix_A", [1, 0.8, 0, 1], "1", "当前矩阵 A（行优先 2×2）"),
+    A("x_exact_defined", [1], "1", "精确解是否存在"), A("x_num_defined", [1], "1", "数值解是否存在"),
+    A("x_pert_defined", [1], "1", "扰动解是否存在"),
   ],
   meta: {
     amplification_measured: 2.1568, amplification_over_kappa: 0.9886, b_angle: 30, backward_error: 0, bound_rhs: 2.1816e-12,
@@ -460,6 +463,20 @@ test("1.1/summation_order：曲线里插 NaN/∞ → 仍合规，overflow 记录
   assert.deepEqual(validateScene(scene), []);
   assert.ok(scene.overflow.note.length > 0, "非有限值必须写进 overflow.note");
   assert.equal(badgesOf(scene, "overflow").length, 1, "非有限值必须挂 overflow 角标");
+});
+
+test("1.1/cond_ellipsoid：defined=0 的向量不画（不把占位 0 当解），并写明原因", async () => {
+  const scene = sceneOf(
+    await frameFor("cond_ellipsoid", {
+      arrays: { x_num_defined: [0], x_num: [0, 0, 0, 0] },
+      strings: { note: "graded 族在 double 里已奇异，数值解无有限解" },
+    }),
+  );
+  assert.deepEqual(validateScene(scene), []);
+  assert.ok(!scene.texts.some((t) => t.text.includes("当前矩阵") === false && t.text.includes("x̂（数值解）")), "未定义的箭头不该有图例");
+  assert.match(scene.texts.map((t) => t.text).join("\n"), /a_\{11\}=1/, "当前矩阵必须显示出来");
+  const degraded = scene.badges.filter((b) => b.kind === "status").map((b) => b.text).join("\n");
+  assert.ok(degraded.length > 0);
 });
 
 test("1.1/cond_ellipsoid：向量冲出 ±3 框 → 记录到 overflow，仍合规", async () => {

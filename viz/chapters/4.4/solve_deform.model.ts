@@ -286,7 +286,7 @@ export const solveDeformModel: SceneModel = (frame, opts) => {
   const deformedAxis = makeAxis("deformed", [L.left, L.topY, mainW, topH], {
     xlim: [xLo - xPad, Math.max(xLo + 1e-6, xHi) + xPad],
     ylim: linearRange(yLo, yHi, 0.1),
-    xlabel: "x",
+    xlabel: "$x$",
     title: axisTitleOf(SPEC?.axes, "deformed", "变形后的构型（自动缩放）"),
     ylabel: membrane ? "y+u_h（位移）" : axisYlabelOf(SPEC?.axes, "deformed", "位移"),
     autoscaled: true,
@@ -391,7 +391,7 @@ export const solveDeformModel: SceneModel = (frame, opts) => {
       xlim: [0, 1],
       ylim: [floor, 1],
       yscale: "log",
-      xlabel: "载荷位置 x0",
+      xlabel: "载荷位置 $x0$",
       title: axisTitleOf(SPEC?.axes, "scan", "扫载荷位置的误差（对数，地板 1e-17）"),
       ylabel: axisYlabelOf(SPEC?.axes, "scan", "误差"),
       autoscaled: false,
@@ -467,9 +467,9 @@ export const solveDeformModel: SceneModel = (frame, opts) => {
       xlim: [0, Math.max(1, nNode - 1)],
       ylim: [floor, 1],
       yscale: "log",
-      xlabel: "节点序号 i",
+      xlabel: "节点序号 $i$",
       title: "节点误差 |u_h−u|（对数）",
-      ylabel: "|u_h−u|",
+      ylabel: "$|u_h−u|$",
       autoscaled: false,
     });
     scene.axes.push(errorAxis);
@@ -488,7 +488,7 @@ export const solveDeformModel: SceneModel = (frame, opts) => {
         scene.layers.push(scatterLayer("error", ex, pick(error, good), { r: 1.8, color: pal.exact, alpha: 0.75 }));
       } else {
         scene.layers.push(
-          lineLayer("error", series(ex, pick(error, good), pal.exact, { width: 1.6, marker: "o", label: "节点误差 |u_h − u|" })),
+          lineLayer("error", series(ex, pick(error, good), pal.exact, { width: 1.6, marker: "o", label: "节点误差 $|u_h − u|$" })),
         );
       }
     }
@@ -525,8 +525,8 @@ export const solveDeformModel: SceneModel = (frame, opts) => {
 
   if (L.columns && !short && L.floor > L.textTop + 8) {
     const head = paramSummary(frame, opts, [
-      { name: "x0", label: "x0" },
-      { name: "load_factor", label: "λ" },
+      { name: "x0", label: "$x0$" },
+      { name: "load_factor", label: "$λ$" },
     ]);
     degraded.push(...head.degraded);
     const lines: string[] = [];

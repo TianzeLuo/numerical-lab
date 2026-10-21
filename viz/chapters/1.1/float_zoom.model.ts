@@ -191,7 +191,7 @@ export const floatZoomModel: SceneModel = (frame, opts) => {
   const mainAxis = makeAxis("ladder", mainRect, {
     xlim: [-half, half],
     ylim: [0.18, 0.95],
-    xlabel: "距窗口中心（ulp）",
+    xlabel: "距窗口中心（单位 $\\mathrm{ulp}$）",
     ylabel: axisYlabelOf(SPEC?.axes, "ladder", "浮点格点（示意行）"),
     title: axisTitleOf(SPEC?.axes, "ladder", "浮点格点：每个圆点是一个可表示的 double"),
     autoscaled: false,
@@ -219,9 +219,9 @@ export const floatZoomModel: SceneModel = (frame, opts) => {
     xlim: [0, Math.max(1, kMax)],
     ylim: auxYlim,
     yscale: "log",
-    xlabel: "0.1 的累加次数 k",
+    xlabel: "$0.1$ 的累加次数 $k$",
     ylabel: axisYlabelOf(SPEC?.axes, "residual", "绝对误差"),
-    title: axisTitleOf(SPEC?.axes, "residual", "0.1 累加 k 次后的误差"),
+    title: axisTitleOf(SPEC?.axes, "residual", "$0.1$ 累加 $k$ 次后的误差"),
     autoscaled: true,
     tickTarget: 5,
   });
@@ -299,7 +299,7 @@ export const floatZoomModel: SceneModel = (frame, opts) => {
   );
   const totalSeries = segmentedSeries(kGrid, residual, pal.residual, {
     width: 2,
-    label: "与数学值 k/10 的总误差",
+    label: "与数学值 $k/10$ 的总误差",
     accept: (v) => v > 0,
   });
   if (totalSeries.length > 0) scene.layers.push(lineLayer("residual", totalSeries));
@@ -308,7 +308,7 @@ export const floatZoomModel: SceneModel = (frame, opts) => {
   const sumSeries = segmentedSeries(kGrid, residualSumOnly, pal.curves[1] ?? "#2f855a", {
     width: 1.5,
     dash: [7, 4],
-    label: "与 k·fl(0.1) 的纯累加误差",
+    label: "与 $k\\cdot\\mathrm{fl}(0.1)$ 的纯累加误差",
     accept: (v) => v > 0,
   });
   if (sumSeries.length > 0) scene.layers.push(lineLayer("residual", sumSeries));
@@ -359,8 +359,8 @@ export const floatZoomModel: SceneModel = (frame, opts) => {
     const bullets = [
       "灰点：每一个真实存在的 double；点距就是间距。",
       focusKind === "boundary"
-        ? "蓝点：2 的幂 0.25。左侧每格 0.5 个 ulp，右侧每格 1 个 ulp——跨过边界后格点变稀。"
-        : "蓝点：实数 0.3 最近的 double；红点：0.1+0.2 实际存下的 double，正好在右边一格。",
+        ? "蓝点：$2$ 的幂 $0.25$。左侧每格 $0.5$ 个 ulp，右侧每格 $1$ 个 ulp——跨过边界后格点变稀。"
+        : "蓝点：实数 $0.3$ 最近的 double；红点：$0.1+0.2$ 实际存下的 double，正好在右边一格。",
       spacingNote ?? "",
       exactCenter === undefined ? "" : `中心精确值 ${exactCenter}`,
       exactSpecial === undefined || exactSpecial === "" ? "" : `红点精确值 ${exactSpecial}`,

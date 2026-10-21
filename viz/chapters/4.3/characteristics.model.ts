@@ -142,7 +142,7 @@ export const characteristicsModel: SceneModel = (frame, opts) => {
     ylim: U_WINDOW,
     title: axisTitleOf(SPEC?.axes, "profile", "当前时刻的解"),
     ylabel: axisYlabelOf(SPEC?.axes, "profile", "u(x,t)"),
-    xlabel: "x（时间 t 见左图切线）",
+    xlabel: "$x$（时间 $t$ 见左图切线）",
     autoscaled: false,
   });
   const errAxis = makeAxis("error", right.error, {
@@ -151,7 +151,7 @@ export const characteristicsModel: SceneModel = (frame, opts) => {
     yscale: "log",
     title: axisTitleOf(SPEC?.axes, "error", "回溯解与数值解之差（对数）"),
     ylabel: axisYlabelOf(SPEC?.axes, "error", "|u - u_exact|"),
-    xlabel: "x",
+    xlabel: "$x$",
     autoscaled: false,
   });
   const residAxis = makeAxis("residual", right.residual, {
@@ -159,8 +159,8 @@ export const characteristicsModel: SceneModel = (frame, opts) => {
     ylim: logRange(FLOOR, Math.max(1e-13, (positiveMinMax(residualMass)?.[1] ?? FLOOR) * 4)),
     yscale: "log",
     title: "质量账本残差（对数轴）",
-    ylabel: "|delta M|",
-    xlabel: "t",
+    ylabel: "$|\\delta M|$",
+    xlabel: "$t$",
     autoscaled: true,
   });
   scene.axes.push(planeAxis, profileAxis, errAxis, residAxis);
@@ -208,7 +208,7 @@ export const characteristicsModel: SceneModel = (frame, opts) => {
     scene.layers.push(
       lineLayer(
         "characteristics",
-        series([0, 1], [sliceNow, sliceNow], pal.marker, { width: 1.5, label: "当前 t" }),
+        series([0, 1], [sliceNow, sliceNow], pal.marker, { width: 1.5, label: "当前 $t$" }),
       ),
     );
   }
@@ -257,7 +257,7 @@ export const characteristicsModel: SceneModel = (frame, opts) => {
   // —— 右列文字 ——
   if (L.columns && right.textTop !== undefined) {
     const head = paramSummary(frame, opts, [
-      { name: "amplitude", label: "A" },
+      { name: "amplitude", label: "$A$" },
       { name: "n_lines", label: "线数" },
     ]);
     degraded.push(...head.degraded);

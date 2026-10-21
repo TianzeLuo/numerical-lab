@@ -129,7 +129,7 @@ export const gradientCheckModel: SceneModel = (frame, opts) => {
     ylim: [yLo * 0.5, yHi * 3],
     xscale: "log",
     yscale: "log",
-    xlabel: "ε（对数）",
+    xlabel: "$ε$（对数）",
     ylabel: axisYlabelOf(SPEC?.axes, "vcurve", "|g_fd − g_adj| 相对误差"),
     title: axisTitleOf(SPEC?.axes, "vcurve", "梯度检验 V 曲线（双对数）"),
     autoscaled: true,
@@ -144,7 +144,7 @@ export const gradientCheckModel: SceneModel = (frame, opts) => {
     ylim: [Math.max(1, costLo * 0.6), costHi * 2],
     xscale: "log",
     yscale: "log",
-    xlabel: "参数个数 k",
+    xlabel: "参数个数 $k$",
     ylabel: axisYlabelOf(SPEC?.axes, "cost", "求值次数"),
     title: axisTitleOf(SPEC?.axes, "cost", "代价：伴随 vs 有限差分"),
     autoscaled: true,
@@ -159,13 +159,13 @@ export const gradientCheckModel: SceneModel = (frame, opts) => {
   );
   if (bestC !== undefined && epsOptC !== undefined && bestC > 0) {
     scene.layers.push(
-      lineLayer("vcurve", { x: [epsOptC, epsOptC], y: [vcurve.ylim[0], vcurve.ylim[1]], color: pal.curves[0] as string, width: 1.1, dash: [4, 3], label: "中心差分 ε*" }),
+      lineLayer("vcurve", { x: [epsOptC, epsOptC], y: [vcurve.ylim[0], vcurve.ylim[1]], color: pal.curves[0] as string, width: 1.1, dash: [4, 3], label: "中心差分 $ε*$" }),
       scatterLayer("vcurve", [epsOptC], [bestC], { r: 3.8, color: pal.curves[0] as string, label: "中心差分最优" }),
     );
   }
   if (bestF !== undefined && epsOptF !== undefined && bestF > 0) {
     scene.layers.push(
-      lineLayer("vcurve", { x: [epsOptF, epsOptF], y: [vcurve.ylim[0], vcurve.ylim[1]], color: pal.curves[2] as string, width: 1.1, dash: [2, 3], label: "前向差分 ε*" }),
+      lineLayer("vcurve", { x: [epsOptF, epsOptF], y: [vcurve.ylim[0], vcurve.ylim[1]], color: pal.curves[2] as string, width: 1.1, dash: [2, 3], label: "前向差分 $ε*$" }),
       scatterLayer("vcurve", [epsOptF], [bestF], { r: 3.4, color: pal.curves[2] as string, label: "前向差分最优" }),
     );
   }

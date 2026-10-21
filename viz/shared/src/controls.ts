@@ -49,6 +49,8 @@ export interface ControlSpec {
   /** 理论临界值（升序副本；无临界值为空数组——规则 6 要求显式给出）。 */
   critical: number[];
   criticalNote: string;
+  /** 面向初学者的展开解释（manifest `help`）。 */
+  help: string;
   criticalMarks: CriticalMark[];
   /** 当前起支配作用的临界值；无临界值为 `null`。 */
   governing: number | null;
@@ -200,6 +202,7 @@ export function describeControls(viz: VizSpecJson, params?: ParamValues): Contro
       options: (param.options ?? []).map(String),
       critical,
       criticalNote: param.criticalNote ?? "",
+      help: param.help ?? "",
       criticalMarks: marks,
       governing,
       beyond,
@@ -226,6 +229,20 @@ function stepOf(spec: ControlSpec): number {
   if (spec.type === "int") return 1;
   if (spec.min !== null && spec.max !== null && spec.max > spec.min) return (spec.max - spec.min) / 200;
   return 0.001;
+}
+
+/**
+ * manifest 没写 `help` 时的兜底说明（仍然给出范围与操作方式，不冒充物理解释）。
+ * 真源章节应当逐个参数提供 `help`；这里只防止旧数据出现“点了没反应”的空展开框。
+ */
+function fallbackHelp(spec: ControlSpec): string {
+  if (spec.type === "enum") {
+    return `在 ${spec.options.join(" / ")} 中选择一种方案。不同选项会改变计算路线或矩阵族，图表和数值会一起更新。默认是 ${String(spec.defaultValue)}。`;
+  }
+  if (spec.type === "bool") return "打开或关闭这一选项；图与数值会随开关重新计算。";
+  const lo = spec.min === null ? "未限定" : numberText(spec.min);
+  const hi = spec.max === null ? "未限定" : numberText(spec.max);
+  return `允许范围 ${lo} 到 ${hi}${spec.unit === "" ? "" : `，单位 ${spec.unit}`}。拖动滑轨可以快速扫过整个范围；右侧数字框可以键入精确值，按 Enter 生效。默认是 ${numberText(Number(spec.defaultValue))}。`;
 }
 
 /** 控件里的数字写法：整数直出，小数最多 6 位有效数字。 */
@@ -552,6 +569,18 @@ export function mountControls(
     }
 
     if (spec.type !== "bool" && spec.type !== "enum") setVisual(spec.value);
+    const helpText = spec.help.trim() !== "" ? spec.help : fallbackHelp(spec);
+    if (helpText.trim() !== "") {
+      const help = document.createElement("details");
+      help.className = "nl-control-more nl-control-help";
+      const summary = document.createElement("summary");
+      summary.textContent = "这个参数是做什么的";
+      const body = document.createElement("div");
+      body.className = "nl-control-more-body";
+      body.innerHTML = renderRichText(helpText);
+      help.append(summary, body);
+      row.append(help);
+    }
     rows.push({ spec, set: (value, emit) => {
       current[spec.name] = value;
       setVisual(value);

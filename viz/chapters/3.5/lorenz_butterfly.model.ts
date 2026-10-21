@@ -145,9 +145,9 @@ export const lorenzButterflyModel: SceneModel = (frame, opts) => {
   const degraded: string[] = [];
   const proj = projectionOf(frame, opts, degraded);
   const summary = paramSummary(frame, opts, [
-    { name: "sigma", label: "σ" },
-    { name: "rho", label: "ρ" },
-    { name: "beta", label: "β" },
+    { name: "sigma", label: "$σ$" },
+    { name: "rho", label: "$ρ$" },
+    { name: "beta", label: "$β$" },
   ]);
   degraded.push(...summary.degraded);
 
@@ -256,7 +256,7 @@ export const lorenzButterflyModel: SceneModel = (frame, opts) => {
       yticks: equalSpanTicks(span.ylim, 4),
       xlabel: "",
       // 纵轴名保持极短：光栅层把 CJK 竖排成一列，太长会挤在轴边
-      ylabel: "v",
+      ylabel: "$v$",
       title: "三维相空间（正交投影，等比例）",
       autoscaled: false,
     }),
@@ -329,8 +329,8 @@ export const lorenzButterflyModel: SceneModel = (frame, opts) => {
       xlim: tSpan,
       ylim: sepYlim,
       yscale: "log",
-      xlabel: "t",
-      ylabel: "d(t)",
+      xlabel: "$t$",
+      ylabel: "$d(t)$",
       title: "孪生轨道分离距离 d(t)",
       autoscaled: true,
     }),

@@ -168,7 +168,7 @@ export const nodeClusteringModel: SceneModel = (frame, opts) => {
     ylim: [-1.08, 1.08],
     title: L.columns ? axisTitleOf(SPEC?.axes, "main", "节点、间距与密度") : "节点、间距与密度",
     ylabel: axisYlabelOf(SPEC?.axes, "main", "x_j 与间距"),
-    xlabel: "节点序号 j",
+    xlabel: "节点序号 $j$",
     autoscaled: false,
   });
   scene.axes.push(main);
@@ -207,8 +207,8 @@ export const nodeClusteringModel: SceneModel = (frame, opts) => {
       xlim: [-1.02, 1.02],
       ylim: [0, yMax],
       title: "间距 vs 位置：端点 ~N^-2，中心 ~N^-1",
-      ylabel: "间距 / 1-ρ",
-      xlabel: "x",
+      ylabel: "间距 / $1-ρ$",
+      xlabel: "$x$",
       autoscaled: false,
     });
     scene.axes.push(spacingAxis);
@@ -266,7 +266,7 @@ export const nodeClusteringModel: SceneModel = (frame, opts) => {
       ? axisTitleOf(SPEC?.axes, "aux", "插值误差与配置解误差（对数轴）")
       : "插值/配置误差",
     ylabel: "误差",
-    xlabel: "x",
+    xlabel: "$x$",
     autoscaled: false,
   });
   scene.axes.push(errAxis);
@@ -312,8 +312,8 @@ export const nodeClusteringModel: SceneModel = (frame, opts) => {
   // —— 右列文字 ——
   if (L.columns) {
     const head = paramSummary(frame, opts, [
-      { name: "n", label: "n" },
-      { name: "k", label: "k" },
+      { name: "n", label: "$n$" },
+      { name: "k", label: "$k$" },
     ]);
     degraded.push(...head.degraded);
     const lines: string[] = [];

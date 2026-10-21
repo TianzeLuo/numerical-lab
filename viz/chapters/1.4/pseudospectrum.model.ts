@@ -206,7 +206,7 @@ export const pseudospectrumModel: SceneModel = (frame, opts) => {
     makeAxis("main", mainRect, {
       xlim: [-lim, lim],
       ylim: [-lim, lim],
-      xlabel: "Re z",
+      xlabel: "$\\operatorname{Re} z$",
       ylabel: axisYlabelOf(AXES, "main", "Im z"),
       title: axisTitleOf(AXES, "main", "复平面（固定窗口）"),
       autoscaled: false,
@@ -262,7 +262,7 @@ export const pseudospectrumModel: SceneModel = (frame, opts) => {
   }
 
   // 图层：谱（真特征值）
-  scene.layers.push(scatterLayer("main", specX, specY, { r: 3.6, color: pal.background, label: "谱 Λ(A)" }));
+  scene.layers.push(scatterLayer("main", specX, specY, { r: 3.6, color: pal.background, label: "谱 $Λ(A)$" }));
 
   // 图层：不可信格点（掩掉的那些）——让"哪些地方不能读"看得见
   if (nUntrusted > 0) {
@@ -296,7 +296,7 @@ export const pseudospectrumModel: SceneModel = (frame, opts) => {
       ylim: auxYlim,
       xscale: "log",
       yscale: "log",
-      xlabel: "ε（对数；越小越难算）",
+      xlabel: "$ε$（对数；越小越难算）",
       ylabel: useAbsolute
         ? "ρ_ε（本帧 ρ(A)=0：比值无定义，改画绝对值）"
         : axisYlabelOf(AXES, "aux", "ρ_ε / ρ(A)"),
@@ -337,7 +337,7 @@ export const pseudospectrumModel: SceneModel = (frame, opts) => {
             refEps,
             refEps.map((e) => e ** (1 / nDim)),
             pal.reference,
-            { dash: [6, 3], width: 1.2, label: "解析参考 ρ_ε = ε^(1/n)" },
+            { dash: [6, 3], width: 1.2, label: "解析参考 $ρ_ε = ε^{1/n}$" },
           ),
         ),
       );
@@ -349,7 +349,7 @@ export const pseudospectrumModel: SceneModel = (frame, opts) => {
     }
   } else {
     const mapped = replaceFloors(ratio, auxYlim[0]);
-    const segs = segmentedSeries(epsX, mapped.values, pal.curves[0], { width: 1.8, marker: "o", label: "实测 ρ_ε / ρ(A)" });
+    const segs = segmentedSeries(epsX, mapped.values, pal.curves[0], { width: 1.8, marker: "o", label: "实测 $ρ_ε / ρ(A)$" });
     if (segs.length > 0) scene.layers.push(lineLayer("aux", segs));
     const exact = replaceFloors(ratioExact, auxYlim[0]);
     const exactSegs = segmentedSeries(epsX, exact.values, pal.reference, { width: 1.3, dash: [6, 3], label: "参考比值" });
@@ -374,7 +374,7 @@ export const pseudospectrumModel: SceneModel = (frame, opts) => {
   const epsNow = epsMark.length > 0 ? (epsMark[0] as number) : epsSel;
   if (epsNow !== undefined && Number.isFinite(epsNow) && epsNow > 0) {
     scene.layers.push(
-      lineLayer("aux", series([epsNow, epsNow], auxYlim, pal.cursor, { dash: [3, 3], width: 1, label: "当前 ε" })),
+      lineLayer("aux", series([epsNow, epsNow], auxYlim, pal.cursor, { dash: [3, 3], width: 1, label: "当前 $ε$" })),
     );
     const rawMark = radiusMark.length > 0 ? (radiusMark[0] as number) : Number.NaN;
     const yMark = useAbsolute
@@ -394,8 +394,8 @@ export const pseudospectrumModel: SceneModel = (frame, opts) => {
     makeAxis("err", errRect, {
       xlim: [-lim, lim],
       ylim: [-lim, lim],
-      xlabel: "Re z",
-      ylabel: "Im z",
+      xlabel: "$\\operatorname{Re} z$",
+      ylabel: "$\\operatorname{Im} z$",
       // 刻意**不设 title**：右列两块面板是竖直切分的，标题带会落到上面那块轴的
       // `xlabel` 带上（`AXIS_DECO` 的两条带互相重叠）。面板名字由下面这行文本承担。
       autoscaled: false,
@@ -432,7 +432,7 @@ export const pseudospectrumModel: SceneModel = (frame, opts) => {
   );
 
   // —— 文本 ——
-  const summary = paramSummary(frame, opts, [{ name: "n", label: "n" }]);
+  const summary = paramSummary(frame, opts, [{ name: "n", label: "$n$" }]);
   degraded.push(...summary.degraded);
 
   const mainLines: string[] = [

@@ -12,6 +12,7 @@
  */
 
 import { cmapTable } from "./colorscale.js";
+import { drawRichText, measureRichText, wrapRichText } from "./canvas_math.js";
 import { formatNumber, tickLabel } from "./axes.js";
 import {
   buildHeatRgba,
@@ -62,6 +63,20 @@ const DEFAULT_FONT = '13px -apple-system, "Segoe UI", "Noto Sans CJK SC", "Micro
 function fontOf(c: Ctx, size: number, weight = "400"): string {
   void c;
   return `${weight} ${size}px ${DEFAULT_FONT.split(" ").slice(1).join(" ")}`;
+}
+
+/** 图表正文的字体族（与 `fontOf` 的默认值一致；供 canvas_math 复用）。 */
+const BODY_FAMILY = DEFAULT_FONT.split(" ").slice(1).join(" ");
+
+function richStyle(c: Ctx, size: number, color: string, opts: Partial<import("./canvas_math.js").CanvasRichStyle> = {}) {
+  void c;
+  return {
+    size,
+    fontFamily: BODY_FAMILY,
+    color,
+    weight: 400,
+    ...opts,
+  };
 }
 
 /** 只保留轴上可见区间的折线（避免把 1e300 的越界点真的画出去）。 */
@@ -163,14 +178,22 @@ function drawAxis(c: Ctx, axis: Axis): void {
     ctx.font = fontOf(c, c.opts.baseFontSize, "600");
     ctx.textAlign = "center";
     ctx.textBaseline = "bottom";
-    if (axis.xlabel) ctx.fillText(axis.xlabel, rx + rw / 2, y1 + c.opts.baseFontSize + 16);
-    if (axis.title) ctx.fillText(axis.title, rx + rw / 2, ry - 6);
+    const style = richStyle(c, c.opts.baseFontSize, colors.title, {
+      align: "center",
+      baseline: "bottom",
+      weight: 600,
+    });
+    if (axis.xlabel) drawRichText(ctx, axis.xlabel, rx + rw / 2, y1 + c.opts.baseFontSize + 16, style);
+    if (axis.title) drawRichText(ctx, axis.title, rx + rw / 2, ry - 6, style);
     if (axis.ylabel) {
       ctx.save();
       ctx.translate(rx - 50, ry + rh / 2);
       ctx.rotate(-Math.PI / 2);
-      ctx.textBaseline = "top";
-      ctx.fillText(axis.ylabel, 0, 0);
+      drawRichText(ctx, axis.ylabel, 0, 0, richStyle(c, c.opts.baseFontSize, colors.title, {
+        align: "center",
+        baseline: "top",
+        weight: 600,
+      }));
       ctx.restore();
     }
   }
@@ -534,9 +557,15 @@ function drawLoglogFitLayer(c: Ctx, axis: Axis, layer: Extract<Layer, { kind: "l
     ctx.textAlign = "right";
     ctx.textBaseline = "top";
     ctx.fillStyle = color;
-    ctx.fillText(layer.seriesLabel, axis.rect[0] + axis.rect[2] - 8, yTop);
+    drawRichText(ctx, layer.seriesLabel, axis.rect[0] + axis.rect[2] - 8, yTop, richStyle(c, c.opts.baseFontSize - 1, color, {
+      align: "right",
+      baseline: "top",
+    }));
     ctx.fillStyle = theoryColor;
-    ctx.fillText(layer.theoryLabel, axis.rect[0] + axis.rect[2] - 8, yTop + c.opts.baseFontSize + 2);
+    drawRichText(ctx, layer.theoryLabel, axis.rect[0] + axis.rect[2] - 8, yTop + c.opts.baseFontSize + 2, richStyle(c, c.opts.baseFontSize - 1, theoryColor, {
+      align: "right",
+      baseline: "top",
+    }));
   }
   ctx.restore();
   });
@@ -585,26 +614,18 @@ function drawText(c: Ctx, t: TextSpec): void {
   ctx.fillStyle = t.color;
   ctx.textAlign = t.align;
   ctx.textBaseline = "top";
-  const lines = t.maxWidth ? wrapText(ctx, t.text, t.maxWidth) : [t.text];
-  lines.forEach((line, i) => ctx.fillText(line, t.x, t.y + i * (t.size + 4)));
+  const style = richStyle(c, t.size, t.color, {
+    align: t.align,
+    baseline: "top",
+    weight: t.role === "title" ? 600 : 400,
+  });
+  const lines = t.maxWidth
+    ? wrapRichText(ctx, t.text, t.maxWidth, style)
+    : t.text.split("\n");
+  lines.forEach((line, i) => drawRichText(ctx, line, t.x, t.y + i * (t.size + 4), style));
   ctx.restore();
 }
 
-function wrapText(ctx: CanvasRenderingContext2D, body: string, maxWidth: number): string[] {
-  const out: string[] = [];
-  let line = "";
-  for (const ch of body) {
-    const probe = line + ch;
-    if (ctx.measureText(probe).width > maxWidth && line.length > 0) {
-      out.push(line);
-      line = ch;
-    } else {
-      line = probe;
-    }
-  }
-  if (line.length > 0) out.push(line);
-  return out;
-}
 
 /** 色标条（热力图必备，否则读不出数值）。 */
 export function drawColorbar(
@@ -648,19 +669,21 @@ export function drawColorbar(
 function drawBadge(c: Ctx, b: Badge): void {
   const { ctx } = c;
   ctx.save();
-  ctx.font = fontOf(c, c.opts.baseFontSize - 2, "600");
+  const badgeStyle = richStyle(c, c.opts.baseFontSize - 2, b.color ?? "#4a5568", {
+    align: "left",
+    baseline: "middle",
+    weight: 600,
+  });
   const pad = 5;
-  const w = ctx.measureText(b.text).width + 2 * pad;
+  const m = measureRichText(ctx, b.text, badgeStyle);
+  const w = m.w + 2 * pad;
   const h = c.opts.baseFontSize + 4;
   ctx.fillStyle = "rgba(255,255,255,0.86)";
   ctx.fillRect(b.x, b.y, w, h);
   ctx.strokeStyle = b.color ?? "#4a5568";
   ctx.lineWidth = 1;
   ctx.strokeRect(b.x + 0.5, b.y + 0.5, w - 1, h - 1);
-  ctx.fillStyle = b.color ?? "#4a5568";
-  ctx.textAlign = "left";
-  ctx.textBaseline = "middle";
-  ctx.fillText(b.text, b.x + pad, b.y + h / 2);
+  drawRichText(ctx, b.text, b.x + pad, b.y + h / 2, badgeStyle);
   ctx.restore();
 }
 
@@ -671,7 +694,9 @@ function drawPitfalls(c: Ctx): void {
   ctx.save();
   ctx.font = fontOf(c, size);
   const maxW = scene.canvas.w - 24;
-  const lines = wrapText(ctx, `它会怎样骗你：${scene.pitfalls}`, maxW);
+  const style = richStyle(c, size, "#7b341e", { align: "left", baseline: "top" });
+  const body = `它会怎样骗你：${scene.pitfalls}`.replace(/\s*\n\s*/g, " ");
+  const lines = wrapRichText(ctx, body, maxW, style);
   const lineH = size + 4;
   const y0 = scene.canvas.h - 10 - lines.length * lineH;
   ctx.fillStyle = "rgba(255,247,237,0.95)";
@@ -681,7 +706,7 @@ function drawPitfalls(c: Ctx): void {
   ctx.fillStyle = "#7b341e";
   ctx.textAlign = "left";
   ctx.textBaseline = "top";
-  lines.forEach((line, i) => ctx.fillText(line, 14, y0 + i * lineH));
+  lines.forEach((line, i) => drawRichText(ctx, line, 14, y0 + i * lineH, style));
   ctx.restore();
 }
 
@@ -715,7 +740,11 @@ export function renderScene(ctx: CanvasRenderingContext2D, scene: Scene, opts: R
     ctx.font = fontOf(c, c.opts.baseFontSize + 5, "700");
     ctx.textAlign = "left";
     ctx.textBaseline = "top";
-    ctx.fillText(scene.title, 12, 8);
+    drawRichText(ctx, scene.title, 12, 8, richStyle(c, c.opts.baseFontSize + 5, axisColors(c.opts.theme).title, {
+      align: "left",
+      baseline: "top",
+      weight: 700,
+    }));
   }
   for (const axis of scene.axes) drawAxis(c, axis);
   for (const layer of scene.layers) drawLayer(c, layer);

@@ -124,7 +124,7 @@ export const forwardAdjointPlaybackModel: SceneModel = (frame, opts) => {
   const phase = makeAxis("phase", [L.left, L.topY, L.leftW, L.topH], {
     xlim: extent,
     ylim: extent,
-    xlabel: "第一分量（y1 / μ1，不同空间）",
+    xlabel: "第一分量（$y1 / μ1$，不同空间）",
     ylabel: axisYlabelOf(SPEC?.axes, "phase", "第二分量（y2 / μ2）"),
     title: axisTitleOf(SPEC?.axes, "phase", "相平面：正向（已发生）与伴随（将回流）"),
     autoscaled: true,
@@ -146,7 +146,7 @@ export const forwardAdjointPlaybackModel: SceneModel = (frame, opts) => {
     xlim: [time[0] as number, time[time.length - 1] as number],
     ylim: [yLo * 0.5, yHi * 2],
     yscale: "log",
-    xlabel: "物理时间 t",
+    xlabel: "物理时间 $t$",
     ylabel: axisYlabelOf(SPEC?.axes, "norms", "‖y(t)‖ / ‖μ(t)‖"),
     title: axisTitleOf(SPEC?.axes, "norms", "范数（半对数）"),
     autoscaled: true,
@@ -161,14 +161,14 @@ export const forwardAdjointPlaybackModel: SceneModel = (frame, opts) => {
   if (fx.length >= 2) scene.layers.push(lineLayer("phase", { x: fx, y: fy, color: pal.curves[0] as string, width: 2.2 }));
   if (ax.length >= 2) scene.layers.push(lineLayer("phase", { x: ax, y: ay, color: pal.residual, width: 1.9, dash: [5, 3] }));
   if (fx.length > 0) {
-    scene.layers.push(scatterLayer("phase", [fx[fx.length - 1] as number], [fy[fy.length - 1] as number], { r: 4, color: pal.curves[0] as string, label: "播放头 y(t)" }));
+    scene.layers.push(scatterLayer("phase", [fx[fx.length - 1] as number], [fy[fy.length - 1] as number], { r: 4, color: pal.curves[0] as string, label: "播放头 $y(t)$" }));
   }
   if (ax.length > 0) {
-    scene.layers.push(scatterLayer("phase", [ax[0] as number], [ay[0] as number], { r: 4, color: pal.residual, label: "播放头 μ(t)" }));
+    scene.layers.push(scatterLayer("phase", [ax[0] as number], [ay[0] as number], { r: 4, color: pal.residual, label: "播放头 $μ(t)$" }));
   }
   scene.layers.push(
-    lineLayer("norms", { x: prefix(time, playIdx + 1), y: prefix(fNorm, playIdx + 1), color: pal.curves[0] as string, width: 2, label: "‖y(t)‖（已发生）" }),
-    lineLayer("norms", { x: sliceRange(time, playIdx, kMax), y: sliceRange(aNorm, playIdx, kMax), color: pal.residual, width: 1.8, dash: [5, 3], label: "‖μ(t)‖（将回流）" }),
+    lineLayer("norms", { x: prefix(time, playIdx + 1), y: prefix(fNorm, playIdx + 1), color: pal.curves[0] as string, width: 2, label: "$‖y(t)‖$（已发生）" }),
+    lineLayer("norms", { x: sliceRange(time, playIdx, kMax), y: sliceRange(aNorm, playIdx, kMax), color: pal.residual, width: 1.8, dash: [5, 3], label: "$‖μ(t)‖$（将回流）" }),
   );
   if (tPlay !== undefined && Number.isFinite(tPlay)) {
     scene.layers.push(

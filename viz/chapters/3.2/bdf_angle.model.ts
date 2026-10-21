@@ -181,7 +181,7 @@ export const bdfAngleModel: SceneModel = (frame, opts) => {
     makeAxis("main", mainRect, {
       xlim: [-zLim, zLim],
       ylim: [-zLim, zLim],
-      xlabel: "Re z",
+      xlabel: "$\\operatorname{Re} z$",
       ylabel: axisYlabelOf(SPEC?.axes, "main", "Im z"),
       title: axisTitleOf(SPEC?.axes, "main", "稳定域边界家族与 A(α) 楔形（固定窗口）"),
       autoscaled: false,
@@ -198,7 +198,7 @@ export const bdfAngleModel: SceneModel = (frame, opts) => {
       xlim: [0, 1],
       ylim: auxYlim,
       yscale: "log",
-      xlabel: "归一化序号 i/(N−1)（实线：射线半径；虚线：边界 θ）",
+      xlabel: "归一化序号 $i/(N−1)$（实线：射线半径；虚线：边界 $θ$）",
       ylabel: axisYlabelOf(SPEC?.axes, "aux", "超界量 / 角度"),
       title: "测试射线上的超界量（对数）与边界残差",
       autoscaled: true,
@@ -213,8 +213,8 @@ export const bdfAngleModel: SceneModel = (frame, opts) => {
       ylim: [-28, 96],
       yticks: [0, 30, 60, 90],
       xticks: integerTicks(minOf(angleK), maxOf(angleK), 1),
-      xlabel: "BDF 阶 k",
-      ylabel: "A(α) 角（度）",
+      xlabel: "BDF 阶 $k$",
+      ylabel: "$A(α)$ 角（度）",
       title: "各阶实测角 vs 理论角（线性 0…90°）",
       autoscaled: false,
     }),
@@ -278,7 +278,7 @@ export const bdfAngleModel: SceneModel = (frame, opts) => {
       scatterLayer("main", [rayX[firstViolation]], [rayY[firstViolation]], {
         r: 5,
         color: pal.warn,
-        label: "射线上第一次越界（error>0）的位置",
+        label: "射线上第一次越界（$error>0$）的位置",
       }),
     );
   }
@@ -301,14 +301,14 @@ export const bdfAngleModel: SceneModel = (frame, opts) => {
       scatterLayer("aux", [errX[errAt]], [error[errAt]], {
         r: 4,
         color: pal.warn,
-        label: "超界量最大值（位置由数组扫描得到，数值见 meta.violation_max）",
+        label: "超界量最大值（位置由数组扫描得到，数值见 $meta.violation_max$）",
       }),
     );
   }
 
   // —— 图层 8~11：各阶角（线性面板）——
   scene.layers.push(
-    barsLayer("angles", angleK, angleMeasured, { width: 0.5, color: WEDGE_COLOR, baseline: 0, label: "各阶实测 A(α) 角" }),
+    barsLayer("angles", angleK, angleMeasured, { width: 0.5, color: WEDGE_COLOR, baseline: 0, label: "各阶实测 $A(α)$ 角" }),
   );
   scene.layers.push(
     lineLayer(
@@ -329,7 +329,7 @@ export const bdfAngleModel: SceneModel = (frame, opts) => {
       scatterLayer("angles", [angleMarkX[0]], [angleMarkY[0]], {
         r: 5.5,
         color: pal.exact,
-        label: "当前 k 的实测角（帧 angle_mark_x/y）",
+        label: "当前 $k$ 的实测角（当前点标记）",
       }),
     );
   }

@@ -219,7 +219,7 @@ export const rungeNodesModel: SceneModel = (frame, opts) => {
     xlim: [nLo - 0.5, nHi + 0.5],
     ylim: sweepRange === undefined ? [1e-16, 1] : niceLimits(sweepRange[0], sweepRange[1], 7, { log: true, pad: 0.08 }),
     yscale: "log",
-    xlabel: "x 与节点数 n：主/误差面板的横轴是 x∈[−1,1]，这一行的横轴是节点数 n",
+    xlabel: "节点数 $n$",
     ylabel: "最大误差",
     title: "误差随 n：奇偶两条子列各自发散（不是单调）",
     autoscaled: true,
@@ -317,13 +317,13 @@ export const rungeNodesModel: SceneModel = (frame, opts) => {
     }
   }
   if (markX.length > 0) {
-    scene.layers.push(scatterLayer("sweep", markX, markY, { r: 3.4, color: pal.marker, label: "当前 k 处两个分布的最大误差" }));
+    scene.layers.push(scatterLayer("sweep", markX, markY, { r: 3.4, color: pal.marker, label: "当前 $k$ 处两个分布的最大误差" }));
   }
 
   // —— 文本：一行一个 text 层（见 scaffold.ts 的约定）——
   const summary = paramSummary(frame, opts, [
-    { name: "a", label: "a" },
-    { name: "n", label: "n" },
+    { name: "a", label: "$a$" },
+    { name: "n", label: "$n$" },
   ]);
   degraded.push(...summary.degraded);
   const mainBudget = unitBudget(mainRect[2]);

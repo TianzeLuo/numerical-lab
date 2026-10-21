@@ -139,7 +139,7 @@ export const gradientFieldModel: SceneModel = (frame, opts) => {
   const plane = makeAxis("plane", [L.left, L.topY, Math.max(200, L.leftW - HEAT_RIGHT_GUTTER), L.topH], {
     xlim: [p1lo, p1hi],
     ylim: [p2lo, p2hi],
-    xlabel: "p1（刚度）",
+    xlabel: "$p1$（刚度）",
     ylabel: axisYlabelOf(SPEC?.axes, "plane", "p2（阻尼）"),
     title: axisTitleOf(SPEC?.axes, "plane", "目标函数等高线与伴随梯度方向"),
     autoscaled: false,
@@ -147,7 +147,7 @@ export const gradientFieldModel: SceneModel = (frame, opts) => {
   const errAxis = makeAxis("error", [L.left, L.botY, L.leftW, L.botH], {
     xlim: [1, Math.max(2, m)],
     ylim: [-12, -4],
-    xlabel: "箭头序号（4×4 子网格）",
+    xlabel: "箭头序号（$4×4$ 子网格）",
     ylabel: axisYlabelOf(SPEC?.axes, "error", "log10 相对误差"),
     title: axisTitleOf(SPEC?.axes, "error", "伴随 vs 中心差分（必须 < −6）"),
     autoscaled: true,
@@ -200,7 +200,7 @@ export const gradientFieldModel: SceneModel = (frame, opts) => {
   const idx: number[] = [];
   for (let i = 0; i < m; i += 1) idx.push(i + 1);
   scene.layers.push(
-    scatterLayer("error", idx, lgErr, { r: 3, color: pal.residual, label: "log10 相对误差" }),
+    scatterLayer("error", idx, lgErr, { r: 3, color: pal.residual, label: "$\\log_{10}$ 相对误差" }),
     lineLayer("error", { x: [1, Math.max(2, m)], y: [-6, -6], color: pal.warn, width: 1.4, dash: [4, 3] }),
   );
   if (medErr !== undefined && medErr > 0) {

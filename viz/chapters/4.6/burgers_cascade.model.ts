@@ -202,7 +202,7 @@ export const burgersCascadeModel: SceneModel = (frame, opts) => {
     ylim: [floor, 1],
     xscale: "log",
     yscale: "log",
-    xlabel: "波数 k（对数）",
+    xlabel: "波数 $k$（对数）",
     title: axisTitleOf(SPEC?.axes, "spectrum", "能谱 E(k)（双对数，1e-18–1）"),
     ylabel: axisYlabelOf(SPEC?.axes, "spectrum", "E(k)"),
     autoscaled: false,
@@ -210,7 +210,7 @@ export const burgersCascadeModel: SceneModel = (frame, opts) => {
   const fluxAxis = makeAxis("flux", [L.left, L.botY, L.leftW, L.botH], {
     xlim: [0, Math.max(kHi, 1)],
     ylim: [-0.3, 0.3],
-    xlabel: "波数 k",
+    xlabel: "波数 $k$",
     title: axisTitleOf(SPEC?.axes, "flux", "能流 Pi(k)（窗口 ±0.3）"),
     ylabel: axisYlabelOf(SPEC?.axes, "flux", "Pi(k)"),
     autoscaled: false,
@@ -218,7 +218,7 @@ export const burgersCascadeModel: SceneModel = (frame, opts) => {
   const solution = makeAxis("solution", [L.rightX, solY, L.rightW, solH], {
     xlim: [0, Math.max(xHi, 2 * Math.PI)],
     ylim: [-uClip, uClip],
-    xlabel: "x",
+    xlabel: "$x$",
     title: axisTitleOf(SPEC?.axes, "solution", "解 u(x,t)（窗口 ±1.6）"),
     ylabel: axisYlabelOf(SPEC?.axes, "solution", "u"),
     autoscaled: false,
@@ -227,7 +227,7 @@ export const burgersCascadeModel: SceneModel = (frame, opts) => {
     xlim: [0, tMax],
     ylim: [floor, 10],
     yscale: "log",
-    xlabel: "t",
+    xlabel: "$t$",
     title: "漂移与收支残差（对数，1e-18–10）",
     ylabel: "相对量",
     autoscaled: false,
@@ -276,7 +276,7 @@ export const burgersCascadeModel: SceneModel = (frame, opts) => {
   }
   scene.layers.push(
     lineLayer("flux", series([fluxAxis.xlim[0], fluxAxis.xlim[1]], [0, 0], pal.reference, { dash: [4, 4], width: 1, label: "零通量" })),
-    lineLayer("flux", series(k, flux, pal.curves[0], { width: 2.2, label: "能流 Π(k)" })),
+    lineLayer("flux", series(k, flux, pal.curves[0], { width: 2.2, label: "能流 $Π(k)$" })),
   );
   if (dissipation !== undefined && dissipation > 0 && dissipation <= fluxAxis.ylim[1]) {
     scene.layers.push(
@@ -313,7 +313,7 @@ export const burgersCascadeModel: SceneModel = (frame, opts) => {
         scatterLayer("solution", selectValues(x, idx), selectValues(uNow, idx), {
           r: 2.8,
           color: pal.warn,
-          label: "超过 ±u_clip 被截断显示",
+          label: "超过 $±u_clip$ 被截断显示",
         }),
       );
     }

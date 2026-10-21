@@ -32,6 +32,7 @@ export const manifest: ChapterManifestJson = {
           "critical": [],
           "criticalNote": "",
           "default": 1000,
+          "help": "雷诺数 $\\mathrm{Re}=UL/\\nu$。$\\mathrm{Re}$ 越大，惯性项越强，边界层越薄、主涡中心位置改变，稳态迭代也更难收敛；超过网格能分辨的范围后，结果主要反映离散误差。",
           "label": "雷诺数 Re",
           "name": "re",
           "options": [
@@ -45,6 +46,7 @@ export const manifest: ChapterManifestJson = {
           "critical": [],
           "criticalNote": "",
           "default": 41,
+          "help": "每边节点数。$n$ 越大，涡量和边界层分辨率越高，但 Poisson 解与 SOR 迭代成本增长很快；与 Ghia 基准比较时，网格不足会表现为 RMSE 偏大。",
           "label": "每边节点数 n",
           "name": "n",
           "options": [
@@ -58,7 +60,7 @@ export const manifest: ChapterManifestJson = {
       ],
       "pitfalls": "残差小不等于解准：这里的残差只量『离离散方程有多远』，而中心线 RMSE 量的是『离 Ghia 基准有多远』。$n=41$、$\\mathrm{Re}=1000$ 时残差降到 $10^{-7}$，RMSE 仍有 0.2 量级——粗网格一阶迎风的数值扩散把主涡位置拖偏了。第二件事：网格与时间步的限制来自两个机制，$\\Delta t_{\\mathrm{diffusion}}\\sim\\mathrm{Re}\\cdot h^2$、$\\Delta t_{\\mathrm{CFL}}\\sim h/|u|$，它们的交叉点在 $\\mathrm{Re}_x=4c_{\\mathrm{cfl}}(n-1)$；本页 $\\mathrm{Re}=1000$ 已经在 $\\mathrm{CFL}$ 一侧，所以『$\\mathrm{Re}$ 越大越难算』这句话在交叉点两侧是反的。第三：中心差分的格点雷诺数 $\\mathrm{Re}_h=\\mathrm{Re}|u|h$ 超过 $2$ 时会失去对角占优，$n=41$、$\\mathrm{Re}=1000$ 的 $\\mathrm{Re}_h\\approx25$，换二阶中心格式会先失稳而不是先变准。",
       "requiredAux": ["residual"],
-      "theory": ["流函数--涡量：$\\Delta\\psi=-\\omega$，$\\omega_t+u\\cdot\\nabla\\omega=\\mathrm{Re}^{-1}\\Delta\\omega$；壁面涡量用 Thom 公式", "DST 直接解 Poisson：$\\Delta$ 在 Dirichlet 下的特征值 $-(4/h^2)(\\sin^2(i\\pi/2m)+\\sin^2(j\\pi/2m))$", "残差只量离散方程；中心线剖面与 Ghia 基准的差是离散误差，二者不能互替"],
+      "theory": ["**把不可压 Navier–Stokes 写成流函数--涡量。** 二维不可压速度可写成 $u=\\psi_y,v=-\\psi_x$，涡量 $\\omega=v_x-u_y=-\\Delta\\psi$。涡量方程是 $\\omega_t+u\\omega_x+v\\omega_y=\\frac1{\\mathrm{Re}}\\Delta\\omega$。这样自动满足无散条件，压力被消去。", "**每一步解两个椭圆方程。** 给定涡量，解 Poisson 方程 $-\\Delta\\psi=\\omega$ 得流函数；再由 $\\psi$ 的差分得速度；更新涡量。方腔用 Dirichlet 边界：顶盖 $u=1$，其余三边 $u=v=0$。壁面涡量由单侧差分给出。", "**稳态迭代与收敛。** 时间推进到稳态，或直接迭代耦合方程。SOR 用于涡量/流函数，残差随迭代下降；$\\mathrm{Re}$ 越大，边界层越薄、内迭代越难收敛，残差曲线可能出现平台。", "**网格与 Re 的匹配。** 边界层厚度约为 $O(1/\\sqrt{\\mathrm{Re}})$；若网格比它还粗，数值扩散会替代物理黏性，主涡位置和中心线速度都会偏离 Ghia 基准。RMSE 随 $n$ 下降的速率反映离散误差。", "**怎样读图。** 主图看主涡、次涡的位置与流线拓扑；副图看残差是否真的收敛，而不是只看最后一步。Re 增大时先确认网格足够，再讨论物理变化；残差没降下来的稳态图不能当作收敛解。"],
       "time": {
         "label": "t",
         "mode": "none",
@@ -95,6 +97,7 @@ export const manifest: ChapterManifestJson = {
           "critical": [],
           "criticalNote": "",
           "default": 100,
+          "help": "基准雷诺数（100/400/1000）。不同 Re 的中心线剖面形状和涡的位置不同；必须选同一 Re 才能和 Ghia 表对照。",
           "label": "雷诺数 Re",
           "name": "re",
           "options": [
@@ -108,6 +111,7 @@ export const manifest: ChapterManifestJson = {
           "critical": [],
           "criticalNote": "",
           "default": 49,
+          "help": "主剖面使用的网格节点数。$n$ 越大，数值解越接近基准；副轴给出 RMSE 随 $n$ 的下降，用来判断是否进入渐近区。",
           "label": "主剖面的网格 n",
           "name": "n",
           "options": [
@@ -121,7 +125,7 @@ export const manifest: ChapterManifestJson = {
       ],
       "pitfalls": "对拍要先把『基准本身的抄写分歧』算进去：Ghia 表在 $\\mathrm{Re}=1000$ 的 $v$ 剖面上，不同转载在 $x=0.9063$ 处就有 $-0.51550$ 与 $-0.51500$ 两种写法，跨转载最大分歧$10^{-2}$ 量级。把容差压到 $10^{-3}$ 的『完美对拍』量的是抄写版本，不是数值误差。第二：插值方向要固定——把基准插到网格上会把离散误差抹平，本页统一把数值解插到 Ghia 原表节点。第三：$\\mathrm{Re}=1000$ 的 RMSE 在 $n=49$ 仍有 0.2 左右，这不是代码错，而是粗网格一阶迎风的离散误差；$R=100$ 的同一套代码能到 0.006。第四：网格收敛阶要用同一窗口与同一范数报，换窗口能把阶改掉。",
       "requiredAux": ["error"],
-      "theory": ["Ghia 表是公开基准，不是真值；转载分歧 $10^{-2}$ 量级，容差不能低于它", "数值解插值到基准节点，而不是把基准插到数值网格上（后者抹平离散误差）", "一阶迎风的网格收敛阶接近 1，但 $\\mathrm{Re}=1000$ 在粗网格上被数值扩散主导"],
+      "theory": ["**基准是什么。** Ghia–Ghia–Shin (1982) 给出了方腔在 $\\mathrm{Re}=100,400,1000$ 等条件下，竖直中心线 $u(y)$ 和水平中心线 $v(x)$ 的节点值。它是二维稳态方腔最常用的对拍数据。", "**怎样对拍。** 数值解在规则网格上，基准点在非均匀位置上，所以要用线性（或更高阶）插值把数值解取到基准坐标。直接比较最近节点会混入插值误差。", "**误差来源。** 离散误差随 $n$ 下降；边界层未分辨、涡量边界条件低阶、迭代未收敛都会让 RMSE 停在某个平台。Re 越大，边界层越薄，对网格要求越高。", "**收敛曲线。** 在渐近区，中心线速度的误差应按格式阶数下降；若曲线变平，说明误差已被边界条件、插值或迭代残差主导。此时继续加密网格收益很小。", "**读图。** 同时看两条剖面和 RMSE；主涡位置是另一个独立校验。基准表本身有抄写/离散差异（侧栏会报一个下限），不要把 RMSE 降到零当作目标。", "**基准也有不确定度。** Ghia 表中的数字是特定离散、特定迭代收敛下的结果；不同文献的抄写和插值会带来约 $10^{-2}$ 量级的差异。把 RMSE 压到比这个还小，并不代表物理上更正确。"],
       "time": {
         "label": "t",
         "mode": "none",
@@ -146,8 +150,8 @@ export const manifest: ChapterManifestJson = {
         {
           "autoscaled": true,
           "id": "dispersion",
-          "title": "解析色散关系 λ(φ)",
-          "ylabel": "λ_max",
+          "title": "解析色散关系 $\\lambda(\\phi)$",
+          "ylabel": "$\\lambda_{\\max}$",
         },
       ],
       "dataSource": "backend",
@@ -158,6 +162,7 @@ export const manifest: ChapterManifestJson = {
           "critical": [],
           "criticalNote": "",
           "default": "turing",
+          "help": "参数预设：turing 满足图灵不稳定性（扩散诱导），spots/stripes/waves 是对照组，uniform 让系统回到均匀态。切换后看色散关系的最快模是否在非零波数。",
           "label": "参数预设",
           "name": "preset",
           "options": ["turing", "spots", "stripes", "waves", "uniform"],
@@ -167,6 +172,7 @@ export const manifest: ChapterManifestJson = {
           "critical": [],
           "criticalNote": "",
           "default": 128,
+          "help": "每边格点数。$n$ 越大，能分辨的波数越高，斑点/条纹更细；但显式格式的稳定时间步也随 $\\Delta x^2$ 变小。",
           "label": "每边格点数 n",
           "name": "n",
           "options": [
@@ -179,7 +185,7 @@ export const manifest: ChapterManifestJson = {
       ],
       "pitfalls": "经典 Gray--Scott 斑图不是图灵斑图：spots 没有非平凡稳态，最快模 $\\lambda^\\ast=-0.035$ 在 $\\phi=0$；stripes 的底态存在但 $\\lambda(0)=+0.0054>0$，均匀模先失稳；waves 的 $\\lambda^\\ast=-0.014$ 也在 $\\phi=0$。三者都没有正波数增长带；真正的图灵预设 $\\lambda^\\ast=+0.015$ 且 $\\phi^\\ast=53.9>0$。判据必须同时满足『底态无扩散稳定』与『正波数 $\\lambda^\\ast>0$』两条：只看图案长得好看会把整类自复制斑图误认成图灵失稳。第二：$\\lambda^\\ast>0$ 也不一定是图灵——最大值在 $\\phi=0$ 时，那是整片均匀（同相）失稳。第三：显式稳定性上限只看最大扩散系数，$\\Delta t$ 不能超过 $\\Delta x^2/(4\\max(D_u,D_v))$ 的一半；turing 预设请求 $\\Delta t=0.25$ 会被夹到 0.095，帧里如实标出 dt_clamped。第四：域长固定时允许波数 $\\phi=2\\pi m$ 与 $n$ 无关，加密网格只抬高截止；真正按 $O(\\Delta x^2)$ 收敛的是五点模板的有效波数与增长率。",
       "requiredAux": ["error"],
-      "theory": ["Gray--Scott：$u_t=D_u\\Delta u-uv^2+F(1-u)$，$v_t=D_v\\Delta v+uv^2-(F+k)v$（周期边界）", "图灵判据：底态无扩散稳定，且 $M(\\phi)=J-\\phi^2\\operatorname{diag}(D_u,D_v)$ 的最大特征值 $\\lambda(\\phi)$ 在某 $\\phi^\\ast>0$ 变正", "显式 FTCS 稳定上限 $\\Delta t\\le\\Delta x^2/(4\\max(D_u,D_v))$；五点模板有效波数 $(2/\\Delta x)\\sin(\\phi\\Delta x/2)$"],
+      "theory": ["**反应--扩散系统。** Gray–Scott 模型：$u_t=D_u\\Delta u-u v^2+F(1-u)$，$v_t=D_v\\Delta v+u v^2-(F+k)v$。没有扩散时，系统可能稳定在均匀态；扩散系数不同会把这个均匀态变得不稳定，产生空间斑图，这就是扩散诱导不稳定性。", "**线性化与色散关系。** 在均匀态附近线性化，设扰动 $e^{\\lambda t+i\\phi\\cdot x}$，得到 $\\lambda(\\phi)$。图灵不稳定要求：无扩散时稳定（$\\mathrm{Re}\\,\\lambda(0)<0$），而某个非零波数 $\\phi\\ne0$ 有 $\\mathrm{Re}\\,\\lambda(\\phi)>0$。最快模的波数决定斑点/条纹的尺度。", "**判据不能只看一条。** 需要同时满足：均匀态存在且稳定、扩散比足够大、非线性项把增长限制住。spots/stripes/waves 预设有意各缺一条判据，所以它们不会产生真正的图灵斑图；uniform 则让所有模衰减。", "**离散误差。** 五点 Laplacian 的色散关系与连续情形有 $O(\\Delta x^2)$ 差异；网格越粗，最快模的波数和增长率越偏。显式 FTCS 还要求时间步满足扩散稳定条件。", "**读图。** 先看色散关系是否有非零波数的正增长段，再看主图是否形成对应尺度的斑图；网格误差曲线说明离散是否已足够细。模式在周期域上，边界不影响结果。"],
       "time": {
         "dt": 2000.0,
         "label": "显式步数",
@@ -212,6 +218,7 @@ export const manifest: ChapterManifestJson = {
           "critical": [],
           "criticalNote": "",
           "default": 200,
+          "help": "空间格数。$n$ 越大，激波/稀疏扇越锐，Ritter 解的误差窗口越窄；但 CFL 要求更小的时间步。",
           "label": "格数 n",
           "name": "n",
           "options": [
@@ -227,6 +234,7 @@ export const manifest: ChapterManifestJson = {
           ],
           "criticalNote": "$\\mathrm{CFL}>1$ 不保证稳定；本模块的实测临界值在 $1.2$–$1.5$ 之间，但页面只允许到 $0.9$。",
           "default": 0.8,
+          "help": "目标 CFL 数。它决定 $\\Delta t$ 与 $\\Delta x/\\sqrt{gh}$ 的比例；过大时显式 Rusanov 格式可能失稳或把波速估错，过小则计算变慢。",
           "label": "目标 CFL",
           "max": 0.9,
           "min": 0.3,
@@ -237,7 +245,7 @@ export const manifest: ChapterManifestJson = {
       ],
       "pitfalls": "对拍窗口决定成败：干底 Ritter 解只在扇区 $-c_L\\le\\xi\\le2c_L$ 内光滑，干锋与头部折点都在窗口外。把整个域喂进 L1 误差，量到的主要是干锋位置误差；本页把扇内、全域两个数并排报，且不把『全域更差』说成格式精度。第二：干底的质量漂移本来就不为零——正性地板每步至少注入 $\\text{min_depth}\\cdot\\Delta x$ 的水，拿它当『守恒性证据』是假证据；真正可测的是湿域/周期域的守恒。第三：$\\mathrm{CFL}$ 不是抄来的常数，本页记录实际 max_cfl 与步数；$\\mathrm{cfl}=0.8$ 稳，但把 $\\mathrm{cfl}$ 推到 2 会出非有限值，页面不替它兜底。第四：Rusanov 的波速上界让通量失去逐点单调的直觉，别把『看起来单调』当定理。",
       "requiredAux": ["error"],
-      "theory": ["Ritter 干底解：$h=(2c_L-\\xi)^2/(9g)$、$u=(2/3)(\\xi+c_L)$（$-c_L<\\xi<2c_L$，$\\xi=(x-x_0)/t$）", "Rusanov 通量：$F=\\frac{1}{2}(F_L+F_R)-\\frac{1}{2}a(U_R-U_L)$，$a=\\max(|u|+\\sqrt{gh})$", "干底质量漂移来自正性地板 $\\text{min_depth}\\cdot\\Delta x$ 的注入，不是格式不守恒"],
+      "theory": ["**浅水方程与干底初值。** 一维浅水方程 $h_t+(hu)_x=0$、$(hu)_t+(hu^2+\\frac12gh^2)_x=0$。初始左侧水深 $h=1$、右侧干底 $h=0$，瞬间撤坝形成向右的稀疏扇。干底情形没有右侧激波，只有稀疏波。", "**Ritter 精确解。** 对干底，稀疏扇内 $u=\\frac23(x/t+\\sqrt{gh_L})$、$h=\\frac{1}{9g}(\\sqrt{gh_L}-x/t)^2$，前沿以 $2\\sqrt{gh_L}$ 向右推进。它是检验数值格式的解析基准。", "**有限体积与 Rusanov 通量。** 单元平均按通量差更新，Rusanov 通量用最大波速加耗散。干底处波速估计、负水深保护和 CFL 条件都很关键；处理不好会出现负水深或质量不守恒。", "**CFL 与误差窗口。** 显式格式要求 $\\Delta t\\le\\mathrm{CFL}\\,\\Delta x/\\max(|u|+\\sqrt{gh})$。误差主要集中在稀疏扇前沿和干湿边界，全域 $L^1$ 会被平滑区稀释；要看扇内 $L^1$ 与前沿位置。", "**读图。** 水面剖面与 Ritter 解对照，前沿速度应为 $2\\sqrt{gh_L}$；质量漂移应接近舍入量级。$n$ 增大让前沿更锐，但 CFL 也要求更小时间步；如果质量漂移明显，优先检查干底通量和边界处理。"],
       "time": {
         "dt": 0.01,
         "label": "物理时间 t",

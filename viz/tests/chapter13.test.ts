@@ -357,13 +357,18 @@ for (const viz of Object.keys(FIXTURES)) {
     if (auto.size > 0) assert.match(autoText, /自适应/, `${viz} 有自适应轴，角标必须说清楚`);
   });
 
-  test(`${viz}：角标齐全（来源／自适应／临界／溢出／状态）`, async () => {
+  test(`${viz}：角标齐全；只有真的丢数据时才挂溢出角标`, async () => {
     const scene = sceneOf(await frameFor(viz));
     const kinds = badgeKinds(scene);
     for (const need of ["source", "autoscale", "critical", "status"]) {
       assert.ok(kinds.has(need), `${viz} 缺 ${need} 角标`);
     }
-    assert.ok(scene.badges.some((b) => b.kind === "overflow"), `${viz} 缺 overflow 角标`);
+    // 「本帧没有越界」不该占一枚红色角标；1.3 的固定视窗裁剪用中性的 clip 角标说明。
+    if (scene.overflow.flag) {
+      assert.ok(kinds.has("overflow"), `${viz} 声明溢出却没有 overflow 角标`);
+    } else {
+      assert.equal(kinds.has("overflow"), false, `${viz} 没有溢出却挂了红色 overflow 角标`);
+    }
     assert.ok(scene.dataSource.length > 0);
   });
 }

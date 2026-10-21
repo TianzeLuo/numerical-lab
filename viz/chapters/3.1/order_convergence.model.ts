@@ -296,7 +296,7 @@ export const orderConvergenceModel: SceneModel = (frame, opts) => {
   );
   scene.layers.push(
     lineLayer("solution", [
-      series(stepX, stepY, pal.curves[0], { width: 1, marker: "o", alpha: 0.75, label: "步点（节点密度 = 当前 h）" }),
+      series(stepX, stepY, pal.curves[0], { width: 1, marker: "o", alpha: 0.75, label: "步点（节点密度 = 当前 $h$）" }),
     ]),
   );
 
@@ -364,7 +364,7 @@ export const orderConvergenceModel: SceneModel = (frame, opts) => {
       scatterLayer("error", marks.y.map(() => hMark), marks.y, {
         r: 3.6,
         color: pal.marker,
-        label: "当前 h 处的误差（各一条曲线一个点）",
+        label: "当前 $h$ 处的误差（各一条曲线一个点）",
       }),
     );
   }

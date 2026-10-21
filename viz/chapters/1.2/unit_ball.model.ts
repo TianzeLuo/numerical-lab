@@ -221,7 +221,7 @@ export const unitBallModel: SceneModel = (frame, opts) => {
   const mainAxis = makeAxis("main", mainRect, {
     xlim: MAIN_LIM,
     ylim: MAIN_LIM,
-    xlabel: "x",
+    xlabel: "$x$",
     ylabel: axisYlabel("main", "y"),
     title: axisTitle("main", "单位圆与它的三个像（固定坐标）"),
     autoscaled: false,
@@ -243,7 +243,7 @@ export const unitBallModel: SceneModel = (frame, opts) => {
     ylim: auxYlim,
     xscale: "linear",
     yscale: "log",
-    xlabel: "log10 κ",
+    xlabel: "$\\log_{10}\\kappa$",
     ylabel: axisYlabel("aux", "相对误差"),
     title: axisTitle("aux", "前向误差 ‖x̂−x‖/‖x‖ 随 κ"),
     autoscaled: true,
@@ -252,10 +252,10 @@ export const unitBallModel: SceneModel = (frame, opts) => {
 
   // —— 图层 1~4：单位圆与三个像 ——
   const images: { x: ArrayLike<number>; y: ArrayLike<number>; color: string; label: string; dash?: number[]; width: number }[] = [
-    { x: circleX, y: circleY, color: pal.reference, label: "单位圆 S¹（参照）", dash: [5, 4], width: 1.1 },
-    { x: imageX, y: imageY, color: pal.curves[0], label: "A 的像（面积 = |det A|）", width: 1.8 },
-    { x: lX, y: lY, color: pal.curves[1], label: "L 的像（det L = 1，纯剪切）", width: 1.4 },
-    { x: uX, y: uY, color: pal.curves[2], label: "U 的像（细到这个尺度就看不见了）", width: 1.4 },
+    { x: circleX, y: circleY, color: pal.reference, label: "单位圆 $S¹$（参照）", dash: [5, 4], width: 1.1 },
+    { x: imageX, y: imageY, color: pal.curves[0], label: "$A 的像（面积 = $|det $A|$）", width: 1.8 },
+    { x: lX, y: lY, color: pal.curves[1], label: "$L$ 的像（$\\det L=1$，纯剪切）", width: 1.4 },
+    { x: uX, y: uY, color: pal.curves[2], label: "$U$ 的像（细到这个尺度就看不见了）", width: 1.4 },
   ];
   for (const img of images) {
     const trimmed = trimNonFinite(img.x, img.y);
@@ -322,7 +322,7 @@ export const unitBallModel: SceneModel = (frame, opts) => {
   const errDraw = errorValid === undefined ? errOk : errOk.slice(0, drawCount);
   const errSeries = segmentedSeries(kappaDraw, errDraw, pal.residual, {
     width: 1.6,
-    label: "实测前向误差（每个 κ 都真跑一次 LU + 回代）",
+    label: "实测前向误差（每个 $κ$ 都真跑一次 LU + 回代）",
     accept: (v) => v > 0,
   });
   if (errSeries.length > 0) scene.layers.push(lineLayer("aux", errSeries));
@@ -331,15 +331,15 @@ export const unitBallModel: SceneModel = (frame, opts) => {
   const markY = errorMark[0];
   const markValid = (metaNumber(frame, "error_mark_valid") ?? (Number.isFinite(markY) && markY > 0 ? 1 : 0)) > 0.5;
   if (markValid && Number.isFinite(markX) && Number.isFinite(markY) && markY > 0) {
-    scene.layers.push(scatterLayer("aux", [markX], [markY], { r: 4.5, color: pal.marker, label: "当前 log10 κ 处的误差" }));
+    scene.layers.push(scatterLayer("aux", [markX], [markY], { r: 4.5, color: pal.marker, label: "当前 $\\log_{10}\\kappa$ 处的误差" }));
   } else {
     degraded.push(`当前位置标记不可画（kappa_mark=${String(markX)}、error_mark=${String(markY)}）：只画曲线`);
   }
 
   // —— 文本（一行一个 text 层：render2d 不拆 \n，见 lu_heatmap 文件头第 6 条）——
   const summary = paramSummary(frame, opts, [
-    { name: "shear", label: "剪切 s" },
-    { name: "b_angle", label: "b 方向(度)" },
+    { name: "shear", label: "剪切 $s$" },
+    { name: "b_angle", label: "$b$ 方向（度）" },
   ]);
   degraded.push(...summary.degraded);
   const head: string[] = [summary.text];

@@ -114,7 +114,7 @@ export const singularEndpointModel: SceneModel = (frame, opts) => {
   const pitfalls = requirePitfalls(frame);
 
   const degraded: string[] = [];
-  const step = currentStep(frame, opts, { lo: 1, hi: Math.max(1, tsNodes.length), label: "每侧节点数 m" });
+  const step = currentStep(frame, opts, { lo: 1, hi: Math.max(1, tsNodes.length), label: "每侧节点数 $m$" });
   const m = Math.max(1, Math.min(tsNodes.length, Math.round(step.step ?? 1)));
   const subAvailable = (metaNumber(frame, "sub_available") ?? 1) > 0.5;
   const errorFloor = metaNumber(frame, "error_floor");
@@ -152,7 +152,7 @@ export const singularEndpointModel: SceneModel = (frame, opts) => {
     // 标签有 80px 宽），不留白就会被面板右边界裁成「未采样尾」。
     xlim: niceLimits(nodeLo, nodeLo + (nodeHi - nodeLo) * 1.34, 6),
     yscale: "log",
-    xlabel: "总节点数 2m+1",
+    xlabel: "总节点数 $2m+1$",
     ylabel: axisYlabel(VIZ, "conv", "|Q−I|"),
     title: axisTitle(VIZ, "conv", "误差 vs 节点数（半对数）"),
     autoscaled: true,
@@ -246,7 +246,7 @@ export const singularEndpointModel: SceneModel = (frame, opts) => {
     // 标签有 80px 宽），不留白就会被面板右边界裁成「未采样尾」。
     xlim: niceLimits(nodeLo, nodeLo + (nodeHi - nodeLo) * 1.34, 6),
     yscale: "log",
-    xlabel: "总节点数 2m+1",
+    xlabel: "总节点数 $2m+1$",
     ylabel: axisYlabel(VIZ, "tail", "∫₀^{x_min}f"),
     title: axisTitle(VIZ, "tail", "未采样尾巴与饱和节点"),
     autoscaled: true,
@@ -268,7 +268,7 @@ export const singularEndpointModel: SceneModel = (frame, opts) => {
     lineLayer("tail", segmentedSeries(nodesRev, head(tsTail, m), pal.warn, { width: 2, marker: "o", accept: (v) => v > 0, label: "未采样尾巴" })),
   );
   scene.layers.push(
-    lineLayer("tail", segmentedSeries(nodesRev, head(tsXmin, m), pal.muted, { width: 1.6, accept: (v) => v > 0, label: "x_min" })),
+    lineLayer("tail", segmentedSeries(nodesRev, head(tsXmin, m), pal.muted, { width: 1.6, accept: (v) => v > 0, label: "`x_min`" })),
   );
   const satHead = head(tsSat, m);
   const satPositive = Array.from(satHead).some((v) => Number.isFinite(v) && v > 0);

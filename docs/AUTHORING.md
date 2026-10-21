@@ -203,11 +203,12 @@ def _lu_frame(params: Mapping[str, Any], t: float) -> Frame:
 | `params[].critical[]` | ✅ **必写** | 理论临界值列表；没有也要写 `[]`（规则 6） |
 | `params[].criticalNote` | `critical` 非空时必填 | 写清临界值的**依据**（哪条定理/哪个界） |
 | `params[].beyond` | 可选 | `above` / `below` / `magnitude`，越界提示的方向，默认 `above` |
+| `params[].help` | 建议 | 控件旁可展开的参数解释：是什么、调大/调小怎样、读图看哪里；新增参数必须写 |
 | `vizzes[].time` | ✅ | `{"mode": "none"}` / `stream` / `scrub`；非 `none` 时必须给正的 `tMax`、`dt`（`dt ≤ tMax`）、可选 `fps`（1–120）。`mode="none"` 时**不得**出现 `tMax/dt/fps`（规则 4） |
 | `vizzes[].requiredAux[]` | ✅ | **必须含 `error` 或 `residual`**（规则 3） |
 | `vizzes[].axes[]` | ✅ 非空 | 每项要有 `id`（唯一）、显式的 `autoscaled`（bool，规则 1/4）、可选 `scale: linear/log` |
 | `vizzes[].pitfalls` | ✅ | ≥ **60 字**（脚本按字符数算，规则 7） |
-| `vizzes[].theory[]` | ✅ 非空 | 至少一条理论依据，`notes.tex` 里要有对应推导 |
+| `vizzes[].theory[]` | ✅ 至少 4 步 | 面向初学者的分步推导（每步以 `**标题**。` 开头），从假设推到图上的量；`notes.tex` 里要有对应推导 |
 
 **`compute` 的签名与返回值**：`compute(viz_id: str, params: Mapping[str, Any], t: float) -> Frame`。
 `params` 已经过 `server/frames.normalize_params` 规范化（缺省值填充 + 区间校验 + 类型转换），
@@ -226,6 +227,7 @@ def _lu_frame(params: Mapping[str, Any], t: float) -> Frame:
 
 - [ ] `MANIFEST["chapter"] == "<id>"`，`vizzes[].id` 与文件名一一对应。
 - [ ] 每个 `params[]` 都有 `critical`（哪怕 `[]`）；`critical` 非空时有 `criticalNote`。
+- [ ] 每个参数都写了 `help`，并运行过 `tools/check_chapter_content.py`。
 - [ ] `requiredAux` 含 `error` 或 `residual`；副轴在 `axes` 里有对应条目。
 - [ ] 每个 `axes[]` 都有显式 `autoscaled`。
 - [ ] `pitfalls` ≥ 60 字，且**具体**（说清哪个图在什么参数下会骗人）。

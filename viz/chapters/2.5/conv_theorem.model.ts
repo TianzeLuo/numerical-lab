@@ -164,7 +164,7 @@ export const convTheoremModel: SceneModel = (frame, opts) => {
   const curvesAxis = makeAxis("curves", curvesRect, {
     xlim: [-0.5, Math.max(0.5, len - 0.5)],
     ylim: niceLimits(curveRange[0], curveRange[1], 5, { pad: 0.08 }),
-    xlabel: "样本序号（0…N−1）",
+    xlabel: "样本序号（0…$N$−1）",
     ylabel: axisYlabel(VIZ, "curves", "值"),
     title: axisTitle(VIZ, "curves", "两条卷积曲线"),
     autoscaled: axisAutoscaled(VIZ, "curves"),
@@ -258,8 +258,8 @@ export const convTheoremModel: SceneModel = (frame, opts) => {
 
   // —— 文本：面板内只放"身份行"，长句子全部进底部横条 ——
   const summary = paramSummary(frame, opts, [
-    { name: "n", label: "N" },
-    { name: "m", label: "M" },
+    { name: "n", label: "$N$" },
+    { name: "m", label: "$M$" },
   ]);
   degraded.push(...summary.degraded);
   const curveLines: string[] = [summary.text + (signalName === undefined ? "" : `　信号 ${signalName}`) + (kernelName === undefined ? "" : `　核 ${kernelName}`)];

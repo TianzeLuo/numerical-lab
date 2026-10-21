@@ -151,8 +151,8 @@ export const convergenceRatesModel: SceneModel = (frame, opts) => {
     xlim: [0, qXmax],
     ylim: [qLo, qHi],
     yscale: "log",
-    xlabel: "迭代步 k（越窗后截断）",
-    ylabel: "q_k",
+    xlabel: "迭代步 $k$（越窗后截断）",
+    ylabel: "`q_k`",
     title: "q_k：牛顿二次比值（对数）",
     autoscaled: true,
   });
@@ -162,8 +162,8 @@ export const convergenceRatesModel: SceneModel = (frame, opts) => {
     rate = makeAxis("linear_rate", [rX, L.botY, rW, L.botH], {
       xlim: [0, kMax],
       ylim: [0.95, 1.0],
-      xlabel: "迭代步 k",
-      ylabel: "r_k",
+      xlabel: "迭代步 $k$",
+      ylabel: "`r_k`",
       title: "GD 比值 r_k",
       autoscaled: false,
     });
@@ -260,7 +260,7 @@ export const convergenceRatesModel: SceneModel = (frame, opts) => {
       scatterLayer("ratio", qInvalidIn, qInvalidIn.map(() => qLo), {
         r: 2.4,
         color: pal.muted,
-        label: "q 无定义（掩码=0）",
+        label: "$q$ 无定义（掩码 $=0$）",
       }),
     );
   }
@@ -302,7 +302,7 @@ export const convergenceRatesModel: SceneModel = (frame, opts) => {
   }
   if (rate !== undefined && rBad.length > 0) {
     scene.layers.push(
-      scatterLayer("linear_rate", rBad, rBad.map(() => rate.ylim[0]), { r: 2.2, color: pal.muted, label: "r 无定义" }),
+      scatterLayer("linear_rate", rBad, rBad.map(() => rate.ylim[0]), { r: 2.2, color: pal.muted, label: "$r$ 无定义" }),
     );
   }
   if (rate !== undefined && gdTheory !== undefined && gdTheory >= rate.ylim[0] && gdTheory <= rate.ylim[1]) {

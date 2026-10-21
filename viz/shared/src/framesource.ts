@@ -601,6 +601,8 @@ export class ChapterFrameSource {
   #inflightTimer: unknown = null;
   #retryTimer: unknown = null;
   #heartbeatTimer: unknown = null;
+  #reconnectTimer: unknown = null;
+  #recoverRequest = false;
 
   constructor(opts: FrameSourceOptions) {
     this.#chapter = opts.chapter;
@@ -694,7 +696,13 @@ export class ChapterFrameSource {
     this.#connected = true;
 
     this.#setStatus("none", "正在尝试 L1 WebSocket 实时流…", 0);
-    if (await this.#tryConnectWs()) return;
+    if (await this.#tryConnectWs()) {
+      if (this.#recoverRequest) {
+        this.#recoverRequest = false;
+        this.#requestAfterRecovery();
+      }
+      return;
+    }
 
     this.#setStatus("none", `L1 WebSocket 不可用（${this.#wsFailReason}）：改用 L2 REST 单帧…`, 1);
     if (await this.#probeRest()) return;
@@ -705,9 +713,43 @@ export class ChapterFrameSource {
     this.#setStatus(
       "none",
       `三层数据源都不可用（L1：${this.#wsFailReason}；L2：${this.#restFailReason}；L3：${this.#staticFailReason}）` +
-        "——画面将保持空白，请检查后端是否已启动",
+        "——画面保持上一帧，正在自动重试；也可以继续改参数或刷新页面。若一直失败，请检查后端是否在运行",
       3,
     );
+    this.#scheduleReconnect();
+  }
+
+  /**
+   * 三层都失败后自动重连（而不是等用户刷新）。
+   *
+   * 之前的行为：任何一次参数组合把数据源打挂（例如某个矩阵族让后端算不出有限解），
+   * 状态停在 `none`；此后 `setParams` 直接 return，页面再也无法恢复。现在：
+   *  - 失败后每 2 s 重试一次 WS/REST；
+   *  - 用户改参数时立即取消等待并重连（新参数往往能算出来）。
+   */
+  #scheduleReconnect(): void {
+    if (this.#disposed || this.#reconnectTimer !== null) return;
+    this.#recoverRequest = true;
+    const delay = 2000;
+    this.#reconnectTimer = this.#setTimer(() => {
+      this.#reconnectTimer = null;
+      if (this.#disposed) return;
+      this.#connected = false;
+      void this.connect();
+    }, delay);
+  }
+
+  #cancelReconnect(): void {
+    if (this.#reconnectTimer === null) return;
+    this.#clearTimer(this.#reconnectTimer);
+    this.#reconnectTimer = null;
+  }
+
+  /** 恢复连接后把「当前时刻」重新要一遍；`connect` 本身不会自动 seek。 */
+  #requestAfterRecovery(): void {
+    this.#lastRequestedT = Number.NaN;
+    this.#lastDeliveredT = Number.NaN;
+    this.request(this.#t);
   }
 
   #setStatus(level: SourceLevel, message: string, attempts: number): void {
@@ -802,6 +844,7 @@ export class ChapterFrameSource {
       return false;
     }
 
+    this.#cancelReconnect();
     this.#ws = ws;
     this.#wsOpen = true;
     try {
@@ -863,15 +906,18 @@ export class ChapterFrameSource {
     if (await this.#probeStatic()) return;
     this.#setStatus(
       "none",
-      `三层数据源都不可用（L1：${reason}；L2：${this.#restFailReason}；L3：${this.#staticFailReason}）`,
+      `三层数据源都不可用（L1：${reason}；L2：${this.#restFailReason}；L3：${this.#staticFailReason}）` +
+        "——画面保持上一帧，正在自动重试",
       3,
     );
+    this.#scheduleReconnect();
   }
 
   async #probeRest(): Promise<boolean> {
     const url = restFrameUrl(this.#baseUrl, this.#chapter, this.#viz, this.#params, this.#t);
     try {
       const frame = await this.#fetchRestFrame(url);
+      this.#cancelReconnect();
       this.#restFailures = 0;
       this.#nextAttemptAt = 0;
       this.#lastRestAt = this.#now();
@@ -887,6 +933,7 @@ export class ChapterFrameSource {
   async #probeStatic(): Promise<boolean> {
     try {
       const hit = await this.#readStaticFrame(this.#t);
+      this.#cancelReconnect();
       this.#nextAttemptAt = 0;
       this.#setStatus(
         "static",
@@ -908,9 +955,10 @@ export class ChapterFrameSource {
     if (await this.#probeStatic()) return;
     this.#setStatus(
       "none",
-      `L3 静态帧也不可用（${this.#staticFailReason}）：三层数据源都失败，画面将保持空白`,
+      `L3 静态帧也不可用（${this.#staticFailReason}）：三层数据源都失败，画面保持上一帧，正在自动重试`,
       3,
     );
+    this.#scheduleReconnect();
   }
 
   // ------------------------------------------------------------------ 取帧
@@ -1255,7 +1303,16 @@ export class ChapterFrameSource {
       this.#send({ type: "params", params: this.#params });
       return;
     }
-    if (this.#status.level === "none") return;
+    if (this.#status.level === "none") {
+      // 数据源已经三层全挂时，改参数应当触发一次立刻重连（新参数可能不再让后端失败），
+      // 而不是静默 return、把页面永远留在“没有连接到数据服务”。
+      this.#cancelReconnect();
+      this.#connected = false;
+      this.#recoverRequest = true;
+      this.#wsFailReason = this.#wsFailReason === "未尝试" ? "正在重新连接" : this.#wsFailReason;
+      void this.connect();
+      return;
+    }
     this.#issue(this.#t);
   }
 
@@ -1368,6 +1425,7 @@ export class ChapterFrameSource {
     if (this.#disposed) return;
     this.#disposed = true;
     this.#streaming = false;
+    this.#cancelReconnect();
     if (this.#tickTimer !== null) {
       this.#clearTimer(this.#tickTimer);
       this.#tickTimer = null;

@@ -411,8 +411,12 @@ export function applyOverflow(scene: Scene, rawNonFinite: number, opts: { slot: 
   if (report.offenders.length > 0) parts.push(report.note);
   if (rawNonFinite > 0) parts.push(nonFiniteNote(rawNonFinite));
   const note = parts.join("；") || report.note;
-  scene.overflow = { flag: report.flag || rawNonFinite > 0, note };
-  if (scene.overflow.flag) scene.badges.push(placeBadge(overflowBadge(note), opts.slot, opts.width));
+  scene.overflow = { flag: report.flag || rawNonFinite > 0, note, severity: rawNonFinite > 0 ? "data" : "clip" };
+  if (scene.overflow.flag) {
+    // 非有限值是数据坏了；单纯越出固定视窗是显示选择。两者都要报告，但颜色/措辞不同。
+    const tone = rawNonFinite > 0 ? "danger" : "warning";
+    scene.badges.push(placeBadge(overflowBadge(note, 8, 44, tone), opts.slot, opts.width));
+  }
   return report;
 }
 
@@ -471,6 +475,7 @@ export function placeBadge<T extends Badge>(b: T, slot: number, width: number): 
   // 而 `validateScene` 当时查不出来（它不知道文字宽度）。
   // 现在统一在这里裁到列宽预算：宁可少显示几个字（尾部 `…`），也不许两枚角标叠在一起。
   // 完整文案请放到面板文本 / `pitfalls` 里——角标只是索引，不是正文。
+  if (b.detail === undefined) b.detail = b.text;
   b.text = clipBadgeText(b.text, badgeUnitBudget(width));
   return b;
 }
@@ -624,6 +629,24 @@ export function canvasSize(opts: ModelOptions): { width: number; height: number 
 export const DEGRADED_PREFIX = "⚠ 降级：";
 
 /** 把角标文本裁到 `maxUnits` 显示宽度内（超出用 `…` 收尾），避免角标横穿画布。 */
+/**
+ * 按显示宽度裁剪可能含 `$...$` 的标题，**绝不把公式定界符或 TeX 命令切成两半**。
+ * 装不下的数学段整段丢弃（保留前面的普通文字与 `…`），而不是留下一个未闭合的 `$`。
+ */
+export function clipRichText(text: string, maxUnits: number): string {
+  if (textWidthUnits(text) <= maxUnits) return text;
+  const parts = text.split(/(\$[^$]*\$|\\\([\s\S]*?\\\))/g).filter((p) => p !== "");
+  let out = "";
+  let used = 0;
+  for (const part of parts) {
+    const w = textWidthUnits(part);
+    if (used + w > Math.max(1, maxUnits - 1)) break;
+    out += part;
+    used += w;
+  }
+  return `${out.trimEnd()}…`;
+}
+
 export function clipBadgeText(text: string, maxUnits = 84): string {
   if (textWidthUnits(text) <= maxUnits) return text;
   let out = "";

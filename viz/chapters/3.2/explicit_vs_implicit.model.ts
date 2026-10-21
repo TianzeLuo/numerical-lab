@@ -193,7 +193,7 @@ export const explicitVsImplicitModel: SceneModel = (frame, opts) => {
     makeAxis("main", mainRect, {
       xlim,
       ylim: MAIN_LIM,
-      xlabel: "t（一个周期；曲线只画到当前 t）",
+      xlabel: "$t$（一个周期；曲线只画到当前 $t$）",
       ylabel: axisYlabelOf(SPEC?.axes, "main", "y(t)"),
       title: axisTitleOf(SPEC?.axes, "main", "解曲线（固定纵轴 ±2）"),
       autoscaled: false,
@@ -229,7 +229,7 @@ export const explicitVsImplicitModel: SceneModel = (frame, opts) => {
       xlim,
       ylim: auxYlim,
       yscale: "log",
-      xlabel: "t（与主图同一条时间轴）",
+      xlabel: "$t$（与主图同一条时间轴）",
       ylabel: axisYlabelOf(SPEC?.axes, "aux", "误差 / 次数"),
       title: axisTitleOf(SPEC?.axes, "aux", "显式/隐式误差（对数）与容差"),
       autoscaled: true,

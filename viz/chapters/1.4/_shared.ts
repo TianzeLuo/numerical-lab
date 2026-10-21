@@ -566,11 +566,20 @@ export function applyOverflowNote(
   applyOverflow(scene, rawNonFinite, opts);
   const trimmed = extra.trim();
   if (trimmed === "") return;
+  // 地板/掩码/固定窗口裁剪是显示约定，不是“数据坏了”；只有真正的非有限值
+  // 或没有有限解才升到红色。网页对 warning 显示为“显示范围”，避免默认画面吓人。
+  const dataLike = rawNonFinite > 0 || /非有限|NaN|∞|无有限解|未定义/.test(trimmed);
+  const tone = dataLike ? "danger" : "warning";
   scene.overflow = {
     flag: true,
     note: scene.overflow.note === "" ? trimmed : `${scene.overflow.note}；${trimmed}`,
+    severity: dataLike ? "data" : "clip",
   };
-  if (!scene.badges.some((b) => b.kind === "overflow")) {
-    scene.badges.push(placeBadge(overflowBadge(trimmed), opts.slot, opts.width));
+  const existing = scene.badges.find((b) => b.kind === "overflow");
+  if (existing !== undefined) {
+    existing.tone = tone;
+    existing.color = tone === "danger" ? "#c53030" : "#b7791f";
+    return;
   }
+  scene.badges.push(placeBadge(overflowBadge(trimmed, 8, 8, tone), opts.slot, opts.width));
 }

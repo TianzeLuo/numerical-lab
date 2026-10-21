@@ -263,8 +263,8 @@ export const denoiseThresholdModel: SceneModel = (frame, opts) => {
   // —— 右列文字 ——
   if (L.columns) {
     const head = paramSummary(frame, opts, [
-      { name: "sigma", label: "σ" },
-      { name: "lam", label: "λ" },
+      { name: "sigma", label: "$σ$" },
+      { name: "lam", label: "$λ$" },
     ]);
     degraded.push(...head.degraded);
     const lines: string[] = [];

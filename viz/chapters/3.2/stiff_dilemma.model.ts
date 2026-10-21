@@ -173,7 +173,7 @@ export const stiffDilemmaModel: SceneModel = (frame, opts) => {
     makeAxis("main", mainRect, {
       xlim,
       ylim: MAIN_LIM,
-      xlabel: "t（一个周期 2π；曲线只画到当前 t）",
+      xlabel: "$t$（一个周期 $2π$；曲线只画到当前 $t$）",
       ylabel: axisYlabelOf(SPEC?.axes, "main", "y(t)"),
       title: axisTitleOf(SPEC?.axes, "main", "解曲线（固定纵轴 ±2）与两种方法的步点"),
       autoscaled: false,
@@ -193,7 +193,7 @@ export const stiffDilemmaModel: SceneModel = (frame, opts) => {
       xlim,
       ylim: auxYlim,
       yscale: "log",
-      xlabel: "t（与上图同一条时间轴）",
+      xlabel: "$t$（与上图同一条时间轴）",
       ylabel: axisYlabelOf(SPEC?.axes, "aux", "误差 / 步长"),
       title: axisTitleOf(SPEC?.axes, "aux", "两种方法的误差（对数，截到当前 t）"),
       autoscaled: true,
@@ -259,7 +259,7 @@ export const stiffDilemmaModel: SceneModel = (frame, opts) => {
   const markX = tNow;
   const markY = errorMark.length > 0 ? errorMark[0] : undefined;
   if (markY !== undefined && Number.isFinite(markY) && markY > 0 && markX >= xlim[0] && markX <= xlim[1]) {
-    scene.layers.push(scatterLayer("aux", [markX], [markY], { r: 4.5, color: pal.marker, label: "当前 t 处的显式误差（帧 error_mark）" }));
+    scene.layers.push(scatterLayer("aux", [markX], [markY], { r: 4.5, color: pal.marker, label: "当前 $t$ 处的显式误差（当前点标记）" }));
   }
 
   // —— 文本 ——

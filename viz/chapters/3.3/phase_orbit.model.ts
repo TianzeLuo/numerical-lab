@@ -155,7 +155,7 @@ export const phaseOrbitModel: SceneModel = (frame, opts) => {
   const main = makeAxis("main", [mainX, L.topY, side, side], {
     xlim: [-WINDOW, WINDOW],
     ylim: [-WINDOW, WINDOW],
-    xlabel: "q",
+    xlabel: "$q$",
     title: axisTitleOf(SPEC?.axes, "main", "相平面 (q,p)：数值轨道 vs 不变量曲线 vs 精确轨道"),
     ylabel: axisYlabelOf(SPEC?.axes, "main", "p"),
     autoscaled: false,
@@ -209,7 +209,7 @@ export const phaseOrbitModel: SceneModel = (frame, opts) => {
     xlim: [tx0, tx1],
     ylim: logRange(FLOOR / 2, hi * 2),
     yscale: "log",
-    xlabel: "采样时刻 t",
+    xlabel: "采样时刻 $t$",
     title: axisTitleOf(SPEC?.axes, "aux", "到不变曲线 / 精确轨道的 |偏差|（对数）"),
     ylabel: axisYlabelOf(SPEC?.axes, "aux", "径向相对偏差"),
     autoscaled: true,

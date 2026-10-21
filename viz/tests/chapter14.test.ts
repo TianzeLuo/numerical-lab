@@ -837,7 +837,7 @@ test("1.4/pseudospectrum：ρ(A)>0 时走 manifest 的口径，实测与解析�
   const scene = sceneAt(await makeFrame(psFrame({ rho: 1.5 })));
   assertValid(scene);
   const aux = axisOf(scene, "aux");
-  assert.match(aux.ylabel, /ρ_ε \/ ρ\(A\)/, "轴名必须与 manifest 一致");
+  assert.ok(aux.ylabel.includes("rho") && aux.ylabel.includes("varepsilon") && aux.ylabel.includes("(A)"), `轴名必须说明 ρ_ε/ρ(A)，实际：${aux.ylabel}`);
   const ys = lineSeriesOf(scene, "aux").flatMap((s) => s.y).filter((y) => y > 1e-299);
   assert.ok(ys.length >= 6, "实测比值 + 解析对照至少各 3 个点");
   assert.match(allText(scene), /解析对照|正规矩阵/, "必须说明第二条线是解析对照（规则 2）");

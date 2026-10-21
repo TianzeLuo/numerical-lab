@@ -319,7 +319,7 @@ test("gradient_field：等高线+箭头+误差底栏，误差必须给出", asyn
 
 test("gradient_field：max 相对误差超阈 → 临界值角标", async () => {
   const scene = await sceneOf("gradient_field", { meta: { max_rel_error: 1e-3 } });
-  assert.match(badgesOf(scene), /已越界/);
+  assert.match(badgesOf(scene), /已超过临/);
 });
 
 test("influence_field：纵轴是反向时间，热图行序已翻转（tau=0 在底）", async () => {
@@ -348,7 +348,7 @@ test("gradient_check：双对数 V 曲线、两条参考线与最优 eps", async
   const scene = await sceneOf("gradient_check");
   assert.equal(axisOf(scene, "vcurve").xscale, "log");
   assert.equal(axisOf(scene, "vcurve").yscale, "log");
-  const labels = linesOn(scene, "vcurve").map((s) => s.label ?? "");
+  const labels = linesOn(scene, "vcurve").map((s) => (s.label ?? "").replace(/\$/g, ""));
   assert.ok(labels.some((l) => l.includes("中心差分 ε*")));
   assert.match(textsOf(scene), /蓝虚=截断参考/);
 });

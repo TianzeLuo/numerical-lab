@@ -425,6 +425,30 @@ test("L1 掉线：自动降级到 L2（status 里说清是「断开」而不是�
   assert.equal(rec.frames.length, 1, "降级后立刻补了一帧");
 });
 
+test("三层全挂后改参数会立刻重连，不需要刷新页面", async () => {
+  FakeWebSocket.reset();
+  const h = harness();
+  h.fetcher.handler = async () => statusResponse(503);
+  const src = makeSource(h);
+  const rec = record(src);
+  await src.connect();
+  assert.equal(src.level, "ws");
+  FakeWebSocket.last().drop(1006);
+  await flush();
+  assert.equal(src.level, "none");
+  assert.equal(src.status.attempts, 3);
+  // 新参数不再让后端失败：FakeWebSocket 下一次 open 后必须重新订阅并 seek。
+  FakeWebSocket.behavior = "open";
+  src.setParams({ r: 0.9 });
+  await flush();
+  assert.equal(src.level, "ws", "改参数应触发重连，而不是永远停在 none");
+  const ws = FakeWebSocket.last();
+  const subscribe = ws.sent.map((text) => JSON.parse(text) as Record<string, unknown>).find((m) => m["type"] === "subscribe");
+  assert.deepEqual(subscribe?.["params"], { r: 0.9 });
+  assert.ok(ws.sent.some((text) => text.includes('"type":"seek"')), "恢复后要把当前时刻重新要一遍");
+  assert.ok(rec.statuses.some((s) => s.level === "ws" && s.message.includes("已连接")));
+});
+
 // --------------------------------------------------------------------------- //
 // 降级：WS → REST → static → none
 // --------------------------------------------------------------------------- //

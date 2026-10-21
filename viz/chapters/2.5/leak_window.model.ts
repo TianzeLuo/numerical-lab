@@ -169,7 +169,7 @@ export const leakWindowModel: SceneModel = (frame, opts) => {
   const shapeAxis = makeAxis("shape", shapeRect, {
     xlim: [0, Math.max(1, shape.length - 1)],
     ylim: niceLimits(shapeRange[0], shapeRange[1], 5, { pad: 0.1 }),
-    xlabel: "m（窗内样本序号）",
+    xlabel: "$m$（窗内样本序号）",
     ylabel: axisYlabel(VIZ, "shape", "w[m]"),
     title: axisTitle(VIZ, "shape", "四种窗的时域形状"),
     autoscaled: axisAutoscaled(VIZ, "shape"),
@@ -184,7 +184,7 @@ export const leakWindowModel: SceneModel = (frame, opts) => {
     xlim: [0, Math.max(1, shape.length - 1)],
     ylim: errYlim,
     yscale: "log",
-    xlabel: "m（与上面同一段窗内样本）",
+    xlabel: "$m$（与上面同一段窗内样本）",
     ylabel: axisYlabel(VIZ, "error", "rel"),
     title: axisTitle(VIZ, "error", "解析窗谱 vs |FFT| 的相对差"),
     autoscaled: true,
@@ -202,7 +202,7 @@ export const leakWindowModel: SceneModel = (frame, opts) => {
   const specAxis = makeAxis("spec", specRect, {
     xlim: specXlim,
     ylim: [Math.min(-100, specFloor), Math.max(5, anchorDb === undefined ? 0 : anchorDb + 5)],
-    xlabel: "f·T（每记录周期数；等于 T = N·dt 时的 f·N）",
+    xlabel: "$f\\cdot T$（每记录周期数；等于 $T=N\\cdot dt$ 时的 $f\\cdot N$）",
     ylabel: axisYlabel(VIZ, "spec", "dB"),
     title: axisTitle(VIZ, "spec", "加窗后的 dB 谱（相对峰值）"),
     autoscaled: axisAutoscaled(VIZ, "spec"),
@@ -257,14 +257,14 @@ export const leakWindowModel: SceneModel = (frame, opts) => {
   const errSeries = segmentedSeries(mAxis, absOf(error), pal.residual, {
     width: 1.4,
     accept: (v) => v > 0,
-    label: "解析窗谱 vs |FFT| 的差",
+    label: "解析窗谱 vs $|\\mathrm{FFT}|$ 的差",
   });
   if (errSeries.length > 0) scene.layers.push(lineLayer("error", errSeries));
   else degraded.push("帧 error 没有 >0 的有限值：对数副轴画不出任何点");
 
   // —— 文本：面板内只放"身份行"，长句子全部进底部横条 ——
   const summary = paramSummary(frame, opts, [
-    { name: "n", label: "N" },
+    { name: "n", label: "$N$" },
     { name: "offset", label: "offset" },
     { name: "pad", label: "pad" },
   ]);

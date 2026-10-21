@@ -714,9 +714,19 @@ MANIFEST: dict[str, Any] = {
             "dataSource": "backend",
             "params": [
                 {"name": "n", "label": "内点数 n", "type": "int", "min": 15, "max": 127, "step": 16,
-                 "default": 63, "critical": [], "criticalNote": ""},
+                 "default": 63, "critical": [], "criticalNote": "",
+                 "help": (
+                     "一维网格的内点数，网格步长 h=1/(n+1)，因此 n 越大离散频率越密。调大时最高频更接近 π、"
+                     "低频更接近 0，频谱图上的点变多，低频模态的放大率更贴近 1；调小则模态少、曲线粗糙。"
+                     "它和权重一起决定高频与低频的分界位置。"
+                 )},
                 {"name": "smoother", "label": "平滑子", "type": "enum",
-                 "options": ["jacobi", "sor"], "default": "jacobi", "critical": [], "criticalNote": ""},
+                 "options": ["jacobi", "sor"], "default": "jacobi", "critical": [], "criticalNote": "",
+                 "help": (
+                     "平滑子类型：jacobi 是加权 Jacobi，迭代矩阵在正弦基下对角，逐模态衰减可以精确预测；"
+                     "sor 是逐点超松弛，omega=1 时就是 Gauss-Seidel。SOR 的迭代矩阵非正规，实测的一步放大率"
+                     "会与特征值模长分开；切换后副图两条曲线的间距就是这种差别的量度。"
+                 )},
                 {"name": "omega", "label": "权重 omega", "type": "float", "min": 0.2, "max": 1.0,
                  "step": 0.0167, "default": 0.6667, "critical": [0.6667],
                  "criticalNote": (
@@ -726,17 +736,27 @@ MANIFEST: dict[str, Any] = {
                      "$\\omega=1$（普通 Jacobi）时最高频几乎是 $1-O(h^2)$（实测 $0.9808$，$n=15$）。"
                      "选 sor 时这条线的含义不变，但 SOR 的实测曲线与理论曲线本来就会分开。"
                  ),
-                 "beyond": "above"},
+                 "beyond": "above",
+                 "help": (
+                     "平滑权重，无量纲，控制每次扫描把旧值保留多少。2/3 是一维最优平滑权重，使高频带最坏放大率"
+                     "降到 1/3；调小会同时拖慢高频与低频，调大则最高频重新变大，接近 1 时普通 Jacobi 对最高频"
+                     "几乎不衰减。选 sor 时它变成松弛因子，读图时看副图高频段是否整体压在 1/3 以下。"
+                 )},
                 {"name": "content", "label": "初值内容", "type": "enum",
-                 "options": ["mixed", "low", "high"], "default": "mixed", "critical": [], "criticalNote": ""},
+                 "options": ["mixed", "low", "high"], "default": "mixed", "critical": [], "criticalNote": "",
+                 "help": (
+                     "初值误差包含哪些模态：mixed 让每个模态都有系数 1/k（低频占优），low 只激发最低频，"
+                     "high 只激发最高频。mixed 下总误差范数会被最低模态拖住，low 与 high 则分别演示原地不动和"
+                     "迅速消失；它和 n、omega 一起决定主图三条曲线的形状。"
+                 )},
             ],
             "time": {"mode": "scrub", "tMax": 30.0, "dt": 1.0, "fps": 30, "label": "迭代步 k"},
             "requiredAux": ["error"],
             "axes": [
-                {"id": "spectrum", "autoscaled": True, "title": "逐模态振幅（对数轴，地板 1e-16）",
-                 "ylabel": "|c_k|", "scale": "log"},
+                {"id": "spectrum", "autoscaled": True, "title": "逐模态振幅（对数轴，地板 $10^{-16}$）",
+                 "ylabel": "$|c_k|$", "scale": "log"},
                 {"id": "factor", "autoscaled": False,
-                 "title": "一步放大率（固定窗口 0-1.1：越过 1 就是放大了）", "ylabel": "|lambda_k|"},
+                 "title": "一步放大率（固定窗口 0-1.1：越过 1 就是放大了）", "ylabel": "$|\\lambda_k|$"},
             ],
             "pitfalls": (
                 "第一，整体误差范数是**被最低模态拖住**的：$n=63$ 的 mixed 初值下，$10$ 步后高频"
@@ -747,12 +767,36 @@ MANIFEST: dict[str, Any] = {
                 "曲线平贴地板不是「衰减停了」，而是已经到舍入尺度（amplitude_at_floor 标了）。"
             ),
             "theory": [
-                "加权 Jacobi：$T=I-\\omega D^{-1}A$，逐模态 $\\lambda_k=1-\\omega(1-\\cos\\theta_k)$，"
-                "$\\theta_k=k\\pi/(n+1)$；一维最优 $\\omega=2/3$ 时 $|\\lambda_k|=|1-(4/3)\\sin^2(\\theta_k/2)|$",
-                "平滑因子 $\\mu_{\\mathrm{smooth}}=\\max_{\\theta\\ge\\pi/2}|\\lambda|=1/3$（$\\omega=2/3$ 的加权 Jacobi）；"
-                "最低模态 $|\\lambda_1|=1-(2/3)(1-\\cos(\\pi h))=1-\\pi^2h^2/3+O(h^4)$",
-                "Gauss-Seidel 的迭代矩阵与 $A$ 不同特征向量（非正规）：特征值是 $\\cos^2\\theta_k$，"
-                "而单模态一步放大率的无穷网格符号是 $1/\\sqrt{5-4\\cos\\theta}$，高频半带最大值 $1/\\sqrt{5}=0.4472$",
+                "**离散模型与正弦模态**。对 $-u''=f$、$u(0)=u(1)=0$ 取 $h=1/(n+1)$，矩阵 "
+                "$A_h=h^{-2}\\operatorname{tridiag}(-1,2,-1)$。令 $(v_k)_j=\\sin(j\\theta_k)$、"
+                "$\\theta_k=k\\pi/(n+1)$，代入差分并用和差化积得 "
+                "$A_h v_k=4h^{-2}\\sin^2(\\theta_k/2)v_k$。这些 $v_k$ 互相正交，构成 $\\mathbb{R}^n$ 的一组基，"
+                "所以任何初值误差都能写成 $e_0=\\sum_k c_k(0)v_k$。",
+                "**加权 Jacobi 的逐模态放大率**。一次加权 Jacobi 是 $x\\leftarrow x+\\omega D^{-1}(b-Ax)$，"
+                "误差迭代矩阵 $T_\\omega=I-\\omega D^{-1}A_h$。这里 $D=2h^{-2}I$ 是纯量矩阵，故 "
+                "$D^{-1}A_hv_k=(1-\\cos\\theta_k)v_k$，从而 $T_\\omega v_k=\\mu_k(\\omega)v_k$，"
+                "$\\mu_k=1-\\omega(1-\\cos\\theta_k)=1-2\\omega\\sin^2(\\theta_k/2)$。同一组基下对角，意味着第 $k$ "
+                "个模态精确按 $\\mu_k^m$ 衰减、模态之间不混合：这正是主图三条曲线能逐点重合的原因。",
+                "**最优权重与平滑因子**。高频半带是 $\\theta\\in[\\pi/2,\\pi]$，此时 "
+                "$s=\\sin^2(\\theta/2)\\in[1/2,1]$。$\\mu=1-2\\omega s$ 是 $s$ 的一次函数，最大模在端点取到，"
+                "所以 $\\mu_{\\mathrm{smooth}}(\\omega)=\\max(|1-\\omega|,|1-2\\omega|)$。分四段比较可知它在 "
+                "$\\omega=2/3$ 取最小值 $1/3$：此时 $\\mu(\\pi/2)=1/3$、$\\mu(\\pi)=-1/3$，两端同时达到。"
+                "于是每扫描一次，所有高频模态至少缩小 3 倍；这就是图里 1/3 参考线的含义。",
+                "**低频几乎不动**。最低模态 $\\theta_1=\\pi h$ 给出 "
+                "$\\mu_1=1-\\frac23(1-\\cos\\pi h)=1-\\frac{\\pi^2h^2}{3}+O(h^4)$。它与 1 的距离是 $\\Theta(h^2)$："
+                "$h$ 减半，距离缩小到四分之一，把该模态压低固定倍数需要 $\\Theta(h^{-2})$ 次扫描。$n=63$ 时 "
+                "$h=1/64$，10 步后最低模态还保留约 0.992，而高频已经掉到 $10^{-8}$ 以下；整体误差范数只降到 0.89，"
+                "完全是被最低模态拖住的。",
+                "**Gauss-Seidel 的两个数**。SOR/GS 的迭代矩阵是 "
+                "$T=(D-\\omega L)^{-1}((1-\\omega)D+\\omega U)$，它不再与 $A_h$ 共享正弦特征向量，也不是正规矩阵。"
+                "GS 的特征值仍是 $\\cos^2\\theta_k$（最大 $1-O(h^2)$），但单个振荡模态的一步放大率由符号 "
+                "$1/\\sqrt{5-4\\cos\\theta}$ 描述，高频半带最大为 $1/\\sqrt5=0.4472$。谱半径描述长期速率，符号描述"
+                "一次扫描对纯模态的效果，两者可以差很远；副图里 SOR 的实测与理论曲线分开，就是非正规性的直接证据。",
+                "**读图、地板与参数**。主图纵轴是 $|c_k|$ 的对数，地板 $10^{-16}$：曲线贴平不是衰减停了，"
+                "而是到了舍入尺度。初值 mixed 取 $c_k=1/k$，低频占优，所以总范数看似降得慢；low 只留最低模态、"
+                "high 只留最高模态，分别验证不动和迅速消失。副图纵轴固定在 0 到 1.1，越过 1 就是这一步放大了该模态；"
+                "$\\omega$ 从 2/3 调小会把高低频一起拖慢，调大则最高频重新变大。$n$ 越大，低频 $\\mu_1$ 越接近 1，"
+                "平滑越显得只对高频有效。",
             ],
         },
         # ------------------------------------------------------------------ #
@@ -769,23 +813,48 @@ MANIFEST: dict[str, Any] = {
             "dataSource": "backend",
             "params": [
                 {"name": "levels", "label": "网格层数 L（n=2^L-1）", "type": "int", "min": 3, "max": 6,
-                 "step": 1, "default": 4, "critical": [], "criticalNote": ""},
+                 "step": 1, "default": 4, "critical": [], "criticalNote": "",
+                 "help": (
+                     "多重网格的层数 L，最细层内点数约为 2^L-1，每加一层网格规模减半。调大后能看到更多粗细层与"
+                     "更长的 V 形事件序列，粗层求解的相对代价也更能体现；调小则层数少、最粗层很快出现，V 循环"
+                     "更像两网格。读图时看各层虚线与事件分段。"
+                 )},
                 {"name": "nu", "label": "前/后平滑步数 nu", "type": "int", "min": 1, "max": 3, "step": 1,
-                 "default": 1, "critical": [], "criticalNote": ""},
+                 "default": 1, "critical": [], "criticalNote": "",
+                 "help": (
+                     "每层前平滑与后平滑的步数，两个方向用同样的 nu。调大时高频被压得更狠、循环因子更小，"
+                     "但每个周期的扫描代价线性增加；调小到 1 时因子较大、收敛慢，却最便宜。"
+                     "读图时把因子与右栏的每周期代价一起看。"
+                 )},
                 {"name": "cycle", "label": "循环类型", "type": "enum", "options": ["v", "w"],
-                 "default": "v", "critical": [], "criticalNote": ""},
+                 "default": "v", "critical": [], "criticalNote": "",
+                 "help": (
+                     "循环类型：v 是每层只递归一次，w 是每层递归两次。W 循环对粗层的利用更充分，因子更接近"
+                     "两网格的 1/9，但每周期代价按层数乘对数增长；V 循环便宜、因子略大。读图时对照事件数与代价账，"
+                     "不能只看因子。"
+                 )},
                 {"name": "smoother", "label": "平滑子", "type": "enum", "options": ["jacobi", "gs"],
-                 "default": "jacobi", "critical": [], "criticalNote": ""},
+                 "default": "jacobi", "critical": [], "criticalNote": "",
+                 "help": (
+                     "粗层与细层使用的平滑子：jacobi 是加权 Jacobi，gs 是 Gauss-Seidel。Jacobi 的误差模态不混合、"
+                     "分析最干净；GS 通常平滑更强但迭代矩阵非正规，V 循环因子与代价都会变。"
+                     "切换后看误差形态的锯齿与右栏因子。"
+                 )},
                 {"name": "content", "label": "初值误差内容", "type": "enum",
-                 "options": ["low", "high", "mixed"], "default": "mixed", "critical": [], "criticalNote": ""},
+                 "options": ["low", "high", "mixed"], "default": "mixed", "critical": [], "criticalNote": "",
+                 "help": (
+                     "初值误差内容：low 只含最低频，high 只含最高频，mixed 两者都有。low 在细网格上平滑几乎不动，"
+                     "必须靠粗层校正；high 一次平滑就掉一个量级，粗层反而帮不上忙。它决定主图误差形态与事件序列中"
+                     "各层范数的相对大小。"
+                 )},
             ],
             "time": {"mode": "scrub", "tMax": 5.0, "dt": 1.0, "fps": 30, "label": "周期 c"},
             "requiredAux": ["error", "residual"],
             "axes": [
                 {"id": "profile", "autoscaled": True, "title": "误差形态（细网格与各层的限制结果）",
-                 "ylabel": "e(x)"},
+                 "ylabel": "$e(x)$"},
                 {"id": "events", "autoscaled": True, "title": "下一个周期的事件序列（该层向量范数）",
-                 "ylabel": "||v_l||", "scale": "log"},
+                 "ylabel": "$\\|v_l\\|$", "scale": "log"},
             ],
             "pitfalls": (
                 "第一，最粗层的 24 次扫描在代价账里占 $4.5/16$（$n=15$ 时 $1.6$ 个最细层等价单位），"
@@ -799,12 +868,45 @@ MANIFEST: dict[str, Any] = {
                 "那时帧里 status 会直接写 cycle_diverging（而不是画一条悄悄变大的曲线）。"
             ),
             "theory": [
-                "粗网格校正：$x\\leftarrow x+P A_H^{-1}R(b-A_h x)$；两网格算子 "
-                "$E_{\\mathrm{TG}}=S^{\\nu_2}(I-P A_H^{-1}R A_h)S^{\\nu_1}$",
-                "V-cycle：每层 $\\gamma=1$ 次递归；W-cycle：$\\gamma=2$。代价按层累加，"
-                "V 是几何级数（约 $(\\nu_1+\\nu_2)(1+1/2+\\ldots)n_0$ 个点扫描），W 每层被访问 $2^l$ 次、总代价 $O(n_0\\log n_0)$",
-                "一维里 $R A_h P=A_H$ 精确成立（Galerkin 与重离散重合），"
-                "且 $P^T A_h P=2A_H$ —— 这就是 $R=(1/2)P^T$ 里那个 $1/2$ 的来源",
+                "**粗网格校正是一个投影**。设限制 $R$、插值 $P$、粗层算子 $A_H=R A_h P$（Galerkin），粗校正映射 "
+                "$M=P A_H^{-1}R A_h$，误差传播 $C=I-M$。由 $R A_h P=A_H$ 得 "
+                "$M^2=P A_H^{-1}(R A_h P)A_H^{-1}R A_h=M$，所以 $C^2=C$ 是投影。并且 "
+                "$C(Pw)=Pw-P A_H^{-1}A_Hw=0$：落在插值空间里的误差被一次消干净；反过来，若 "
+                "$x\\in\\operatorname{ker}(R A_h)$，则 $Cx=x$，粗层看不见的分量只能交给平滑子。",
+                "**一维的转移算子与缩放配对**。线性插值 $P$ 的每列在粗点取 1、相邻细点取 $1/2$；满权限制 $R$ "
+                "的模板是 $\\frac14[1,2,1]$，正好 $R=\\frac12P^T$。直接计算给出 $P^T A_h P=2A_H$，因为插值在粗点"
+                "之间是线性的、$A_h$ 作用后中点分量为零。于是 $R A_h P=\\frac12P^T A_h P=A_H$，一维的 Galerkin "
+                "粗算子与重新离散逐元素相同。若把限制改成 $R=cP^T$，则 $R A_h P=2cA_H$：$c=1/2$ 才配对，$c=1$ "
+                "会把粗校正放大一倍，$c<1/2$ 则校正不足。",
+                "**两网格因子的精确谱**。误差传播算子是 "
+                "$E_{\\mathrm{TG}}=S^{\\nu_2}(I-P A_H^{-1}R A_h)S^{\\nu_1}$。取 $\\nu_1=\\nu_2=1$、$\\omega=2/3$，"
+                "粗校正把一对模态 $v_k,v_{N-k}$ 混合：$Cv_k=s_k(v_k+v_{N-k})$、"
+                "$Cv_{N-k}=c_k(v_k+v_{N-k})$，其中 $s_k=\\sin^2(\\theta_k/2)$、$c_k=\\cos^2(\\theta_k/2)$。"
+                "在这个二维不变子空间上，$E_{\\mathrm{TG}}$ 的特征值是 0 与 "
+                "$\\lambda_k=s_k\\mu_k^2+c_k\\mu_{N-k}^2$；代入 "
+                "$\\mu_k=\\frac13(1+2\\cos\\theta_k)$ 展开后 $\\lambda_k\\equiv1/9$。所以谱是 $\\{0,1/9\\}$，"
+                "谱半径 $1/9$ 与 $h$ 无关，这就是两网格曲线的水平线。",
+                "**V 循环与 W 循环的递归**。粗层不可能精确求逆，只能用固定次数的循环近似。设 $E_l$ 是第 $l$ 层的"
+                "误差传播算子，$\\gamma=1$ 为 V、$\\gamma=2$ 为 W，则 "
+                "$E_l=S_l^{\\nu_2}[I-P_l(I-E_{l+1}^{\\gamma})A_{l+1}^{-1}R_lA_l]S_l^{\\nu_1}$；最粗层做固定次数的"
+                "扫描。括号里的 $(I-E_{l+1}^{\\gamma})A_{l+1}^{-1}$ 是从零初值跑 $\\gamma$ 次粗循环的响应。"
+                "若 $E_{l+1}=0$（粗层精确），它退化为两网格算子；实际 $E_{l+1}\\ne0$，所以 V 循环因子大于 "
+                "$1/9$，实测约 0.19。",
+                "**代价账：V 是几何级数，W 是对数**。以最细层一次点扫描为单位，V 循环满足 "
+                "$W_V(l)=(\\nu_1+\\nu_2)n_l+W_V(l+1)$，逐层展开是 $n_0(1+1/2+\\cdots)$，总和 $O(n_0)$；"
+                "W 循环满足 $W_W(l)=(\\nu_1+\\nu_2)n_l+2W_W(l+1)$，第 $l$ 层被访问 $2^l$ 次，每项约 $n_0$，"
+                "总共 $O(n_0\\log n_0)$。本帧每周期实测约 4 到 5 个最细层等价单位（V），W 则要 18 到 23 个。"
+                "W 的因子更小，但一步更贵，降到同样精度总代价反而约 4 倍。",
+                "**事件序列怎么读**。副图的每个点来自一次真实的 V/W 循环：进入某层、前平滑、限制、粗层求解、"
+                "延拓校正、后平滑，相位在说明文字里逐条解释。纵轴是该层当前向量的范数，粗层点数少、限制又带 "
+                "$1/4$ 权重，范数天然比细层小几个数量级，所以跨层比大小会得出粗层误差更小的假结论。正确读法是看"
+                "同一层的锯齿（限制前的残差与校正后的误差），或看右上同层口径的逐周期范数。事件范数贴地板往往是"
+                "进入粗层时零初值的占位，不是残差真的那么小。",
+                "**因子、周期数与失稳边界**。若谱半径 $\\rho=0.19$，把误差压到 $10^{-8}$ 需要 "
+                "$k\\ge\\ln(10^8)/\\ln(1/\\rho)\\approx11$ 个周期，本帧的周期数就是按这个数实测的。$\\rho$ 是渐近"
+                "速率，不是每一步都精确乘 0.19；前几个周期受初值模态分布影响。V 循环因子不会等于 0：固定递归是"
+                "收缩算子而非精确求解器。若把平滑权重调到 2/3 之外的弱平滑区，高频不再被压住，因子可能越过 1，"
+                "图会直接报发散而不是画一条悄悄变大的曲线。",
             ],
         },
         # ------------------------------------------------------------------ #
@@ -821,15 +923,39 @@ MANIFEST: dict[str, Any] = {
             "dataSource": "backend",
             "params": [
                 {"name": "levels_max", "label": "最大层数（n 到 2^L-1）", "type": "int", "min": 4, "max": 7,
-                 "step": 1, "default": 7, "critical": [], "criticalNote": ""},
+                 "step": 1, "default": 7, "critical": [], "criticalNote": "",
+                 "help": (
+                     "扫描的最大层数，最细网格内点数到 2 的 levels_max 次方减一。调大后横轴范围更宽，更能看清"
+                     "因子是否随 h 漂移、CG 与 MGCG 迭代数差距是否扩大；调小则点少、趋势不明显。"
+                     "读图时注意最右端是否还在渐近区。"
+                 )},
                 {"name": "cycle", "label": "循环类型", "type": "enum", "options": ["v", "w"],
-                 "default": "v", "critical": [], "criticalNote": ""},
+                 "default": "v", "critical": [], "criticalNote": "",
+                 "help": (
+                     "循环类型：v 每层递归一次，w 每层递归两次。W 的因子更接近 1/9，但每周期代价更高；"
+                     "V 的因子约 0.19、代价低。切换后主图因子曲线与副图迭代数、代价曲线会同时变化，"
+                     "读图时要把三者一起比较。"
+                 )},
                 {"name": "nu", "label": "前/后平滑步数 nu", "type": "int", "min": 1, "max": 3, "step": 1,
-                 "default": 1, "critical": [], "criticalNote": ""},
+                 "default": 1, "critical": [], "criticalNote": "",
+                 "help": (
+                     "前平滑与后平滑的步数。调大时高频压得更干净、V/W 因子下降，但每周期扫描数成比例增加；"
+                     "调小到 1 时因子较大、收敛慢，却最省。它和循环类型一起决定因子更小是否值得。"
+                 )},
                 {"name": "smoother", "label": "平滑子", "type": "enum", "options": ["jacobi", "gs"],
-                 "default": "jacobi", "critical": [], "criticalNote": ""},
+                 "default": "jacobi", "critical": [], "criticalNote": "",
+                 "help": (
+                     "平滑子类型：jacobi 的逐模态放大率可精确预测，是分析网格无关性的标准选择；gs 是 Gauss-Seidel，"
+                     "平滑更强但迭代矩阵非正规，因子与代价都会不同。切换后看因子曲线是否仍接近水平、"
+                     "迭代数是否仍是个位数。"
+                 )},
                 {"name": "tol_exp", "label": "目标精度 1e-k", "type": "int", "min": 4, "max": 10, "step": 1,
-                 "default": 8, "critical": [], "criticalNote": ""},
+                 "default": 8, "critical": [], "criticalNote": "",
+                 "help": (
+                     "目标精度写成 1e-k 的指数 k，例如 8 表示把误差降到 1e-8。调大时目标更严，所有方法的迭代数"
+                     "都增加，单层平滑子的换算值会涨到几万次；调小则目标松、曲线整体下移。读图时纵轴次数与这条"
+                     "目标直接对应。"
+                 )},
             ],
             "time": {"mode": "none"},
             "requiredAux": ["residual", "error"],
@@ -849,12 +975,11 @@ MANIFEST: dict[str, Any] = {
                 "而 MG 的周期数是真的数出来的；把换算值当实测值引用是最容易犯的偷懒。"
             ),
             "theory": [
-                "两网格因子（$\\nu_1=\\nu_2=1$，$\\omega=2/3$）在一维等于 $\\mu_{\\mathrm{smooth}}^2=1/9$；"
-                "V/W 循环因子更大，因为粗层只是被近似求解（V 实测约 $0.19$）",
-                "单层平滑子 $\\rho(T_J)=\\cos(\\pi h)=1-\\pi^2h^2/2+O(h^4)$："
-                "$-\\log(1-\\rho)$ 对 $\\log h$ 的斜率应为 $2$（实测 $1.889$，因为 $n$ 还不够大、还没进渐近区）",
-                "CG 迭代数 $\\sim\\sqrt{\\kappa}=O(h^{-1})$；MGCG 每次迭代代价 $\\sim$ 一个循环，"
-                "迭代数 $O(1)$，所以加速比按迭代数是 $O(h^{-1})$（实测 $n=255$ 时 $36.4$ 倍）",
+                "**多重网格把误差分成不同频率。** 在细网格上，平滑子快速消除高频误差，但低频误差衰减很慢；把这些低频误差限制到粗网格上，它们就变成粗网格的“高频”，可以被同样地快速消除。递归下去就是 V-cycle。",
+                "**V-cycle 与 W-cycle 的区别。** V-cycle 每层只访问一次子网格，成本 $O(n)$；W-cycle 在每层多做几次递归，收敛因子更小但常数更大。层数增加时，V-cycle 的迭代次数可能略增，好的多重网格应接近网格无关。",
+                "**收敛因子是每次循环误差的压缩率。** 若误差每轮乘上 $\\rho$，则降到容差 $\\epsilon$ 需要约 $\\log(1/\\epsilon)/\\log(1/\\rho)$ 次。多重网格的目标是让 $\\rho$ 与网格规模 $n$ 基本无关，因此总成本 $O(n\\log(1/\\epsilon))$。",
+                "**为什么能做到网格无关。** 平滑子负责高频，粗网格校正负责低频，两层工作互补；只要每一层都把对应频段压下去，整体收敛率就不会随 $n$ 恶化。若平滑子或限制/延拓不匹配，某频段漏掉，收敛率就会退化。",
+                "**参数怎样读。** levels_max 决定能处理的最粗尺度；cycle 选择 V/W；nu 是前/后平滑步数（1–3 通常足够）；tol_exp 是目标精度 $10^{-k}$。看实测收敛因子是否随层数基本不变，而不是只看总迭代次数。",
             ],
         },
         # ------------------------------------------------------------------ #
@@ -872,7 +997,7 @@ MANIFEST: dict[str, Any] = {
             "dataSource": "backend",
             "params": [
                 {"name": "n", "label": "细网格内点数 n（奇数）", "type": "int", "min": 31, "max": 127,
-                 "step": 2, "default": 63, "critical": [], "criticalNote": ""},
+                 "step": 2, "default": 63, "critical": [], "criticalNote": "", "help": "细网格内点数（奇数，便于成对粗化）。$n$ 越大，最短波长越小，限制算子对高频的混叠越明显；多重网格的网格层级也越多。"},
                 {"name": "theta_frac", "label": "高频分量 theta/pi", "type": "float", "min": 0.05, "max": 0.99,
                  "step": 0.01, "default": 0.95, "critical": [0.5],
                  "criticalNote": (
@@ -881,14 +1006,14 @@ MANIFEST: dict[str, Any] = {
                      "$\\theta/\\pi$ 越接近 $1$，粗层看到的东西越像低频（$\\theta/\\pi=0.95$ 时别名到 $-0.0938\\pi$），"
                      "而可见幅度只剩 $3.8\\times10^{-3}$；到 Nyquist（$\\theta/\\pi=1$）时 $R r=0$，损失 $1.000000$。"
                  ),
-                 "beyond": "above"},
+                 "beyond": "above", "help": "注入的高频分量 $\\theta/\\pi$。接近 1 表示网格尺度上的最高频；接近 0 是低频。限制算子对高频的处理最能暴露差别。"},
                 {"name": "mix", "label": "高频能量占比", "type": "float", "min": 0.0, "max": 1.0, "step": 0.05,
-                 "default": 0.5, "critical": [], "criticalNote": ""},
+                 "default": 0.5, "critical": [], "criticalNote": "", "help": "高频能量占总能量的比例。0 表示纯低频（限制应几乎无损），1 表示纯高频（不同限制算子差异最大）。"},
                 {"name": "restrict", "label": "限制算子", "type": "enum",
                  "options": ["full_weighting", "injection"], "default": "full_weighting",
-                 "critical": [], "criticalNote": ""},
+                 "critical": [], "criticalNote": "", "help": "限制算子：full_weighting 用 $\\frac14(1,2,1)$ 加权相邻三点，能低通滤波；injection 直接取粗网格对应点，简单但会把高频混叠成粗网格低频。"},
                 {"name": "smoother", "label": "平滑子", "type": "enum", "options": ["jacobi", "gs"],
-                 "default": "jacobi", "critical": [], "criticalNote": ""},
+                 "default": "jacobi", "critical": [], "criticalNote": "", "help": "粗化前使用的平滑子：jacobi 或 gs。平滑的目的是把高频误差压下去，使限制后剩下的主要是可表示的低频；平滑不足时限制误差会变大。"},
             ],
             "time": {"mode": "scrub", "tMax": 6.0, "dt": 1.0, "fps": 30, "label": "预平滑步数 nu"},
             "requiredAux": ["residual"],
@@ -907,13 +1032,11 @@ MANIFEST: dict[str, Any] = {
                 "但它破坏了 $R=c P^T$ 的伴随关系：两网格因子从 $0.111$ 退到 $0.332$（实测，$n=63$）。"
             ),
             "theory": [
-                "满权限制 $(Rr)_j=(r_{2j}+2r_{2j+1}+r_{2j+2})/4=(1/2)(P^T r)_j$，"
-                "在 1D 里与线性插值互为伴随并给出 $R A_h P=A_H$",
-                "细网格频率 $\\theta$ 限制到粗网格后变成 $2\\theta$（按 $2\\pi$ 折叠）："
-                "$\\theta>\\pi/2$ 的分量因此落到粗网格的低频段，这就是「高频伪装成低频」的别名现象",
-                "互补性：平滑因子 $|1-(4/3)\\sin^2(\\theta/2)|$ 在高频降到 $1/3$，"
-                "两网格校正对纯模态的放大率在高频升到 $1.4$（$\\theta/\\pi=0.953$）——"
-                "两者相乘在整个频带上不超过 $0.459$（实测最大值）",
+                "**限制算子把细网格残差送到粗网格。** 细网格有 $n$ 个内点，粗网格约有 $n/2$ 个。限制必须用粗网格能表示的分量去近似细网格残差；full weighting 用 $\\frac14(1,2,1)$ 加权，等价于低通滤波；injection 直接取点，等价于采样。",
+                "**高频会混叠。** 细网格上波长约两个网格间距的分量，在粗网格上无法表示；采样会把它“折叠”成粗网格的低频，造成错误校正。全权重先滤掉这部分高频，因此通常比注入稳定。",
+                "**平滑决定限制误差。** 限制前先做几步 Jacobi/GS，把高频误差压小；若直接把未平滑的残差限制下去，粗网格会收到大量不可表示的高频，校正反而变差。平滑次数与限制算子要配套。",
+                "**限制与延拓互为伴随。** 在 Galerkin 多重网格中，粗网格算子由 $A_c=RAP$ 构造，$R$ 与延拓 $P$ 应满足伴随关系，才能保证变分性质。全权重与线性插值正好是一对常见选择。",
+                "**怎样读实验。** 比较 full_weighting 与 injection 的粗网格残差/高频比例；提高 mix 或 theta_frac 会放大差异。若平滑不足（n 小或 smoother 弱），所有限制算子都会变差，这时应先调平滑，而不是只换限制。",
             ],
         },
     ],

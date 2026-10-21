@@ -214,7 +214,7 @@ export const precondEffectModel: SceneModel = (frame, opts) => {
   const specAxis = makeAxis("spectrum", specRect, {
     xlim: [-1, nIdx],
     ylim: SPECTRUM_YLIM,
-    xlabel: "Ritz 序号（帧 ritz_index_pre / ritz_index_post）",
+    xlabel: "Ritz 序号",
     ylabel: axisYlabel("spectrum", "λ(M⁻¹A)"),
     title: axisTitle("spectrum", "预条件前后的谱散点（Ritz 值，按序号排列）"),
     autoscaled: false,
@@ -236,7 +236,7 @@ export const precondEffectModel: SceneModel = (frame, opts) => {
     xlim: [0, stepMax],
     ylim: convYlim,
     yscale: "log",
-    xlabel: "迭代步 k",
+    xlabel: "迭代步 $k$",
     ylabel: axisYlabel("convergence", "相对残差"),
     title: axisTitle("convergence", "收敛曲线与 CG 最坏界（对数）"),
     autoscaled: true,
@@ -278,7 +278,7 @@ export const precondEffectModel: SceneModel = (frame, opts) => {
 
   // —— 图层 3~4：两组 Ritz 值散点 ——
   scene.layers.push(
-    scatterLayer("spectrum", ritzIndexPre, ritzPre, { r: 2.6, color: pal.curves[0], label: "A 的 Ritz 值（帧 ritz_pre）" }),
+    scatterLayer("spectrum", ritzIndexPre, ritzPre, { r: 2.6, color: pal.curves[0], label: "$A$ 的 Ritz 值（预条件后）" }),
   );
   scene.layers.push(
     scatterLayer("spectrum", ritzIndexPost, ritzPost, {
@@ -332,7 +332,7 @@ export const precondEffectModel: SceneModel = (frame, opts) => {
   const rLast = residualMark !== undefined && residualMark.length > 0 ? (residualMark[0] as number) : (residual[residual.length - 1] as number);
   if (Number.isFinite(rLast) && rLast > 0) {
     scene.layers.push(
-      scatterLayer("convergence", [stepMax], [rLast], { r: 3.6, color: pal.marker, label: "末步残差（帧 residual_mark）" }),
+      scatterLayer("convergence", [stepMax], [rLast], { r: 3.6, color: pal.marker, label: "末步残差（帧 $residual_mark$）" }),
     );
   }
 

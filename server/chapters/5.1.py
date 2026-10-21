@@ -164,7 +164,7 @@ MANIFEST: dict[str, Any] = {
                     "default": 100.0,
                     "critical": [],
                     "criticalNote": "",
-                },
+                "help": "二次目标的条件数 $\\kappa=L/\\mu$。等高线越扁，最陡下降方向越接近横穿“窄谷”，锯齿越密；GD 的收敛因子 $(\\kappa-1)/(\\kappa+1)$ 随之接近 1。"},
                 {
                     "name": "angle_deg",
                     "label": "长轴与 x 轴夹角（度）",
@@ -175,7 +175,7 @@ MANIFEST: dict[str, Any] = {
                     "default": 35.0,
                     "critical": [],
                     "criticalNote": "",
-                },
+                "help": "椭圆主轴与坐标轴的夹角。它改变初始梯度方向与最优路径的相对位置，从而改变前几步的锯齿形状；收敛率本身由 $\\kappa$ 决定。"},
                 {
                     "name": "step_scale",
                     "label": "GD 步长 / 最优步长 α* = 2/(L+μ)",
@@ -192,7 +192,7 @@ MANIFEST: dict[str, Any] = {
                         "所以「稍微大于 $1$」就已经在发散区。"
                     ),
                     "beyond": "above",
-                },
+                "help": "GD 步长相对于最优步长 $\\alpha^*=2/(L+\\mu)$ 的比例。等于 1 时收敛最快；小于 1 变慢；大于 1 会过冲，超过约 $2/\\alpha^*$ 的稳定上限就发散。"},
                 {
                     "name": "max_iter",
                     "label": "最大迭代步数",
@@ -202,19 +202,21 @@ MANIFEST: dict[str, Any] = {
                     "default": 60,
                     "critical": [],
                     "criticalNote": "",
-                },
+                "help": "最多画多少步。步数增加能看见长期收敛趋势，也会让发散方法彻底冲出画面；它不改变方法本身。"},
             ],
             "time": {"mode": "scrub", "tMax": 60.0, "dt": 1.0, "fps": 30, "label": "迭代 k"},
             "requiredAux": ["error"],
             "axes": [
                 {"id": "main", "autoscaled": False, "title": "等高线 f(x)=const 与四条下降路径", "ylabel": "x_2"},
-                {"id": "aux", "autoscaled": True, "title": "到最优解的距离 ‖x_k - x*‖", "ylabel": "‖x_k - x*‖", "scale": "log"},
+                {"id": "aux", "autoscaled": True, "title": "到最优解的距离 $\\|x_k-x^*\\|$", "ylabel": "$\\|x_k-x^*\\|$", "scale": "log"},
             ],
             "pitfalls": _MANIFEST_PITFALLS,
             "theory": [
-                "定步长 GD 的误差压缩因子 $\\rho=\\max|1-\\alpha\\lambda_i|$，最优 $\\alpha^*=2/(L+\\mu)$ 时 $\\rho=(\\kappa-1)/(\\kappa+1)$",
-                "重球动量的最优压缩因子是 $(\\sqrt\\kappa-1)/(\\sqrt\\kappa+1)$，迭代数约为 GD 的 $1/\\sqrt\\kappa$",
-                "牛顿法在二次型上一步到达驻点（$H$ 正定时就是极小点）",
+                "**二次目标给出完整的谱。** 取 $f(x)=\\frac12x^{\\mathrm T}Ax-b^{\\mathrm T}x$，$A$ 对称正定，特征值 $\\mu=\\lambda_{\\min}\\le\\dots\\le L=\\lambda_{\\max}$。梯度 $\\nabla f=Ax-b$，最优解满足 $Ax^*=b$。GD 更新 $x_{k+1}=x_k-\\alpha\\nabla f(x_k)$，误差 $e_k=x_k-x^*$ 满足 $e_{k+1}=(I-\\alpha A)e_k$。",
+                "**收敛由最坏特征方向决定。** 在 A 的特征基下，每个分量乘上 $1-\\alpha\\lambda_i$。要全部收敛，需要 $|1-\\alpha\\lambda_i|<1$，即 $0<\\alpha<2/L$。最优步长 $\\alpha^*=2/(L+\\mu)$ 让最大和最小特征方向的压缩率相等，得到 $\\rho=(\\kappa-1)/(\\kappa+1)$，其中 $\\kappa=L/\\mu$。",
+                "**动量改变了压缩率。** 重球法 $x_{k+1}=x_k-\\alpha\\nabla f(x_k)+\\beta(x_k-x_{k-1})$ 引入速度项，把条件数从 $\\kappa$ 降到 $\\sqrt\\kappa$：最优压缩因子是 $(\\sqrt\\kappa-1)/(\\sqrt\\kappa+1)$，迭代次数约为 GD 的 $1/\\sqrt\\kappa$。",
+                "**牛顿法与拟牛顿法利用曲率。** 牛顿步 $p=-H^{-1}\\nabla f$ 在二次型上一步到达驻点；BFGS 用割线方程近似 Hessian，逐步学习曲率，因此比 GD 更会“拐弯”，但需要存储/更新矩阵。",
+                "**步长越过稳定边界会发散。** 当 $\\alpha>2/L$ 时，至少有一个特征方向满足 $|1-\\alpha\\lambda|>1$，误差指数增长。step_scale 超过约 $2/\\alpha^*$ 后，图上的误差曲线会掉头向上；这不是精度问题，而是迭代本身失稳。",
             ],
         },
         # ------------------------------------------------------------------ #
@@ -239,7 +241,7 @@ MANIFEST: dict[str, Any] = {
                     "default": 100.0,
                     "critical": [],
                     "criticalNote": "",
-                },
+                "help": "二次部分的条件数。它决定 GD/动量的线性收敛因子，也影响牛顿法进入二次收敛区前的过渡段长度。"},
                 {
                     "name": "start",
                     "label": "初值尺度（x0 = (s, s)）",
@@ -250,7 +252,7 @@ MANIFEST: dict[str, Any] = {
                     "default": 1.0,
                     "critical": [],
                     "criticalNote": "",
-                },
+                "help": "初值尺度 $x_0=(s,s)$。离最优点越远，非线性四次项越重要，牛顿法的二次收敛段越晚出现。"},
                 {
                     "name": "beta",
                     "label": "四次项系数 β（β=0 退化成二次型）",
@@ -266,7 +268,7 @@ MANIFEST: dict[str, Any] = {
                         "meta.newton_quadratic_constant 会写 null 并说明原因。"
                     ),
                     "beyond": "below",
-                },
+                "help": "四次项系数 $\\beta$。$\\beta=0$ 是纯二次型，牛顿一步到位；$\\beta>0$ 时 Hessian 随位置变化，牛顿法表现为局部二次收敛。"},
                 {
                     "name": "alpha_cap",
                     "label": "牛顿步长上限 α_cap",
@@ -282,7 +284,7 @@ MANIFEST: dict[str, Any] = {
                         "（$\\alpha_{\\mathrm{cap}}=0.5$ 实测 $0.5000$，$\\alpha_{\\mathrm{cap}}=0.25$ 实测 $0.7511$）。"
                     ),
                     "beyond": "below",
-                },
+                "help": "牛顿步长上限。$\\alpha_{\\mathrm{cap}}=1$ 是整步牛顿；小于 1 时每步只走一部分，二次收敛退化为线性收敛，收敛因子约为 $1-\\alpha_{\\mathrm{cap}}$。"},
                 {
                     "name": "max_iter",
                     "label": "最大迭代步数",
@@ -292,12 +294,12 @@ MANIFEST: dict[str, Any] = {
                     "default": 30,
                     "critical": [],
                     "criticalNote": "",
-                },
+                "help": "最大迭代步数。它决定能看多长的收敛尾段；判断收敛阶时要用足够多的点，尤其是二次段。"},
             ],
             "time": {"mode": "none"},
             "requiredAux": ["error"],
             "axes": [
-                {"id": "convergence", "autoscaled": True, "title": "到最优解的距离", "ylabel": "‖x_k - x*‖", "scale": "log"},
+                {"id": "convergence", "autoscaled": True, "title": "到最优解的距离", "ylabel": "$\\|x_k-x^*\\|$", "scale": "log"},
                 {"id": "ratio", "autoscaled": True, "title": "实测比值（二次 / 线性）", "ylabel": "比值", "scale": "log"},
             ],
             "pitfalls": (
@@ -308,9 +310,11 @@ MANIFEST: dict[str, Any] = {
                 "另外 $\\beta=0$ 时牛顿一步到底，图上只剩一个点，什么都说明不了。"
             ),
             "theory": [
-                "线性收敛：$e_{k+1}\\le\\rho e_k$；二次收敛：$e_{k+1}\\le C e_k^2$（$C$ 与 $k$ 无关）",
-                "牛顿法在解附近且 $H$ 正定、整步被接受时 $e_{k+1}\\approx C e_k^2$",
-                "四次型 $f=\\frac{1}{2}x^T A x+(\\beta/4)\\|x\\|^4$ 的最优解精确为原点，Hessian 处处正定",
+                "**三种收敛速度的定义。** 线性：$e_{k+1}\\le\\rho e_k$，$0<\\rho<1$；超线性：$e_{k+1}/e_k\\to0$；二次：$e_{k+1}\\le Ce_k^2$。在半对数图上，线性是直线，二次是向下弯的曲线。",
+                "**四次型提供非二次曲率。** 取 $f=\\frac12x^{\\mathrm T}Ax+\\frac{\\beta}{4}\\|x\\|^4$，Hessian 是 $A+\\beta(\\|x\\|^2I+2xx^{\\mathrm T})$，在原点附近正定、随 $\\|x\\|$ 变化。最优点精确是原点，便于直接算误差。",
+                "**牛顿法的二次收敛。** 若 Hessian 正定、整步被接受，牛顿误差满足 $e_{k+1}\\approx\\frac12\\|H^{-1}f'''\\|e_k^2$。因此误差的对数每步大约翻倍；一旦进入这个区域，曲线会突然变陡向下。",
+                "**截断步长会把二次变成线性。** 若每步只走 $\\alpha_{\\mathrm{cap}}<1$ 的牛顿步，误差更新变成 $e_{k+1}\\approx(1-\\alpha_{\\mathrm{cap}})e_k+O(e_k^2)$，二次项被线性项主导，收敛因子稳定在 $1-\\alpha_{\\mathrm{cap}}$。",
+                "**怎样读比值图。** 线性比值 $e_{k+1}/e_k$ 趋近常数；二次比值 $e_{k+1}/e_k^2$ 趋近常数。若二次比值持续增大或发散，说明还没进入二次区或步长被截断。GD/BFGS 的比值图要和条件数一起看。",
             ],
         },
         # ------------------------------------------------------------------ #
@@ -335,7 +339,7 @@ MANIFEST: dict[str, Any] = {
                     "default": -0.02,
                     "critical": [],
                     "criticalNote": "",
-                },
+                "help": "负特征值 $\\lambda_-$。它决定不稳定方向上的逃逸速度：$|\\lambda_-|$ 越大，同样的扰动越早被放大，逃逸阈值越低。"},
                 {
                     "name": "delta",
                     "label": "扰动量级 δ",
@@ -346,7 +350,7 @@ MANIFEST: dict[str, Any] = {
                     "default": 0.02,
                     "critical": [],
                     "criticalNote": "",
-                },
+                "help": "初始扰动量级。GD 从稳定流形上出发会停在鞍点；只有扰动在负曲率方向上有分量，才会被指数放大并逃出去。"},
                 {
                     "name": "direction",
                     "label": "扰动方向",
@@ -355,7 +359,7 @@ MANIFEST: dict[str, Any] = {
                     "default": "neg_curv",
                     "critical": [],
                     "criticalNote": "",
-                },
+                "help": "扰动方向：neg_curv 沿负曲率方向（最有效），random 随机方向（有效分量随机），orthogonal 与负曲率正交（完全逃不掉）。阈值与 $|\\langle u_{\\min},d\\rangle|$ 成反比。"},
                 {
                     "name": "max_iter",
                     "label": "GD 步数",
@@ -365,13 +369,13 @@ MANIFEST: dict[str, Any] = {
                     "default": 200,
                     "critical": [],
                     "criticalNote": "",
-                },
+                "help": "GD 步数。步数越多，扰动被放大的机会越多，表观逃逸阈值越低；阈值公式 $\\delta^*=R(1+|\\lambda_-|\\alpha)^{-N}$ 明确依赖 $N$。"},
             ],
             "time": {"mode": "scrub", "tMax": 200.0, "dt": 1.0, "fps": 30, "label": "GD 步 k"},
             "requiredAux": ["residual"],
             "axes": [
                 {"id": "main", "autoscaled": False, "title": "鞍点等高线（双曲线族）与扰动轨迹", "ylabel": "x_2"},
-                {"id": "aux", "autoscaled": True, "title": "梯度范数与到驻点距离", "ylabel": "‖∇f‖ / ‖x - x*‖", "scale": "log"},
+                {"id": "aux", "autoscaled": True, "title": "梯度范数与到驻点距离", "ylabel": "$\\|\\nabla f\\|/\\|x-x^*\\|$", "scale": "log"},
             ],
             "pitfalls": (
                 "「加了随机扰动就逃出来了」不是方法有效的证据：逃逸与否只取决于扰动在"
@@ -381,9 +385,11 @@ MANIFEST: dict[str, Any] = {
                 "而 meta 里那个 null 必须如实说明它是「没测到」而不是 $0$。"
             ),
             "theory": [
-                "梯度下降在鞍点附近只会沿正曲率方向收缩，负曲率分量按 $(1+|\\lambda_-|\\alpha)^k$ 增长",
-                "逃逸阈值 $\\delta^*=R(1+|\\lambda_-|\\alpha)^{-N}$（$R$ 邻域半径、$N$ 步数），与实测逐位吻合",
-                "随机方向的有效性由 $|\\langle u_{\\min},d\\rangle|$ 决定，阈值与之成反比",
+                "**鞍点的局部二次模型。** 取 $f=\\frac12(\\lambda_-x_1^2+\\lambda_+x_2^2)$，$\\lambda_-<0<\\lambda_+$。梯度是 $(\\lambda_-x_1,\\lambda_+x_2)$，GD 的误差更新是 $x_{k+1}=(1+\\alpha|\\lambda_-|)x_1$ 与 $(1-\\alpha\\lambda_+)x_2$：一个方向指数增长，另一个方向指数衰减。",
+                "**稳定流形上的点会停在鞍点。** 若初始 $x_1=0$，只有正曲率分量，GD 让 $x_2\\to0$，最终收敛到鞍点。数值上即使 $x_1$ 很小，只要不为零，负曲率方向最终会被放大并逃离。",
+                "**逃逸阈值可以推出来。** 设初始扰动量级为 $\\delta$，在负曲率方向上的分量为 $\\delta|\\langle u_{\\min},d\\rangle|$；$N$ 步后它变成 $\\delta|\\langle u_{\\min},d\\rangle|(1+|\\lambda_-|\\alpha)^N$。要超过邻域半径 $R$，需要 $\\delta^*=\\frac{R}{(1+|\\lambda_-|\\alpha)^N|\\langle u_{\\min},d\\rangle|}.$",
+                "**方向比幅度更重要。** 正交方向的内积为零，扰动永远进不了负曲率方向，阈值无穷大；随机方向的有效分量是随机的，阈值按内积倒数放大。沿负曲率方向最省扰动。",
+                "**参数怎样读。** $|\\lambda_-|$ 越大、步长越大、步数越多，指数因子越大，阈值越低。图上把不同方向的实测阈值与公式对照；看到“随机方向也能逃”时，要检查它是否有非零投影，而不是只看幅度。",
             ],
         },
         # ------------------------------------------------------------------ #
@@ -413,7 +419,7 @@ MANIFEST: dict[str, Any] = {
                         "$t_2\\ge1$ 时 $\\rho_k$ 几乎不可能超过它（$\\rho\\le1$ 是二次模型的性质），半径再也不扩张。"
                     ),
                     "beyond": "above",
-                },
+                "help": "扩张阈值：只有 $\\rho>t_2$ 且步长撞到信赖域边界时才把半径放大。调大 $t_2$ 更保守，半径增长更慢；调小更容易扩张。"},
                 {
                     "name": "delta0",
                     "label": "初始半径 Δ0",
@@ -424,7 +430,7 @@ MANIFEST: dict[str, Any] = {
                     "default": 1.0,
                     "critical": [],
                     "criticalNote": "",
-                },
+                "help": "初始信赖域半径。太大可能包含坏模型、导致拒绝；太小则每步走得很短、收敛慢。算法会自适应调整它。"},
                 {
                     "name": "start",
                     "label": "起点",
@@ -433,7 +439,7 @@ MANIFEST: dict[str, Any] = {
                     "default": "valley",
                     "critical": [],
                     "criticalNote": "",
-                },
+                "help": "起点类型：valley 在弯曲谷底附近，indefinite 处 Hessian 不定，high 在远处。不同起点的子问题会分别触发边界步和负曲率方向。"},
                 {
                     "name": "max_iter",
                     "label": "最大迭代步数",
@@ -443,13 +449,13 @@ MANIFEST: dict[str, Any] = {
                     "default": 24,
                     "critical": [],
                     "criticalNote": "",
-                },
+                "help": "最大迭代步数。它决定能看多长的半径/ρ 历史；Rosenbrock 的窄谷需要足够步数才能看到半径的反复扩张与收缩。"},
             ],
             "time": {"mode": "scrub", "tMax": 24.0, "dt": 1.0, "fps": 30, "label": "迭代 k"},
             "requiredAux": ["residual"],
             "axes": [
                 {"id": "main", "autoscaled": False, "title": "Rosenbrock 等高线与信赖域圆", "ylabel": "y"},
-                {"id": "aux", "autoscaled": True, "title": "半径 Δ_k、比值 ρ_k 与梯度范数", "ylabel": "Δ_k / ρ_k / ‖∇f‖", "scale": "log"},
+                {"id": "aux", "autoscaled": True, "title": "半径 Δ_k、比值 ρ_k 与梯度范数", "ylabel": "$\\Delta_k/\\rho_k/\\|\\nabla f\\|$", "scale": "log"},
             ],
             "pitfalls": (
                 "「半径在自适应」这句话本身不是证据：$\\rho_k>0.75$ 只在步**撞到边界**时才扩张，"
@@ -459,9 +465,11 @@ MANIFEST: dict[str, Any] = {
                 "另外 $\\rho$ 为负时若还接受这一步，$f$ 会**上升**——$\\eta$ 阈值就是拦它的那道闸。"
             ),
             "theory": [
-                "$\\rho_k=\\frac{f(x_k)-f(x_k+p_k)}{m_k(0)-m_k(p_k)}$，$\\rho_k>\\eta$ 才接受",
-                "$\\rho<t_1=0.25$ 收缩半径、$\\rho>t_2$ 且 $\\|p\\|=\\Delta$ 扩张半径（$0<t_1<t_2<1$）",
-                "Steihaug-CG 遇到负曲率方向时沿该方向走到信赖域边界",
+                "**信赖域用模型决定走多远。** 在当前点构造二次模型 $m_k(p)=f_k+g_k^{\\mathrm T}p+\\frac12p^{\\mathrm T}B_kp$，在 $\\|p\\|\\le\\Delta_k$ 内最小化。步长由模型可信范围限制，而不是先定方向再定步长。",
+                "**实际/模型下降比决定接受与否。** $\\rho_k=\\frac{f(x_k)-f(x_k+p_k)}{m_k(0)-m_k(p_k)}$。$\\rho_k$ 接近 1 说明模型可靠；太小甚至为负说明模型失败。通常 $\\rho_k>\\eta$ 才接受，$\\rho_k<t_1$ 时缩小半径，$\\rho_k>t_2$ 且撞到边界时扩大半径。",
+                "**Steihaug–CG 处理边界和负曲率。** 用截断共轭梯度近似求解子问题；遇到负曲率方向 $d^{\\mathrm T}Bd<0$ 时，沿该方向走到信赖域边界，因为模型在那里还会继续下降。这样即使 Hessian 不定也能产生合法步。",
+                "**Rosenbrock 是弯曲窄谷。** 目标 $f=(1-x)^2+100(y-x^2)^2$ 的等高线弯曲，Hessian 在谷底附近病态。半径必须反复扩张/收缩：模型好时大胆走，模型坏时立刻缩回。",
+                "**读图。** 看半径历史（是否爆炸或缩到零）、$\\rho$ 是否经常低于 $t_1$、以及步长是否频繁撞边界。三者一起判断：半径一直缩可能是模型太差或 $t_2$ 太苛刻；半径一直扩但误差不降，可能是接受了坏步。",
             ],
         },
     ],

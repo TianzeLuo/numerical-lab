@@ -161,7 +161,7 @@ export const diffMatrixStructureModel: SceneModel = (frame, opts) => {
       ? axisTitleOf(SPEC?.axes, "main", "log10|D_N| 热力图（行主序，含零对角线与零空间）")
       : "log10|D| 热力图",
     ylabel: axisYlabelOf(SPEC?.axes, "main", "行 i"),
-    xlabel: "列 j",
+    xlabel: "列 $j$",
     autoscaled: false,
   });
   scene.axes.push(heat);
@@ -217,8 +217,8 @@ export const diffMatrixStructureModel: SceneModel = (frame, opts) => {
     title: L.columns
       ? axisTitleOf(SPEC?.axes, "aux", "行和残差 |D_N·1| 与奇异值谱（对数轴）")
       : "行和/奇异值",
-    ylabel: "σ / 残差",
-    xlabel: "行 i / 奇异值序号",
+    ylabel: "$\\sigma$ / 残差",
+    xlabel: "行 $i$ / 奇异值序号",
     autoscaled: false,
   });
   scene.axes.push(aux);
@@ -263,7 +263,7 @@ export const diffMatrixStructureModel: SceneModel = (frame, opts) => {
       yscale: "log",
       title: "谱微分的逐点误差 |D_N u - u'| 与 N^4·u 地板",
       ylabel: "误差",
-      xlabel: "节点 x",
+      xlabel: "节点 $x$",
       autoscaled: false,
     });
     scene.axes.push(derivative);
@@ -306,7 +306,7 @@ export const diffMatrixStructureModel: SceneModel = (frame, opts) => {
 
   // —— 右列文字 ——
   if (L.columns) {
-    const head = paramSummary(frame, opts, [{ name: "n", label: "N" }]);
+    const head = paramSummary(frame, opts, [{ name: "n", label: "$N$" }]);
     degraded.push(...head.degraded);
     const lines: string[] = [];
     lines.push(`N=${n}　${which}　${size}×${size} 稠密（${nnz}/${size * size} 非零）`);

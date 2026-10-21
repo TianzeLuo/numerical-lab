@@ -219,7 +219,7 @@ export const lebesgueGrowthModel: SceneModel = (frame, opts) => {
     xlim: xLin,
     ylim: yDev,
     yscale: "log",
-    xlabel: "节点数 n（上面两个面板的横轴同样是 n；主轴用对数刻度）",
+    xlabel: "节点数 $n$（上面两个面板的横轴同样是 $n$；主轴用对数刻度）",
     ylabel: "相对偏差",
     title: "渐近公式的相对偏差 |Λ实测/Λ渐近 − 1|（log）",
     autoscaled: true,
@@ -274,7 +274,7 @@ export const lebesgueGrowthModel: SceneModel = (frame, opts) => {
     }
   }
   if (markXY.length > 0) {
-    scene.layers.push(scatterLayer("main", markXY, markYY, { r: 3.4, color: pal.marker, label: "当前 n 处两个家族的 Λ_n" }));
+    scene.layers.push(scatterLayer("main", markXY, markYY, { r: 3.4, color: pal.marker, label: "当前 $n$ 处两个家族的 $\\Lambda_n$" }));
   } else if (nNow !== undefined) {
     degraded.push("帧数组 mark_lambda 缺失或没有正值：主轴不画当前 n 的标记（不重算）");
   }
@@ -289,12 +289,12 @@ export const lebesgueGrowthModel: SceneModel = (frame, opts) => {
   if (auxSeries.length > 0) scene.layers.push(lineLayer("aux", auxSeries));
   else degraded.push("四条斜率数组里没有 >0 的有限值：斜率面板画不出曲线");
   if (nNow !== undefined) {
-    scene.layers.push(lineLayer("aux", series([nNow, nNow], [auxAxis.ylim[0], auxAxis.ylim[1]], pal.cursor, { width: 1, dash: [3, 3], label: "当前 n" })));
+    scene.layers.push(lineLayer("aux", series([nNow, nNow], [auxAxis.ylim[0], auxAxis.ylim[1]], pal.cursor, { width: 1, dash: [3, 3], label: "当前 $n$" })));
     const yMark: number[] = [];
     if (slopeMeN !== undefined && slopeMeN > 0) yMark.push(slopeMeN);
     if (slopeMcN !== undefined && slopeMcN > 0) yMark.push(slopeMcN);
     if (yMark.length > 0) {
-      scene.layers.push(scatterLayer("aux", yMark.map(() => nNow), yMark, { r: 3, color: pal.marker, label: "当前 n 的实测斜率" }));
+      scene.layers.push(scatterLayer("aux", yMark.map(() => nNow), yMark, { r: 3, color: pal.marker, label: "当前 $n$ 的实测斜率" }));
     }
   }
 
@@ -311,13 +311,13 @@ export const lebesgueGrowthModel: SceneModel = (frame, opts) => {
     if (devEqN !== undefined && devEqN > 0) yDevMark.push(devEqN);
     if (devChN !== undefined && devChN > 0) yDevMark.push(devChN);
     if (yDevMark.length > 0) {
-      scene.layers.push(scatterLayer("dev", yDevMark.map(() => nNow), yDevMark, { r: 3, color: pal.marker, label: "当前 n 的渐近相对偏差" }));
+      scene.layers.push(scatterLayer("dev", yDevMark.map(() => nNow), yDevMark, { r: 3, color: pal.marker, label: "当前 $n$ 的渐近相对偏差" }));
     }
   }
 
   // —— 文本 ——
   const summary = paramSummary(frame, opts, [
-    { name: "n_max", label: "n_max" },
+    { name: "n_max", label: "`n_max`" },
     { name: "grid", label: "grid" },
   ]);
   degraded.push(...summary.degraded);

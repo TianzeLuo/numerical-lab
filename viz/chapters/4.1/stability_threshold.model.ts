@@ -177,7 +177,7 @@ export const stabilityThresholdModel: SceneModel = (frame, opts) => {
   const initial = stringOf(frame, "initial");
   const floor = numberFromString(stringOf(frame, "floor")) ?? FLOOR_FALLBACK;
   const errorReference = stringOf(frame, "error_reference");
-  const grad = paramSummary(frame, opts, [{ name: "r", label: "r" }]);
+  const grad = paramSummary(frame, opts, [{ name: "r", label: "$r$" }]);
   degraded.push(...grad.degraded);
 
   const scene = sceneShell(frame, opts, {
@@ -234,7 +234,7 @@ export const stabilityThresholdModel: SceneModel = (frame, opts) => {
     xlim,
     ylim: errYlim,
     yscale: "log",
-    ylabel: "|u−参考解|",
+    ylabel: "$|u$−参考解|",
     title: "误差与上一步代数残差（对数轴）",
     autoscaled: true,
     xticks: niceTicks(xlim[0], xlim[1], 6),
@@ -322,7 +322,7 @@ export const stabilityThresholdModel: SceneModel = (frame, opts) => {
     }
     if (bx.length > 0) {
       scene.layers.push(
-        bandLayer("amplification", { x: bx, ylo: blo, yhi: bhi, color: pal.warn, alpha: 0.22, label: "|G|>1 的放大区" }),
+        bandLayer("amplification", { x: bx, ylo: blo, yhi: bhi, color: pal.warn, alpha: 0.22, label: "$|G|>1$ 的放大区" }),
       );
     }
   }

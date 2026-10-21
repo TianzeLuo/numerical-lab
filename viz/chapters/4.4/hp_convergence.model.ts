@@ -247,7 +247,7 @@ export const hpConvergenceModel: SceneModel = (frame, opts) => {
     ylim: [floor, 10],
     xscale: "log",
     yscale: "log",
-    xlabel: "自由度 N（对数）",
+    xlabel: "自由度 $N$（对数）",
     title: axisTitleOf(SPEC?.axes, "ladder", "误差 vs 自由度（双对数）"),
     ylabel: axisYlabelOf(SPEC?.axes, "ladder", "误差"),
     autoscaled: false,
@@ -257,10 +257,10 @@ export const hpConvergenceModel: SceneModel = (frame, opts) => {
     lineLayer("ladder", series([1, 300], [floor, floor], pal.reference, { width: 1, dash: [3, 3], label: "误差地板" })),
   );
   if (fitH !== undefined && fitH.length === dofH.length) {
-    const fitSeries = maskedSeries(dofH, fitH, undefined, pal.reference, { width: 1.2, dash: [5, 4], label: "h-加密拟合" });
+    const fitSeries = maskedSeries(dofH, fitH, undefined, pal.reference, { width: 1.2, dash: [5, 4], label: "$h-$加密拟合" });
     if (fitSeries.length > 0) scene.layers.push(lineLayer("ladder", fitSeries));
   }
-  const hSeries = maskedSeries(dofH, errH, floorMaskH, pal.curves[0], { width: 2.3, marker: "o", label: "h-加密" });
+  const hSeries = maskedSeries(dofH, errH, floorMaskH, pal.curves[0], { width: 2.3, marker: "o", label: "$h-$加密" });
   if (hSeries.length > 0) scene.layers.push(lineLayer("ladder", hSeries));
   const pLadderIdx: number[] = [];
   for (let i = 0; i < dofP.length; i += 1) {
@@ -275,7 +275,7 @@ export const hpConvergenceModel: SceneModel = (frame, opts) => {
       ly[k] = errP[i] as number;
       lm[k] = floorMaskP !== undefined ? (floorMaskP[i] ?? 0) : 0;
     });
-    const pSeries = maskedSeries(lx, ly, lm, pal.curves[1], { width: 2, marker: "s", dash: [6, 3], label: "p-加密" });
+    const pSeries = maskedSeries(lx, ly, lm, pal.curves[1], { width: 2, marker: "s", dash: [6, 3], label: "$p-$加密" });
     if (pSeries.length > 0) scene.layers.push(lineLayer("ladder", pSeries));
   }
 
@@ -306,7 +306,7 @@ export const hpConvergenceModel: SceneModel = (frame, opts) => {
       xlim: [1, pMax],
       ylim: [floor, 10],
       yscale: "log",
-      xlabel: "单元阶次 p",
+      xlabel: "单元阶次 $p$",
       title: axisTitleOf(SPEC?.axes, "vs_p", "误差 vs p（半对数）"),
       ylabel: axisYlabelOf(SPEC?.axes, "vs_p", "误差"),
       autoscaled: false,
@@ -323,7 +323,7 @@ export const hpConvergenceModel: SceneModel = (frame, opts) => {
       const fitSeries = maskedSeries(pAxis, fitAlg, undefined, pal.residual, { width: 1.3, dash: [2, 3], label: "代数收敛参考" });
       if (fitSeries.length > 0) scene.layers.push(lineLayer("vs_p", fitSeries));
     }
-    const pSeries = maskedSeries(pAxis, errVsP, floorMaskP, pal.curves[1], { width: 2.3, marker: "s", label: "p-加密" });
+    const pSeries = maskedSeries(pAxis, errVsP, floorMaskP, pal.curves[1], { width: 2.3, marker: "s", label: "$p-$加密" });
     if (pSeries.length > 0) scene.layers.push(lineLayer("vs_p", pSeries));
     if (errPMark !== undefined && errPMark > 0) {
       scene.layers.push(scatterLayer("vs_p", [pMax], [errPMark], { r: 4, color: pal.curves[1] }));
@@ -354,7 +354,7 @@ export const hpConvergenceModel: SceneModel = (frame, opts) => {
       xlim: [1, pMax],
       ylim: logRange(lo * 0.7, Math.max(hi * 1.5, lo * 2)),
       yscale: "log",
-      xlabel: "阶次 p",
+      xlabel: "阶次 $p$",
       title: axisTitleOf(SPEC?.axes, "condition", "条件数 vs p（自动缩放）"),
       ylabel: axisYlabelOf(SPEC?.axes, "condition", "cond"),
       autoscaled: true,

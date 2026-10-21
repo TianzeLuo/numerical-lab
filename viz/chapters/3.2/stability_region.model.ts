@@ -226,7 +226,7 @@ export const stabilityRegionModel: SceneModel = (frame, opts) => {
     makeAxis("main", mainRect, {
       xlim: [x0, x1],
       ylim: [y0, y1],
-      xlabel: "Re z",
+      xlabel: "$\\operatorname{Re} z$",
       ylabel: axisYlabelOf(SPEC?.axes, "main", "Im z"),
       title: axisTitleOf(SPEC?.axes, "main", "复平面 z = λh（固定窗口）"),
       autoscaled: false,
@@ -241,8 +241,8 @@ export const stabilityRegionModel: SceneModel = (frame, opts) => {
     makeAxis("sol", solRect, {
       xlim: solXlim[0] === solXlim[1] ? [0, 1] : solXlim,
       ylim: SOL_LIM,
-      xlabel: "t（数值解与精确解共用）",
-      ylabel: "y₁",
+      xlabel: "$t$（数值解与精确解共用）",
+      ylabel: "$y₁$",
       title: "真算出来的解：固定纵轴 ±2",
       autoscaled: false,
     }),
@@ -263,7 +263,7 @@ export const stabilityRegionModel: SceneModel = (frame, opts) => {
       xlim: solXlim[0] === solXlim[1] ? [0, 1] : solXlim,
       ylim: auxYlim,
       yscale: "log",
-      xlabel: "t",
+      xlabel: "$t$",
       ylabel: axisYlabelOf(SPEC?.axes, "aux", "|R| 与误差"),
       title: axisTitleOf(SPEC?.axes, "aux", "|R(λh)| 与数值解误差"),
       autoscaled: true,
@@ -303,7 +303,7 @@ export const stabilityRegionModel: SceneModel = (frame, opts) => {
       vmin,
       vmax,
       logScale: true,
-      label: "|R(z)| 对数色标，中点=1",
+      label: "$|R(z)|$ 对数色标，中点 $=1$",
     }),
   );
   const contourLevels = Array.from(levels).filter((v) => Number.isFinite(v) && v > 0);
@@ -330,7 +330,7 @@ export const stabilityRegionModel: SceneModel = (frame, opts) => {
     scene.layers.push(
       lineLayer(
         "main",
-        series(run.x, run.y, pal.ink, { width: 2.4, label: "|R|=1" }),
+        series(run.x, run.y, pal.ink, { width: 2.4, label: "$|R|=1$" }),
       ),
     );
   }
@@ -353,9 +353,9 @@ export const stabilityRegionModel: SceneModel = (frame, opts) => {
     else rayInsideIdx.push(i);
   }
   const rayGroups: { idx: number[]; color: string; r: number; label: string }[] = [
-    { idx: rayInsideIdx, color: pal.curves[0], r: 2.2, label: "λh 扫描射线（|R|≤1，域内）" },
-    { idx: rayOutIdx, color: pal.marker, r: 2.6, label: "λh 扫描射线（|R|>1，域外）" },
-    { idx: rayPoleIdx, color: "#805ad5", r: 3.4, label: "射线上的真极点 |R|=+∞（画的是显示上限）" },
+    { idx: rayInsideIdx, color: pal.curves[0], r: 2.2, label: "$\\lambda h$ 扫描射线（$|R|\\le1$，域内）" },
+    { idx: rayOutIdx, color: pal.marker, r: 2.6, label: "$\\lambda h$ 扫描射线（$|R|>1$，域外）" },
+    { idx: rayPoleIdx, color: "#805ad5", r: 3.4, label: "射线上的真极点 $|R|=+∞$（画的是显示上限）" },
   ];
   for (const g of rayGroups) {
     if (g.idx.length === 0) continue;
@@ -370,7 +370,7 @@ export const stabilityRegionModel: SceneModel = (frame, opts) => {
         r: 4.5,
         color: pal.warn,
         alpha: 0.9,
-        label: "射线穿过 |R|=1 的位置",
+        label: "射线穿过 $|R|=1$ 的位置",
       }),
     );
   }
@@ -382,7 +382,7 @@ export const stabilityRegionModel: SceneModel = (frame, opts) => {
     zx !== undefined && zy !== undefined && zx >= x0 && zx <= x1 && zy >= y0 && zy <= y1;
   if (pointInWindow) {
     scene.layers.push(
-      scatterLayer("main", [zx as number], [zy as number], { r: 6, color: pal.exact, label: "当前 λh（帧数组 z_point_x/z_point_y）" }),
+      scatterLayer("main", [zx as number], [zy as number], { r: 6, color: pal.exact, label: "当前 $λh$（帧数组 $z_point_x/z_point_y$）" }),
     );
   }
   const poleCells: number[] = [];
@@ -403,7 +403,7 @@ export const stabilityRegionModel: SceneModel = (frame, opts) => {
         r: 5,
         color: "#805ad5",
         alpha: 1,
-        label: "真极点格子 |R|=+∞（帧掩码 abs_R_pole；不是 1e6 这样的数值）",
+        label: "真极点格子 $|R|=+∞$（帧掩码 $abs_R_pole$；不是 $1e6$ 这样的数值）",
       }),
     );
   }
@@ -422,7 +422,7 @@ export const stabilityRegionModel: SceneModel = (frame, opts) => {
       scatterLayer("sol", [numClip.firstClip[0]], [numClip.firstClip[1]], {
         r: 5,
         color: pal.warn,
-        label: "数值解第一次超出 ±2 的位置（之后不画）",
+        label: "数值解第一次超出 $±2$ 的位置（之后不画）",
       }),
     );
   }
@@ -441,7 +441,7 @@ export const stabilityRegionModel: SceneModel = (frame, opts) => {
         series([auxAxis.xlim[0], auxAxis.xlim[1]], [currentForRange, currentForRange], pal.marker, {
           width: 1.4,
           dash: [5, 3],
-          label: "|R(λh)|",
+          label: "$|R(λh)|$",
         }),
       ),
     );
@@ -452,14 +452,14 @@ export const stabilityRegionModel: SceneModel = (frame, opts) => {
       series([auxAxis.xlim[0], auxAxis.xlim[1]], [levelOne, levelOne], pal.reference, {
         width: 1.1,
         dash: [2, 3],
-        label: "=1",
+        label: "$=1$",
       }),
     ),
   );
   const markX = errorMark.length > 0 ? tSol[tSol.length - 1] : undefined;
   const markY = errorMark.length > 0 ? errorMark[0] : undefined;
   if (markX !== undefined && markY !== undefined && Number.isFinite(markY) && markY > 0) {
-    scene.layers.push(scatterLayer("aux", [markX], [markY], { r: 4.5, color: pal.marker, label: "积分终点处的误差（帧 error_mark）" }));
+    scene.layers.push(scatterLayer("aux", [markX], [markY], { r: 4.5, color: pal.marker, label: "积分终点处的误差（帧 $error_mark$）" }));
   }
 
   // —— 文本（一行一个 text 层；`render2d.ts::drawText` 不拆 \n）——

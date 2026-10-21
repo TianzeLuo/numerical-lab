@@ -162,8 +162,8 @@ export const numericalDissipationModel: SceneModel = (frame, opts) => {
   // 帧的 reading_note / mask_note 是完整句子（177/250 个单位）：面板通栏 6 行放不下，
   // 两条掩码原因与对拍精度在下面按"数字 + 判据"重述（信息不丢，只是换了说法）。
   const grad = paramSummary(frame, opts, [
-    { name: "r", label: "r" },
-    { name: "nx", label: "nx" },
+    { name: "r", label: "$r$" },
+    { name: "nx", label: "$nx$" },
   ]);
   degraded.push(...grad.degraded);
 
@@ -221,7 +221,7 @@ export const numericalDissipationModel: SceneModel = (frame, opts) => {
   const residAxis = makeAxis("residual", residRect, {
     xlim: phiXlim,
     ylim: residYlim,
-    ylabel: "实测 − |G|ⁿ",
+    ylabel: "实测 − $|G|$ⁿ",
     title: "对拍残差（线性小窗口）",
     autoscaled: true,
     xticks: niceTicks(phiXlim[0], phiXlim[1], 5),

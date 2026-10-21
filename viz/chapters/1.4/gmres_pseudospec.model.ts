@@ -207,7 +207,7 @@ export const gmresPseudospecModel: SceneModel = (frame, opts) => {
     makeAxis("main", mainRect, {
       xlim: [-lim, lim],
       ylim: [-lim, lim],
-      xlabel: "Re z",
+      xlabel: "$\\operatorname{Re} z$",
       ylabel: axisYlabelOf(AXES, "main", "Im z"),
       title: axisTitleOf(AXES, "main", "伪谱（固定窗口）与谱"),
       autoscaled: false,
@@ -267,7 +267,7 @@ export const gmresPseudospecModel: SceneModel = (frame, opts) => {
     const sy = specY[i] as number;
     if (!Number.isFinite(sx) || !Number.isFinite(sy) || Math.abs(sx) > lim || Math.abs(sy) > lim) nSpecOutside += 1;
   }
-  scene.layers.push(scatterLayer("main", specX, specY, { r: 3.6, color: pal.background, label: "谱 Λ(A)" }));
+  scene.layers.push(scatterLayer("main", specX, specY, { r: 3.6, color: pal.background, label: "谱 $Λ(A)$" }));
 
   // —— 副轴：GMRES 残差 vs 只依赖谱的界 ——
   // 纵向范围要把**界**也包进去（界常常比残差大几十个数量级），并排除两处地板。
@@ -280,7 +280,7 @@ export const gmresPseudospecModel: SceneModel = (frame, opts) => {
       xlim: [0, kMax],
       ylim: auxYlim,
       yscale: "log",
-      xlabel: "GMRES 迭代步 k",
+      xlabel: "GMRES 迭代步 $k$",
       ylabel: axisYlabelOf(AXES, "aux", "‖r_k‖/‖r_0‖"),
       title: axisTitleOf(AXES, "aux", "GMRES 相对残差（对数）"),
       autoscaled: true,
@@ -307,7 +307,7 @@ export const gmresPseudospecModel: SceneModel = (frame, opts) => {
   if (boundSeries.length > 0) scene.layers.push(lineLayer("aux", boundSeries));
   // 地板标尺：帧给的 `residual_floor` 恒为 1e-300，画在轴底（参与取范围会把纵轴拉到 300 个数量级）
   scene.layers.push(
-    lineLayer("aux", series([0, kMax], [auxYlim[0], auxYlim[0]], pal.cursor, { dash: [2, 4], width: 1.2, label: "对数轴地板 1e-300" })),
+    lineLayer("aux", series([0, kMax], [auxYlim[0], auxYlim[0]], pal.cursor, { dash: [2, 4], width: 1.2, label: "对数轴地板 $1e-300$" })),
   );
   scene.layers.push(lineLayer("aux", series([kk, kk], auxYlim, pal.cursor, { dash: [3, 3], width: 1 })));
   const markVal = errMark.length > 0 ? (errMark[0] as number) : Number.NaN;
@@ -316,7 +316,7 @@ export const gmresPseudospecModel: SceneModel = (frame, opts) => {
   }
 
   // —— 文本 ——
-  const summary = paramSummary(frame, opts, [{ name: "n", label: "n" }]);
+  const summary = paramSummary(frame, opts, [{ name: "n", label: "$n$" }]);
   degraded.push(...summary.degraded);
 
   const mainLines: string[] = [

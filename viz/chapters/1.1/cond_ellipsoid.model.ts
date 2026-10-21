@@ -186,6 +186,15 @@ export const condEllipsoidModel: SceneModel = (frame, opts) => {
   const frameOverflow = (metaNumber(frame, "overflow") ?? 0) > 0.5;
   const family = stringOf(frame, "family");
   const normLabel = stringOf(frame, "norm");
+  const matrixA = frame.has("matrix_A") ? requireArray(frame, "matrix_A") : undefined;
+  if (matrixA !== undefined && matrixA.length !== 4) {
+    throw new ModelInputError(`帧 ${CHAPTER}/${VIZ} 的 'matrix_A' 长度 ${matrixA.length} ≠ 4（行优先 2×2）`);
+  }
+  const definedFlags = {
+    x: optionalFirst(frame, "x_exact_defined") ?? 1,
+    xNum: optionalFirst(frame, "x_num_defined") ?? 1,
+    xPert: optionalFirst(frame, "x_pert_defined") ?? 1,
+  };
   if (family === undefined) degraded.push("帧 strings 缺 family：不显示矩阵族名（不按参数猜）");
   if (normLabel === undefined) degraded.push("帧 strings 缺 norm：不显示范数名（κ 必须连范数一起读）");
   const note = stringOf(frame, "note");
@@ -229,9 +238,9 @@ export const condEllipsoidModel: SceneModel = (frame, opts) => {
   const mainAxis = makeAxis("geometry", mainRect, {
     xlim: MAIN_LIM,
     ylim: MAIN_LIM,
-    xlabel: "x₁",
+    xlabel: "`x_1`",
     ylabel: axisYlabelOf(SPEC?.axes, "geometry", "x₂"),
-    title: axisTitleOf(SPEC?.axes, "geometry", "单位圆与 A 作用后的椭圆"),
+    title: axisTitleOf(SPEC?.axes, "geometry", "单位圆与 $A$ 作用后的椭圆"),
     autoscaled: false,
   });
 
@@ -252,9 +261,9 @@ export const condEllipsoidModel: SceneModel = (frame, opts) => {
     ylim: auxYlim,
     xscale: "linear",
     yscale: "log",
-    xlabel: "log10 κ（目标）",
+    xlabel: "$\\log_{10}\\kappa$（目标）",
     ylabel: axisYlabelOf(SPEC?.axes, "error", "放大比"),
-    title: axisTitleOf(SPEC?.axes, "error", "实测放大比与最坏情况上界 κ(A)"),
+    title: axisTitleOf(SPEC?.axes, "error", "实测放大比与最坏情况上界 $\\kappa(A)$"),
     autoscaled: true,
     tickTarget: 5,
   });
@@ -263,7 +272,7 @@ export const condEllipsoidModel: SceneModel = (frame, opts) => {
   // —— 图层 1：单位圆（参照：它必须看起来是圆的）——
   const circle = trimNonFinite(circleX, circleY);
   if (circle !== undefined) {
-    scene.layers.push(lineLayer("geometry", series(circle.x, circle.y, pal.reference, { width: 1.1, dash: [5, 4], label: "单位圆 S¹（参照）" })));
+    scene.layers.push(lineLayer("geometry", series(circle.x, circle.y, pal.reference, { width: 1.1, dash: [5, 4], label: "单位圆 $S¹$（参照）" })));
   } else {
     degraded.push("circle_x/circle_y 没有可绘的有限点：参照圆画不出来（椭圆的「扁」就没有对照了）");
   }
@@ -271,7 +280,7 @@ export const condEllipsoidModel: SceneModel = (frame, opts) => {
   // —— 图层 2：A 的像 ——
   const image = trimNonFinite(imageX, imageY);
   if (image !== undefined) {
-    scene.layers.push(lineLayer("geometry", series(image.x, image.y, pal.curves[0] ?? "#2b6cb0", { width: 2, label: "A 的像：半轴比 = κ₂（短半轴 = σmin）" })));
+    scene.layers.push(lineLayer("geometry", series(image.x, image.y, pal.curves[0] ?? "#2b6cb0", { width: 2, label: "$A$ 的像：半轴比 $=\\kappa_2$（短半轴 $=\\sigma_{\\min}$）" })));
   } else {
     degraded.push("image_x/image_y 没有可绘的有限点：A 的像画不出来");
   }
@@ -279,14 +288,25 @@ export const condEllipsoidModel: SceneModel = (frame, opts) => {
   // —— 图层 3~4：五条向量（4 元 [x0,x1,y0,y1]；非有限的跳过并点名）——
   const clipped: string[] = [];
   const skipped: string[] = [];
-  const arrows: { raw: ArrayLike<number>; label: string; color: string; dash?: number[]; width: number }[] = [
-    { raw: bVec, label: "b（右端项，‖b‖=1）", color: pal.note, dash: [7, 4], width: 2 },
-    { raw: dbVec, label: "δb（扰动；这个尺度下与原点重合）", color: pal.curves[1] ?? "#2f855a", width: 2 },
-    { raw: xExact, label: "x（精确解）", color: pal.ink, dash: [3, 3], width: 1.6 },
-    { raw: xNum, label: "x̂（数值解）", color: pal.marker, width: 2 },
-    { raw: xPert, label: "x̂′（扰动后的解）", color: pal.residual, dash: [6, 3], width: 1.6 },
+  const arrows: {
+    raw: ArrayLike<number>;
+    label: string;
+    color: string;
+    dash?: number[];
+    width: number;
+    defined: number;
+  }[] = [
+    { raw: bVec, label: "$b$（右端项，$‖b‖=1$）", color: pal.note, dash: [7, 4], width: 2, defined: 1 },
+    { raw: dbVec, label: "$δb$（扰动；这个尺度下与原点重合）", color: pal.curves[1] ?? "#2f855a", width: 2, defined: 1 },
+    { raw: xExact, label: "$x$（精确解）", color: pal.ink, dash: [3, 3], width: 1.6, defined: definedFlags.x },
+    { raw: xNum, label: "$x̂$（数值解）", color: pal.marker, width: 2, defined: definedFlags.xNum },
+    { raw: xPert, label: "$x̂′$（扰动后的解）", color: pal.residual, dash: [6, 3], width: 1.6, defined: definedFlags.xPert },
   ];
   for (const item of arrows) {
+    if (item.defined < 0.5) {
+      skipped.push(item.label);
+      continue;
+    }
     const arrow = toArrow(item.label, item.raw);
     if (arrow === undefined) {
       skipped.push(item.label);
@@ -298,12 +318,16 @@ export const condEllipsoidModel: SceneModel = (frame, opts) => {
     }
     scene.layers.push(lineLayer("geometry", arrowSeries({ ...arrow, x1: drawn.x1, y1: drawn.y1 }, item.color, item.dash, item.width)));
   }
-  if (skipped.length > 0) degraded.push(`帧里 ${skipped.join("、")} 含非有限分量（该 κ 上后端没有有限解）：这几条箭头不画，其余照画`);
+  if (skipped.length > 0) {
+    degraded.push(
+      `帧里 ${skipped.join("、")} 没有有限解（defined 掩码为 0 或含非有限分量）：这几条箭头不画，其余照画；原因见帧 note`,
+    );
+  }
 
   // —— 图层 5~7：副轴 ——
   const errSeries = segmentedSeries(kappaGrid, error, pal.residual, {
     width: 1.9,
-    label: "实测放大比 (‖Δx‖/‖x‖)/(‖δb‖/‖b‖)：沿 log10 κ 逐点真跑一次",
+    label: "实测放大比 $(\\|\\Delta x\\|/\\|x\\|)/(\\|\\delta b\\|/\\|b\\|)$：沿 $\\log_{10}\\kappa$ 逐点真跑一次",
     accept: (v) => v > 0,
   });
   if (errSeries.length > 0) scene.layers.push(lineLayer("error", errSeries));
@@ -311,20 +335,20 @@ export const condEllipsoidModel: SceneModel = (frame, opts) => {
   const boundSeries = segmentedSeries(kappaGrid, errorBound, pal.curves[2] ?? "#b7791f", {
     width: 1.5,
     dash: [7, 4],
-    label: "理论上界 κ（帧数组 error_bound）：对数纵轴上斜率 +1",
+    label: "理论上界 $κ$（帧数组 $error_bound$）：对数纵轴上斜率 $+1$",
     accept: (v) => v > 0,
   });
   if (boundSeries.length > 0) scene.layers.push(lineLayer("error", boundSeries));
   else degraded.push("error_bound 的样本没有一个 > 0：log 轴上画不出理论上界");
   if (errorMark !== undefined && kappaMark !== undefined && errorMark > 0) {
-    scene.layers.push(scatterLayer("error", [kappaMark], [errorMark], { r: 4.5, color: pal.marker, label: "当前 log10 κ 处的实测放大比" }));
+    scene.layers.push(scatterLayer("error", [kappaMark], [errorMark], { r: 4.5, color: pal.marker, label: "当前 $\\log_{10}\\kappa$ 处的实测放大比" }));
   }
 
   // —— 文本 ——
   const summary = paramSummary(frame, opts, [
-    { name: "shear", label: "剪切 s" },
-    { name: "delta_b", label: "δb" },
-    { name: "b_angle", label: "b 方向(度)" },
+    { name: "shear", label: "剪切 $s$" },
+    { name: "delta_b", label: "$δb$" },
+    { name: "b_angle", label: "$b$ 方向（度）" },
   ]);
   degraded.push(...summary.degraded);
 
@@ -336,9 +360,23 @@ export const condEllipsoidModel: SceneModel = (frame, opts) => {
   const mainBudget = unitBudget(mainRect[2]);
   scene.texts.push(...textBlock(mainRect[0] + 6, textTop(mainRect), textBottom(mainRect), [head.join("　")], pal.muted, mainBudget, "top"));
 
-  const legend: string[] = [
-    "灰虚=单位圆　蓝=像（半轴比 = κ₂）　蓝虚=b　黑虚=x　红=x̂　紫虚=x̂′",
-  ];
+  const legend: string[] = [];
+  if (matrixA !== undefined) {
+    const a00 = matrixA[0] as number;
+    const a01 = matrixA[1] as number;
+    const a10 = matrixA[2] as number;
+    const a11 = matrixA[3] as number;
+    legend.push(
+      `当前矩阵 $A$（行优先）：$a_{11}=${formatNumber(a00, 3)}$、$a_{12}=${formatNumber(a01, 3)}$、` +
+        `$a_{21}=${formatNumber(a10, 3)}$、$a_{22}=${formatNumber(a11, 3)}$`,
+    );
+  }
+  if (family === "shear" && shear !== undefined) {
+    legend.push(
+      "shear 族：$A=R^{\\mathrm{T}}\\mathrm{diag}(1,1/\\kappa)R\\,S$。$S$ 把 $(x_1,x_2)$ 变成 $(x_1+s x_2,\\,x_2)$，$R$ 把拉伸方向转 $40^\\circ$；$s$ 只改变椭圆朝向与形状，$\\det A=1/\\kappa$ 不变。",
+    );
+  }
+  legend.push("灰虚=单位圆　蓝=像（半轴比 $=\\kappa_2$）　蓝虚=$b$　黑虚=$x$　红=$\\hat{x}$　紫虚=$\\hat{x}'$");
   if (clipped.length > 0) legend.push(`⚠ ${clipped.length} 条向量冲出 ±3：${clipped.join("；")}——看不到不等于不存在`);
   legend.push("δb 在 ±3 的尺度下与原点重合（‖δb‖ ~ 1e-12）：它造成的位移要看 x 与 x̂′ 的夹角，不看箭头长度");
   scene.texts.push(...textBlock(mainRect[0] + 6, textTop(mainRect), textBottom(mainRect), legend, clipped.length > 0 ? pal.warn : pal.muted, mainBudget, "bottom"));
@@ -347,7 +385,7 @@ export const condEllipsoidModel: SceneModel = (frame, opts) => {
   const nums1: string[] = [];
   if (kappaTarget !== undefined) nums1.push(`目标 κ=${formatNumber(kappaTarget, 4)}`);
   if (kappaMeasured !== undefined) nums1.push(`实测 κ_${normLabel ?? "?"}=${formatNumber(kappaMeasured, 4)}`);
-  if (nums1.length > 0) auxLines.push(`${nums1.join("　")}（target ≠ measured：族不同差得不同，两个都必须给）`);
+  if (nums1.length > 0) auxLines.push(`${nums1.join("　")}（目标 $\\kappa$ 与实测 $\\kappa$ 不同：族不同差得不同，两个都必须给）`);
   const nums2: string[] = [];
   if (kappa1 !== undefined) nums2.push(`κ₁=${formatNumber(kappa1, 3)}`);
   if (kappa2 !== undefined) nums2.push(`κ₂=${formatNumber(kappa2, 3)}`);

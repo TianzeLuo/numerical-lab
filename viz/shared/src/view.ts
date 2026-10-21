@@ -559,10 +559,10 @@ export class VizView {
     const top = el("div", { className: "nl-chart-top" });
     const caption = el("div", { className: "nl-chart-caption" });
     const fig = el("span", { className: "nl-figure-label", text: "图形" });
-    this.#figureCaption = el("span", {
-      className: "nl-figure-name",
-      text: this.#viz.axes[0]?.title ?? this.#viz.title,
-    });
+    this.#figureCaption = el("span", { className: "nl-figure-name" });
+    const initialTitle = this.#viz.axes[0]?.title ?? this.#viz.title;
+    this.#figureCaption.innerHTML = renderRichText(soften(initialTitle));
+    this.#figureCaption.title = plainText(initialTitle);
     caption.append(fig, this.#figureCaption);
 
     const tools = el("div", { className: "nl-chart-tools" });
@@ -776,13 +776,25 @@ export class VizView {
       className: `nl-swatch nl-swatch-${shape}${hit.dash ? " is-dashed" : ""}`,
     });
     swatch.style.setProperty("--swatch", hit.color);
-    head.append(swatch, el("span", { className: "nl-hover-name", text: hit.label }));
+    const name = el("span", { className: "nl-hover-name" });
+    name.innerHTML = renderRichText(soften(hit.label));
+    head.append(swatch, name);
     const values = el("p", { className: "nl-hover-values" });
-    if (hit.xText !== "") values.append(el("span", { text: hit.xText }));
-    if (hit.yText !== "") values.append(el("span", { text: hit.yText }));
+    if (hit.xText !== "") {
+      const span = el("span");
+      span.innerHTML = renderRichText(soften(hit.xText));
+      values.append(span);
+    }
+    if (hit.yText !== "") {
+      const span = el("span");
+      span.innerHTML = renderRichText(soften(hit.yText));
+      values.append(span);
+    }
     const parts: HTMLElement[] = [head, values];
     if (hit.detail !== undefined && hit.detail !== "") {
-      parts.push(el("p", { className: "nl-hover-detail", text: hit.detail }));
+      const detail = el("p", { className: "nl-hover-detail" });
+      detail.innerHTML = renderRichText(soften(hit.detail));
+      parts.push(detail);
     }
     tip.replaceChildren(...parts);
     tip.hidden = false;
@@ -897,7 +909,7 @@ export class VizView {
     const theory = this.#viz.theory ?? [];
     if (theory.length > 0 || (this.#opts.formulas ?? []).length > 0) {
       const block = el("section", { className: "nl-reading-block" });
-      block.append(this.#sectionHead("02", "原理与推导", "先看两条式子，再看它们对应的实验事实"));
+      block.append(this.#sectionHead("02", "原理与推导", "从定义和假设出发，一步一步走到图上能测的量"));
       const formulas = this.#opts.formulas ?? [];
       if (formulas.length > 0) {
         block.append(el("p", { className: "nl-block-label", text: "关键公式" }));
@@ -913,8 +925,8 @@ export class VizView {
         block.append(grid);
       }
       if (theory.length > 0) {
-        block.append(el("p", { className: "nl-block-label", text: "推导要点" }));
-        const list = el("ul", { className: "nl-theory-list" });
+        block.append(el("p", { className: "nl-block-label", text: "推导过程（按顺序读）" }));
+        const list = el("ol", { className: "nl-theory-list nl-theory-steps" });
         for (const line of theory) {
           const item = el("li");
           const body = el("div", { className: "nl-theory-text" });
@@ -950,7 +962,9 @@ export class VizView {
     const body = el("div", { className: "nl-tech-body" });
     const dl = el("dl", { className: "nl-tech-grid" });
     const add = (term: string, value: string): void => {
-      dl.append(el("dt", { text: term }), el("dd", { text: value }));
+      const dd = el("dd");
+      dd.innerHTML = renderRichText(soften(value));
+      dl.append(el("dt", { text: term }), dd);
     };
     add("数据来源", dataSourceText(this.#viz.dataSource));
     add("时间轴", timeModeText(this.#viz.time.mode, this.#viz.time.label));
@@ -1076,7 +1090,7 @@ export class VizView {
       seek.max = String(this.#timeline.tMax);
       seek.step = String(this.#viz.time.dt ?? 0.01);
       seek.value = String(this.#timeline.t);
-      seek.setAttribute("aria-label", this.#viz.time.label ?? "时间");
+      seek.setAttribute("aria-label", plainText(this.#viz.time.label ?? "时间"));
       seek.addEventListener("input", () => {
         this.#stopScrubPlay();
         this.#timeline.seek(Number(seek.value));
@@ -1144,7 +1158,8 @@ export class VizView {
     const shownValue = useK ? (metaK as number) : snap.t;
     const value = mode === "stream" ? snap.t.toFixed(2) : trimNumber(shownValue);
     dom.clock.replaceChildren();
-    const main = el("span", { className: "nl-clock-main", text: `${labelName} = ${value}${unit}` });
+    const main = el("span", { className: "nl-clock-main" });
+    main.innerHTML = `${renderRichText(soften(labelName))} = ${value}${unit}`;
     const sub = el("span", {
       className: "nl-clock-sub",
       text: mode === "scrub" ? `第 ${snap.frame + 1} / ${snap.frames} 帧` : playing ? "实时推进" : "已暂停",
@@ -1339,8 +1354,8 @@ export class VizView {
     this.#renderFigureNote(frame);
     if (this.#figureCaption !== null) {
       const title = display.axes[0]?.title ?? this.#viz.axes[0]?.title ?? this.#viz.title;
-      this.#figureCaption.textContent = title;
-      this.#figureCaption.title = title;
+      this.#figureCaption.innerHTML = renderRichText(soften(title));
+      this.#figureCaption.title = plainText(title);
     }
   }
 
@@ -1474,8 +1489,9 @@ export class VizView {
       } else {
         swatch.style.setProperty("--swatch", item.color);
       }
-      const text = el("span", { className: "nl-legend-text", text: item.label });
-      text.title = item.label;
+      const text = el("span", { className: "nl-legend-text" });
+      text.innerHTML = renderRichText(soften(item.label));
+      text.title = plainText(item.label);
       chip.append(swatch, text);
       row.append(chip);
     });
@@ -1496,8 +1512,14 @@ export class VizView {
   #renderBadges(display: DisplaySceneResult): void {
     const row = this.#badgeRow;
     if (row === null) return;
-    const badges = display.badges.filter((badge) => badge.kind === "critical" || badge.kind === "overflow" || badge.kind === "preview");
-    const key = JSON.stringify(badges.map((badge) => `${badge.kind}:${badge.text}`));
+    const badges = display.badges.filter(
+      (badge) =>
+        badge.kind === "critical" ||
+        badge.kind === "overflow" ||
+        badge.kind === "clip" ||
+        badge.kind === "preview",
+    );
+    const key = JSON.stringify(badges.map((badge) => `${badge.kind}:${badge.text}:${badge.detail ?? ""}`));
     if (key === this.#lastBadgeKey) return;
     this.#lastBadgeKey = key;
     row.replaceChildren();
@@ -1507,11 +1529,23 @@ export class VizView {
     }
     row.hidden = false;
     for (const badge of badges) {
-      const dangerous = badge.kind === "overflow" || /越界/.test(badge.text);
+      const text = badge.text;
+      const full = badge.detail ?? text;
+      const looksLikeData = /非有限|NaN|∞|无有限解|未定义/.test(full);
+      const tone = badge.tone ?? (badge.kind === "overflow" && looksLikeData ? "danger" : badge.kind === "overflow" ? "warning" : "info");
+      const shown = tone === "warning" && text.startsWith("溢出：") ? text.replace(/^溢出：/, "显示范围：") : text;
       const chip = el("span", { className: `nl-state-chip nl-state-${badge.kind}` });
-      chip.dataset["tone"] = dangerous ? "danger" : "note";
-      chip.append(icon(dangerous ? "alert" : "info"));
-      chip.append(el("span", { text: badge.text }));
+      chip.dataset["tone"] = tone;
+      chip.tabIndex = 0;
+      chip.title = full;
+      chip.setAttribute("aria-label", full);
+      chip.append(icon(tone === "danger" ? "alert" : "info"));
+      chip.append(el("span", { text: shown }));
+      // 角标在画布与 HTML 里都按列宽截断；完整原因必须在悬停/聚焦时能看到。
+      if (full !== badge.text) {
+        const more = el("span", { className: "nl-state-more", text: "悬停看全文" });
+        chip.append(more);
+      }
       row.append(chip);
     }
   }
@@ -1538,19 +1572,24 @@ export class VizView {
       const letter = el("span", { className: "nl-panel-letter", text: letters[index] ?? String(index + 1) });
       const body = el("div", { className: "nl-panel-body" });
       const spec = manifestAxes.get(axis.id);
+      const declaredTitle = spec?.title?.trim() ?? "";
       const title =
-        axis.title.trim() !== ""
-          ? axis.title
-          : axis.ylabel.trim() !== ""
-            ? `${axis.ylabel.trim()}（补充视图）`
-            : "补充视图";
-      const name = el("p", { className: "nl-panel-name", text: title });
+        declaredTitle !== ""
+          ? declaredTitle
+          : axis.title.trim() !== ""
+            ? axis.title
+            : axis.ylabel.trim() !== ""
+              ? `${axis.ylabel.trim()}（补充视图）`
+              : "补充视图";
+      const name = el("p", { className: "nl-panel-name" });
+      name.innerHTML = renderRichText(soften(title));
       const xText = axis.xlabel.trim() !== "" ? axis.xlabel.trim() : "见面板标题";
       const yText = axis.ylabel.trim() !== "" ? axis.ylabel.trim() : "见面板标题";
       const metaBits = [`横轴：${xText}`, `纵轴：${yText}${axis.yscale === "log" ? "（对数）" : ""}`];
       if (axis.xscale === "log") metaBits.push("横轴取对数");
       if (spec?.autoscaled === true) metaBits.push("自适应");
-      const meta = el("p", { className: "nl-panel-meta", text: metaBits.join(" · ") });
+      const meta = el("p", { className: "nl-panel-meta" });
+      meta.innerHTML = renderRichText(soften(metaBits.join(" · ")));
       body.append(name, meta);
       item.append(letter, body);
       list.append(item);
@@ -1598,7 +1637,7 @@ export class VizView {
     } else if (status.level === "rest") {
       note.textContent = "实时通道不可用，正在按需向服务器取帧；拖动时可能会有一点延迟。";
     } else {
-      note.textContent = "还没有连接到数据服务。检查本地服务是否在运行，然后刷新页面。";
+      note.textContent = "数据源暂时不可用，正在自动重试；也可以改参数或稍候。若长时间不恢复，请检查后端是否在运行。";
     }
   }
 

@@ -321,7 +321,8 @@ MANIFEST = {
 - `requiredAux` MUST 含 `error` 或 `residual`——规则 3。
 - `axes[*].autoscaled` MUST 显式给出——规则 1/4。
 - `pitfalls` MUST ≥ 60 字（中文按字符数计）——规则 7。
-- `time.mode="none"` 的 viz MUST NOT 声明时间轴控件。
+- `time.mode="none"` 的 viz MUST NOT 声明时间轴控件（含 `initial`）。
+- `time.initial` 可选：直接打开页面时的初始时刻，必须落在 `[0, tMax]`；省略时从 `0` 开始。
 - 每个 viz 的 `id` MUST 唯一，且与 `viz/chapters/<id>/<viz_id>.viz.ts` 文件同名。
 
 ---

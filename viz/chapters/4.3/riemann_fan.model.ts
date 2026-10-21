@@ -172,7 +172,7 @@ export const riemannFanModel: SceneModel = (frame, opts) => {
     ylim: [winPLo ?? 0, winPHi ?? 1],
     title: axisTitleOf(SPEC?.axes, "pressure", "压强"),
     ylabel: axisYlabelOf(SPEC?.axes, "pressure", "p"),
-    xlabel: "x（三块图共享横轴）",
+    xlabel: "$x$（三块图共享横轴）",
     autoscaled: false,
   });
   const errAxis = makeAxis("error", right.error, {
@@ -181,7 +181,7 @@ export const riemannFanModel: SceneModel = (frame, opts) => {
     yscale: "log",
     title: axisTitleOf(SPEC?.axes, "error", "三条误差（对数）"),
     ylabel: axisYlabelOf(SPEC?.axes, "error", "|num - exact|"),
-    xlabel: "x",
+    xlabel: "$x$",
     autoscaled: false,
   });
   const residAxis = makeAxis("residual", right.residual, {
@@ -189,8 +189,8 @@ export const riemannFanModel: SceneModel = (frame, opts) => {
     ylim: logRange(FLOOR, Math.max(1e-13, (positiveMinMax(residualMass)?.[1] ?? FLOOR) * 4)),
     yscale: "log",
     title: "Euler 质量账本残差（对数轴）",
-    ylabel: "|delta M|",
-    xlabel: "t",
+    ylabel: "$|\\delta M|$",
+    xlabel: "$t$",
     autoscaled: true,
   });
   scene.axes.push(rhoAxis, velAxis, pAxis, errAxis, residAxis);
@@ -267,7 +267,7 @@ export const riemannFanModel: SceneModel = (frame, opts) => {
   // —— 右列文字 ——
   if (L.columns && right.textTop !== undefined) {
     const head = paramSummary(frame, opts, [
-      { name: "n", label: "n" },
+      { name: "n", label: "$n$" },
     ]);
     degraded.push(...head.degraded);
     const lines: string[] = [];

@@ -189,7 +189,7 @@ export const residualTransferModel: SceneModel = (frame, opts) => {
     xlim: [0, 1],
     ylim: [-amp * 1.15, amp * 1.15],
     xticks: [0, 0.25, 0.5, 0.75, 1],
-    xlabel: "x（细网格内点位置；粗层点用粗层自己的坐标）",
+    xlabel: "$x$（细网格内点位置；粗层点用粗层自己的坐标）",
     title: axisTitleOf(SPEC?.axes, "profiles", "细网格残差与粗层可见部分"),
     ylabel: axisYlabelOf(SPEC?.axes, "profiles", "r(x)"),
     autoscaled: true,
@@ -209,7 +209,7 @@ export const residualTransferModel: SceneModel = (frame, opts) => {
     ylim: logRange(visLo * 0.6, visHi * 1.2),
     yscale: "log",
     xticks: [0, 0.25, 0.5, 0.75, 1],
-    xlabel: "θ/π（细网格频率；0.5 以上只能被粗网格折叠表示）",
+    xlabel: "$θ/π$（细网格频率；$0.5$ 以上只能被粗网格折叠表示）",
     title: axisTitleOf(SPEC?.axes, "visibility", "逐频率的不可见比例与互补性（对数轴）"),
     ylabel: axisYlabelOf(SPEC?.axes, "visibility", "比值"),
     autoscaled: true,
@@ -258,7 +258,7 @@ export const residualTransferModel: SceneModel = (frame, opts) => {
     ),
     yscale: "log",
     xticks: Array.from(new Set([0, Math.max(0, Math.round((lossAxis.length - 1) / 2)), Math.max(0, lossAxis.length - 1)])),
-    xlabel: "预平滑步数 ν",
+    xlabel: "预平滑步数 $ν$",
     title: "不可见比例随 ν（混合残差 vs 纯模态）",
     ylabel: "比值",
     autoscaled: true,
@@ -290,7 +290,7 @@ export const residualTransferModel: SceneModel = (frame, opts) => {
   if (L.columns) {
     const budget = unitBudget(L.rightW);
     const head = paramSummary(frame, opts, [
-      { name: "n", label: "n" },
+      { name: "n", label: "$n$" },
       { name: "mix", label: "mix" },
     ]);
     degraded.push(...head.degraded);

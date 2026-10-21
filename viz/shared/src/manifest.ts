@@ -27,6 +27,8 @@ export interface ParamSpecJson {
   critical: number[];
   criticalNote?: string;
   beyond?: BeyondDirection;
+  /** 面向初学者的参数解释：它是什么、调大/调小会发生什么、读图时看哪里。 */
+  help?: string;
 }
 
 export interface AxisSpecJson {
@@ -48,6 +50,8 @@ export interface TimeSpecJson {
   label?: string;
   /** 时间轴上限跟随的数值参数名（例如 `k` 最多走到节点数 `n`）。 */
   tMaxParam?: string;
+  /** 直接打开时停在哪一时刻；省略则从 0 开始。 */
+  initial?: number;
 }
 
 export interface VizSpecJson {
@@ -164,6 +168,9 @@ export function validateManifestJson(raw: unknown): string[] {
         if (p["beyond"] !== undefined && (typeof p["beyond"] !== "string" || !BEYOND.includes(p["beyond"]))) {
           out.push(`${tag}.${pn}：beyond 必须是 ${BEYOND.join(" / ")} 之一`);
         }
+        if (p["help"] !== undefined && (typeof p["help"] !== "string" || p["help"].trim() === "")) {
+          out.push(`${tag}.${pn}：help 必须是非空字符串（不需要就整个省略）`);
+        }
       }
     }
     const time = v["time"];
@@ -172,7 +179,7 @@ export function validateManifestJson(raw: unknown): string[] {
     } else if (typeof time["mode"] !== "string" || !TIME_MODES.includes(time["mode"])) {
       out.push(`${tag}：time.mode 必须是 ${TIME_MODES.join(" / ")} 之一`);
     } else if (time["mode"] === "none") {
-      if (time["tMax"] !== undefined || time["dt"] !== undefined || time["tMaxParam"] !== undefined) {
+      if (time["tMax"] !== undefined || time["dt"] !== undefined || time["tMaxParam"] !== undefined || time["initial"] !== undefined) {
         out.push(`${tag}：time.mode === "none" 时不得声明 tMax/dt/tMaxParam`);
       }
     } else {
@@ -182,6 +189,14 @@ export function validateManifestJson(raw: unknown): string[] {
       if (typeof dt !== "number" || !(dt > 0)) out.push(`${tag}：time.dt 必须为正数`);
       if (typeof tMax === "number" && typeof dt === "number" && dt > tMax) {
         out.push(`${tag}：time.dt 不应大于 tMax`);
+      }
+      const initial = time["initial"];
+      if (initial !== undefined) {
+        if (typeof initial !== "number" || !Number.isFinite(initial) || initial < 0) {
+          out.push(`${tag}：time.initial 必须是非负数`);
+        } else if (typeof tMax === "number" && initial > tMax) {
+          out.push(`${tag}：time.initial 不得大于 tMax`);
+        }
       }
       const cap = time["tMaxParam"];
       if (cap !== undefined) {

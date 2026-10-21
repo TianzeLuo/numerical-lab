@@ -149,7 +149,7 @@ export const heatFtcsModel: SceneModel = (frame, opts) => {
       xlim,
       ylim: MAIN_YLIM,
       xlabel: "",
-      ylabel: "温度 u",
+      ylabel: "温度 $u$",
       title: "u(x,t)",
       autoscaled: false,
     }),
@@ -163,7 +163,7 @@ export const heatFtcsModel: SceneModel = (frame, opts) => {
     makeErrorAxis("error", panels.error, {
       xlim,
       ylim: errorYlim,
-      xlabel: "x",
+      xlabel: "$x$",
       ylabel: "|误差|",
       title: "误差 u−u_exact",
       autoscaled: true,
@@ -171,13 +171,13 @@ export const heatFtcsModel: SceneModel = (frame, opts) => {
   );
 
   // —— 图层 1~2：u(x) 与 exact(x) 同轴 ——
-  const uSeries = segmentedSeries(x, u, pal.curves[0], { width: 1.8, label: "数值解 u（FTCS）" });
-  const exactSeries = segmentedSeries(x, exact, pal.exact, { width: 1.4, dash: [6, 4], label: "精确解 u_exact" });
+  const uSeries = segmentedSeries(x, u, pal.curves[0], { width: 1.8, label: "数值解 $u$（FTCS）" });
+  const exactSeries = segmentedSeries(x, exact, pal.exact, { width: 1.4, dash: [6, 4], label: "精确解 $u_exact$" });
   if (uSeries.length + exactSeries.length > 0) scene.layers.push(lineLayer("main", [...uSeries, ...exactSeries]));
   else degraded.push(`帧数组 u/exact 没有可绘的有限值（${x.length} 个样本全为非有限）：主面板不画曲线`);
 
   // —— 图层 3：误差（逐点，对数轴；0 与 NaN 都不画，并在文本里报数）——
-  const errSeries = segmentedSeries(x, absError, pal.residual, { width: 1, label: "|u−u_exact|（逐点）", accept: (v) => v > 0 });
+  const errSeries = segmentedSeries(x, absError, pal.residual, { width: 1, label: "$|u−u_exact|$（逐点）", accept: (v) => v > 0 });
   if (errSeries.length > 0) scene.layers.push(lineLayer("error", errSeries));
   else degraded.push(`帧 error 没有 > 0 的有限值（${x.length} 个样本）：对数轴上画不出任何点`);
 
@@ -188,14 +188,14 @@ export const heatFtcsModel: SceneModel = (frame, opts) => {
       makeAxis("xt", panels.side, {
         xlim,
         ylim: [grid.extent[2], grid.extent[3]],
-        xlabel: "x",
-        ylabel: "t",
+        xlabel: "$x$",
+        ylabel: "$t$",
         title: `u(x,t) 时空（history ${grid.ny} 帧）`,
         autoscaled: true,
       }),
     );
     scene.layers.push(
-      heatLayer("xt", grid.values, grid.nx, grid.ny, grid.extent, { cmap: "viridis", label: "u(x,t)（history 帧，行=时间）" }),
+      heatLayer("xt", grid.values, grid.nx, grid.ny, grid.extent, { cmap: "viridis", label: "$u(x,t)$（history 帧，行=时间）" }),
     );
   } else {
     const why =
@@ -215,7 +215,7 @@ export const heatFtcsModel: SceneModel = (frame, opts) => {
   // —— 文本 ——
   // `r` 在帧 meta 里（后端写入了），`nx` 不在——但 nx 就是帧数组 x 的长度，直接数出来即可，
   // 不必去请求参数里"借"一个值，也就不会产生一条名不副实的"降级"。
-  const summary = paramSummary(frame, opts, [{ name: "r", label: "r" }]);
+  const summary = paramSummary(frame, opts, [{ name: "r", label: "$r$" }]);
   degraded.push(...summary.degraded);
   const extras: string[] = [`nx=${x.length}（帧 x 数组长度）`];
   if (dt !== undefined) extras.push(`dt=${formatNumber(dt, 3)}`);

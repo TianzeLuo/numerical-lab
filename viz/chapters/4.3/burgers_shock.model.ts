@@ -176,7 +176,7 @@ export const burgersShockModel: SceneModel = (frame, opts) => {
     ylim: FLUX_WINDOW,
     title: axisTitleOf(SPEC?.axes, "flux", "逐单元界面通量"),
     ylabel: axisYlabelOf(SPEC?.axes, "flux", "F_(j±1/2)"),
-    xlabel: "x（域长 L=1，时间轴见右列）",
+    xlabel: "$x$（域长 $L=1$，时间轴见右列）",
     autoscaled: false,
   });
   const errAxis = makeAxis("error", right.error, {
@@ -185,7 +185,7 @@ export const burgersShockModel: SceneModel = (frame, opts) => {
     yscale: "log",
     title: axisTitleOf(SPEC?.axes, "error", "逐点误差（对数）"),
     ylabel: axisYlabelOf(SPEC?.axes, "error", "|u - u_exact|"),
-    xlabel: "x（单元中心）",
+    xlabel: "$x$（单元中心）",
     autoscaled: false,
   });
   const residY = logRange(FLOOR, Math.max(1e-13, (positiveMinMax(residualMass)?.[1] ?? FLOOR) * 4));
@@ -194,15 +194,15 @@ export const burgersShockModel: SceneModel = (frame, opts) => {
     ylim: residY,
     yscale: "log",
     title: "质量账本残差 |M-M0+out-in|（对数轴）",
-    ylabel: "|delta M|",
-    xlabel: "t",
+    ylabel: "$|\\delta M|$",
+    xlabel: "$t$",
     autoscaled: true,
   });
   scene.axes.push(solAxis, fluxAxis, errAxis, residAxis);
 
   const drawExact = countMask(exactValid) > 0 || (firstFinite(exactTClamped) ?? 0) > 0.5;
   scene.layers.push(
-    lineLayer("solution", series([0, 1], [0, 0], pal.reference, { width: 1, dash: [4, 4], label: "u=0" })),
+    lineLayer("solution", series([0, 1], [0, 0], pal.reference, { width: 1, dash: [4, 4], label: "$u=0$" })),
     lineLayer("solution", series(cellX, uNum, pal.curves[0], { width: 2.2 })),
   );
   if (drawExact) {
@@ -262,7 +262,7 @@ export const burgersShockModel: SceneModel = (frame, opts) => {
   // —— 右列文字 ——
   if (L.columns && right.textTop !== undefined) {
     const head = paramSummary(frame, opts, [
-      { name: "n", label: "n" },
+      { name: "n", label: "$n$" },
       { name: "cfl", label: "cfl" },
     ]);
     degraded.push(...head.degraded);

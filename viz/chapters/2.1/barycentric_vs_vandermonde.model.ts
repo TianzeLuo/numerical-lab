@@ -203,8 +203,8 @@ export const barycentricVsVandermondeModel: SceneModel = (frame, opts) => {
   const slopeAxis = makeAxis("slope", slopeRect, {
     xlim: xLin,
     ylim: rangeLinear([slopeM, slopeT], [0, 40]),
-    xlabel: "节点数 n（本行线性；上一行同轴但用对数刻度）",
-    ylabel: "d log κ / d log n",
+    xlabel: "节点数 $n$（本行线性；上一行同轴但用对数刻度）",
+    ylabel: "$d\\log\\kappa/d\\log n$",
     title: "log-log 斜率：实测 vs 理论（参考指数曲线只是量级参考）",
     autoscaled: true,
   });
@@ -236,7 +236,7 @@ export const barycentricVsVandermondeModel: SceneModel = (frame, opts) => {
     }
   }
   if (markXs.length > 0) {
-    scene.layers.push(scatterLayer("main", markXs, markYs, { r: 3.4, color: pal.marker, label: "当前 n 的三条通道 + κu" }));
+    scene.layers.push(scatterLayer("main", markXs, markYs, { r: 3.4, color: pal.marker, label: "当前 $n$ 的三条通道 + $\\kappa u$" }));
   }
 
   // —— 图层 5：规则 2 的规范形态——κ 的实测曲线 + 实测斜率 + 理论斜率参考线 ——
@@ -265,7 +265,7 @@ export const barycentricVsVandermondeModel: SceneModel = (frame, opts) => {
     scene.layers.push(lineLayer("aux", series([nNow, nNow], [auxAxis.ylim[0], auxAxis.ylim[1]], pal.cursor, { width: 1, dash: [3, 3] })));
     const yMark: number[] = [];
     for (const v of [kapN, residN]) if (v !== undefined && v > 0) yMark.push(v);
-    if (yMark.length > 0) scene.layers.push(scatterLayer("aux", yMark.map(() => nNow), yMark, { r: 3.2, color: pal.marker, label: "当前 n 的 κ 与残差" }));
+    if (yMark.length > 0) scene.layers.push(scatterLayer("aux", yMark.map(() => nNow), yMark, { r: 3.2, color: pal.marker, label: "当前 $n$ 的 $\\kappa$ 与残差" }));
   }
 
   // —— 图层 8~9：斜率面板（实测 vs 理论逐点对照）——
@@ -279,12 +279,12 @@ export const barycentricVsVandermondeModel: SceneModel = (frame, opts) => {
     scene.layers.push(lineLayer("slope", series([nNow, nNow], [slopeAxis.ylim[0], slopeAxis.ylim[1]], pal.cursor, { width: 1, dash: [3, 3] })));
     const yMark: number[] = [];
     for (const v of [slopeMN, slopeTN]) if (v !== undefined) yMark.push(v);
-    if (yMark.length > 0) scene.layers.push(scatterLayer("slope", yMark.map(() => nNow), yMark, { r: 3.2, color: pal.marker, label: "当前 n 的两个斜率" }));
+    if (yMark.length > 0) scene.layers.push(scatterLayer("slope", yMark.map(() => nNow), yMark, { r: 3.2, color: pal.marker, label: "当前 $n$ 的两个斜率" }));
   }
 
   // —— 文本 ——
   const summary = paramSummary(frame, opts, [
-    { name: "n_max", label: "n_max" },
+    { name: "n_max", label: "`n_max`" },
     { name: "distribution", label: "节点分布" },
   ]);
   degraded.push(...summary.degraded);

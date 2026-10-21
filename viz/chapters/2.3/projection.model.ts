@@ -125,7 +125,7 @@ export const projectionModel: SceneModel = (frame, opts) => {
   const n = nTerms !== undefined ? Math.max(1, Math.round(nTerms)) : coef.length;
   if (nTerms === undefined) degraded.push(`帧 meta 缺 n_terms：按 coef 长度取 n=${n}（图像自洽，但不是帧说的）`);
 
-  const { step, notes: stepNotes } = currentStep(frame, opts, { lo: 0, hi: n, label: "已展开项数 k" });
+  const { step, notes: stepNotes } = currentStep(frame, opts, { lo: 0, hi: n, label: "已展开项数 $k$" });
   const k = clamp(step ?? 0, 0, n);
   const kMeta = clamp(Math.round(metaNumber(frame, "n_current") ?? k), 0, n);
   if (metaNumber(frame, "n_current") === undefined) degraded.push("帧 meta 缺 n_current：当前项数按 meta.step 显示");
@@ -198,7 +198,7 @@ export const projectionModel: SceneModel = (frame, opts) => {
   const mainAxis = makeAxis("main", base.main, {
     xlim,
     ylim: ylimMain,
-    xlabel: "x",
+    xlabel: "$x$",
     ylabel: axisYlabel(VIZ, "main", "y"),
     title: axisTitle(VIZ, "main", "f 与两种投影"),
     autoscaled: false,
@@ -207,7 +207,7 @@ export const projectionModel: SceneModel = (frame, opts) => {
   });
   scene.axes.push(mainAxis);
   scene.layers.push(
-    lineLayer("main", segmentedSeries(x, f, pal.exact, { width: 1.5, label: "f（被逼近的函数）" })),
+    lineLayer("main", segmentedSeries(x, f, pal.exact, { width: 1.5, label: "$f$（被逼近的函数）" })),
     lineLayer("main", segmentedSeries(x, projTarget, pal.reference, { width: 1.5, dash: [6, 4], label: `目标 ${n} 维投影 P_n f` })),
     lineLayer("main", segmentedSeries(x, proj, pal.curves[0], { width: 2, label: `当前 ${k} 维投影 P_k f` })),
   );
@@ -229,7 +229,7 @@ export const projectionModel: SceneModel = (frame, opts) => {
     makeAxis("coef", coefRect, {
       xlim: coefXlim,
       ylim: coefYlim,
-      xlabel: "基函数编号 i",
+      xlabel: "基函数编号 $i$",
       ylabel: axisYlabel(VIZ, "coef", "c_k"),
       title: axisTitle(VIZ, "coef", "投影系数"),
       autoscaled: true,
@@ -259,7 +259,7 @@ export const projectionModel: SceneModel = (frame, opts) => {
     makeAxis("err", errRect, {
       xlim,
       ylim: ylimErr,
-      xlabel: "x",
+      xlabel: "$x$",
       ylabel: axisYlabel(VIZ, "err", "误差"),
       title: axisTitle(VIZ, "err", "误差 f − P_k f"),
       autoscaled: true,
@@ -272,7 +272,7 @@ export const projectionModel: SceneModel = (frame, opts) => {
     lineLayer("err", segmentedSeries(x, error, pal.residual, { width: 1.8, label: `f − P_k f（当前 ${k} 维）` })),
   );
   if (showDeviation) {
-    scene.layers.push(lineLayer("err", segmentedSeries(x, deviation, pal.warn, { width: 1.4, label: "P_k f − P_n f（两者之差）" })));
+    scene.layers.push(lineLayer("err", segmentedSeries(x, deviation, pal.warn, { width: 1.4, label: "$P_k $f − P_n $f$（两者之差）" })));
   }
 
   // —— 文本：主面板说明 + 误差面板数值块（一行一个 text 层）——

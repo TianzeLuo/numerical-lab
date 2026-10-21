@@ -119,7 +119,7 @@ export const saddleEscapeModel: SceneModel = (frame, opts) => {
   const main = makeAxis("main", [L.left, L.topY, L.leftW, L.topH], {
     xlim: [-0.5, 2.5],
     ylim: [-0.8, 0.8],
-    xlabel: "x_1（负曲率方向）",
+    xlabel: "$x_1$（负曲率方向）",
     ylabel: axisYlabelOf(SPEC?.axes, "main", "x_2"),
     title: "鞍点等高线（双曲线族）与扰动轨迹",
     autoscaled: false,
@@ -141,7 +141,7 @@ export const saddleEscapeModel: SceneModel = (frame, opts) => {
     xlim: [0, Math.max(1, trajX.length - 1)],
     ylim: [auxYLo, auxYHi],
     yscale: "log",
-    xlabel: "GD 步 k",
+    xlabel: "GD 步 $k$",
     ylabel: axisYlabelOf(SPEC?.axes, "aux", "‖∇f‖ / ‖x - x*‖"),
     title: axisTitleOf(SPEC?.axes, "aux", "梯度范数与到驻点距离（对数）"),
     autoscaled: true,
@@ -161,7 +161,7 @@ export const saddleEscapeModel: SceneModel = (frame, opts) => {
         levels,
         color: pal.reference,
         width: 0.8,
-        label: "f(x)=const（双曲线族）",
+        label: "$f(x)=const$（双曲线族）",
       }),
     );
   } else {
@@ -196,10 +196,10 @@ export const saddleEscapeModel: SceneModel = (frame, opts) => {
     const xa = lastAux >= 0 ? (step[lastAux] as number) : Number.NaN;
     if (Number.isFinite(xa)) {
       if (Number.isFinite(resNow[lastAux] as number)) {
-        scene.layers.push(scatterLayer("aux", [xa], [resNow[lastAux] as number], { r: 3, color: pal.residual, label: "当前 ‖∇f‖" }));
+        scene.layers.push(scatterLayer("aux", [xa], [resNow[lastAux] as number], { r: 3, color: pal.residual, label: "当前 $‖∇f‖$" }));
       }
       if (Number.isFinite(distNow[lastAux] as number)) {
-        scene.layers.push(scatterLayer("aux", [xa], [distNow[lastAux] as number], { r: 3, color: pal.marker, label: "当前 ‖x-x*‖" }));
+        scene.layers.push(scatterLayer("aux", [xa], [distNow[lastAux] as number], { r: 3, color: pal.marker, label: "当前 $‖x-x*‖$" }));
       }
     }
   }

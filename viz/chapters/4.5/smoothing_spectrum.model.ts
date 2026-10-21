@@ -213,7 +213,7 @@ export const smoothingSpectrumModel: SceneModel = (frame, opts) => {
     xlim: [0, 1],
     ylim: [0, 1.1],
     xticks: [0, 0.25, 0.5, 0.75, 1],
-    xlabel: "θ/π（模态 k 的归一化频率）",
+    xlabel: "$θ/π$（模态 $k$ 的归一化频率）",
     title: axisTitleOf(SPEC?.axes, "factor", "一步放大率（固定窗口 0-1.1：越过 1 就是放大了）"),
     ylabel: axisYlabelOf(SPEC?.axes, "factor", "|lambda_k|"),
     autoscaled: false,
@@ -276,9 +276,9 @@ export const smoothingSpectrumModel: SceneModel = (frame, opts) => {
     ylim: logRange(minPositive(normHist) ?? 1e-3, Math.max(maxFinite(normHist) ?? 1, 1) * 1.2),
     yscale: "log",
     xticks: Array.from(new Set([0, Math.round(steps / 2), steps])),
-    xlabel: "迭代步 k",
+    xlabel: "迭代步 $k$",
     title: "整体误差范数：被最低模态拖住",
-    ylabel: "‖e_k‖/‖e_0‖",
+    ylabel: "$\\|e_k\\|/\\|e_0\\|$",
     autoscaled: true,
   });
   scene.axes.push(spectrum, factor, errAxis);
@@ -301,8 +301,8 @@ export const smoothingSpectrumModel: SceneModel = (frame, opts) => {
   if (L.columns) {
     const budget = unitBudget(L.rightW);
     const head = paramSummary(frame, opts, [
-      { name: "n", label: "n" },
-      { name: "omega", label: "ω" },
+      { name: "n", label: "$n$" },
+      { name: "omega", label: "$ω$" },
     ]);
     degraded.push(...head.degraded);
     // 每一行都按"显示宽度单位"手拆到 **一行的预算之内**：不靠渲染层再折行

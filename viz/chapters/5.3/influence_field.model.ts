@@ -117,7 +117,7 @@ export const influenceFieldModel: SceneModel = (frame, opts) => {
   const field = makeAxis("field", [L.left, L.topY, Math.max(200, L.leftW - HEAT_RIGHT_GUTTER), L.topH], {
     xlim: [x0, x1],
     ylim: [0, tauMax],
-    xlabel: "位置 x",
+    xlabel: "位置 $x$",
     ylabel: axisYlabelOf(SPEC?.axes, "field", "反向时间 τ"),
     title: axisTitleOf(SPEC?.axes, "field", "影响场 μ(x,τ)（τ=0 为终端）"),
     autoscaled: false,
@@ -126,7 +126,7 @@ export const influenceFieldModel: SceneModel = (frame, opts) => {
     xlim: [0, tauMax],
     ylim: [floor, 0.1],
     yscale: "log",
-    xlabel: "反向时间 τ",
+    xlabel: "反向时间 $τ$",
     ylabel: axisYlabelOf(SPEC?.axes, "width", "宽度相对偏差 / 质心漂移"),
     title: axisTitleOf(SPEC?.axes, "width", "宽度偏差与质心漂移（对数）"),
     autoscaled: true,
@@ -151,7 +151,7 @@ export const influenceFieldModel: SceneModel = (frame, opts) => {
   // 当前切片位置：水平线（振幅在右侧 profile 轴里读，不在这条线的长度里）。
   if (tauNow !== undefined && Number.isFinite(tauNow)) {
     scene.layers.push(
-      lineLayer("field", { x: [x0, x1], y: [tauNow, tauNow], color: pal.marker, width: 1.4, dash: [4, 3], label: "当前 τ 切片" }),
+      lineLayer("field", { x: [x0, x1], y: [tauNow, tauNow], color: pal.marker, width: 1.4, dash: [4, 3], label: "当前 $τ$ 切片" }),
     );
   }
   // 边界行：支持已经接触定义域边界，连续宽度律在这里不适用。
@@ -187,8 +187,8 @@ export const influenceFieldModel: SceneModel = (frame, opts) => {
     prof = makeAxis("profile", [L.rightX, L.topY, L.rightW, profH], {
       xlim: [x0, x1],
       ylim: [0, Math.max(1e-12, (finiteMinMax(now)?.[1] ?? 1) * 1.15)],
-      xlabel: "位置 x",
-      ylabel: "μ",
+      xlabel: "位置 $x$",
+      ylabel: "$μ$",
       title: `当前切片 τ=${formatNumber(tauNow ?? Number.NaN, 3)}`,
       autoscaled: true,
     });

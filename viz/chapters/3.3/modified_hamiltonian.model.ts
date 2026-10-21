@@ -173,7 +173,7 @@ export const modifiedHamiltonianModel: SceneModel = (frame, opts) => {
   const main = makeAxis("main", [L.left, L.topY, L.leftW, mainH], {
     xlim: [0, x1],
     ylim: [-1.35 * maxAbs, 1.35 * maxAbs],
-    xlabel: "观测时间 t（数组只覆盖已观测步数）",
+    xlabel: "观测时间 $t$（数组只覆盖已观测步数）",
     title: axisTitleOf(SPEC?.axes, "main", "真实能量的相对误差与它的带"),
     ylabel: axisYlabelOf(SPEC?.axes, "main", "ΔE/E₀"),
     autoscaled: true,
@@ -243,7 +243,7 @@ export const modifiedHamiltonianModel: SceneModel = (frame, opts) => {
     xlim: [0, x1],
     ylim: logRange(FLOOR / 2, Math.max(modHi, detY) * 2),
     yscale: "log",
-    xlabel: "观测时间 t",
+    xlabel: "观测时间 $t$",
     title: axisTitleOf(SPEC?.axes, "aux", "修正能量 H_h 的相对变化（对数）"),
     ylabel: axisYlabelOf(SPEC?.axes, "aux", "修正量的相对变化"),
     autoscaled: true,

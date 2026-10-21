@@ -267,10 +267,10 @@ export const adaptiveStepModel: SceneModel = (frame, opts) => {
   // —— 图层 6~8：阈值线、ε 与真误差、被拒绝的 ε ——
   if (threshold !== undefined && threshold.length > 0) {
     scene.layers.push(
-      lineLayer("errseq", series(eAxis.xlim, [1, 1], pal.marker, { width: 1.2, dash: [5, 3], label: "接受阈值 ε = 1（越过它必被拒绝，这不是抖动）" })),
+      lineLayer("errseq", series(eAxis.xlim, [1, 1], pal.marker, { width: 1.2, dash: [5, 3], label: "接受阈值 $ε = 1$（越过它必被拒绝，这不是抖动）" })),
     );
   }
-  scene.layers.push(lineLayer("errseq", series(idx, errEst, pal.curves[0], { width: 1.8, marker: "s", label: "归一化误差估计 ε（1 = 容差）" })));
+  scene.layers.push(lineLayer("errseq", series(idx, errEst, pal.curves[0], { width: 1.8, marker: "s", label: "归一化误差估计 $ε$（1 = 容差）" })));
   if (errTrue !== undefined && errTrue.length >= n && n > 0) {
     const tru = toArray(errTrue).slice(0, n);
     scene.layers.push(

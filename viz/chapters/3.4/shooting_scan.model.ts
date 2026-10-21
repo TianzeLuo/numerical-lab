@@ -254,7 +254,7 @@ export const shootingScanModel: SceneModel = (frame, opts) => {
       ? axisTitleOf(SPEC?.axes, "main", "轨迹族 u(x; s_j) 与真解")
       : "轨迹族与真解",
     ylabel: axisYlabelOf(SPEC?.axes, "main", "u"),
-    xlabel: "x",
+    xlabel: "$x$",
     autoscaled: false,
   });
   const aux = makeAxis("aux", [L.rightX, L.topY, L.rightW, auxH], {
@@ -265,7 +265,7 @@ export const shootingScanModel: SceneModel = (frame, opts) => {
       ? axisTitleOf(SPEC?.axes, "aux", "右端打靶残差 |F(s_j)| = |u(b;s_j) - beta|（对数轴）")
       : "打靶残差 |F|（对数）",
     ylabel: axisYlabelOf(SPEC?.axes, "aux", "|F|"),
-    xlabel: "s_j",
+    xlabel: "`s_j`",
     autoscaled: false,
   });
   scene.axes.push(main, aux);
@@ -283,7 +283,7 @@ export const shootingScanModel: SceneModel = (frame, opts) => {
   }
   if (familySeries.length > 0) scene.layers.push(lineLayer("main", familySeries));
   scene.layers.push(
-    lineLayer("main", segmentedSeries(x, exact, pal.exact, { width: 1.7, dash: [7, 4], label: "真解 u(x)" })),
+    lineLayer("main", segmentedSeries(x, exact, pal.exact, { width: 1.7, dash: [7, 4], label: "真解 $u(x)$" })),
   );
   if (Number.isFinite(x1) && Number.isFinite(exact[exact.length - 1] as number)) {
     scene.layers.push(
@@ -361,10 +361,10 @@ export const shootingScanModel: SceneModel = (frame, opts) => {
   // —— 右列文字 ——
   if (L.columns) {
     const head = paramSummary(frame, opts, [
-      { name: "k", label: "k" },
-      { name: "L", label: "L" },
+      { name: "k", label: "$k$" },
+      { name: "L", label: "$L$" },
       { name: "span", label: "span" },
-      { name: "m", label: "m" },
+      { name: "m", label: "$m$" },
     ]);
     degraded.push(...head.degraded);
     const lines: string[] = [];

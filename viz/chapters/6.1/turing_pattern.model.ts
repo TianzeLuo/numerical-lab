@@ -155,7 +155,7 @@ export const turingPatternModel: SceneModel = (frame, opts) => {
   const main = makeAxis("main", mainRect, {
     xlim: [xLo, xHi],
     ylim: [yLo, yHi],
-    xlabel: "x",
+    xlabel: "$x$",
     ylabel: axisYlabelOf(SPEC?.axes, "main", "y"),
     title: axisTitleOf(SPEC?.axes, "main", "v(x,y)：Gray--Scott 斑图"),
     autoscaled: false,
@@ -166,7 +166,7 @@ export const turingPatternModel: SceneModel = (frame, opts) => {
     xlim: [Math.min(nError[0] as number, 64), Math.max(nError[nError.length - 1] as number, 128)],
     ylim: [Math.max(1e-10, errRange[0] * 0.4), Math.max(errRange[0] * 40, errRange[1] * 2.5)],
     yscale: "log",
-    xlabel: "网格 n",
+    xlabel: "网格 $n$",
     ylabel: axisYlabelOf(SPEC?.axes, "error", "相对误差"),
     title: axisTitleOf(SPEC?.axes, "error", "五点模板增长率误差 vs n（对数纵轴）"),
     autoscaled: true,
@@ -204,23 +204,23 @@ export const turingPatternModel: SceneModel = (frame, opts) => {
     dispAxis = makeAxis("dispersion", [L.rightX, topY, L.rightW, dispH], {
       xlim: [0, Math.max(1, phi[phi.length - 1] as number)],
       ylim: padRange(lo, hi, 0.08),
-      xlabel: "波数 φ",
+      xlabel: "波数 $φ$",
       ylabel: axisYlabelOf(SPEC?.axes, "dispersion", "λ_max"),
       title: axisTitleOf(SPEC?.axes, "dispersion", "解析色散关系 λ(φ)"),
       autoscaled: true,
       tickTarget: 4,
     });
     scene.axes.push(dispAxis);
-    scene.layers.push(lineLayer("dispersion", { x: phi, y: rate, color: pal.curves[0] as string, width: 1.7, label: "解析色散关系 λ(φ)" }));
+    scene.layers.push(lineLayer("dispersion", { x: phi, y: rate, color: pal.curves[0] as string, width: 1.7, label: "解析色散关系 $λ(φ)$" }));
     scene.layers.push(
-      lineLayer("dispersion", { x: [0, phi[phi.length - 1] as number], y: [0, 0], color: pal.reference, width: 0.9, dash: [3, 3], label: "λ = 0" }),
+      lineLayer("dispersion", { x: [0, phi[phi.length - 1] as number], y: [0, 0], color: pal.reference, width: 0.9, dash: [3, 3], label: "$λ = 0$" }),
     );
     if (phiStar !== undefined && phiStar > 0.5 && phiStar <= (dispAxis.xlim[1] as number)) {
       scene.layers.push(
-        lineLayer("dispersion", { x: [phiStar, phiStar], y: [dispAxis.ylim[0], dispAxis.ylim[1]], color: pal.exact, width: 1.2, dash: [4, 3], label: "最不稳定波数 φ*" }),
+        lineLayer("dispersion", { x: [phiStar, phiStar], y: [dispAxis.ylim[0], dispAxis.ylim[1]], color: pal.exact, width: 1.2, dash: [4, 3], label: "最不稳定波数 $φ*$" }),
       );
       if (lambdaStar !== undefined && lambdaStar >= (dispAxis.ylim[0] as number) && lambdaStar <= (dispAxis.ylim[1] as number)) {
-        scene.layers.push(scatterLayer("dispersion", [phiStar], [lambdaStar], { r: 3.4, color: pal.marker, label: "φ* 的增长率" }));
+        scene.layers.push(scatterLayer("dispersion", [phiStar], [lambdaStar], { r: 3.4, color: pal.marker, label: "$φ*$ 的增长率" }));
       }
     }
   } else {

@@ -146,7 +146,7 @@ export const conservationLedgerModel: SceneModel = (frame, opts) => {
     ylim: [-0.05, 1.05],
     title: axisTitleOf(SPEC?.axes, "shock", "激波位置-时间"),
     ylabel: axisYlabelOf(SPEC?.axes, "shock", "x_shock(t)"),
-    xlabel: "t（激波位置作纵轴）",
+    xlabel: "$t$（激波位置作纵轴）",
     autoscaled: false,
   });
   const defectAxis = makeAxis("defect", defectRect, {
@@ -155,7 +155,7 @@ export const conservationLedgerModel: SceneModel = (frame, opts) => {
     yscale: "log",
     title: axisTitleOf(SPEC?.axes, "defect", "账本残差（对数）"),
     ylabel: axisYlabelOf(SPEC?.axes, "defect", "|M-M0+(out-in)|"),
-    xlabel: "t",
+    xlabel: "$t$",
     autoscaled: false,
   });
   scene.axes.push(massAxis, shockAxis, defectAxis);
@@ -221,7 +221,7 @@ export const conservationLedgerModel: SceneModel = (frame, opts) => {
   drawTrack(shockTAdv, shockXAdv, shockMaskAdv, pal.warn, 1.8, [5, 3], "");
   scene.layers.push(
     lineLayer("shock", series(rhT, rhX, pal.reference, { width: 1.3, dash: [4, 4] })),
-    lineLayer("shock", series([t, t], [-0.05, 1.05], pal.marker, { width: 1.1, label: "当前 t" })),
+    lineLayer("shock", series([t, t], [-0.05, 1.05], pal.marker, { width: 1.1, label: "当前 $t$" })),
   );
 
   // —— 图例（只留在左列面板内；右列账本轴图例并入说明末行） ——
@@ -245,7 +245,7 @@ export const conservationLedgerModel: SceneModel = (frame, opts) => {
   // —— 右列文字 ——
   if (L.columns && textTop <= L.floor - 3 * 15) {
     const head = paramSummary(frame, opts, [
-      { name: "n", label: "n" },
+      { name: "n", label: "$n$" },
       { name: "cfl", label: "cfl" },
     ]);
     degraded.push(...head.degraded);

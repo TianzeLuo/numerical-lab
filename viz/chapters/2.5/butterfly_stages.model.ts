@@ -185,7 +185,7 @@ export const butterflyStagesModel: SceneModel = (frame, opts) => {
     xlim: [0.5, Math.max(1.5, levels + 0.5)],
     ylim: resYlim,
     yscale: "log",
-    xlabel: "级号 s（1…log2N）",
+    xlabel: "级号 $s$（1…$log2N$）",
     ylabel: axisYlabel(VIZ, "residual", "max|delta|"),
     title: axisTitle(VIZ, "residual", "逐级残差（向量化 vs 朴素 DIF）"),
     autoscaled: axisAutoscaled(VIZ, "residual"),
@@ -197,7 +197,7 @@ export const butterflyStagesModel: SceneModel = (frame, opts) => {
   const specAxis = makeAxis("spectrum", specRect, {
     xlim: [-0.5, Math.max(0.5, n - 0.5)],
     ylim: [0, Math.max(1e-12, peak * 1.15)],
-    xlabel: "频率格 k（位反序重排后的顺序）",
+    xlabel: "频率格 $k$（位反序重排后的顺序）",
     ylabel: axisYlabel(VIZ, "spectrum", "|X|"),
     title: axisTitle(VIZ, "spectrum", "位反序重排后的 |X_k|"),
     autoscaled: axisAutoscaled(VIZ, "spectrum"),
@@ -213,9 +213,9 @@ export const butterflyStagesModel: SceneModel = (frame, opts) => {
   }
   if (trails.length > 0) scene.layers.push(lineLayer("trace", trails));
   const curSeries: LineSeries[] = [];
-  const realSeries = segmentedSeries(idx, currentReal, pal.curves[0], { width: 2.2, label: "当前级实部 Re X" });
+  const realSeries = segmentedSeries(idx, currentReal, pal.curves[0], { width: 2.2, label: "当前级实部 $\\operatorname{Re} X$" });
   curSeries.push(...realSeries);
-  const imagSeries = segmentedSeries(idx, currentImag, pal.curves[1], { width: 2.2, dash: [6, 3], label: "当前级虚部 Im X" });
+  const imagSeries = segmentedSeries(idx, currentImag, pal.curves[1], { width: 2.2, dash: [6, 3], label: "当前级虚部 $\\operatorname{Im} X$" });
   curSeries.push(...imagSeries);
   if (curSeries.length > 0) scene.layers.push(lineLayer("trace", curSeries));
   else degraded.push("当前级的实部/虚部没有可绘的有限值：轨迹面板不画曲线");
@@ -248,18 +248,18 @@ export const butterflyStagesModel: SceneModel = (frame, opts) => {
   }
 
   // —— 图层 7~8：位反序谱 ——
-  scene.layers.push(barsLayer("spectrum", idx, spectrumMag, { width: 0.7, color: pal.curves[0], label: "位反序后的 |X_k|" }));
+  scene.layers.push(barsLayer("spectrum", idx, spectrumMag, { width: 0.7, color: pal.curves[0], label: "位反序后的 $|X_k|$" }));
   const specRefs: LineSeries[] = [];
   if (kBin !== undefined) {
-    specRefs.push(series([kBin, kBin], [0, specAxis.ylim[1]], pal.reference, { dash: [3, 4], width: 1, label: "波数 k 的位置" }));
+    specRefs.push(series([kBin, kBin], [0, specAxis.ylim[1]], pal.reference, { dash: [3, 4], width: 1, label: "波数 $k$ 的位置" }));
   }
   specRefs.push(series([-0.5, n - 0.5], [peak, peak], pal.marker, { dash: [6, 3], width: 1, label: "峰值" }));
   scene.layers.push(lineLayer("spectrum", specRefs));
 
   // —— 文本：面板内只放"身份行"，长句子全部进底部横条 ——
   const summary = paramSummary(frame, opts, [
-    { name: "n", label: "N" },
-    { name: "k", label: "k" },
+    { name: "n", label: "$N$" },
+    { name: "k", label: "$k$" },
   ]);
   degraded.push(...summary.degraded);
   const traceLines: string[] = [summary.text + (signalName === undefined ? "" : `　信号 ${signalName}（帧 strings.signal）`)];

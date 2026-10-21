@@ -201,7 +201,7 @@ export const convergenceRateModel: SceneModel = (frame, opts) => {
       ? axisTitleOf(SPEC?.axes, "main", "误差 vs N：半对数（指数收敛是直线）")
       : "误差 vs N（半对数）",
     ylabel: axisYlabelOf(SPEC?.axes, "main", "max|u_num - u_exact|"),
-    xlabel: "N（Chebyshev 节点数）",
+    xlabel: "$N$（Chebyshev 节点数）",
     autoscaled: false,
   });
   const aux = makeAxis("aux", [L.rightX, L.topY, L.rightW, auxH], {
@@ -213,7 +213,7 @@ export const convergenceRateModel: SceneModel = (frame, opts) => {
       ? axisTitleOf(SPEC?.axes, "aux", "误差 vs N：双对数（代数收敛是直线）+ 真实边界残差")
       : "双对数 + 边界残差",
     ylabel: axisYlabelOf(SPEC?.axes, "aux", "误差 / 边界残差"),
-    xlabel: "n / N",
+    xlabel: "$n / N$",
     autoscaled: false,
   });
   scene.axes.push(main, aux);
@@ -341,7 +341,7 @@ export const convergenceRateModel: SceneModel = (frame, opts) => {
   if (L.columns) {
     const head = paramSummary(frame, opts, [
       { name: "nmax", label: "nmax" },
-      { name: "bc_order", label: "bc_order" },
+      { name: "bc_order", label: "`bc_order`" },
     ]);
     degraded.push(...head.degraded);
     const lines: string[] = [];

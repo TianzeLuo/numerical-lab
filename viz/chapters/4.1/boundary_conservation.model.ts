@@ -179,8 +179,8 @@ export const boundaryConservationModel: SceneModel = (frame, opts) => {
   // 面板通栏 6 行放不下，它们的内容按"数字 + 最短判读"重述在下面（三种相容初值、曲线裁到
   // 当前时刻、流失量的解析式都保留），完整口径留在帧里。
   const grad = paramSummary(frame, opts, [
-    { name: "r", label: "r" },
-    { name: "nx", label: "nx" },
+    { name: "r", label: "$r$" },
+    { name: "nx", label: "$nx$" },
   ]);
   degraded.push(...grad.degraded);
 
@@ -234,7 +234,7 @@ export const boundaryConservationModel: SceneModel = (frame, opts) => {
     xlim,
     ylim: errYlim,
     yscale: "log",
-    ylabel: "|u−解析解|",
+    ylabel: "$|u$−解析解|",
     title: "误差（对数轴）",
     autoscaled: true,
     xticks: niceTicks(xlim[0], xlim[1], 6),
@@ -249,7 +249,7 @@ export const boundaryConservationModel: SceneModel = (frame, opts) => {
     xlim: tXlim,
     ylim: driftYlim,
     yscale: "log",
-    ylabel: "|ΔH|",
+    ylabel: "$|ΔH|$",
     title: "|ΔH| 对数轴（结构性零 vs 物理流失）",
     autoscaled: true,
     xticks: niceTicks(tXlim[0], tXlim[1], 5),

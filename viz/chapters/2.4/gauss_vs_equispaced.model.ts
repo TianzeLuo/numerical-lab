@@ -163,7 +163,7 @@ export const gaussVsEquispacedModel: SceneModel = (frame, opts) => {
 
   // 时间轴 = 已测试到的多项式次数 k（0 … 2n+2）。
   const kMax = degree.length > 0 ? (degree[degree.length - 1] as number) : 0;
-  const step = currentStep(frame, opts, { lo: 0, hi: Math.max(0, Math.round(kMax)), label: "多项式次数 k" });
+  const step = currentStep(frame, opts, { lo: 0, hi: Math.max(0, Math.round(kMax)), label: "多项式次数 $k$" });
   const revealed = Math.max(1, Math.round(step.step ?? 0) + 1);
 
   /* ------------------------------ 左上：节点与权重 ------------------------------ */
@@ -174,7 +174,7 @@ export const gaussVsEquispacedModel: SceneModel = (frame, opts) => {
     // 右端留 22%：节点散点/零线的 label 画在**最后一个可见点右侧**，不留白会被裁掉。
     xlim: niceLimits(xLo, xLo + (xHi - xLo) * 1.22, 6),
     ylim: niceLimits(wRange[0], wRange[1] + 0.05 * (wRange[1] - wRange[0] || 1), 6),
-    xlabel: "节点位置 x",
+    xlabel: "节点位置 $x$",
     ylabel: axisYlabel(VIZ, "nodes", "w_k"),
     title: axisTitle(VIZ, "nodes", "节点与权重"),
     autoscaled: false,
@@ -187,7 +187,7 @@ export const gaussVsEquispacedModel: SceneModel = (frame, opts) => {
       series([nodesAxis.xlim[0], nodesAxis.xlim[0] + (nodesAxis.xlim[1] - nodesAxis.xlim[0]) * 0.72], [0, 0], pal.reference, {
         width: 1,
         dash: [5, 4],
-        label: "w=0",
+        label: "$w=0$",
       }),
     ),
   );
@@ -216,7 +216,7 @@ export const gaussVsEquispacedModel: SceneModel = (frame, opts) => {
   const exactAxis = makeAxis("exact", base.error, {
     xlim: [degree.length > 0 ? (degree[0] as number) : 0, kMax * 1.18],
     yscale: "log",
-    xlabel: "多项式次数 k",
+    xlabel: "多项式次数 $k$",
     ylabel: axisYlabel(VIZ, "exact", "误差"),
     title: axisTitle(VIZ, "exact", "矩误差 |Q(x^k)−∫x^k|"),
     autoscaled: true,
@@ -237,7 +237,7 @@ export const gaussVsEquispacedModel: SceneModel = (frame, opts) => {
   );
   if (limit !== undefined && limit >= exactAxis.xlim[0] && limit <= exactAxis.xlim[1]) {
     scene.layers.push(
-      lineLayer("exact", series([limit, limit], exactAxis.ylim, pal.warn, { width: 1.4, dash: [5, 4], label: "k=2n−1" })),
+      lineLayer("exact", series([limit, limit], exactAxis.ylim, pal.warn, { width: 1.4, dash: [5, 4], label: "$k=2n$−1" })),
     );
   }
   const exactLines: string[] = [];
@@ -265,7 +265,7 @@ export const gaussVsEquispacedModel: SceneModel = (frame, opts) => {
   const condAxis = makeAxis("cond", base.side, {
     xlim: [mRange[0], mRange[0] + (mRange[1] - mRange[0]) * 1.18],
     yscale: "log",
-    xlabel: "点数 m",
+    xlabel: "点数 $m$",
     ylabel: axisYlabel(VIZ, "cond", "Γ"),
     title: axisTitle(VIZ, "cond", "条件数 Γ=Σ|w|/Σw"),
     autoscaled: true,

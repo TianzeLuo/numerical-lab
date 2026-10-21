@@ -217,7 +217,7 @@ export const luHeatmapModel: SceneModel = (frame, opts) => {
     ylim: lim,
     // 轴下的位置留给图例（含色标说明）；"列 j" 的含义写进 head 行。
     xlabel: "",
-    ylabel: "行 i（0 在上）",
+    ylabel: "行 $i$（0 在上）",
     title: axisTitle("main", "log10|M|（当前工作矩阵）"),
     autoscaled: false,
     xticks: integerTicks(n),
@@ -240,7 +240,7 @@ export const luHeatmapModel: SceneModel = (frame, opts) => {
     xlim: [-0.5, Math.max(0.5, auxLen - 0.5)],
     ylim: auxYlim,
     yscale: "log",
-    xlabel: "历史样本 j（j=0 为初始矩阵，j=k+1 为第 k 步之后）",
+    xlabel: "历史样本 $j$（$j=0 为初始矩阵，$j=k+1 为第 $k$ 步之后）",
     ylabel: axisYlabel("aux", "ρ 与 ‖PA−LU‖/‖A‖"),
     title: axisTitle("aux", "增长因子 ρ(k) 与残差"),
     autoscaled: true,
@@ -258,7 +258,7 @@ export const luHeatmapModel: SceneModel = (frame, opts) => {
       logScale: false, // 值已经是 log10；再开 logScale 就是 loglog 了（见文件头第 2 条）
       // 这个 label 只有**光栅器**用得上：tools/raster.py 会把 heat 图层的 label
       // 居中画在自动色标条下方，太长会糊到隔壁面板上；完整说明放在下面的图例里。
-      label: "矩阵元素（log10）",
+      label: "矩阵元素（$\\log_{10}$）",
     }),
   );
 
@@ -299,7 +299,7 @@ export const luHeatmapModel: SceneModel = (frame, opts) => {
         r: Math.max(1.2, cellPx * 0.2),
         color: pal.curves[0],
         alpha: 0.55,
-        label: "已写回乘子的下三角（indicator=1）",
+        label: "已写回乘子的下三角（$indicator=1$）",
       }),
     );
   }
@@ -309,7 +309,7 @@ export const luHeatmapModel: SceneModel = (frame, opts) => {
         r: Math.max(1.5, cellPx * 0.4),
         color: pal.marker,
         alpha: 0.18,
-        label: "当前主元行/列（indicator=2）",
+        label: "当前主元行/列（$indicator=2$）",
       }),
     );
   }
@@ -333,7 +333,7 @@ export const luHeatmapModel: SceneModel = (frame, opts) => {
   }
   const rhoSeries = segmentedSeries(stepGrid, rhoHistory, pal.curves[0], {
     width: 1.8,
-    label: "ρ(j) 增长因子（逐步实测）",
+    label: "$ρ(j)$ 增长因子（逐步实测）",
     accept: (v) => v > 0,
   });
   if (rhoSeries.length > 0) scene.layers.push(lineLayer("aux", rhoSeries));
@@ -341,7 +341,7 @@ export const luHeatmapModel: SceneModel = (frame, opts) => {
   const resSeries = segmentedSeries(stepGrid, residualHistory, pal.residual, {
     width: 1.4,
     dash: [6, 3],
-    label: "前导块残差（逐步实测，0 以 u/2 显示）",
+    label: "前导块残差（逐步实测，0 以 $u/2$ 显示）",
     accept: (v) => v > 0,
   });
   if (resSeries.length > 0) scene.layers.push(lineLayer("aux", resSeries));
@@ -360,7 +360,7 @@ export const luHeatmapModel: SceneModel = (frame, opts) => {
     markY.push(resNow);
   }
   if (markX.length > 0) {
-    scene.layers.push(scatterLayer("aux", markX, markY, { r: 4, color: pal.marker, label: "当前步的 ρ 与残差" }));
+    scene.layers.push(scatterLayer("aux", markX, markY, { r: 4, color: pal.marker, label: "当前步的 $ρ$ 与残差" }));
     const last = markX.length - 1;
     const [mx, my] = dataToPixel(auxAxis, markX[last] as number, markY[last] as number);
     if (Number.isFinite(mx) && Number.isFinite(my)) {
@@ -378,7 +378,7 @@ export const luHeatmapModel: SceneModel = (frame, opts) => {
 
   // —— 文本（一行一个 text 层：见文件头第 6 条）——
   const summary = paramSummary(frame, opts, [
-    { name: "n", label: "n" },
+    { name: "n", label: "$n$" },
     { name: "dominance", label: "对角占优比" },
   ]);
   degraded.push(...summary.degraded);

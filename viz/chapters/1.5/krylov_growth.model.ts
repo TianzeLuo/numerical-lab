@@ -256,7 +256,7 @@ export const krylovGrowthModel: SceneModel = (frame, opts) => {
   const orthAxis = makeAxis("orth", orthRect, {
     xlim: orthLim,
     ylim: orthLim,
-    xlabel: "基 j",
+    xlabel: "基 $j$",
     ylabel: axisYlabel("orth", "步 i（0 在下）/ 基 j"),
     title: axisTitle("orth", "残差正交性实测矩阵"),
     autoscaled: false,
@@ -270,8 +270,8 @@ export const krylovGrowthModel: SceneModel = (frame, opts) => {
   const hessAxis = makeAxis("hess", hessRect, {
     xlim: hessXLim,
     ylim: hessLim,
-    xlabel: "列 j（0 在左）",
-    ylabel: "行 i（0 在下）",
+    xlabel: "列 $j$（0 在左）",
+    ylabel: "行 $i$（0 在下）",
     title: "Arnoldi 的 H（Hessenberg）",
     autoscaled: false,
     xticks: niceTicks(0, Math.max(1, nH - 1), 5),
@@ -293,7 +293,7 @@ export const krylovGrowthModel: SceneModel = (frame, opts) => {
     xlim: [0, stepMax],
     ylim: residYlim,
     yscale: "log",
-    xlabel: "Krylov 步 k",
+    xlabel: "Krylov 步 $k$",
     ylabel: "相对残差",
     title: "相对残差与舍入底（对数）",
     autoscaled: true,
@@ -347,10 +347,10 @@ export const krylovGrowthModel: SceneModel = (frame, opts) => {
       ]),
     );
   }
-  scene.layers.push(scatterLayer("space", [starPt[0]], [starPt[1]], { r: 4.5, color: pal.marker, label: "精确解 x*" }));
+  scene.layers.push(scatterLayer("space", [starPt[0]], [starPt[1]], { r: 4.5, color: pal.marker, label: "精确解 $x*$" }));
   if (iterPts.length > 0) {
     const last = iterPts[iterPts.length - 1] as [number, number];
-    scene.layers.push(scatterLayer("space", [last[0]], [last[1]], { r: 3.6, color: pal.exact, label: "当前步 x_k" }));
+    scene.layers.push(scatterLayer("space", [last[0]], [last[1]], { r: 3.6, color: pal.exact, label: "当前步 $x_k$" }));
   }
 
   // —— 图层 5：Arnoldi 的 H（0×0 的 CG 帧不画；见文件头第 5 条）——
@@ -363,7 +363,7 @@ export const krylovGrowthModel: SceneModel = (frame, opts) => {
         vmin: MATRIX_LOG_FLOOR,
         vmax: Math.max(MATRIX_LOG_FLOOR + 1, Math.ceil(maxFinite(hv, MATRIX_LOG_FLOOR))),
         logScale: false, // 值已经取过 log10，再开对数就成了 loglog
-        label: "Hessenberg 矩阵元素（log10）",
+        label: "Hessenberg 矩阵元素（$\\log_{10}$）",
       }),
     );
     hessNote.push(`H 是 ${formatNumber(hessenberg.rows, 3)}×${formatNumber(hessenberg.cols, 3)}，纵轴 0 在下：零区在左上`);
@@ -381,7 +381,7 @@ export const krylovGrowthModel: SceneModel = (frame, opts) => {
         vmin: MATRIX_LOG_FLOOR,
         vmax: Math.max(MATRIX_LOG_FLOOR + 1, Math.ceil(maxFinite(orthValues, MATRIX_LOG_FLOOR))),
         logScale: false,
-        label: "基向量内积（log10）",
+        label: "基向量内积（$\\log_{10}$）",
       }),
     );
   } else {
@@ -425,7 +425,7 @@ export const krylovGrowthModel: SceneModel = (frame, opts) => {
   if (residLayers.length > 0) scene.layers.push(lineLayer("resid", residLayers));
   const rMark = residualMarkArr !== undefined && residualMarkArr.length > 0 ? (residualMarkArr[0] as number) : metaNumber(frame, "residual");
   if (rMark !== undefined && Number.isFinite(rMark) && rMark > 0) {
-    scene.layers.push(scatterLayer("resid", [cut], [rMark], { r: 3.4, color: pal.marker, label: "第 k 步残差（帧 residual_mark）" }));
+    scene.layers.push(scatterLayer("resid", [cut], [rMark], { r: 3.4, color: pal.marker, label: "第 $k$ 步残差（当前点标记）" }));
   }
 
   // —— 文本 ——

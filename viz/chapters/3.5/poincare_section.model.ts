@@ -147,9 +147,9 @@ export const poincareSectionModel: SceneModel = (frame, opts) => {
   const degraded: string[] = [];
   const proj = projectionOf(frame, opts, degraded);
   const summary = paramSummary(frame, opts, [
-    { name: "rho", label: "ρ" },
-    { name: "sigma", label: "σ" },
-    { name: "c", label: "c" },
+    { name: "rho", label: "$ρ$" },
+    { name: "sigma", label: "$σ$" },
+    { name: "c", label: "$c$" },
   ]);
   degraded.push(...summary.degraded);
   const nCross = metaNumber(frame, "n_cross");
@@ -198,7 +198,7 @@ export const poincareSectionModel: SceneModel = (frame, opts) => {
       xticks: boxLim.ticks,
       yticks: boxLim.ticks,
       xlabel: "",
-      ylabel: "v",
+      ylabel: "$v$",
       title: "三维相空间与截面平面",
       autoscaled: false,
     }),
@@ -320,8 +320,8 @@ export const poincareSectionModel: SceneModel = (frame, opts) => {
       ylim: retYLim,
       xticks: equalSpanTicks(retXLim, 3),
       yticks: equalSpanTicks(retYLim, 3),
-      xlabel: "k 次",
-      ylabel: "k+1 次",
+      xlabel: "$k$ 次",
+      ylabel: "$k+1$ 次",
       title: "返回映射",
       autoscaled: true,
     }),

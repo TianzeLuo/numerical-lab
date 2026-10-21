@@ -129,7 +129,7 @@ export const trustRegionRadiusModel: SceneModel = (frame, opts) => {
   const main = makeAxis("main", [L.left, L.topY, L.leftW, L.topH], {
     xlim: [-3.5, 3.5],
     ylim: [-1.5, 12],
-    xlabel: "x",
+    xlabel: "$x$",
     ylabel: axisYlabelOf(SPEC?.axes, "main", "y"),
     title: axisTitleOf(SPEC?.axes, "main", "Rosenbrock 等高线与信赖域圆"),
     autoscaled: false,
@@ -158,7 +158,7 @@ export const trustRegionRadiusModel: SceneModel = (frame, opts) => {
     ylim: [auxYLo, auxYHi],
     yscale: "log",
     xlabel: "",
-    ylabel: "Δ_k / ‖∇f‖",
+    ylabel: "$\\Delta_k/\\|\\nabla f\\|$",
     title: "半径与梯度（对数）",
     autoscaled: true,
   });
@@ -179,8 +179,8 @@ export const trustRegionRadiusModel: SceneModel = (frame, opts) => {
     rate = makeAxis("ratio", [rateX, L.botY, rateW, L.botH], {
       xlim: [0, kMax],
       ylim: [rhoLo, rhoHi],
-      xlabel: "迭代 k",
-      ylabel: "ρ_k",
+      xlabel: "迭代 $k$",
+      ylabel: "$ρ_k$",
       title: "ρ_k（线性；窗口随本帧 ρ 扩到 [-5,2] 之外）",
       autoscaled: false,
     });
@@ -193,7 +193,7 @@ export const trustRegionRadiusModel: SceneModel = (frame, opts) => {
       levels: logLevels(cz, 11),
       color: pal.reference,
       width: 0.8,
-      label: "f(x,y)=const",
+      label: "$f(x,y)=const$",
     }),
   );
   if (tx.length >= 2) {
@@ -218,8 +218,8 @@ export const trustRegionRadiusModel: SceneModel = (frame, opts) => {
   }
 
   scene.layers.push(
-    lineLayer("aux", { x: prefix(iterations, rHist.length), y: rHist, color: pal.residual, width: 1.8, label: "信赖域半径 Δ_k" }),
-    lineLayer("aux", { x: prefix(iterations, gHist.length), y: gHist, color: pal.curves[0] as string, width: 1.6, label: "梯度范数 ‖∇f‖" }),
+    lineLayer("aux", { x: prefix(iterations, rHist.length), y: rHist, color: pal.residual, width: 1.8, label: "信赖域半径 $Δ_k$" }),
+    lineLayer("aux", { x: prefix(iterations, gHist.length), y: gHist, color: pal.curves[0] as string, width: 1.6, label: "梯度范数 $‖∇f‖$" }),
   );
   if (radiusFloor >= (aux.ylim[0] as number) && radiusFloor <= (aux.ylim[1] as number)) {
     scene.layers.push(
@@ -237,10 +237,10 @@ export const trustRegionRadiusModel: SceneModel = (frame, opts) => {
     const lastG = gHist.length - 1;
     const xg = lastG >= 0 ? (prefix(iterations, gHist.length)[lastG] as number) : Number.NaN;
     if (Number.isFinite(xr) && Number.isFinite(rHist[last] as number)) {
-      scene.layers.push(scatterLayer("aux", [xr], [rHist[last] as number], { r: 3, color: pal.residual, label: "当前 Δ_k" }));
+      scene.layers.push(scatterLayer("aux", [xr], [rHist[last] as number], { r: 3, color: pal.residual, label: "当前 $Δ_k$" }));
     }
     if (lastG >= 0 && Number.isFinite(xg) && Number.isFinite(gHist[lastG] as number)) {
-      scene.layers.push(scatterLayer("aux", [xg], [gHist[lastG] as number], { r: 3, color: pal.curves[0] as string, label: "当前 ‖∇f‖" }));
+      scene.layers.push(scatterLayer("aux", [xg], [gHist[lastG] as number], { r: 3, color: pal.curves[0] as string, label: "当前 $‖∇f‖$" }));
     }
   }
 

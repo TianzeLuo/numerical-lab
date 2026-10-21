@@ -138,7 +138,7 @@ export const biasVarianceModel: SceneModel = (frame, opts) => {
     xlim: xr,
     ylim: [decompLo, 3],
     yscale: "log",
-    xlabel: "log10 λ",
+    xlabel: "$\\log_{10}\\lambda$",
     ylabel: axisYlabelOf(SPEC?.axes, "decomposition", "平方误差量级"),
     title: axisTitleOf(SPEC?.axes, "decomposition", "偏差²、方差与总误差（对数轴）"),
     autoscaled: true,
@@ -151,8 +151,8 @@ export const biasVarianceModel: SceneModel = (frame, opts) => {
   const slopeAxis = makeAxis("variance_slope", [L.left, L.botY, L.leftW, L.botH], {
     xlim: xr,
     ylim: [yLo, yHi],
-    xlabel: "log10 λ",
-    ylabel: axisYlabelOf(SPEC?.axes, "variance_slope", "d log10(方差) / d log10 λ"),
+    xlabel: "$\\log_{10}\\lambda$",
+    ylabel: axisYlabelOf(SPEC?.axes, "variance_slope", "$d\\log_{10}(\\text{方差})/d\\log_{10}\\lambda$"),
     title: axisTitleOf(SPEC?.axes, "variance_slope", "方差的局部斜率（参考 0 与 −4）"),
     autoscaled: true,
   });
@@ -186,7 +186,7 @@ export const biasVarianceModel: SceneModel = (frame, opts) => {
     );
     if (j >= 0) {
       scene.layers.push(
-        scatterLayer("decomposition", [lamNow, lamNow, lamNow], [bias2[j] as number, variance[j] as number, mse[j] as number], { r: 3, color: pal.marker, label: "当前 λ 的三条解析曲线" }),
+        scatterLayer("decomposition", [lamNow, lamNow, lamNow], [bias2[j] as number, variance[j] as number, mse[j] as number], { r: 3, color: pal.marker, label: "当前 $λ$ 的三条解析曲线" }),
         scatterLayer("variance_slope", [lamNow], [slope[j] as number], { r: 3.2, color: pal.marker, label: "当前斜率" }),
       );
     }

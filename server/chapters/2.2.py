@@ -87,12 +87,102 @@ MANIFEST: dict[str, Any] = {
             ),
             "dataSource": "backend",
             "params": [
-                {"name": "y0", "label": "第 1 点 y", "type": "float", "min": -3.0, "max": 3.0, "step": 0.05, "default": 0.4, "critical": [], "criticalNote": ""},
-                {"name": "y1", "label": "第 2 点 y", "type": "float", "min": -3.0, "max": 3.0, "step": 0.05, "default": 1.8, "critical": [], "criticalNote": ""},
-                {"name": "y2", "label": "第 3 点 y", "type": "float", "min": -3.0, "max": 3.0, "step": 0.05, "default": -0.6, "critical": [], "criticalNote": ""},
-                {"name": "y3", "label": "第 4 点 y", "type": "float", "min": -3.0, "max": 3.0, "step": 0.05, "default": 1.4, "critical": [], "criticalNote": ""},
-                {"name": "y4", "label": "第 5 点 y", "type": "float", "min": -3.0, "max": 3.0, "step": 0.05, "default": -1.2, "critical": [], "criticalNote": ""},
-                {"name": "y5", "label": "第 6 点 y", "type": "float", "min": -3.0, "max": 3.0, "step": 0.05, "default": 0.2, "critical": [], "criticalNote": ""},
+                {
+                    "name": "y0",
+                    "label": "第 1 点 y",
+                    "type": "float",
+                    "min": -3.0,
+                    "max": 3.0,
+                    "step": 0.05,
+                    "default": 0.4,
+                    "critical": [],
+                    "criticalNote": "",
+                    "help": (
+                        "第 1 个数据点的纵坐标（无单位，范围 -3 到 3）。调大或调小会抬升或压低左端锚点，"
+                        "曲线在左端附近和曲率梳随之改变；它还会影响自然与夹持边界下的端点斜率。"
+                        "看主图左端、跳变面板与曲率面板，和相邻的 y1、边界条件 bc 一起读。"
+                    ),
+                },
+                {
+                    "name": "y1",
+                    "label": "第 2 点 y",
+                    "type": "float",
+                    "min": -3.0,
+                    "max": 3.0,
+                    "step": 0.05,
+                    "default": 1.8,
+                    "critical": [],
+                    "criticalNote": "",
+                    "help": (
+                        "第 2 个数据点的纵坐标（无单位，范围 -3 到 3）。它是左端第二个锚点，调大时"
+                        "曲线在左半段整体上抬、相邻两段的斜率变陡；调小则压出一个局部低谷。"
+                        "看主图左中段与曲率梳方向，并注意它与 y0、y2 的相对高低；边界条件会改变端点附近的影响范围。"
+                    ),
+                },
+                {
+                    "name": "y2",
+                    "label": "第 3 点 y",
+                    "type": "float",
+                    "min": -3.0,
+                    "max": 3.0,
+                    "step": 0.05,
+                    "default": -0.6,
+                    "critical": [],
+                    "criticalNote": "",
+                    "help": (
+                        "第 3 个数据点的纵坐标（无单位，范围 -3 到 3）。它控制曲线中左部的拐点位置："
+                        "调高会让这一段向上拱，调低会形成更深的谷；曲率梳在中段的变化最明显。"
+                        "看主图中间偏左的弯曲方向与曲率面板的符号，和 y1、y3 的高度差一起判断。"
+                    ),
+                },
+                {
+                    "name": "y3",
+                    "label": "第 4 点 y",
+                    "type": "float",
+                    "min": -3.0,
+                    "max": 3.0,
+                    "step": 0.05,
+                    "default": 1.4,
+                    "critical": [],
+                    "criticalNote": "",
+                    "help": (
+                        "第 4 个数据点的纵坐标（无单位，范围 -3 到 3）。它与 y2、y4 一起决定中右段的"
+                        "起伏：调大时曲线在中部抬高，调小则把峰压平；跳变面板只在内点读一阶导差，"
+                        "所以能看出这里是否出现尖角。看主图中右段、曲率梳长度和能量数值。"
+                    ),
+                },
+                {
+                    "name": "y4",
+                    "label": "第 5 点 y",
+                    "type": "float",
+                    "min": -3.0,
+                    "max": 3.0,
+                    "step": 0.05,
+                    "default": -1.2,
+                    "critical": [],
+                    "criticalNote": "",
+                    "help": (
+                        "第 5 个数据点的纵坐标（无单位，范围 -3 到 3）。它压住右半段的低点，调低会让"
+                        "曲线在右端附近出现更深的谷，端点斜率也随之变化；调高则把低谷填平。"
+                        "看主图右半段与曲率梳方向，和 y3、y5 的相对位置一起读。"
+                    ),
+                },
+                {
+                    "name": "y5",
+                    "label": "第 6 点 y",
+                    "type": "float",
+                    "min": -3.0,
+                    "max": 3.0,
+                    "step": 0.05,
+                    "default": 0.2,
+                    "critical": [],
+                    "criticalNote": "",
+                    "help": (
+                        "第 6 个数据点的纵坐标（无单位，范围 -3 到 3）。它是右端锚点，调大或调小会"
+                        "整体抬升或压低曲线尾部，并改变右端点斜率；自然边界还会让端部二阶导固定为零。"
+                        "看主图右端与曲率面板，和 y4、bc 一起判断端点外推是否可信。"
+                    ),
+                },
                 {
                     "name": "bc",
                     "label": "边界条件",
@@ -101,6 +191,7 @@ MANIFEST: dict[str, Any] = {
                     "default": "natural",
                     "critical": [],
                     "criticalNote": "",
+                    "help": "样条的边界条件：natural 让两端二阶导为零；clamped 指定端点斜率；not-a-knot 让第三阶导在第二和倒数第二个节点连续。不同选择只改变两端的曲线，内部节点仍被插值。",
                 },
                 {
                     "name": "tension",
@@ -117,6 +208,7 @@ MANIFEST: dict[str, Any] = {
                         "所以别把张力当成「更平滑」的旋钮，它换的是「更平」，代价是节点处的折角。"
                     ),
                     "beyond": "above",
+                    "help": "张力参数 $\\tau$：弯矩乘以 $1-\\tau$ 后再解。$\\tau=0$ 是标准三次样条；$\\tau$ 增大时刻线被拉直、曲率变小，$\\tau\\to1$ 接近分段线性。它不改变插值条件。",
                 },
                 {
                     "name": "comb",
@@ -126,6 +218,7 @@ MANIFEST: dict[str, Any] = {
                     "default": "global",
                     "critical": [],
                     "criticalNote": "",
+                    "help": "曲率梳的尺度：global 用统一的放大倍数，便于比较整条曲线的曲率大小；local 按每段最大值归一化，突出形状变化但会掩盖绝对量级。",
                 },
             ],
             "time": {"mode": "scrub", "tMax": 5.0, "dt": 0.05, "label": "探针位置 x"},
@@ -146,9 +239,11 @@ MANIFEST: dict[str, Any] = {
                 "曲率能量是 $1.61/1.86/3.09$——差异全在端点上，而端点正是外推最敏感的地方。"
             ),
             "theory": [
-                "$C^2$ 条件（一阶导连续）导出三对角系统 $\\mu_iM_{i-1}+2M_i+\\lambda_iM_{i+1}=d_i$",
-                "曲率 $\\kappa=\\frac{S''}{(1+(S')^2)^{3/2}}$；曲率梳沿单位法向画，长度正比于 $\\kappa$",
-                "自然样条在所有 $H^2$ 插值函数中使 $\\int(f'')^2$ 最小（变分性质）",
+                "**三次样条是分段三次、整体 C²。** 把区间分成 $n$ 段，每段写成一个三次多项式。要求函数值在节点连续、一阶导和二阶导也连续，就得到 $4n$ 个未知系数与 $4n-2$ 个方程；剩下两个自由度由边界条件补上。",
+                "**用二阶导做未知量最方便。** 记 $M_i=s''(x_i)$。在每个小区间上，$s$ 是三次多项式，由两端的 $M_i,M_{i+1}$ 和函数值唯一确定；一阶导连续给出关于 $M$ 的三对角方程 $\\frac{h_{i-1}}{6}M_{i-1}+\\frac{h_{i-1}+h_i}{3}M_i+\\frac{h_i}{6}M_{i+1}=\\frac{y_{i+1}-y_i}{h_i}-\\frac{y_i-y_{i-1}}{h_{i-1}}.$ 解一个三对角系统即可。",
+                "**边界条件决定端部。** natural 令 $M_0=M_n=0$；clamped 指定 $s'(x_0),s'(x_n)$；not-a-knot 要求第一、第二段是同一个三次多项式（三阶导在第二个节点连续）。三种选择只改变靠近端部的两段。",
+                "**张力参数是对方程的修改。** 把弯矩项乘以 $1-\\tau$ 后再解，$\\tau=0$ 是标准样条；$\\tau$ 越大，解的曲率被压得越小，$\\tau\\to1$ 时接近折线。它不破坏插值条件，但会改变光滑性和形状。",
+                "**曲率梳怎样读。** 曲线在每个节点的法向偏移量与曲率成正比；梳子穿过曲线表示曲率变号（拐点）。global 尺度下比较绝对曲率，local 尺度下比较形状；不要把两种尺度的数值直接对比。",
             ],
         },
         # ------------------------------------------------------------------ #
@@ -169,6 +264,7 @@ MANIFEST: dict[str, Any] = {
                     "default": "steps",
                     "critical": [],
                     "criticalNote": "",
+                    "help": "被插值的数据：runge 是光滑但会龙格的函数，bump 有局部隆起，steps 有跳跃，monotone 单调。数据越不光滑，高阶样条的振荡/过冲越明显。",
                 },
                 {
                     "name": "nodes",
@@ -178,8 +274,9 @@ MANIFEST: dict[str, Any] = {
                     "default": "uniform",
                     "critical": [],
                     "criticalNote": "",
+                    "help": "节点分布：uniform 等距，chebyshev 在两端加密。对光滑函数，Chebyshev 节点能压低 Runge 型振荡；对台阶，加密也救不了跳跃本身。",
                 },
-                {"name": "n", "label": "节点数 n", "type": "int", "min": 5, "max": 15, "default": 9, "critical": [], "criticalNote": ""},
+                {"name": "n", "label": "节点数 n", "type": "int", "min": 5, "max": 15, "default": 9, "critical": [], "criticalNote": "", "help": "节点数。增加 $n$ 让分段更细，样条误差按 $h^4$ 下降；但分段线性的转折点也更多，C0 的“折角”仍存在。"},
                 {
                     "name": "eps",
                     "label": "节点两侧采样偏移 eps",
@@ -190,6 +287,7 @@ MANIFEST: dict[str, Any] = {
                     "default": 0.03,
                     "critical": [],
                     "criticalNote": "",
+                    "help": "节点数。增加 $n$ 让分段更细，样条误差按 $h^4$ 下降；但分段线性的转折点也更多，C0 的“折角”仍存在。",
                 },
                 {
                     "name": "bc",
@@ -199,6 +297,7 @@ MANIFEST: dict[str, Any] = {
                     "default": "natural",
                     "critical": [],
                     "criticalNote": "",
+                    "help": "C2 样条的边界条件（仅三次样条使用）。natural、clamped、not-a-knot 会影响端部几段的曲率；PCHIP 是局部 C1 方法，不受这个选项影响。",
                 },
             ],
             "time": {"mode": "none"},
@@ -217,9 +316,11 @@ MANIFEST: dict[str, Any] = {
                 "但它们**永远不可能**掉到 $u$ 量级——那是 $C^2$ 才有的性质，也是这张图要你分辨的那条线。"
             ),
             "theory": [
-                "$C^1$ 的条件是 $S'$ 连续；$C^2$ 还要求 $S''$ 连续，这正是样条与 PCHIP 的分界",
-                "PCHIP 由 Fritsch--Carlson 斜率给出，保证同号数据单调，但 $S''$ 在节点处跳变",
-                "分段线性的 $S''$ 按分布意义是 delta 函数的和，$\\int(S'')^2=0$ 是表示论的假象",
+                "**光滑性由拼接条件决定。** 分段线性在节点处只有函数值连续，所以属于 $C^0$；每段斜率可以突变。PCHIP 的每段是三次，且节点一阶导连续，所以是 $C^1$；三次样条再加二阶导连续，达到 $C^2$。",
+                "**PCHIP 的斜率怎么选。** 对每个节点用相邻差商做加权调和平均；当数据局部非单调时把斜率压到零，保证分段单调。这就是它不会在单调数据上产生过冲的原因，但代价是只有 $C^1$。",
+                "**三次样条要解全局三对角系统。** 二阶导连续给出关于 $M_i$ 的方程，边界条件补两个端点，解出所有 $M_i$ 后再逐段构造三次多项式。因此移动一个节点会影响全曲线（虽然影响随距离衰减），不像 PCHIP 那样完全局部。",
+                "**跳跃与尖点不能靠插值消除。** 台阶数据在节点两侧的差商不收敛到同一个导数；$\\varepsilon$ 是测量这个跳跃的采样偏移。加密网格只会让过渡区变窄，不会让 $C^1$ 方法真的穿过跳跃。",
+                "**怎样读比较图。** 先看节点处的跳变（C0 有、C1/C2 无），再看二阶导的跳变（C2 无、C1 有）。曲线的振荡幅值则取决于数据光滑性和节点分布，不能只看“次数高”。此外，节点加密会缩小过渡区，但不会改变跳跃两侧的真实差值。",
             ],
         },
         # ------------------------------------------------------------------ #
@@ -233,11 +334,11 @@ MANIFEST: dict[str, Any] = {
             ),
             "dataSource": "backend",
             "params": [
-                {"name": "n_ctrl", "label": "控制点个数", "type": "int", "min": 6, "max": 12, "default": 8, "critical": [], "criticalNote": ""},
-                {"name": "degree", "label": "次数 k", "type": "int", "min": 2, "max": 4, "default": 3, "critical": [], "criticalNote": ""},
-                {"name": "move_index", "label": "移动第几个控制点", "type": "int", "min": 0, "max": 11, "default": 2, "critical": [], "criticalNote": ""},
-                {"name": "move_delta", "label": "位移 delta", "type": "float", "min": -2.0, "max": 2.0, "step": 0.05, "default": 1.2, "critical": [], "criticalNote": ""},
-                {"name": "insert_at", "label": "插入参数 u", "type": "float", "min": 0.05, "max": 0.95, "step": 0.01, "default": 0.5, "critical": [], "criticalNote": ""},
+                {"name": "n_ctrl", "label": "控制点个数", "type": "int", "min": 6, "max": 12, "default": 8, "critical": [], "criticalNote": "", "help": "控制点个数。B 样条曲线由控制多边形控制，增加控制点通常让曲线更灵活；但次数固定时，可用的节点区间和局部形状也随之改变。"},
+                {"name": "degree", "label": "次数 k", "type": "int", "min": 2, "max": 4, "default": 3, "critical": [], "criticalNote": "", "help": "B 样条次数 $k$。次数越高，曲线越光滑（$C^{k-1}$），每个控制点影响的区间也越宽；次数过高会带来更多振荡。"},
+                {"name": "move_index", "label": "移动第几个控制点", "type": "int", "min": 0, "max": 11, "default": 2, "critical": [], "criticalNote": "", "help": "移动第几个控制点。B 样条具有局部支集：移动一个控制点只会改变它附近的 $k+1$ 段，远处的曲线严格不变。"},
+                {"name": "move_delta", "label": "位移 delta", "type": "float", "min": -2.0, "max": 2.0, "step": 0.05, "default": 1.2, "critical": [], "criticalNote": "", "help": "控制点的位移量。位移越大，局部曲线被拉得越远；把 delta 设回 0 可以对照原始曲线，确认影响范围。"},
+                {"name": "insert_at", "label": "插入参数 u", "type": "float", "min": 0.05, "max": 0.95, "step": 0.01, "default": 0.5, "critical": [], "criticalNote": "", "help": "在参数 $u$ 处插入一个节点。节点插入不改变曲线形状，只增加控制点、提高局部自由度；这是 CAD 中做局部编辑的标准操作。"},
             ],
             "time": {"mode": "scrub", "tMax": 4.0, "dt": 1.0, "label": "节点插入次数"},
             "requiredAux": ["error", "residual"],
@@ -256,9 +357,11 @@ MANIFEST: dict[str, Any] = {
                 "但自由度也越来越多；别把「插了节点」当成「曲线变了」。"
             ),
             "theory": [
-                "Cox--de Boor 递推：$B_{i,k}$ 的支撑是 $[t_i,t_{i+k+1}]$，且 $\\sum_iB_{i,k}=1$",
-                "de Boor 算法只用 $k+1$ 个控制点求出 $C(x)$，复杂度 $O(k^2)$ 与节点总数无关",
-                "Boehm 节点插入：曲线逐点不变，只有 $k$ 个控制点被替换；凸包性质保证曲线不越界",
+                "**B 样条由递归定义。** 给定节点序列 $u_0\\le\\dots\\le u_{m}$，0 次基函数是区间指示函数；$k$ 次基函数由 Cox–de Boor 递推：$N_{i,k}(u)=\\frac{u-u_i}{u_{i+k}-u_i}N_{i,k-1}(u)+\\frac{u_{i+k+1}-u}{u_{i+k+1}-u_{i+1}}N_{i+1,k-1}(u)$。递推立刻给出局部支集：$N_{i,k}$ 只在 $[u_i,u_{i+k+1}]$ 上非零。",
+                "**局部支集意味着局部修改。** 移动控制点 $P_i$ 只改变乘了 $N_{i,k}$ 的那一段，也就是相邻的 $k+1$ 个节点区间；其余基函数在该点为零，所以曲线严格不变。这正是 B 样条比全局多项式更适合 CAD 编辑的原因。",
+                "**节点插入不改变曲线。** 把一个节点插入 $u$，同时按 de Boor 算法调整控制点，曲线作为集合完全不变，但控制多边形更贴近曲线、局部自由度增加。反复插入就是“节点细分”。",
+                "**次数与光滑性。** $k$ 次 B 样条在单节点处至少 $C^{k-1}$；重节点会降低连续性（重数 $r$ 降到 $C^{k-r}$）。次数越高，支集越宽、越光滑，也更容易产生摆动。",
+                "**参数怎样读。** n_ctrl 控制自由度，degree 控制光滑性与支集宽度，move_index/delta 演示局部性，insert_at 演示形状不变的节点插入。看曲线变化范围而不是只看控制点的走向。",
             ],
         },
         # ------------------------------------------------------------------ #
@@ -271,7 +374,7 @@ MANIFEST: dict[str, Any] = {
             ),
             "dataSource": "backend",
             "params": [
-                {"name": "n", "label": "节点数 n", "type": "int", "min": 4, "max": 20, "default": 9, "critical": [], "criticalNote": ""},
+                {"name": "n", "label": "节点数 n", "type": "int", "min": 4, "max": 20, "default": 9, "critical": [], "criticalNote": "", "help": "插值节点数。对多项式，$n$ 增大不保证更好（Runge 现象）；对三次样条，$n$ 增大通常让误差按 $h^4$ 下降，直到舍入地板。"},
                 {
                     "name": "function",
                     "label": "被插函数",
@@ -280,6 +383,7 @@ MANIFEST: dict[str, Any] = {
                     "default": "runge",
                     "critical": [],
                     "criticalNote": "",
+                    "help": "插值节点数。对多项式，$n$ 增大不保证更好（Runge 现象）；对三次样条，$n$ 增大通常让误差按 $h^4$ 下降，直到舍入地板。",
                 },
                 {
                     "name": "nodes",
@@ -289,6 +393,7 @@ MANIFEST: dict[str, Any] = {
                     "default": "uniform",
                     "critical": [],
                     "criticalNote": "",
+                    "help": "节点分布：等距节点在高 $n$ 时会让多项式在两端剧烈振荡；Chebyshev 节点把节点向两端聚集，显著压低 Lebesgue 常数和最大误差。",
                 },
                 {
                     "name": "bc",
@@ -298,6 +403,7 @@ MANIFEST: dict[str, Any] = {
                     "default": "natural",
                     "critical": [],
                     "criticalNote": "",
+                    "help": "三次样条的边界条件：natural 端部二阶导为零，not-a-knot 让端部两段共用一段三次多项式。不同选择对内部影响小，对端部误差有可见差异。",
                 },
             ],
             "time": {"mode": "none"},
@@ -316,9 +422,11 @@ MANIFEST: dict[str, Any] = {
                 "地板以下的「下降」是假的——本章显式画出地板参考线。"
             ),
             "theory": [
-                "样条插值误差 $O(h^4\\max|f''''|)$：节点加密一倍，误差降约 $16$ 倍",
-                "等距节点上 Lebesgue 常数随 $n$ 指数增长，多项式误差因此爆炸（Runge 现象）",
-                "重心公式的求值误差约 $u\\sum_j\\left|\\frac{w_j}{x-x_j}\\right|$，节点越差放大越狠",
+                "**多项式插值误差有明确公式。** 对 $n+1$ 个节点，$f(x)-p_n(x)=\\frac{f^{(n+1)}(\\xi)}{(n+1)!}\\prod_i(x-x_i)$。误差由两部分相乘：函数的高阶导数和节点多项式 $\\omega(x)=\\prod(x-x_i)$。",
+                "**Runge 现象来自节点多项式。** 等距节点时，$\\omega(x)$ 在区间两端增长极快；$n$ 增大，端部误差反而增大。Chebyshev 节点让 $\\omega$ 的最大值最小化，所以同样的 $n$ 下误差小得多。",
+                "**三次样条的误差是局部的。** 在每段上，$|f-s|\\le\\frac{5}{384}h^4\\|f^{(4)}\\|_\\infty$（自然样条端部常数略有不同）。$h$ 减小一半，误差约降 $16$ 倍；它不会像高次多项式那样在端部失控。",
+                "**光滑性决定阶数。** 对 $C^4$ 函数，三次样条是四阶；若函数只有 $C^2$ 或带尖点，四阶界不再成立，实际收敛阶会下降。比较方法时必须同时看被插函数的光滑性。",
+                "**边界条件与节点分布。** natural/clamped/not-a-knot 影响端部误差；等距/Chebyshev 影响节点多项式。读图时把“方法”和“节点分布”分开看：样条对节点分布不敏感，多项式对两者都敏感。",
             ],
         },
     ],

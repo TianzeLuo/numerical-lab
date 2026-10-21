@@ -231,9 +231,9 @@ export const smoothnessModel: SceneModel = (frame, opts) => {
     kind: "line",
     axes: "main",
     series: [
-      { x: xStep, y: yLin, color: pal.warn, width: 1.4, label: "折线（y_lin）" },
-      { x: xStep, y: yPchip, color: pal.curves[1], width: 1.8, label: "PCHIP（y_pchip）" },
-      { x: xStep, y: ySpline, color: pal.curves[0], width: 1.8, label: "样条（y_spline）" },
+      { x: xStep, y: yLin, color: pal.warn, width: 1.4, label: "折线（$y_lin$）" },
+      { x: xStep, y: yPchip, color: pal.curves[1], width: 1.8, label: "PCHIP（$y_pchip$）" },
+      { x: xStep, y: ySpline, color: pal.curves[0], width: 1.8, label: "样条（$y_spline$）" },
     ],
   });
   scene.layers.push(scatterLayer("main", nodeX, nodesSeriesY(nodeX, xStep, ySpline), { r: 3.2, color: pal.ink, label: "节点" }));
@@ -243,14 +243,14 @@ export const smoothnessModel: SceneModel = (frame, opts) => {
     kind: "line",
     axes: "d2",
     series: [
-      { x: xStep, y: d2Lin, color: pal.warn, width: 1.6, label: "折线 S''≡0" },
-      { x: xStep, y: d2SplineStep, color: pal.curves[0], width: 1.8, label: "样条 S''（节点两侧）" },
-      { x: xNaive, y: d2SplineNaive, color: pal.curves[0], width: 1, dash: [3, 3], label: "样条 S''（等距采样）" },
-      { x: xStep, y: d2PchipStep, color: pal.curves[1], width: 1.8, label: "PCHIP S''（节点两侧）" },
-      { x: xNaive, y: d2PchipNaive, color: pal.curves[1], width: 1, dash: [3, 3], label: "PCHIP S''（等距采样）" },
+      { x: xStep, y: d2Lin, color: pal.warn, width: 1.6, label: "折线 $S''$≡0" },
+      { x: xStep, y: d2SplineStep, color: pal.curves[0], width: 1.8, label: "样条 $S''$（节点两侧）" },
+      { x: xNaive, y: d2SplineNaive, color: pal.curves[0], width: 1, dash: [3, 3], label: "样条 $S''$（等距采样）" },
+      { x: xStep, y: d2PchipStep, color: pal.curves[1], width: 1.8, label: "PCHIP $S''$（节点两侧）" },
+      { x: xNaive, y: d2PchipNaive, color: pal.curves[1], width: 1, dash: [3, 3], label: "PCHIP $S''$（等距采样）" },
     ],
   });
-  hLine(scene, d2Axis, 0, pal.reference, { label: "S'' = 0" });
+  hLine(scene, d2Axis, 0, pal.reference, { label: "$S''$ = 0" });
 
   // —— 图层 4~5：节点处的跳变量级（log）+ 地板参考线 ——
   scene.layers.push({
@@ -263,7 +263,7 @@ export const smoothnessModel: SceneModel = (frame, opts) => {
         color: pal.warn,
         width: 1.6,
         marker: "o",
-        label: "折线 |dS'|",
+        label: "折线 $|dS'|$",
       },
       {
         x: jumpNodes,
@@ -271,7 +271,7 @@ export const smoothnessModel: SceneModel = (frame, opts) => {
         color: pal.curves[1],
         width: 1.8,
         marker: "s",
-        label: "PCHIP |dS''|（residual）",
+        label: "PCHIP $|dS''|$（residual）",
       },
       {
         x: jumpNodes,
@@ -279,17 +279,17 @@ export const smoothnessModel: SceneModel = (frame, opts) => {
         color: pal.curves[0],
         width: 1.8,
         marker: "s",
-        label: "样条 |dS''|",
+        label: "样条 $|dS''|$",
       },
     ],
   });
-  hLine(scene, jumpAxis, FLOOR, pal.note, { label: "u/2" });
+  hLine(scene, jumpAxis, FLOOR, pal.note, { label: "$u/2$" });
 
   // —— 文本：主轴与 S'' 之间的说明带 + 跳变轴下的结论带 ——
   // 说明文字一律写在所有轴右侧那一栏（见 `layout.ts`：轴间空隙里全是 y 刻度带）。
   const wide = rightColumnFits(width);
   const summary = paramSummary(frame, opts, [
-    { name: "n", label: "n" },
+    { name: "n", label: "$n$" },
     { name: "eps", label: "eps" },
   ]);
   degraded.push(...summary.degraded);

@@ -206,7 +206,7 @@ export const limiterInteractionModel: SceneModel = (frame, opts) => {
     ylim: Y_SOLUTION,
     title: axisTitleOf(SPEC?.axes, "solution", "阶跃解与精确解（固定窗口）"),
     ylabel: axisYlabelOf(SPEC?.axes, "solution", "u(x,t)"),
-    xlabel: "x（格点，域长 L=1）",
+    xlabel: "$x$（格点，域长 $L=1$）",
     autoscaled: false,
   });
   const swebyAxis = makeAxis("sweby", [rightX, top, rightW, rowH], {
@@ -214,7 +214,7 @@ export const limiterInteractionModel: SceneModel = (frame, opts) => {
     ylim: Y_SWEBY,
     title: axisTitleOf(SPEC?.axes, "sweby", "Sweby 图 φ(r) 与允许区"),
     ylabel: axisYlabelOf(SPEC?.axes, "sweby", "φ(r)"),
-    xlabel: "斜率比 r",
+    xlabel: "斜率比 $r$",
     autoscaled: false,
   });
   const tvAxis = makeAxis("tv", [left, row2, colW, rowH], {
@@ -222,7 +222,7 @@ export const limiterInteractionModel: SceneModel = (frame, opts) => {
     ylim: Y_TV,
     title: axisTitleOf(SPEC?.axes, "tv", "总变差 TV(t)（固定窗口：不上升即 TVD）"),
     ylabel: axisYlabelOf(SPEC?.axes, "tv", "TV"),
-    xlabel: "步号 k（每步 Δt=νΔx）",
+    xlabel: "步号 $k$（每步 $Δt=νΔx$）",
     autoscaled: false,
   });
   const resLo = positiveMinMax(tvResidual)?.[0] ?? floor;
@@ -233,8 +233,8 @@ export const limiterInteractionModel: SceneModel = (frame, opts) => {
     ylim: logRange(resLo * 0.5, Math.max(resHi, algMax ?? 0, floor) * 2),
     yscale: "log",
     title: "TV 增量 |ΔTV|（对数）",
-    ylabel: "|ΔTV|",
-    xlabel: "步号 k",
+    ylabel: "$|ΔTV|$",
+    xlabel: "步号 $k$",
     autoscaled: true,
   });
   scene.axes.push(solutionAxis, swebyAxis, tvAxis, residualAxis);
@@ -271,7 +271,7 @@ export const limiterInteractionModel: SceneModel = (frame, opts) => {
       yhi: [Y_SWEBY[1], Y_SWEBY[1]],
       color: pal.reference,
       alpha: 0.1,
-      label: "r<0：要求 φ=0",
+      label: "$r<0$：要求 $φ=0$",
     },
   });
   scene.layers.push(
@@ -403,8 +403,8 @@ export const limiterInteractionModel: SceneModel = (frame, opts) => {
 
   // —— 两列版式的窄右列放不下通栏说明：关键数字进图例与状态角标，长句在 pitfalls ——
   const head = paramSummary(frame, opts, [
-    { name: "nu", label: "ν" },
-    { name: "nx", label: "nx" },
+    { name: "nu", label: "$ν$" },
+    { name: "nx", label: "$nx$" },
   ]);
   degraded.push(...head.degraded);
   if (equal) degraded.push("窄画布（单列）：四块面板等宽排布，长说明未排下");

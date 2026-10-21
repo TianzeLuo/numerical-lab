@@ -187,7 +187,7 @@ export const vanishingMomentsModel: SceneModel = (frame, opts) => {
     yscale: "log",
     title: axisTitleOf(SPEC?.axes, "ratio", "内部量级比 max|d|/max|a|（对数轴）"),
     ylabel: axisYlabelOf(SPEC?.axes, "ratio", "ratio"),
-    xlabel: "多项式次数 k",
+    xlabel: "多项式次数 $k$",
     autoscaled: true,
   });
 
@@ -268,7 +268,7 @@ export const vanishingMomentsModel: SceneModel = (frame, opts) => {
   }
   scene.layers.push(
     lineLayer("ratio", series(degreeAxis, boundaryRatio, pal.exact, { width: 1.7, dash: [5, 3], label: "边界比值" })),
-    lineLayer("ratio", series(degreeAxis, uLine, pal.reference, { width: 1.1, dash: [3, 3], label: "u=2^-53" })),
+    lineLayer("ratio", series(degreeAxis, uLine, pal.reference, { width: 1.1, dash: [3, 3], label: "$u=2^-53$" })),
   );
   // 当前次数与消失矩阶数的竖直参考线。
   if (degree !== undefined) {
@@ -321,7 +321,7 @@ export const vanishingMomentsModel: SceneModel = (frame, opts) => {
 
   // —— 右列文字 ——
   if (L.columns) {
-    const head = paramSummary(frame, opts, [{ name: "degree", label: "k" }]);
+    const head = paramSummary(frame, opts, [{ name: "degree", label: "$k$" }]);
     degraded.push(...head.degraded);
     const lines: string[] = [];
     lines.push(`小波 ${wavelet ?? "?"} / ${mode ?? "?"} 延拓　${head.text}`);

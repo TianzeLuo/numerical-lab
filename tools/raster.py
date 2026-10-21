@@ -957,7 +957,7 @@ def check_overflow(scene: Mapping[str, Any], *, tolerance: float = 1e-12) -> dic
 # 4. Scene 校验：``viz/shared/src/scene.ts::validateScene`` 的对照实现
 # =========================================================================== #
 KNOWN_LAYER_KINDS = ("line", "band", "scatter", "heat", "contour", "bars", "vectorfield", "loglogfit")
-KNOWN_BADGE_KINDS = ("source", "autoscale", "overflow", "preview", "critical", "status")
+KNOWN_BADGE_KINDS = ("source", "autoscale", "overflow", "clip", "preview", "critical", "status")
 KNOWN_TEXT_ROLES = ("title", "label", "note", "axis", "pitfall")
 
 
@@ -1642,6 +1642,159 @@ class _BitmapFont:
         return out
 
 
+
+# --------------------------------------------------------------------------- //
+# TeX 预览（光栅器专用）
+# --------------------------------------------------------------------------- //
+# 浏览器用 `viz/shared/src/canvas_math.ts` 做真正的分式/上下标排版；Python 光栅器只有
+# 等宽位图字体，不可能复刻那套盒子。视觉基线只需要“文字可读、位置稳定”，所以这里把
+# 图内 `$...$` 还原成近似的 Unicode 行内写法——绝不把反斜杠命令或美元符号画进 PNG。
+_TEX_GREEK = {
+    "alpha": "α", "beta": "β", "gamma": "γ", "delta": "δ", "epsilon": "ε", "varepsilon": "ε",
+    "zeta": "ζ", "eta": "η", "theta": "θ", "vartheta": "ϑ", "iota": "ι", "kappa": "κ",
+    "lambda": "λ", "mu": "μ", "nu": "ν", "xi": "ξ", "pi": "π", "varpi": "ϖ", "rho": "ρ",
+    "varrho": "ϱ", "sigma": "σ", "varsigma": "ς", "tau": "τ", "upsilon": "υ", "phi": "φ",
+    "varphi": "ϕ", "chi": "χ", "psi": "ψ", "omega": "ω", "Gamma": "Γ", "Delta": "Δ",
+    "Theta": "Θ", "Lambda": "Λ", "Xi": "Ξ", "Pi": "Π", "Sigma": "Σ", "Upsilon": "Υ",
+    "Phi": "Φ", "Psi": "Ψ", "Omega": "Ω",
+}
+_TEX_SYMBOLS = {
+    "times": "×", "cdot": "·", "div": "÷", "pm": "±", "mp": "∓", "le": "≤", "leq": "≤",
+    "ge": "≥", "geq": "≥", "ne": "≠", "neq": "≠", "approx": "≈", "sim": "∼", "simeq": "≃",
+    "equiv": "≡", "propto": "∝", "ll": "≪", "gg": "≫", "in": "∈", "notin": "∉",
+    "subset": "⊂", "subseteq": "⊆", "cup": "∪", "cap": "∩", "to": "→", "rightarrow": "→",
+    "leftarrow": "←", "leftrightarrow": "↔", "Rightarrow": "⇒", "Leftarrow": "⇐",
+    "Leftrightarrow": "⇔", "mapsto": "↦", "infty": "∞", "partial": "∂", "nabla": "∇",
+    "forall": "∀", "exists": "∃", "sum": "∑", "prod": "∏", "int": "∫", "ldots": "…",
+    "dots": "…", "cdots": "⋯", "prime": "′", "angle": "∠", "perp": "⊥", "parallel": "∥",
+    "langle": "⟨", "rangle": "⟩", "lfloor": "⌊", "rfloor": "⌋", "lceil": "⌈", "rceil": "⌉",
+    "top": "ᵀ", "star": "⋆", "ast": "∗", "circ": "∘", "hbar": "ℏ", "ell": "ℓ",
+    "lvert": "|", "rvert": "|", "lVert": "‖", "rVert": "‖", "|": "‖", "{": "{", "}": "}",
+    "%": "%", "#": "#", "&": "&", "quad": " ", "qquad": "  ", ",": " ", ";": " ", ":": " ",
+}
+_TEX_FUNCS = {"log", "ln", "exp", "max", "min", "arg", "det", "rank", "Tr", "tr", "sin", "cos",
+              "tan", "sinh", "cosh", "tanh", "lim", "sup", "inf", "gcd", "mod", "sgn", "cond"}
+_TEX_ACCENTS = {"hat": "^", "widehat": "^", "bar": "¯", "overline": "¯", "tilde": "~",
+                "widetilde": "~", "vec": "→", "dot": "·", "ddot": "··"}
+
+
+def _read_tex_group(text: str, i: int) -> tuple[str, int]:
+    """从 ``text[i]`` 读一个 TeX 参数（花括号组或单个字符）。"""
+    while i < len(text) and text[i].isspace():
+        i += 1
+    if i >= len(text):
+        return "", i
+    if text[i] != "{":
+        return text[i], i + 1
+    depth = 1
+    i += 1
+    out = []
+    while i < len(text) and depth:
+        ch = text[i]
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                i += 1
+                break
+        out.append(ch)
+        i += 1
+    return "".join(out), i
+
+
+def _tex_to_plain(tex: str) -> str:
+    out: list[str] = []
+    i = 0
+    while i < len(tex):
+        ch = tex[i]
+        if ch == "\\":
+            i += 1
+            if i >= len(tex):
+                break
+            if tex[i].isalpha():
+                j = i
+                while j < len(tex) and tex[j].isalpha():
+                    j += 1
+                name = tex[i:j]
+                i = j
+                if name in ("frac", "dfrac", "tfrac"):
+                    a, i = _read_tex_group(tex, i)
+                    b, i = _read_tex_group(tex, i)
+                    out.append(f"({_tex_to_plain(a)})/({_tex_to_plain(b)})")
+                elif name == "sqrt":
+                    a, i = _read_tex_group(tex, i)
+                    out.append(f"√({_tex_to_plain(a)})")
+                elif name in _TEX_ACCENTS:
+                    a, i = _read_tex_group(tex, i)
+                    out.append(f"{_tex_to_plain(a)}{_TEX_ACCENTS[name]}")
+                elif name in ("text", "mathrm", "mathbf", "mathit", "operatorname", "mathcal", "mathbb"):
+                    a, i = _read_tex_group(tex, i)
+                    if name == "mathbb":
+                        a = a.translate(str.maketrans({"R": "ℝ", "N": "ℕ", "Z": "ℤ", "Q": "ℚ", "C": "ℂ"}))
+                    out.append(_tex_to_plain(a))
+                elif name in ("left", "right", "middle"):
+                    continue
+                elif name in _TEX_GREEK:
+                    out.append(_TEX_GREEK[name])
+                elif name in _TEX_SYMBOLS:
+                    out.append(_TEX_SYMBOLS[name])
+                elif name in _TEX_FUNCS:
+                    out.append(name)
+                else:
+                    out.append(name)
+                continue
+            name = tex[i]
+            i += 1
+            out.append(_TEX_SYMBOLS.get(name, name))
+            continue
+        if ch == "^":
+            a, i = _read_tex_group(tex, i + 1)
+            out.append(f"^{_tex_to_plain(a)}")
+            continue
+        if ch == "_":
+            a, i = _read_tex_group(tex, i + 1)
+            out.append(f"_{_tex_to_plain(a)}")
+            continue
+        out.append(ch)
+        i += 1
+    return "".join(out)
+
+
+def tex_preview(text: str) -> str:
+    """把 ``$...$`` / ``\\(...\\)`` 变成光栅器可画的行内文字；普通文本原样返回。"""
+    if "$" not in text and "\\(" not in text:
+        return text
+    out: list[str] = []
+    i = 0
+    while i < len(text):
+        if text.startswith("$$", i):
+            end = text.find("$$", i + 2)
+            if end < 0:
+                out.append(text[i:])
+                break
+            out.append(_tex_to_plain(text[i + 2:end]))
+            i = end + 2
+        elif text[i] == "$":
+            end = text.find("$", i + 1)
+            if end < 0:
+                out.append(text[i:])
+                break
+            out.append(_tex_to_plain(text[i + 1:end]))
+            i = end + 1
+        elif text.startswith("\\(", i):
+            end = text.find("\\)", i + 2)
+            if end < 0:
+                out.append(text[i:])
+                break
+            out.append(_tex_to_plain(text[i + 2:end]))
+            i = end + 2
+        else:
+            out.append(text[i])
+            i += 1
+    return "".join(out)
+
+
 _FONT: _BitmapFont | None = None
 
 
@@ -1989,8 +2142,9 @@ class Canvas:
         font = self._font
         rgb = parse_color(color)
         col = (rgb[0], rgb[1], rgb[2], rgb[3] * alpha)
+        preview = tex_preview(str(body))
         paragraphs: list[str] = []
-        for part in str(body).split("\n"):
+        for part in preview.split("\n"):
             if max_width:
                 paragraphs.extend(font.wrap(part, size, max_width))
             else:
@@ -2060,6 +2214,7 @@ class Canvas:
         font = self._font
         rgb = parse_color(color)
         col = (rgb[0], rgb[1], rgb[2], rgb[3] * alpha)
+        body = tex_preview(str(body))
         # 不能用 font.measure(body)：它按横排宽度估算，而下面逐字用的是 rotated_offsets 的
         # 固定字格（每个字符 17px）。两者不一致会把标签整体上移半段（5.1 的 y 轴名
         # 于是伸进角标区）。这里按真正要走的字格求和，居中才与实际像素一致。
@@ -2972,7 +3127,7 @@ def _critical_badge(frame: Any, manifest_viz: Mapping[str, Any], *, x: float, y:
     else:
         body = f"{name} = ?　理论临界 {shown}"
     if crossed:
-        body += "　⚠ 已越界"
+        body += "　超过临界"
     return {"kind": "critical", "text": body, "x": x, "y": y, "color": "#c53030" if crossed else "#2f855a"}
 
 

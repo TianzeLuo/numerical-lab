@@ -229,9 +229,9 @@ export const splineVsPolyModel: SceneModel = (frame, opts) => {
     kind: "line",
     axes: "error",
     series: [
-      { x: xGrid, y: errPoly, color: pal.curves[1], width: 1.4, label: "|误差|（error_poly）" },
-      { x: xGrid, y: errSpline, color: pal.curves[0], width: 1.8, label: "|误差|（error_spline）" },
-      { x: xGrid, y: floorLine, color: pal.note, width: 1, dash: [5, 4], label: "地板（error_floor_line）" },
+      { x: xGrid, y: errPoly, color: pal.curves[1], width: 1.4, label: "|误差|（$error_poly$）" },
+      { x: xGrid, y: errSpline, color: pal.curves[0], width: 1.8, label: "|误差|（$error_spline$）" },
+      { x: xGrid, y: floorLine, color: pal.note, width: 1, dash: [5, 4], label: "地板（$error_floor_line$）" },
     ],
   });
 
@@ -273,17 +273,17 @@ export const splineVsPolyModel: SceneModel = (frame, opts) => {
     kind: "line",
     axes: "main",
     series: [
-      { x: xGrid, y: yExact, color: pal.ink, width: 1.2, dash: [6, 4], label: "f(x)（y_exact）" },
+      { x: xGrid, y: yExact, color: pal.ink, width: 1.2, dash: [6, 4], label: "$f(x)$（$y_exact$）" },
       { x: xGrid, y: clipped.values, color: pal.curves[1], width: 1.4, label: "Lagrange 多项式（已裁）" },
       { x: xGrid, y: ySpline, color: pal.curves[0], width: 2, label: "三次样条" },
     ],
   });
-  hLine(scene, mainAxis, 0, pal.reference, { label: "y = 0" });
+  hLine(scene, mainAxis, 0, pal.reference, { label: "$y = 0$" });
   scene.layers.push(scatterLayer("main", nodeX, nodeY, { r: 3.2, color: pal.marker, label: "节点" }));
 
   // —— 文本 ——
   const wide = rightColumnFits(width);
-  const summary = paramSummary(frame, opts, [{ name: "n", label: "n" }]);
+  const summary = paramSummary(frame, opts, [{ name: "n", label: "$n$" }]);
   degraded.push(...summary.degraded);
   const errorLines = [
     `最大误差：样条 ${fmt(errorSplineMax)}　多项式 ${fmt(errorPolyMax)}（${fmt(errorRatio, 3)} 倍）`,

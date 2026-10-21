@@ -167,13 +167,13 @@ export const areaConvergenceModel: SceneModel = (frame, opts) => {
   const mainAxis = makeAxis("main", layout.left, {
     xlim: niceLimits(xRange[0] - xpad, xRange[1] + xpad, 6),
     ylim: niceLimits(yRange[0], yRange[1] + ypad, 6),
-    xlabel: "x",
+    xlabel: "$x$",
     ylabel: axisYlabel(VIZ, "main", "f(x)"),
     title: axisTitle(VIZ, "main", "f 与分段逼近"),
     autoscaled: false,
   });
   scene.axes.push(mainAxis);
-  scene.layers.push(lineLayer("main", segmentedSeries(x, f, pal.curves[0], { width: 2, label: "f(x)" })));
+  scene.layers.push(lineLayer("main", segmentedSeries(x, f, pal.curves[0], { width: 2, label: "$f(x)$" })));
 
   const mainLines: string[] = [`${methodLabel}　${funcLabel}`];
   if (exact !== undefined) {
@@ -199,7 +199,7 @@ export const areaConvergenceModel: SceneModel = (frame, opts) => {
     const step = currentStep(frame, opts, {
       lo: 1,
       hi: Math.max(1, Math.round(nMax ?? panelsReq ?? 1)),
-      label: "面板数 k",
+      label: "面板数 $k$",
     });
 
     scene.layers.push(
@@ -259,7 +259,7 @@ export const areaConvergenceModel: SceneModel = (frame, opts) => {
     const step = currentStep(frame, opts, {
       lo: 1,
       hi: Math.max(1, Math.round(nIntervalsTotal ?? intervalLo.length)),
-      label: "已接受区间数 k",
+      label: "已接受区间数 $k$",
     });
 
     // 深度梳：每个已接受区间一根竖线，高度 ∝ 递归深度（显示几何，不是重算物理量）。
@@ -447,7 +447,7 @@ function buildClassicErrorPanel(
   const axis = makeAxis("err", rect, {
     xscale: "log",
     yscale: "log",
-    xlabel: "生效面板数 n（对数轴）",
+    xlabel: "生效面板数 $n$（对数轴）",
     ylabel: axisYlabel(VIZ, "err", "误差"),
     title: axisTitle(VIZ, "err", "|Q−I| vs 面板数（双对数）"),
     autoscaled: true,

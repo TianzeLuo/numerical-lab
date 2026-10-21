@@ -143,9 +143,9 @@ export const exportTimelineModel: SceneModel = (frame, opts) => {
     xlim: [0, Math.max(1e-9, xMax)],
     ylim: [hLo, hHi],
     yscale: "log",
-    xlabel: "t",
-    ylabel: axisYlabelOf(SPEC?.axes, "main", "步长 h（对数）"),
-    title: axisTitleOf(SPEC?.axes, "main", "自适应步长 h(t) 与导出帧"),
+    xlabel: "$t$",
+    ylabel: axisYlabelOf(SPEC?.axes, "main", "步长 $h$（对数）"),
+    title: axisTitleOf(SPEC?.axes, "main", "自适应步长 $h(t)$ 与导出帧"),
     autoscaled: false,
     tickTarget: 5,
   });
@@ -171,9 +171,9 @@ export const exportTimelineModel: SceneModel = (frame, opts) => {
   const error = makeAxis("error", auxRect, {
     xlim: [0, Math.max(1, n - 1)],
     ylim: [-lim0, lim0],
-    xlabel: "帧号 j",
-    ylabel: axisYlabelOf(SPEC?.axes, "error", "误差（s）"),
-    title: axisTitleOf(SPEC?.axes, "error", "时间误差：内容时刻 / GIF 播放时刻"),
+    xlabel: "帧号 $j$",
+    ylabel: axisYlabelOf(SPEC?.axes, "error", "时间误差 $\\Delta t$（s）"),
+    title: axisTitleOf(SPEC?.axes, "error", "时间误差：内容时刻与 GIF 播放时刻（$\\Delta t$）"),
     autoscaled: false,
     tickTarget: 4,
   });
@@ -186,19 +186,19 @@ export const exportTimelineModel: SceneModel = (frame, opts) => {
       color: pal.muted,
       width: 1.0,
       alpha: 0.75,
-      label: "自适应步长 h(t)",
+      label: "自适应步长 $h(t)$",
     }),
   );
   // 红圈先画、蓝点后画：stall 的帧保留一圈红色，普通帧是实心蓝点。
   if (stallX.length > 0) {
-    scene.layers.push(scatterLayer("main", stallX, stallY, { r: 4.0, color: pal.marker, alpha: 0.95, label: "停滞处" }));
+    scene.layers.push(scatterLayer("main", stallX, stallY, { r: 4.0, color: pal.marker, alpha: 0.95, label: "同源保持（stall）" }));
   }
-  scene.layers.push(scatterLayer("main", frameX, frameY, { r: 2.0, color: pal.curves[0] as string, alpha: 0.9, label: "导出帧" }));
+  scene.layers.push(scatterLayer("main", frameX, frameY, { r: 2.0, color: pal.curves[0] as string, alpha: 0.9, label: "导出帧 $t_j$" }));
 
   const idx = Array.from({ length: n }, (_, j) => j);
   scene.layers.push(
     lineLayer("error", [
-      series([0, Math.max(1, n - 1)], [0, 0], pal.reference, { width: 0.9, dash: [4, 4], label: "零误差" }),
+      series([0, Math.max(1, n - 1)], [0, 0], pal.reference, { width: 0.9, dash: [4, 4], label: "$\\Delta t=0$ 参考线" }),
       series(idx, timingError, pal.curves[0] as string, { width: 1.4, label: "内容时刻误差" }),
       series(idx, playbackError, pal.exact, { width: 1.8, dash: [6, 3], label: "GIF 播放时刻误差" }),
     ]),
@@ -237,9 +237,9 @@ export const exportTimelineModel: SceneModel = (frame, opts) => {
       },
       {
         lines: [
-          `内容 max|Δt|=${fmt(maxTiming, 4)} s。`,
-          `帧状态 max|Δy|=${fmt(maxState, 3)}。`,
-          `播放 max|Δt|=${fmt(maxPlayback, 4)} s。`,
+          `内容 $\\max|\\Delta t|$ = ${fmt(maxTiming, 4)} s。`,
+          `帧状态 $\\max|\\Delta y|$ = ${fmt(maxState, 3)}。`,
+          `播放 $\\max|\\Delta t|$ = ${fmt(maxPlayback, 4)} s。`,
         ],
         color: pal.muted,
       },

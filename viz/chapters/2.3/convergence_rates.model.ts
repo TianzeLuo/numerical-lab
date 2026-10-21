@@ -221,7 +221,7 @@ export const convergenceRatesModel: SceneModel = (frame, opts) => {
       ylim: ylimMain,
       xscale: "log",
       yscale: "log",
-      xlabel: "维数 n（对数轴）",
+      xlabel: "维数 $n$（对数轴）",
       ylabel: axisYlabel(VIZ, "main", "‖f − P_n f‖"),
       title: axisTitle(VIZ, "main", "L² 误差 vs 维数（双对数）"),
       autoscaled: false,
@@ -287,7 +287,7 @@ export const convergenceRatesModel: SceneModel = (frame, opts) => {
       ylim: ylimRate,
       xscale: "log",
       yscale: "log",
-      xlabel: "维数 n（拟合窗口内，对数轴）",
+      xlabel: "维数 $n$（拟合窗口内，对数轴）",
       ylabel: axisYlabel(VIZ, "rate", "误差（对数轴）"),
       title: axisTitle(VIZ, "rate", "实测/理论参考线（拟合窗口内）"),
       autoscaled: true,
@@ -333,7 +333,7 @@ export const convergenceRatesModel: SceneModel = (frame, opts) => {
         width: 1.2,
         dash: [6, 4],
         accept: (v: number) => v > 0,
-        label: "analytic 理论曲线 ρ^(−n)（双对数下不是直线）",
+        label: "analytic 理论曲线 $ρ^(−n)$（双对数下不是直线）",
       })),
     );
   }

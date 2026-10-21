@@ -633,11 +633,9 @@ export async function startSite(root: HTMLElement, opts: { baseUrl?: string } = 
     view = null;
     previous?.dispose();
     const rendered = renderChapter(manifest, vizzes, selected);
-    const startT = options.restore
-      ? state.t
-      : selected.time.mode === "scrub"
-        ? (selected.time.tMax ?? 0)
-        : 0;
+    // 直接打开时从 t=0 开始，而不是从 tMax 开始：端点常常是「条件数拉满 / 扰动最大」
+    // 的极端状态，默认就亮红色溢出既吓人又掩盖了正常状态。时间轴仍然可以拖到端点。
+    const startT = options.restore ? state.t : (selected.time.initial ?? 0);
     current = {
       chapter: manifest.chapter,
       viz: selected.id,

@@ -921,8 +921,8 @@ test("zeros_evolution：间距曲线用 gap_index 作横轴（不是阶数），
 
 test("zeros_evolution：误差量的身份写在四处（轴名/角标/文本/帧 note）——不是 |p_n|", () => {
   const scene = zerosEvolutionModel(ZEROS, opts({ t: 24 }));
-  assert.ok(axisOf(scene, "resid").title.includes("|p_n/p_n′|"));
-  assert.ok(axisOf(scene, "resid").ylabel.includes("根误差"));
+  assert.ok(axisOf(scene, "resid").title.includes("p_n/p_n"), axisOf(scene, "resid").title);
+  assert.ok(axisOf(scene, "resid").title.includes("根误差"), axisOf(scene, "resid").title);
   assert.ok(badgesOf(scene, "status").join(" ").includes("|p_n/p_n′|"));
   const text = textsOf(scene);
   assert.ok(text.includes("Newton 修正量"), text);

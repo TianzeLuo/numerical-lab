@@ -126,7 +126,7 @@ export const descentRaceModel: SceneModel = (frame, opts) => {
   const main = makeAxis("main", [L.left, L.topY, L.leftW, L.topH], {
     xlim: [-0.4, 1.7],
     ylim: [-0.5, 1.6],
-    xlabel: "x_1",
+    xlabel: "`x_1`",
     ylabel: axisYlabelOf(SPEC?.axes, "main", "x_2"),
     title: axisTitleOf(SPEC?.axes, "main", "等高线 f(x)=const 与四条下降路径"),
     autoscaled: false,
@@ -146,7 +146,7 @@ export const descentRaceModel: SceneModel = (frame, opts) => {
     xlim: [0, Math.max(1, kMax)],
     ylim: [errFloor, Math.max(2, errHi * 1.6)],
     yscale: "log",
-    xlabel: "迭代 k",
+    xlabel: "迭代 $k$",
     ylabel: axisYlabelOf(SPEC?.axes, "aux", "‖x_k - x*‖"),
     title: axisTitleOf(SPEC?.axes, "aux", "到最优解的距离（对数轴）"),
     autoscaled: true,
@@ -162,7 +162,7 @@ export const descentRaceModel: SceneModel = (frame, opts) => {
         levels,
         color: pal.reference,
         width: 0.8,
-        label: "f(x)=const",
+        label: "$f(x)=const$",
       }),
     );
   } else {
@@ -218,8 +218,8 @@ export const descentRaceModel: SceneModel = (frame, opts) => {
 
   // 侧栏：参数摘要 + 方法核对表 + 口径。
   const param = paramSummary(frame, opts, [
-    { name: "kappa_measured", label: "κ", digits: 4 },
-    { name: "alpha_over_stable", label: "α/α*", digits: 4 },
+    { name: "kappa_measured", label: "$κ$", digits: 4 },
+    { name: "alpha_over_stable", label: "$α/α*$", digits: 4 },
   ]);
   degraded.push(...param.degraded);
   const notes: string[] = [

@@ -354,13 +354,13 @@ export const imageDeconvolutionModel: SceneModel = (frame, opts) => {
       xlim: [lgSweep[0] as number, lgSweep[lgSweep.length - 1] as number],
       ylim: [sweepLo, sweepHi],
       yscale: "log",
-      xlabel: "log10 λ",
+      xlabel: "$\\log_{10}\\lambda$",
       ylabel: "相对误差",
-      title: "误差随 λ（两端失败）",
+      title: "误差随 $\\lambda$（两端失败）",
       autoscaled: true,
     });
     scene.axes.push(sweepAxis);
-    scene.layers.push(lineLayer("lambda_sweep", { x: lgSweep, y: errSweep, color: pal.curves[0] as string, width: 1.8, label: "误差随 λ" }));
+    scene.layers.push(lineLayer("lambda_sweep", { x: lgSweep, y: errSweep, color: pal.curves[0] as string, width: 1.8, label: "误差随 $λ$" }));
     if (lamBest !== undefined && lamBest > 0) {
       const lgBest = Math.log10(lamBest);
       if (lgBest >= sweepAxis.xlim[0] && lgBest <= sweepAxis.xlim[1]) {
@@ -386,7 +386,7 @@ export const imageDeconvolutionModel: SceneModel = (frame, opts) => {
           dash: [2, 2],
         }),
       );
-      if (j >= 0) scene.layers.push(scatterLayer("lambda_sweep", [lgLam], [errSweep[j] as number], { r: 3.2, color: pal.marker, label: "当前 λ 的误差" }));
+      if (j >= 0) scene.layers.push(scatterLayer("lambda_sweep", [lgLam], [errSweep[j] as number], { r: 3.2, color: pal.marker, label: "当前 $λ$ 的误差" }));
     }
   } else if (roomy && histAxis === undefined) {
     degraded.push("右列没有可画的历史轴：λ 扫描也不画");

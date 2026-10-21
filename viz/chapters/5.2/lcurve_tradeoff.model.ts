@@ -139,8 +139,8 @@ export const lcurveTradeoffModel: SceneModel = (frame, opts) => {
     xlim: xr,
     ylim: yr,
     xlabel: "",
-    ylabel: "log10 残差",
-    title: "L 曲线（横=log10‖x‖，纵=log10 残差）",
+    ylabel: "$\\log_{10}$ 残差",
+    title: "L 曲线（横 $=\\log_{10}\\|x\\|$，纵 $=\\log_{10}$ 残差）",
     autoscaled: true,
   });
 
@@ -152,9 +152,9 @@ export const lcurveTradeoffModel: SceneModel = (frame, opts) => {
     xlim: [lgLam[0] as number, lgLam[lgLam.length - 1] as number],
     ylim: [errLo, errHi],
     yscale: "log",
-    xlabel: "log10 λ",
+    xlabel: "$\\log_{10}\\lambda$",
     ylabel: "相对误差",
-    title: "真误差随 λ（对数轴）",
+    title: "真误差随 $\\lambda$（对数轴）",
     autoscaled: true,
   });
   scene.axes.push(lcurve, errAxis);
@@ -225,8 +225,8 @@ export const lcurveTradeoffModel: SceneModel = (frame, opts) => {
     const j = nearestIndex(lgLam, lamNow);
     if (j >= 0) {
       scene.layers.push(
-        scatterLayer("lcurve", [lgX[j] as number], [lgRes[j] as number], { r: 5, color: pal.marker, label: "当前 λ（滑块）" }),
-        scatterLayer("error", [lamNow], [err[j] as number], { r: 4.4, color: pal.marker, label: "当前 λ（滑块）" }),
+        scatterLayer("lcurve", [lgX[j] as number], [lgRes[j] as number], { r: 5, color: pal.marker, label: "当前 $λ$（滑块）" }),
+        scatterLayer("error", [lamNow], [err[j] as number], { r: 4.4, color: pal.marker, label: "当前 $λ$（滑块）" }),
       );
     }
     scene.layers.push(
@@ -265,9 +265,9 @@ export const lcurveTradeoffModel: SceneModel = (frame, opts) => {
       ylim: [cLo * 0.5, cHi * 2],
       xscale: "log",
       yscale: "log",
-      xlabel: "σ_i（对数）",
-      ylabel: "|u_i^T b|（对数）",
-      title: "Picard：系数 vs σ",
+      xlabel: "$\\sigma_i$（对数）",
+      ylabel: "$|u_i^{\\mathrm{T}}b|$（对数）",
+      title: "Picard：系数 vs $\\sigma$",
       autoscaled: true,
     });
     scene.axes.push(picardAxis);

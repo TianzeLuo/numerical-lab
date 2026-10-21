@@ -22,7 +22,7 @@
 
 import type { AxisSpecJson, VizSpecJson } from "../../shared/src/manifest.js";
 import type { Frame } from "../../shared/src/frame.js";
-import { BADGE_UNIT_PX, headerBand, textWidthUnits, type Rect } from "../../shared/src/model.js";
+import { BADGE_UNIT_PX, clipRichText, headerBand, textWidthUnits, type Rect } from "../../shared/src/model.js";
 import { text, type TextSpec } from "../../shared/src/scene.js";
 
 /** 面板内说明文字的字号（与 0.0 / 1.2 / 1.5 / 3.1 章一致）。 */
@@ -273,16 +273,7 @@ export function axisSpecOf(spec: VizSpecJson | undefined, id: string): AxisSpecJ
  * 裁掉时补 `…`，并**只裁显示**：帧、meta、数组一律不动（P8）。
  */
 export function clip(text: string, maxUnits: number): string {
-  if (textWidthUnits(text) <= maxUnits) return text;
-  let out = "";
-  let used = 0;
-  for (const ch of text) {
-    const w = textWidthUnits(ch);
-    if (used + w > maxUnits - 1) break;
-    out += ch;
-    used += w;
-  }
-  return `${out}…`;
+  return clipRichText(text, maxUnits);
 }
 
 /** 轴标题：manifest 声明优先，缺了用回落值（不自己编一个像样的标题）。 */

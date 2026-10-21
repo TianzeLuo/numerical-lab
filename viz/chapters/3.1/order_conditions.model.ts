@@ -456,15 +456,17 @@ function fmtMaybe(v: number | undefined): string {
 
 /** 把长串裁到 `units` 个显示宽度单位（角标与面板都要用同一把尺子）。 */
 function clip(body: string, units: number): string {
-  let used = 0;
+  if (body.length <= units) return body;
+  const parts = body.split(/(\$[^$]*\$|\\\([\s\S]*?\\\))/g).filter((p) => p !== "");
   let out = "";
-  for (const ch of body) {
-    const w = (ch.codePointAt(0) ?? 0) > 0x2e80 ? 2 : 1;
-    if (used + w > units) return `${out}…`;
-    out += ch;
+  let used = 0;
+  for (const part of parts) {
+    const w = (part.match(/[\u2e80-\uffff]/g)?.length ?? 0) * 2 + part.replace(/[\u2e80-\uffff]/g, "").length;
+    if (used + w > Math.max(1, units - 1)) break;
+    out += part;
     used += w;
   }
-  return out;
+  return `${out.trimEnd()}…`;
 }
 
 /** 角标预算裁剪（与 `model.ts::clipBadgeText` 同口径，避免 import 私有工具）。 */

@@ -240,7 +240,7 @@ export const assemblyAnimationModel: SceneModel = (frame, opts) => {
   const matrixAxis = makeAxis("matrix", [L.left, L.topY, matrixW, topH], {
     xlim: [-0.5, n - 0.5],
     ylim: [-0.5, n - 0.5],
-    xlabel: "自由度 j",
+    xlabel: "自由度 $j$",
     title: axisTitleOf(SPEC?.axes, "matrix", "全局刚度阵 K_k（固定窗口，灰=未定型）"),
     ylabel: axisYlabelOf(SPEC?.axes, "matrix", "自由度 i"),
     autoscaled: false,
@@ -268,7 +268,7 @@ export const assemblyAnimationModel: SceneModel = (frame, opts) => {
       vmin: -scaleAbs,
       vmax: scaleAbs,
       clipBelow,
-      label: "K_ij",
+      label: "`K_ij`",
     }),
   );
 
@@ -341,7 +341,7 @@ export const assemblyAnimationModel: SceneModel = (frame, opts) => {
         cmap: "rdbu",
         vmin: lo,
         vmax: hi,
-        label: "ke_ij",
+        label: "`ke_ij`",
       }),
     );
   }
@@ -363,7 +363,7 @@ export const assemblyAnimationModel: SceneModel = (frame, opts) => {
       xlim: [0, Math.max(1, kAxis.length - 1)],
       ylim: [floor, Math.max(upper, floor * 10)],
       yscale: "log",
-      xlabel: "已装入的单元数 k",
+      xlabel: "已装入的单元数 $k$",
       title: axisTitleOf(SPEC?.axes, "residuals", "残差与主元比（对数，地板 1e-17）"),
       ylabel: axisYlabelOf(SPEC?.axes, "residuals", "max|ΔK|"),
       autoscaled: false,
@@ -437,8 +437,8 @@ export const assemblyAnimationModel: SceneModel = (frame, opts) => {
 
   if (L.columns && !short && L.floor > L.textTop + 8) {
     const head = paramSummary(frame, opts, [
-      { name: "n_elem", label: "n_elem" },
-      { name: "n_dof", label: "n_dof" },
+      { name: "n_elem", label: "`n_elem`" },
+      { name: "n_dof", label: "`n_dof`" },
     ]);
     degraded.push(...head.degraded);
     const lines: string[] = [];

@@ -272,9 +272,9 @@ export const projection3dModel: SceneModel = (frame, opts) => {
     xlim: auxYlim,
     ylim: catLim,
     xscale: "log",
-    xlabel: "缺陷 ‖Aᵀr̂‖/(‖A‖_F‖r̂‖)（对数）",
+    xlabel: "缺陷 $\\|A^{\\mathrm{T}}\\hat r\\|/(\\|A\\|_F\\|\\hat r\\|)$",
     ylabel: "",
-    title: axisTitle("orthogonality", "三种解法的正交性缺陷"),
+    title: axisTitle("orthogonality", "三种解法的正交性缺陷（对数）"),
     autoscaled: true,
     xticks: undefined,
     yticks: [],
@@ -336,7 +336,7 @@ export const projection3dModel: SceneModel = (frame, opts) => {
     toScreen(planeAt(0, 0)),
   ];
   const outlineSeries: LineSeries[] = [];
-  pushClipped(outlineSeries, outline, pal.note, { width: 1.2, label: "列空间 col(A)（A 的两列张成的平面片）" });
+  pushClipped(outlineSeries, outline, pal.note, { width: 1.2, label: "列空间 $\\operatorname{col}(A)$（$A$ 的两列张成的平面片）" });
   if (outlineSeries.length > 0) scene.layers.push(lineLayer("scene", outlineSeries));
 
   // —— 图层 3~6：A 的两列 ——
@@ -370,7 +370,7 @@ export const projection3dModel: SceneModel = (frame, opts) => {
   const bSeg = clipSegment(origin, bScreen, win);
   if (bSeg !== undefined) {
     if (bSeg.clipped) nClippedSeg += 1;
-    scene.layers.push(lineLayer("scene", arrow(origin, bSeg.b, pal.marker, { width: 2.2, dash: [6, 3], label: "b（右端项，单位向量）" })));
+    scene.layers.push(lineLayer("scene", arrow(origin, bSeg.b, pal.marker, { width: 2.2, dash: [6, 3], label: "$b$（右端项，单位向量）" })));
   } else {
     nDroppedPoint += 1;
     degraded.push("b 的投影落在窗口外：主场景看不到 b");
@@ -385,11 +385,11 @@ export const projection3dModel: SceneModel = (frame, opts) => {
       lineLayer("scene", [
         ...arrow(pScreen, segPB.b, pal.exact, {
           width: 2,
-          label: `r 的分量（动画 t=${blendNow.toFixed(2)}；t=1 时它就是完整的 r）`,
+          label: `$r$ 的分量（动画 $t=${blendNow.toFixed(2)}$；$t=1$ 时它就是完整的 $r$）`,
         }),
         ...arrow(origin, pScreen, pal.curves[1], {
           width: 1.8,
-          label: `p 的分量（动画 t=${blendNow.toFixed(2)}；t=0 时它就是 b）`,
+          label: `$p$ 的分量（动画 $t=${blendNow.toFixed(2)}$；$t=0$ 时它就是 $b$）`,
         }),
       ]),
     );
@@ -420,7 +420,7 @@ export const projection3dModel: SceneModel = (frame, opts) => {
       sq,
       [q(0, 0), q(eps, 0), q(eps, eps), q(0, eps), q(0, 0)],
       pal.warn,
-      { width: 1.4, label: "p 处的直角标记（Aᵀr̂ = 0 的几何含义）" },
+      { width: 1.4, label: "$p$ 处的直角标记（$A^{\\mathrm{T}}\\hat r=0$ 的几何含义）" },
     );
     if (sq.length > 0) scene.layers.push(lineLayer("scene", sq));
   } else {
@@ -630,7 +630,7 @@ export const projection3dModel: SceneModel = (frame, opts) => {
   if (nFloor > 0) {
     extra.push(`${nFloor}/${nM} 条路线无有限解：缺陷数组里是地板 ${fmt(floorPos, 1)}（占位，不是实测）`);
   }
-  overflowBadgeFor(scene, nBad, extra, { slot: SLOT.overflow, width }, "本帧没有几何被裁或落在窗口外");
+  overflowBadgeFor(scene, nBad, extra, { slot: SLOT.overflow, width });
   // 规则 8 的安全网（两侧校验器都查）：
   //  - 文本层之间不许互相重叠（帧里的说明一变长就会多折一行压住下一块）；
   //  - 文本不许被底部 pitfalls 面板压住（面板高度随帧里 pitfalls 的折行数变，模型事先看不见）。

@@ -111,7 +111,7 @@ export const ghiaBenchmarkModel: SceneModel = (frame, opts) => {
   const main = makeAxis("main", mainRect, {
     xlim: padRange(Math.min(0, uRange[0]), Math.max(0, uRange[1]), 0.04),
     ylim: [0, 1],
-    xlabel: "u",
+    xlabel: "$u$",
     ylabel: axisYlabelOf(SPEC?.axes, "main", "y"),
     title: axisTitleOf(SPEC?.axes, "main", "竖直中心线 u(y) vs Ghia"),
     autoscaled: false,
@@ -128,7 +128,7 @@ export const ghiaBenchmarkModel: SceneModel = (frame, opts) => {
     xlim: [Math.max(1, (nGrid[0] as number) - 2), (nGrid[nGrid.length - 1] as number) + 2],
     ylim: [yLo, yHi],
     yscale: "log",
-    xlabel: "网格 n",
+    xlabel: "网格 $n$",
     ylabel: axisYlabelOf(SPEC?.axes, "error", "RMSE"),
     title: axisTitleOf(SPEC?.axes, "error", "RMSE 随网格 n 的收敛（对数纵轴）"),
     autoscaled: true,
@@ -137,7 +137,7 @@ export const ghiaBenchmarkModel: SceneModel = (frame, opts) => {
   scene.axes.push(main, errAxis);
 
   scene.layers.push(
-    lineLayer("main", { x: uNum, y: yRef, color: pal.curves[0] as string, width: 1.9, label: "数值解 u(y)" }),
+    lineLayer("main", { x: uNum, y: yRef, color: pal.curves[0] as string, width: 1.9, label: "数值解 $u(y)$" }),
     scatterLayer("main", uRef, yRef, { r: 3.3, color: pal.exact, label: "Ghia 基准" }),
   );
   // 细网格剖面只作背景：它说明线不是“只连了 17 个点”，但不参与对拍。
@@ -150,7 +150,7 @@ export const ghiaBenchmarkModel: SceneModel = (frame, opts) => {
     profileAxis = makeAxis("vprofile", [L.rightX, topY, L.rightW, profileH], {
       xlim: [0, 1],
       ylim: padRange(vRange[0], vRange[1], 0.08),
-      xlabel: "x",
+      xlabel: "$x$",
       ylabel: axisYlabelOf(SPEC?.axes, "vprofile", "v"),
       title: axisTitleOf(SPEC?.axes, "vprofile", "水平中心线 v(x) vs Ghia"),
       autoscaled: false,
@@ -158,8 +158,8 @@ export const ghiaBenchmarkModel: SceneModel = (frame, opts) => {
     });
     scene.axes.push(profileAxis);
     scene.layers.push(
-      lineLayer("vprofile", { x: xRef, y: vNum, color: pal.curves[0] as string, width: 1.8, label: "数值解 v(x)" }),
-      scatterLayer("vprofile", xRef, vRef, { r: 3, color: pal.exact, label: "Ghia 基准 v" }),
+      lineLayer("vprofile", { x: xRef, y: vNum, color: pal.curves[0] as string, width: 1.8, label: "数值解 $v(x)$" }),
+      scatterLayer("vprofile", xRef, vRef, { r: 3, color: pal.exact, label: "Ghia 基准 $v$" }),
       lineLayer("vprofile", {
         x: [0, 1],
         y: [0, 0],
@@ -174,8 +174,8 @@ export const ghiaBenchmarkModel: SceneModel = (frame, opts) => {
 
   scene.layers.push(
     lineLayer("error", { x: nGrid, y: err, color: pal.curves[0] as string, width: 2, label: "总 RMSE" }),
-    lineLayer("error", { x: nGrid, y: errU, color: pal.exact, width: 1.2, dash: [4, 3], label: "u 剖面的 RMSE" }),
-    lineLayer("error", { x: nGrid, y: errV, color: pal.curves[1] as string, width: 1.2, dash: [2, 3], label: "v 剖面的 RMSE" }),
+    lineLayer("error", { x: nGrid, y: errU, color: pal.exact, width: 1.2, dash: [4, 3], label: "$u$ 剖面的 RMSE" }),
+    lineLayer("error", { x: nGrid, y: errV, color: pal.curves[1] as string, width: 1.2, dash: [2, 3], label: "$v$ 剖面的 RMSE" }),
   );
   for (const [arr, color] of [
     [err, pal.curves[0] as string],

@@ -157,7 +157,7 @@ export const signalSpectrumModel: SceneModel = (frame, opts) => {
   const timeAxis = makeAxis("time", timeRect, {
     xlim: [0, 1],
     ylim: niceLimits(xRange[0], xRange[1], 5, { pad: 0.12 }),
-    xlabel: "t（单位 T = N·dt；本帧记录就是一个周期）",
+    xlabel: "$t$（单位 $T = N·dt$；本帧记录就是一个周期）",
     ylabel: axisYlabel(VIZ, "time", "x"),
     title: axisTitle(VIZ, "time", "时域 x(t)"),
     autoscaled: axisAutoscaled(VIZ, "time"),
@@ -172,7 +172,7 @@ export const signalSpectrumModel: SceneModel = (frame, opts) => {
     xlim: [0, 1],
     ylim: errYlim,
     yscale: "log",
-    xlabel: "t（与上面同一段记录）",
+    xlabel: "$t$（与上面同一段记录）",
     ylabel: axisYlabel(VIZ, "error", "max|delta|"),
     title: axisTitle(VIZ, "error", "|FFT − DFT|（自研对拍）"),
     autoscaled: true,
@@ -189,7 +189,7 @@ export const signalSpectrumModel: SceneModel = (frame, opts) => {
   const specAxis = makeAxis("spec", specRect, {
     xlim: specXlim,
     ylim: [Math.min(DB_FLOOR, floorDb), 2],
-    xlabel: "f（单位 1/T = 每记录周期数）",
+    xlabel: "$f$（单位 $1/T$ = 每记录周期数）",
     ylabel: axisYlabel(VIZ, "spec", "dB"),
     title: axisTitle(VIZ, "spec", "单边幅度谱（相对峰值 dB）"),
     autoscaled: axisAutoscaled(VIZ, "spec"),
@@ -201,7 +201,7 @@ export const signalSpectrumModel: SceneModel = (frame, opts) => {
   scene.layers.push(
     lineLayer("time", [series([0, 1], [0, 0], pal.reference, { dash: [4, 4], width: 1, label: "零线" })]),
   );
-  const xSeries = segmentedSeries(tAxis, x, pal.curves[0], { width: 1.6, label: "时域信号 x(t)" });
+  const xSeries = segmentedSeries(tAxis, x, pal.curves[0], { width: 1.6, label: "时域信号 $x(t)$" });
   if (xSeries.length > 0) scene.layers.push(lineLayer("time", xSeries));
   else degraded.push("帧 x 没有可绘的有限值：时域面板不画曲线");
   if (x.length <= 64) {
@@ -222,7 +222,7 @@ export const signalSpectrumModel: SceneModel = (frame, opts) => {
         series([f, f], [specAxis.ylim[0], specAxis.ylim[1]], pal.reference, {
           dash: [3, 4],
           width: 1,
-          label: "谐波位置 f₀、2f₀、3f₀",
+          label: "谐波位置 $f₀$、$2f₀$、$3f₀$",
         }),
       );
     }
@@ -231,7 +231,7 @@ export const signalSpectrumModel: SceneModel = (frame, opts) => {
     refs.push(
       series([halfWidth.lo, halfWidth.hi], [halfWidth.level, halfWidth.level], pal.marker, {
         width: 2,
-        label: "−3 dB 半高全宽",
+        label: "−3 $dB$ 半高全宽",
       }),
     );
     refs.push(series([halfWidth.lo, halfWidth.lo], [specAxis.ylim[0], halfWidth.level], pal.marker, { dash: [2, 3], width: 1 }));
@@ -253,7 +253,7 @@ export const signalSpectrumModel: SceneModel = (frame, opts) => {
           r: 3,
           color: pal.exact,
           alpha: 0.9,
-          label: "原始栅格（pad=1）",
+          label: "原始栅格（$pad=1$）",
         }),
       );
     }
@@ -263,16 +263,16 @@ export const signalSpectrumModel: SceneModel = (frame, opts) => {
   const errSeries = segmentedSeries(tAxis, absOf(error), pal.residual, {
     width: 1.4,
     accept: (v) => v > 0,
-    label: "|FFT − DFT|（自研对拍）",
+    label: "$|FFT − DFT|$（自研对拍）",
   });
   if (errSeries.length > 0) scene.layers.push(lineLayer("error", errSeries));
   else degraded.push("帧 error 没有 >0 的有限值：对数副轴画不出任何点");
 
   // —— 文本：面板内只放"身份行"（1~2 行），长句子全部进底部横条（见 common.ts::bottomStrip）——
   const summary = paramSummary(frame, opts, [
-    { name: "n", label: "N" },
+    { name: "n", label: "$N$" },
     { name: "pad", label: "pad" },
-    { name: "f0", label: "f0" },
+    { name: "f0", label: "$f0$" },
   ]);
   degraded.push(...summary.degraded);
   const timeLines: string[] = [summary.text];

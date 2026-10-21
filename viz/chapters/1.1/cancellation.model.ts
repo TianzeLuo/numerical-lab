@@ -185,7 +185,7 @@ export const cancellationModel: SceneModel = (frame, opts) => {
     // 这条轴名在显示层的 HTML 面板说明里由标题给出；画在画布上会撞到下方说明带。
     xlabel: "",
     ylabel: axisYlabelOf(SPEC?.axes, "digits", "剩余位数"),
-    title: axisTitleOf(SPEC?.axes, "digits", "相减后还剩多少位十进制有效数字（横轴 = 损失位数 t）"),
+    title: axisTitleOf(SPEC?.axes, "digits", "相减后还剩多少位十进制有效数字（横轴 = 损失位数 $t$）"),
     autoscaled: false,
     xticks: integerTicks(0, 16, 2),
     yticks: integerTicks(0, 16, 2),
@@ -208,7 +208,7 @@ export const cancellationModel: SceneModel = (frame, opts) => {
     yscale: "log",
     xlabel: "",
     ylabel: axisYlabelOf(SPEC?.axes, "error", "相对误差"),
-    title: axisTitleOf(SPEC?.axes, "error", "结果的相对误差与理论上界（横轴 = 损失位数 t）"),
+    title: axisTitleOf(SPEC?.axes, "error", "结果的相对误差与理论上界（横轴 = 损失位数 $t$）"),
     autoscaled: true,
     xticks: niceTicks(mainAxis.xlim[0], mainAxis.xlim[1], 7),
   });
@@ -222,7 +222,7 @@ export const cancellationModel: SceneModel = (frame, opts) => {
         series([lossMark, lossMark], DIGITS_LIM, pal.cursor, {
           width: 1,
           dash: [3, 3],
-          label: "当前 a、b 对应的损失位数",
+          label: "当前 $a$、$b$ 对应的损失位数",
         }),
       ),
       lineLayer("error", series([lossMark, lossMark], auxAxis.ylim, pal.cursor, { width: 1, dash: [3, 3] })),
@@ -288,9 +288,9 @@ export const cancellationModel: SceneModel = (frame, opts) => {
 
   // —— 文本 ——
   const summary = paramSummary(frame, opts, [
-    { name: "a", label: "a" },
-    { name: "b", label: "b" },
-    { name: "input_digits", label: "输入位数 d" },
+    { name: "a", label: "$a$" },
+    { name: "b", label: "$b$" },
+    { name: "input_digits", label: "输入位数 $d$" },
   ]);
   degraded.push(...summary.degraded);
 
@@ -310,7 +310,7 @@ export const cancellationModel: SceneModel = (frame, opts) => {
   const midBudget = unitBudget(mainRect[2] * 0.44);
   const mid: string[] = [
     "红线=输入误差被放大（会爆炸）",
-    "橙虚=理论上界 δ_in(|a|+|b|)/|a−b|",
+    "橙虚=理论上界 $\\delta_{\\mathrm{in}}(|a|+|b|)/|a-b|$",
     "绿点线=减法**自身**的舍入误差：Sterbenz 区内恒为 0",
     "爆炸的从来不是减法，是输入里本来就有的相对误差 δ_in",
   ];
@@ -325,16 +325,16 @@ export const cancellationModel: SceneModel = (frame, opts) => {
     legend.push(
       `当前：损失 ${digitsLost === undefined ? "?" : formatNumber(digitsLost, 4)} 位、` +
         `剩 ${digitsMark === undefined ? "?" : formatNumber(digitsMark, 4)} 位` +
-        (condSubtraction === undefined ? "" : `（减法条件数 ${formatNumber(condSubtraction, 4)}）`),
+        (condSubtraction === undefined ? "" : `（减法条件数 $\\operatorname{cond}=${formatNumber(condSubtraction, 4)}$）`),
     );
   }
   legend.push(
-    "横轴 = 损失位数 t（抵消掉多少个十进制位）　纵轴 = 剩余有效位数（先验估计，范围 0..16）",
+    "横轴 = 损失位数 $t$（抵消掉多少个十进制位）　纵轴 = 剩余有效位数（先验估计，范围 $0..16$）",
   );
   legend.push(
     lossMark === undefined
       ? "帧缺 loss_mark：不画当前游标（不拿请求时刻冒充损失位数）"
-      : `虚线游标由当前 a、b 决定：t=${formatNumber(lossMark, 4)}。这张图没有时间轴，改参数才换数据。`,
+      : `虚线游标由当前 $a$、$b$ 决定：$t=${formatNumber(lossMark, 4)}$。这张图没有时间轴，改参数才换数据。`,
   );
   scene.texts.push(...textBlock(mainRect[0] + 6, textTop(mainRect), textBottom(mainRect), legend, pal.muted, mainBudget, "bottom"));
 

@@ -47,6 +47,7 @@ import {
   requirePitfalls,
   requireSameLength,
   sceneShell,
+  segmentedSeries,
   stackedPanels,
   stringOf,
   type Rect,
@@ -104,7 +105,7 @@ interface Route {
 }
 
 const ROUTES: readonly Route[] = [
-  { key: "error_normal", label: "正规方程 AᵀA", color: "#2b6cb0", width: 1.9, mask: "singular_normal" },
+  { key: "error_normal", label: "正规方程 $A^{\\mathrm{T}}A$", color: "#2b6cb0", width: 1.9, mask: "singular_normal" },
   { key: "error_qr", label: "QR（Householder）", color: "#2f855a", width: 1.9, mask: "singular_qr" },
   { key: "error_svd", label: "SVD 截断", color: "#b7791f", width: 1.5, dash: [5, 3] },
   { key: "error_normal_ir", label: "正规方程 + 迭代精化", color: "#805ad5", width: 1.4, dash: [2, 2], mask: "singular_normal" },
@@ -225,9 +226,9 @@ export const normalVsQrModel: SceneModel = (frame, opts) => {
     ylim: ERRORS_YLIM,
     xscale: "linear",
     yscale: "log",
-    xlabel: "log10 κ",
-    ylabel: axisYlabel("errors", "‖x̂−x*‖/‖x*‖"),
-    title: axisTitle("errors", "前向误差 vs κ（双对数、固定轴 1e-17..1e2）"),
+    xlabel: "$\\log_{10}\\kappa$",
+    ylabel: axisYlabel("errors", "$\\|\\hat x-x^*\\|/\\|x^*\\|$"),
+    title: axisTitle("errors", "前向误差 vs $\\kappa$（双对数、固定轴 $10^{-17}$ 到 $10^2$）"),
     autoscaled: false,
   });
   const resPos = finitePositiveMinMax(residualNormal);
@@ -243,9 +244,9 @@ export const normalVsQrModel: SceneModel = (frame, opts) => {
     xlim: errorsAxis.xlim,
     ylim: residualYlim,
     yscale: "log",
-    xlabel: "log10 κ",
+    xlabel: "$\\log_{10}\\kappa$",
     ylabel: axisYlabel("residual", "相对残差"),
-    title: axisTitle("residual", "相对残差 ‖Ax̂−b‖/‖b‖（对数）"),
+    title: axisTitle("residual", "相对残差 $\\|A\\hat x-b\\|/\\|b\\|$（对数）"),
     autoscaled: true,
   });
   const divPos = finitePositiveMinMax(divergence);
@@ -253,7 +254,7 @@ export const normalVsQrModel: SceneModel = (frame, opts) => {
     xlim: errorsAxis.xlim,
     ylim: DIVERGENCE_YLIM,
     yscale: "log",
-    xlabel: "log10 κ",
+    xlabel: "$\\log_{10}\\kappa$",
     ylabel: axisYlabel("divergence", "比值"),
     title: axisTitle("divergence", "分道扬镳：误差之比 正规方程 / QR（对数）"),
     autoscaled: false,
@@ -335,9 +336,25 @@ export const normalVsQrModel: SceneModel = (frame, opts) => {
   else degraded.push("三条误差曲线都没有可画的前缀：误差面板为空");
 
   // 理论参考线：**帧里的数组**（后端算好的 κ²u 与 κu），不重算（P8）。
+  // 参考线在固定窗口上方继续延伸是正常的（κ²u 很快就会超过 1e2），它只是“如果幂律一直
+  // 成立会到哪里”，不是测量数据。把超出窗口的一段裁掉，别让默认画面亮红色“溢出”。
+  const inErrorsWindow = (v: number): boolean => v >= ERRORS_YLIM[0] && v <= ERRORS_YLIM[1];
+  const refClipped =
+    Array.from(theory1).some((v) => v > ERRORS_YLIM[1]) ||
+    Array.from(theory2).some((v) => v > ERRORS_YLIM[1]);
   const theorySeries: LineSeries[] = [
-    series(kappaGrid, theory2, pal.reference, { width: 1, dash: [6, 4], label: "理论参考线 κ²u（正规方程的预期阶）" }),
-    series(kappaGrid, theory1, pal.reference, { width: 1, dash: [2, 3], label: "理论参考线 κu（QR/SVD 的预期阶）" }),
+    ...segmentedSeries(kappaGrid, theory2, pal.reference, {
+      width: 1,
+      dash: [6, 4],
+      label: "理论参考线 $\\kappa^2u$（正规方程的预期阶）",
+      accept: inErrorsWindow,
+    }),
+    ...segmentedSeries(kappaGrid, theory1, pal.reference, {
+      width: 1,
+      dash: [2, 3],
+      label: "理论参考线 $\\kappa u$（QR/SVD 的预期阶）",
+      accept: inErrorsWindow,
+    }),
   ];
   scene.layers.push(lineLayer("errors", theorySeries));
 
@@ -362,7 +379,8 @@ export const normalVsQrModel: SceneModel = (frame, opts) => {
   }
 
   // 当前位置标记（kappa_mark / error_mark 由后端给）
-  const markXs = kappaMark.length > 0 ? (kappaMark[0] as number) : Number.NaN;
+  const kappaMarkValue = kappaMark.length > 0 ? (kappaMark[0] as number) : Number.NaN;
+  const markXs = kappaMarkValue > 0 ? Math.log10(kappaMarkValue) : Number.NaN;
   const markPoints: { x: number[]; y: number[]; color: string; label: string }[] = [];
   const mk = (i: number, color: string, label: string): void => {
     const v = errorMark[i] as number;
@@ -374,7 +392,7 @@ export const normalVsQrModel: SceneModel = (frame, opts) => {
   if (errorMarkIr !== undefined && errorMarkIr.length > 0) {
     const v = errorMarkIr[0] as number;
     if (Number.isFinite(markXs) && Number.isFinite(v) && v > 0) {
-      markPoints.push({ x: [markXs], y: [v], color: ROUTES[3]!.color, label: "当前 κ 处：正规方程+精化" });
+      markPoints.push({ x: [markXs], y: [v], color: ROUTES[3]!.color, label: "当前 $\\kappa$ 处：正规方程+精化" });
     }
   }
   for (const p of markPoints) {
@@ -433,7 +451,7 @@ export const normalVsQrModel: SceneModel = (frame, opts) => {
     }
   }
   if (resMarkX.length > 0) {
-    scene.layers.push(scatterLayer("residual", resMarkX, resMarkY, { r: 3.2, color: pal.marker, label: "当前 κ 处的相对残差" }));
+    scene.layers.push(scatterLayer("residual", resMarkX, resMarkY, { r: 3.2, color: pal.marker, label: "当前 $\\kappa$ 处的相对残差" }));
   }
 
   // —— 分道扬镳面板 ——
@@ -451,14 +469,14 @@ export const normalVsQrModel: SceneModel = (frame, opts) => {
       lineLayer("divergence", [
         series(Float64Array.from(divX), Float64Array.from(divY), pal.curves[0], {
           width: 1.8,
-          label: "误差之比 正规方程 / QR（实测；比值 ≥1 表示正规方程更差）",
+          label: "误差之比 正规方程 / QR（实测；比值 $\\ge1$ 表示正规方程更差）",
         }),
-        series(divergenceAxis.xlim, [1, 1], pal.reference, { width: 1, dash: [5, 4], label: "比值 = 1：两条路线一样准" }),
+        series(divergenceAxis.xlim, [1, 1], pal.reference, { width: 1, dash: [5, 4], label: "比值 $=1$：两条路线一样准" }),
       ]),
     );
     if (ratioCur !== undefined && ratioCur > 0 && Number.isFinite(markXs)) {
       scene.layers.push(
-        scatterLayer("divergence", [markXs], [ratioCur], { r: 3.4, color: pal.marker, label: "当前 κ 处的比值" }),
+        scatterLayer("divergence", [markXs], [ratioCur], { r: 3.4, color: pal.marker, label: "当前 $\\kappa$ 处的比值" }),
       );
     }
   } else {
@@ -557,6 +575,7 @@ export const normalVsQrModel: SceneModel = (frame, opts) => {
   if (defectMax !== undefined) statusBits.push(`正交性缺陷 ${fmt(defectMax, 3)}（与"解准不准"是两件事）`);
   if (truncated.length > 0) statusBits.push(`截断：${truncated.join("；")}`);
   if (status !== undefined && status !== "") statusBits.push(status);
+  if (refClipped) statusBits.push("理论参考线超出固定窗口的部分已裁剪（它不是测量数据）");
   if (note !== undefined && note !== "") statusBits.push(`note：${note}`);
   scene.badges.push(
     placeBadge(
@@ -595,7 +614,7 @@ export const normalVsQrModel: SceneModel = (frame, opts) => {
   if (nSingNormal !== undefined && (nSingNormal > 0 || (nSingQr ?? 0) > 0)) {
     extra.push(`${fmt(nSingNormal, 0)}/${nPoints === undefined ? "?" : fmt(nPoints, 0)} 个扫描点上正规方程无有限解（误差数组里是上限占位）`);
   }
-  overflowBadgeFor(scene, nBad, extra, { slot: SLOT.overflow, width }, "本帧没有点越出固定纵轴窗口");
+  overflowBadgeFor(scene, nBad, extra, { slot: SLOT.overflow, width });
   // 规则 8 的安全网（两侧校验器都查）：
   //  - 文本层之间不许互相重叠（帧里的说明一变长就会多折一行压住下一块）；
   //  - 文本不许被底部 pitfalls 面板压住（面板高度随帧里 pitfalls 的折行数变，模型事先看不见）。

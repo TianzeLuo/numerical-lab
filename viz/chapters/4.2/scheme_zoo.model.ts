@@ -225,7 +225,7 @@ export const schemeZooModel: SceneModel = (frame, opts) => {
       xticks: narrow ? [] : [0, 0.25, 0.5, 0.75, 1],
       xlabel: narrow ? "" : "x",
       title: "残差：代数 − 积分器（对数）",
-      ylabel: "|r|",
+      ylabel: "$|r|$",
       autoscaled: true,
     },
   );
@@ -244,7 +244,7 @@ export const schemeZooModel: SceneModel = (frame, opts) => {
 
   // —— 误差面板：逐点误差 + 只画 >0 的正/负向误差 + 地板散点 ——
   scene.layers.push(
-    lineLayer("error", series(x, errCurve, pal.curves[0], { width: 2, label: "误差 |u − u_exact|" })),
+    lineLayer("error", series(x, errCurve, pal.curves[0], { width: 2, label: "误差 $|u − u_exact|$" })),
     lineLayer("error", series([0, 1], [floor, floor], pal.reference, { width: 1, dash: [2, 3], label: "舍入地板" })),
   );
   const overSeries = segmentedSeries(x, forward, pal.warn, { accept: (v) => v >= floor, width: 1.6, label: "正向误差（数值偏高）" });
@@ -308,8 +308,8 @@ export const schemeZooModel: SceneModel = (frame, opts) => {
   const nUnder = countAtLeast(backward, floor);
   if (!narrow) {
     const head = paramSummary(frame, opts, [
-      { name: "nu", label: "ν" },
-      { name: "nx", label: "nx" },
+      { name: "nu", label: "$ν$" },
+      { name: "nx", label: "$nx$" },
     ]);
     degraded.push(...head.degraded);
     const lines: string[] = [];

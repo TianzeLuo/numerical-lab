@@ -308,7 +308,7 @@ test("point_fill：三种点集、误差带与参考线", async () => {
   assert.equal(linesOn(scene, "aux").length, 5);
   assert.ok(linesOn(scene, "aux").every((s) => s.label === undefined), "曲线标签改为侧栏图例，避免右端堆叠");
   assert.match(textsOf(scene), /蓝=MC，橙=Sobol'，绿=格点，紫=张量格点/);
-  assert.match(textsOf(scene), /灰虚=σ\/√N；只对 MC 是理论/);
+  assert.match(textsOf(scene).replace(/\s*\|\s*/g, "").replace(/\s+/g, ""), /灰虚=σ\/√N；只对MC是理论/);
   assert.equal(axisOf(scene, "main").autoscaled, false);
 });
 
@@ -366,7 +366,7 @@ test("sobol_bars：模型不支持相关输入时必须明说 rho 无效", async
 
 test("sobol_bars：漂移副轴同时画出实测与解析", async () => {
   const scene = await sceneOf("sobol_bars");
-  const labels = linesOn(scene, "aux").map((s) => s.label ?? "");
+  const labels = linesOn(scene, "aux").map((s) => (s.label ?? "").replace(/\$/g, ""));
   assert.ok(labels.some((l) => l.includes("ΣS_i(N)")));
   assert.ok(labels.some((l) => l.includes("解析 ΣS_i")));
   assert.equal(axisOf(scene, "aux").xscale, "log");

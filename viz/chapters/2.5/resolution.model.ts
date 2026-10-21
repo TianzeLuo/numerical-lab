@@ -157,7 +157,7 @@ export const resolutionModel: SceneModel = (frame, opts) => {
   const specAxis = makeAxis("spec", specRect, {
     xlim: specXlim,
     ylim: [Math.min(-60, specFloor), 2],
-    xlabel: "f（单位 1/T，本页固定 T = 1）",
+    xlabel: "$f$（单位 $1/T$，本页固定 $T = 1$）",
     ylabel: axisYlabel(VIZ, "spec", "dB"),
     title: axisTitle(VIZ, "spec", "两音谱（dB，相对峰值）"),
     autoscaled: axisAutoscaled(VIZ, "spec"),
@@ -170,7 +170,7 @@ export const resolutionModel: SceneModel = (frame, opts) => {
   const thrAxis = makeAxis("threshold", thrRect, {
     xlim: [spanRange[0], spanRange[1]],
     ylim: [-0.25, 1.25],
-    xlabel: "观测点数 N（对数轴；T 固定 = 1）",
+    xlabel: "观测点数 $N$（对数轴；$T$ 固定 = 1）",
     ylabel: axisYlabel(VIZ, "threshold", "可分辨（1/0）"),
     title: axisTitle(VIZ, "threshold", "能否分辨 vs 观测长度"),
     autoscaled: axisAutoscaled(VIZ, "threshold"),
@@ -186,7 +186,7 @@ export const resolutionModel: SceneModel = (frame, opts) => {
     xlim: [spanRange[0], spanRange[1]],
     ylim: errYlim,
     yscale: "log",
-    xlabel: "观测点数 N（对数轴；水平线是当前误差，不是随 N 扫描）",
+    xlabel: "观测点数 $N$（对数轴；水平线是当前误差，不是随 $N$ 扫描）",
     ylabel: axisYlabel(VIZ, "error", "max|delta|"),
     title: axisTitle(VIZ, "error", "当前 N 的 |FFT − DFT| 水平（对数）"),
     autoscaled: true,
@@ -203,7 +203,7 @@ export const resolutionModel: SceneModel = (frame, opts) => {
   const refs: LineSeries[] = [];
   const rulerY = (i: number): number => specAxis.ylim[1] - 4 - i * 6;
   if (dfWant !== undefined) {
-    refs.push(series([0, Math.min(dfWant, specXlim[1])], [rulerY(0), rulerY(0)], pal.curves[2], { width: 2.5, label: "df 尺（两音间隔）" }));
+    refs.push(series([0, Math.min(dfWant, specXlim[1])], [rulerY(0), rulerY(0)], pal.curves[2], { width: 2.5, label: "$df$ 尺（两音间隔）" }));
   }
   if (sepMeasured !== undefined) {
     refs.push(series([0, Math.min(sepMeasured, specXlim[1])], [rulerY(1), rulerY(1)], pal.marker, { width: 2.5, label: "实测最小可分辨" }));
@@ -211,7 +211,7 @@ export const resolutionModel: SceneModel = (frame, opts) => {
   if (rayleigh !== undefined) {
     refs.push(series([0, Math.min(rayleigh, specXlim[1])], [rulerY(2), rulerY(2)], pal.reference, { width: 2.5, label: "Rayleigh 判据" }));
   }
-  refs.push(series([specXlim[0], specXlim[1]], [-3, -3], pal.reference, { dash: [5, 4], width: 1, label: "−3 dB" }));
+  refs.push(series([specXlim[0], specXlim[1]], [-3, -3], pal.reference, { dash: [5, 4], width: 1, label: "−3 $dB$" }));
   // 三条尺是**同色横条**，光看长度分不出哪条是 df、哪条是实测/Rayleigh：在尺下面放一块
   // **同色图例**（`text()` 的坐标是像素，不是数据坐标——尺的 y 是数据坐标，必须换算）。
   const legend: Array<[string, string]> = [];
@@ -253,17 +253,17 @@ export const resolutionModel: SceneModel = (frame, opts) => {
     series([spanRange[0], spanRange[1]], [1, 1], pal.reference, { dash: [6, 4], width: 1}),
     series([spanRange[0], spanRange[1]], [0, 0], pal.reference, { dash: [2, 4], width: 1}),
   ];
-  const stepSeries = segmentedSeries(spanN, spanRatio, pal.curves[0], { width: 1.8, marker: "o", label: "能否分辨 vs 观测长度" });
+  const stepSeries = segmentedSeries(spanN, spanRatio, pal.curves[0], { width: 1.8, marker: "o", label: "能否分辨 $vs$ 观测长度" });
   if (stepSeries.length > 0) thrRefs.push(...stepSeries);
   else degraded.push("帧 span_ratio 没有可绘的有限值：能否分辨面板只画参考线");
   if (n !== undefined) {
-    thrRefs.push(series([n, n], [thrAxis.ylim[0], thrAxis.ylim[1]], pal.marker, { dash: [3, 3], width: 1, label: "当前 N" }));
+    thrRefs.push(series([n, n], [thrAxis.ylim[0], thrAxis.ylim[1]], pal.marker, { dash: [3, 3], width: 1, label: "当前 $N$" }));
   }
   scene.layers.push(lineLayer("threshold", thrRefs));
   if (n !== undefined) {
     const ratioAtN = valueAt(spanN, spanRatio, n);
     if (ratioAtN !== undefined) {
-      scene.layers.push(scatterLayer("threshold", [n], [ratioAtN], { r: 4, color: pal.marker, label: "当前 N 的判据点" }));
+      scene.layers.push(scatterLayer("threshold", [n], [ratioAtN], { r: 4, color: pal.marker, label: "当前 $N$ 的判据点" }));
     } else {
       degraded.push(`帧 span_n 里没有 N = ${fmt(n, 6)} 这一档：不标当前 N 的判据点（不插值）`);
     }
@@ -279,12 +279,12 @@ export const resolutionModel: SceneModel = (frame, opts) => {
       lineLayer("error", series([spanRange[0], spanRange[1]], [errLevelRaw, errLevelRaw], pal.residual, {
         width: 1.4,
         dash: [5, 4],
-        label: "当前 N 的 |FFT−DFT| 水平（不随 N 扫描）",
+        label: "当前 $N 的 $|FFT−DFT| 水平（不随 $N$ 扫描）",
       })),
     );
     if (n !== undefined) {
       scene.layers.push(
-        scatterLayer("error", [n], [errLevelRaw], { r: 3.8, color: pal.marker, label: "当前 N 的对拍误差" }),
+        scatterLayer("error", [n], [errLevelRaw], { r: 3.8, color: pal.marker, label: "当前 $N$ 的对拍误差" }),
       );
     }
   } else {
@@ -293,7 +293,7 @@ export const resolutionModel: SceneModel = (frame, opts) => {
 
   // —— 文本：面板内只放"身份行"，长句子全部进底部横条 ——
   const summary = paramSummary(frame, opts, [
-    { name: "n", label: "N" },
+    { name: "n", label: "$N$" },
     { name: "pad", label: "pad" },
     { name: "df", label: "两音间隔" },
     { name: "amp2", label: "幅度比" },

@@ -169,7 +169,7 @@ export const equioscillationModel: SceneModel = (frame, opts) => {
   const { step, notes: stepNotes } = currentStep(frame, opts, {
     lo: 1,
     hi: Math.max(1, Math.round(nSteps ?? T_MAX)),
-    label: "Remez 轮次 k",
+    label: "Remez 轮次 $k$",
   });
   const k = step ?? 1;
 
@@ -199,7 +199,7 @@ export const equioscillationModel: SceneModel = (frame, opts) => {
     makeAxis("main", base.main, {
       xlim,
       ylim: ylimMain,
-      xlabel: "x",
+      xlabel: "$x$",
       ylabel: axisYlabel(VIZ, "main", "e(x)"),
       title: axisTitle(VIZ, "main", "误差曲线 e(x) = f − p"),
       autoscaled: false,
@@ -220,10 +220,10 @@ export const equioscillationModel: SceneModel = (frame, opts) => {
     );
   }
   scene.layers.push(lineLayer("main", segmentedSeries(bandX, new Float64Array([0, 0]), pal.cursor, { width: 1, label: "零线" })));
-  scene.layers.push(lineLayer("main", segmentedSeries(x, errorFinal, pal.reference, { width: 1.4, dash: [6, 4], label: "收敛后的 e(x)" })));
-  scene.layers.push(lineLayer("main", segmentedSeries(x, errorL2, pal.residual, { width: 1.3, dash: [2, 3], label: "同阶 L² 投影误差（对照）" })));
+  scene.layers.push(lineLayer("main", segmentedSeries(x, errorFinal, pal.reference, { width: 1.4, dash: [6, 4], label: "收敛后的 $e(x)$" })));
+  scene.layers.push(lineLayer("main", segmentedSeries(x, errorL2, pal.residual, { width: 1.3, dash: [2, 3], label: "同阶 $L²$ 投影误差（对照）" })));
   scene.layers.push(lineLayer("main", segmentedSeries(x, error, pal.curves[0], { width: 1.9, label: `第 ${k} 轮的 e(x)` })));
-  scene.layers.push(scatterLayer("main", altX, altError, { r: 4, color: pal.marker, label: "第 k 轮交错点" }));
+  scene.layers.push(scatterLayer("main", altX, altError, { r: 4, color: pal.marker, label: "第 $k$ 轮交错点" }));
 
   // —— 副轴：交错点上的 |e|（对数轴；0 与低于地板的点画在地板上并报数） ——
   const absAltCurrent = absolute(altError);
@@ -270,7 +270,7 @@ export const equioscillationModel: SceneModel = (frame, opts) => {
       xlim,
       ylim: ylimAlt,
       yscale: "log",
-      xlabel: "x",
+      xlabel: "$x$",
       ylabel: axisYlabel(VIZ, "alt", "|e|"),
       title: axisTitle(VIZ, "alt", "交错点上的 |e|"),
       autoscaled: true,
@@ -279,7 +279,7 @@ export const equioscillationModel: SceneModel = (frame, opts) => {
     }),
   );
   if (envelopeFinal !== undefined) {
-    scene.layers.push(lineLayer("alt", segmentedSeries(x, envelopeFinal, pal.reference, { width: 1.2, dash: [6, 4], label: "最终 |e(x)| 包络", accept: (v) => v > 0 })));
+    scene.layers.push(lineLayer("alt", segmentedSeries(x, envelopeFinal, pal.reference, { width: 1.2, dash: [6, 4], label: "最终 $|e(x)|$ 包络", accept: (v) => v > 0 })));
   }
   if (floorDrawn) {
     scene.layers.push(

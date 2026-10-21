@@ -196,8 +196,8 @@ export const errorCurveModel: SceneModel = (frame, opts) => {
     xlim: [0, 1],
     ylim: lamRange,
     yscale: "log",
-    xlabel: "x（上两行）与变形参数 t（本行：0=等距，1=Chebyshev）",
-    ylabel: "Λ(t)",
+    xlabel: "$x$（上两行）与变形参数 $t$（本行：$0=$等距，$1=Chebyshev$）",
+    ylabel: "$Λ(t)$",
     title: "Λ(t)：整体下降，但不是严格单调（末段会回升）",
     autoscaled: true,
   });
@@ -214,7 +214,7 @@ export const errorCurveModel: SceneModel = (frame, opts) => {
   // —— 图层 2：当前节点（拖时间轴时它们会往两端挪——"变形"就是这件事）——
   const nodePx = Math.max(1.8, Math.min(mainRect[2], mainRect[3]) / 80);
   if (nodesX.length > 0) {
-    scene.layers.push(scatterLayer("main", nodesX, nodesY, { r: nodePx, color: pal.curves[0], label: "当前节点（t=1 时按 cos 分布挤向两端）" }));
+    scene.layers.push(scatterLayer("main", nodesX, nodesY, { r: nodePx, color: pal.curves[0], label: "当前节点（$t=1$ 时按 cos 分布挤向两端）" }));
   }
 
   // —— 图层 3~4：误差、包络、首一乘积（规则 3：三条同屏）——
@@ -259,13 +259,13 @@ export const errorCurveModel: SceneModel = (frame, opts) => {
     lamYY.push(vMin);
   }
   if (lamXY.length > 0) {
-    scene.layers.push(scatterLayer("lam", lamXY, lamYY, { r: 3.4, color: pal.marker, label: "当前 t 与 Λ(t) 的全局最小点" }));
+    scene.layers.push(scatterLayer("lam", lamXY, lamYY, { r: 3.4, color: pal.marker, label: "当前 $t$ 与 $\\Lambda(t)$ 的全局最小点" }));
   }
 
   // —— 文本 ——
   const summary = paramSummary(frame, opts, [
-    { name: "n", label: "n" },
-    { name: "a", label: "a" },
+    { name: "n", label: "$n$" },
+    { name: "a", label: "$a$" },
   ]);
   degraded.push(...summary.degraded);
   const mainBudget = unitBudget(mainRect[2]);

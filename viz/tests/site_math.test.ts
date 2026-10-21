@@ -335,7 +335,8 @@ interface VizProse {
   description?: unknown;
   theory?: unknown;
   pitfalls?: unknown;
-  params?: Array<{ name?: unknown; criticalNote?: unknown }>;
+  params?: Array<{ name?: unknown; criticalNote?: unknown; help?: unknown }>;
+  axes?: Array<{ id?: unknown; title?: unknown; ylabel?: unknown }>;
 }
 interface ChapterManifestProse {
   chapter?: unknown;
@@ -456,6 +457,11 @@ test("站点数据：章节 MANIFEST 的正文公式都能完整渲染", () => {
       }
       for (const [i, param] of (viz.params ?? []).entries()) {
         texts.push([`${tag}.params[${i}].criticalNote`, param.criticalNote]);
+        texts.push([`${tag}.params[${i}].help`, param.help]);
+      }
+      for (const [i, axis] of (viz.axes ?? []).entries()) {
+        texts.push([`${tag}.axes[${i}].title`, axis.title]);
+        texts.push([`${tag}.axes[${i}].ylabel`, axis.ylabel]);
       }
     }
     for (const [where, value] of texts) {
@@ -465,4 +471,24 @@ test("站点数据：章节 MANIFEST 的正文公式都能完整渲染", () => {
     }
   }
   assert.deepEqual(errors, []);
+});
+
+
+test("每个实验的每个参数都有一句展开解释", () => {
+  const index = readJson("data/manifests/index.json") as { chapters?: Array<{ chapter?: string }> };
+  const missing: string[] = [];
+  const tooShort: string[] = [];
+  for (const entry of index.chapters ?? []) {
+    if (typeof entry.chapter !== "string") continue;
+    const manifest = readJson(`data/manifests/${entry.chapter}.json`) as ChapterManifestProse;
+    for (const viz of manifest.vizzes ?? []) {
+      for (const param of viz.params ?? []) {
+        const tag = `${entry.chapter}/${String(viz.id ?? "?")}.${String(param.name ?? "?")}`;
+        if (typeof param.help !== "string" || param.help.trim() === "") missing.push(tag);
+        else if (param.help.trim().length < 24) tooShort.push(`${tag}（${param.help.trim().length} 字）`);
+      }
+    }
+  }
+  assert.deepEqual(missing, [], "这些参数没有 help 展开解释");
+  assert.deepEqual(tooShort, [], "这些参数的 help 太短，解释不了它怎么影响图");
 });

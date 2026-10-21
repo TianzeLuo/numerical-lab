@@ -252,8 +252,11 @@ class Frame:
                 # （见 PROTOCOLS §1.3 与 3.2 章极点、1.2 章奇异点的处理）。
                 n_bad = int(np.count_nonzero(~np.isfinite(arr)))
                 raise NlfError(
-                    f"数组 {s.name!r} 有 {n_bad}/{arr.size} 个非有限值——"
-                    '请写占位值（并在 strings 里说明）+ 掩码数组，或改放 meta 的 null（PROTOCOLS §1.3）'
+                    f"数组 {s.name!r} 有 {n_bad}/{arr.size} 个非有限值（NaN 或 ±∞）。"
+                    "这通常意味着当前参数让某个分母变成 0、或数值溢出了 double 的范围；"
+                    "后端会把这种帧判为“半成品”，不会把它当成正常数据发出去。"
+                    "请调整参数后再试；如果这是预期的奇异情形，计算端应写占位值、附掩码，"
+                    "并在 strings 里说明（PROTOCOLS §1.3）"
                 )
         for k, v in self.meta.items():
             if isinstance(v, str):

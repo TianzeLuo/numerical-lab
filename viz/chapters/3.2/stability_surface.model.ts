@@ -178,7 +178,7 @@ export const stabilitySurfaceModel: SceneModel = (frame, opts) => {
     makeAxis("main", mainRect, {
       xlim: [x0, x1],
       ylim: [y0, y1],
-      xlabel: "Re z",
+      xlabel: "$\\operatorname{Re} z$",
       ylabel: axisYlabelOf(SPEC?.axes, "main", "Im z"),
       title: axisTitleOf(SPEC?.axes, "main", "|R(z)|（固定窗口）与 |R|=1 等高线"),
       autoscaled: false,
@@ -200,7 +200,7 @@ export const stabilitySurfaceModel: SceneModel = (frame, opts) => {
       xlim: [0, 1],
       ylim: auxYlim,
       yscale: "log",
-      xlabel: "归一化序号 i/(N−1)（不是 θ、不是 r；两条曲线各自的扫描序号）",
+      xlabel: "归一化序号 $i/(N-1)$",
       ylabel: axisYlabelOf(SPEC?.axes, "aux", "残差"),
       title: axisTitleOf(SPEC?.axes, "aux", "边界残差与双路径之差"),
       autoscaled: true,
@@ -237,7 +237,7 @@ export const stabilitySurfaceModel: SceneModel = (frame, opts) => {
       vmin,
       vmax,
       logScale: true,
-      label: "|R(z)| 对数色标，中点=1",
+      label: "$|R(z)|$ 对数色标，中点 $=1$",
     }),
   );
   const contourLevels = Array.from(levels).filter((v) => Number.isFinite(v) && v > 0);
@@ -276,7 +276,7 @@ export const stabilitySurfaceModel: SceneModel = (frame, opts) => {
       scatterLayer("main", px, py, {
         r: 5,
         color: "#805ad5",
-        label: "真极点格子 |R|=+∞（掩码 abs_R_pole；不是 1e6 这样的数值）",
+        label: "真极点格子 $|R|=+∞$（掩码 $abs_R_pole$；不是 $1e6$ 这样的数值）",
       }),
     );
   }
@@ -299,7 +299,7 @@ export const stabilitySurfaceModel: SceneModel = (frame, opts) => {
       scatterLayer("aux", [residualX[residualAt]], [residual[residualAt]], {
         r: 4,
         color: pal.residual,
-        label: "边界残差最大值（位置由数组扫描得到，数值见 meta.residual_max）",
+        label: "边界残差最大值（位置由数组扫描得到，数值见 $meta.residual_max$）",
       }),
     );
   }
@@ -309,7 +309,7 @@ export const stabilitySurfaceModel: SceneModel = (frame, opts) => {
       scatterLayer("aux", [errorX[gridAt]], [errorGrid[gridAt]], {
         r: 4,
         color: pal.curves[0],
-        label: "双路径之差最大值（数值见 meta.route_diff_max）",
+        label: "双路径之差最大值（数值见 $meta.route_diff_max$）",
       }),
     );
   }

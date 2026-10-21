@@ -189,7 +189,7 @@ export const powerIterationModel: SceneModel = (frame, opts) => {
     makeAxis("main", mainRect, {
       xlim: [-WINDOW, WINDOW],
       ylim: [-WINDOW, WINDOW],
-      xlabel: "x₁（前两个坐标上的投影）",
+      xlabel: "$x₁$（前两个坐标上的投影）",
       ylabel: axisYlabelOf(AXES, "main", "x₂"),
       title: axisTitleOf(AXES, "main", "单位圆与迭代向量（固定坐标 ±1.05）"),
       autoscaled: false,
@@ -209,7 +209,7 @@ export const powerIterationModel: SceneModel = (frame, opts) => {
       xlim: [0, lastStep],
       ylim: auxYlim,
       yscale: "log",
-      xlabel: "迭代步 k（不是物理时间；拖到头会被夹住）",
+      xlabel: "迭代步 $k$（不是物理时间；拖到头会被夹住）",
       ylabel: axisYlabelOf(AXES, "aux", "‖Ax−ρ(x)x‖ 与 |λ₂/λ₁|^k"),
       title: axisTitleOf(AXES, "aux", "残差与理论收敛率"),
       autoscaled: true,
@@ -285,8 +285,8 @@ export const powerIterationModel: SceneModel = (frame, opts) => {
 
   // —— 文本：一行一个 `text` 层（`render2d.ts::drawText` 不拆 `\n`）——
   const summary = paramSummary(frame, opts, [
-    { name: "n", label: "n" },
-    { name: "ratio", label: "|λ₂/λ₁|" },
+    { name: "n", label: "$n$" },
+    { name: "ratio", label: "$|\\lambda_2/\\lambda_1|$" },
     { name: "shear", label: "shear" },
   ]);
   degraded.push(...summary.degraded);

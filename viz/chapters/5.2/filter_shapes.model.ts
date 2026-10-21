@@ -125,7 +125,7 @@ export const filterShapesModel: SceneModel = (frame, opts) => {
     ylim: [0, 1.15],
     xlabel: "",
     ylabel: axisYlabelOf(SPEC?.axes, "filters", "f_i"),
-    title: "滤波因子 f_i 随模态下标 i（σ_i 递减）",
+    title: "滤波因子 $f_i$ 随模态下标 $i$（$\\sigma_i$ 递减）",
     autoscaled: false,
   });
 
@@ -154,7 +154,7 @@ export const filterShapesModel: SceneModel = (frame, opts) => {
     ylim: [errLoAll, errHiAll],
     xscale: "log",
     yscale: "log",
-    xlabel: "有效自由度 Σ f_i（横轴必须同口径）",
+    xlabel: "有效自由度 $\\sum f_i$（横轴必须同口径）",
     ylabel: axisYlabelOf(SPEC?.axes, "dof_error", "相对误差"),
     title: axisTitleOf(SPEC?.axes, "dof_error", "误差随自由度（对数轴）"),
     autoscaled: true,
@@ -180,7 +180,7 @@ export const filterShapesModel: SceneModel = (frame, opts) => {
   }
   if (lwX.length >= 2) scene.layers.push(lineLayer("filters", { x: lwX, y: lwY, color: pal.residual, width: 1.6 }));
   if (lwBadX.length > 0) {
-    scene.layers.push(scatterLayer("filters", lwBadX, lwBadX.map(() => 1.08), { r: 2.6, color: pal.warn, label: "因子出界（掩码=0，夹值不是数据）" }));
+    scene.layers.push(scatterLayer("filters", lwBadX, lwBadX.map(() => 1.08), { r: 2.6, color: pal.warn, label: "因子出界（掩码为 0，夹值不是数据）" }));
   }
   scene.layers.push(lineLayer("filters", { x: index, y: fTv, color: pal.curves[1] as string, width: 1.5, dash: [5, 3] }));
   // 混合 b 的 TV 探针读数可以是负的（不是 0）；固定窗口装不下，按“在窗内”切段画，

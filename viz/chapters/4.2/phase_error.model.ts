@@ -187,7 +187,7 @@ export const phaseErrorModel: SceneModel = (frame, opts) => {
       xticks: narrow ? [] : [0, 1, 2, 3],
       xlabel: narrow ? "" : "φ = kΔx",
       title: "相位误差 ΔΦ（带符号，自适应）",
-      ylabel: "ΔΦ [rad]",
+      ylabel: "$\\Delta\\Phi$ [rad]",
       autoscaled: true,
     },
   );
@@ -217,7 +217,7 @@ export const phaseErrorModel: SceneModel = (frame, opts) => {
         series([breakdown as number, breakdown as number], [Y_SPEED[0], Y_SPEED[1]], pal.warn, {
           width: 1.2,
           dash: [6, 4],
-          label: "预测相对差 >1%",
+          label: "预测相对差 $>1%$",
         }),
       ),
     );

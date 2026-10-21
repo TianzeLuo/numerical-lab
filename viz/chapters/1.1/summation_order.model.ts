@@ -211,7 +211,7 @@ export const summationOrderModel: SceneModel = (frame, opts) => {
     ylim: niceLimits(Math.min(0, tRange[0]), Math.max(tRange[1], tRange[0] === tRange[1] ? tRange[0] + 1 : tRange[0]), 5),
     xlabel: "",
     ylabel: axisYlabelOf(SPEC?.axes, "terms", "xᵢ"),
-    title: axisTitleOf(SPEC?.axes, "terms", "被相加的项（横轴 = 项序号 i；最大项在前）"),
+    title: axisTitleOf(SPEC?.axes, "terms", "被相加的项（横轴 = 项序号 $i$；最大项在前）"),
     autoscaled: true,
     tickTarget: 6,
   });
@@ -240,7 +240,7 @@ export const summationOrderModel: SceneModel = (frame, opts) => {
     xlim: niceLimits(kRange[0], Math.max(kRange[1], kRange[0] + 1), 8),
     ylim: auxYlim,
     yscale: "log",
-    xlabel: "部分和长度 k",
+    xlabel: "部分和长度 $k$",
     ylabel: axisYlabelOf(SPEC?.axes, "error", "绝对误差"),
     title: axisTitleOf(SPEC?.axes, "error", "各求和顺序的绝对误差与两条理论上界"),
     autoscaled: true,
@@ -252,7 +252,7 @@ export const summationOrderModel: SceneModel = (frame, opts) => {
   const termSeries = [];
   if (terms.length > 0) {
     termSeries.push(
-      series(termsK, terms, pal.curves[0] ?? "#2b6cb0", { width: 1.2, label: "项序列 x_i（前 64 项）" }),
+      series(termsK, terms, pal.curves[0] ?? "#2b6cb0", { width: 1.2, label: "项序列 $x_i$（前 64 项）" }),
     );
   }
   if (termSeries.length > 0) scene.layers.push(lineLayer("terms", termSeries));
@@ -264,7 +264,7 @@ export const summationOrderModel: SceneModel = (frame, opts) => {
   // —— 图层 3~4：游标与地板 ——
   const kNow = kMeta ?? kMark ?? clamp(Math.round(opts.t), kRange[0], kRange[1]);
   scene.layers.push(
-    lineLayer("error", series([kNow, kNow], auxAxis.ylim, pal.cursor, { width: 1, dash: [3, 3], label: `当前 k = ${formatNumber(kNow, 5)}` })),
+    lineLayer("error", series([kNow, kNow], auxAxis.ylim, pal.cursor, { width: 1, dash: [3, 3], label: `当前 $k = ${formatNumber(kNow, 5)}$` })),
   );
   if (errorFloor !== undefined && errorFloor > 0) {
     scene.layers.push(
@@ -273,7 +273,7 @@ export const summationOrderModel: SceneModel = (frame, opts) => {
         series([kRange[0], auxAxis.xlim[1]], [errorFloor, errorFloor], pal.reference, {
           width: 1.1,
           dash: [2, 3],
-          label: `显示地板 u·max|Σx|/2 = ${formatNumber(errorFloor, 3)}：贴住它的点不是「误差 = 地板值」`,
+          label: `显示地板 $u\\max|\\sum x|/2 = ${formatNumber(errorFloor, 3)}$：贴住它的点不是「误差 = 地板值」`,
         }),
       ),
     );
@@ -285,7 +285,7 @@ export const summationOrderModel: SceneModel = (frame, opts) => {
   const bounds = segmentedSeries(kGrid, boundNaive, pal.reference, {
     width: 1.3,
     dash: [7, 4],
-    label: "理论上界 n·u·Σ|x|（在对数纵轴上斜率 +1）",
+    label: "理论上界 $n\\,u\\sum|x|$（在对数纵轴上斜率 $+1$）",
     accept: (v) => v > 0,
   });
   if (bounds.length > 0) scene.layers.push(lineLayer("error", bounds));
@@ -293,7 +293,7 @@ export const summationOrderModel: SceneModel = (frame, opts) => {
   const boundsK = segmentedSeries(kGrid, boundKahan, pal.reference, {
     width: 1.1,
     dash: [2, 4],
-    label: "理论上界 (2u + n·u²)·Σ|x|（与 n 无关）",
+    label: "理论上界 $(2u+n\\,u^2)\\sum|x|$（与 $n$ 无关）",
     accept: (v) => v > 0,
   });
   if (boundsK.length > 0) scene.layers.push(lineLayer("error", boundsK));
@@ -302,7 +302,7 @@ export const summationOrderModel: SceneModel = (frame, opts) => {
   // —— 图层 7~11：五条误差曲线 ——
   const naiveSeries = segmentedSeries(kGrid, errorNaive, pal.curves[0] ?? "#2b6cb0", {
     width: 1.9,
-    label: "朴素左折叠（误差随 k 线性增长）",
+    label: "朴素左折叠（误差随 $k$ 线性增长）",
     accept: (v) => v > 0,
   });
   if (naiveSeries.length > 0) scene.layers.push(lineLayer("error", naiveSeries));
@@ -333,7 +333,7 @@ export const summationOrderModel: SceneModel = (frame, opts) => {
   const pairSeries = segmentedSeries(kGrid, errorPairwise, pal.curves[2] ?? "#b7791f", {
     width: 1.5,
     dash: [4, 3],
-    label: "成对求和（误差 ~ u·⌈log2 k⌉·Σ|x|）",
+    label: "成对求和（误差约 $u\\lceil\\log_2 k\\rceil\\sum|x|$）",
     accept: (v) => v > 0,
   });
   if (pairSeries.length > 0) scene.layers.push(lineLayer("error", pairSeries));
@@ -388,15 +388,15 @@ export const summationOrderModel: SceneModel = (frame, opts) => {
   const summary = paramSummary(frame, opts, [
     { name: "big", label: "大数 big" },
     { name: "small", label: "小项 small" },
-    { name: "n_terms", label: "项数 n" },
+    { name: "n_terms", label: "项数 $n$" },
   ]);
   degraded.push(...summary.degraded);
 
   const head: string[] = [summary.text];
   if (small !== undefined) head.push(`小项=${formatNumber(small, 6)}`);
   head.push(`补偿方式=${schemeLabel}`);
-  if (termsAbsSum !== undefined) head.push(`Σ|x|（前 k 项）=${formatNumber(termsAbsSum, 5)}`);
-  if (unitRoundoff !== undefined) head.push(`u=${formatNumber(unitRoundoff, 3)}`);
+  if (termsAbsSum !== undefined) head.push(`$\\sum|x|$（前 $k$ 项）=${formatNumber(termsAbsSum, 5)}`);
+  if (unitRoundoff !== undefined) head.push(`$u=${formatNumber(unitRoundoff, 3)}$`);
   const mainBudget = unitBudget(mainRect[2]);
   scene.texts.push(...textBlock(mainRect[0] + 6, textTop(mainRect), textBottom(mainRect), [head.join("　")], pal.muted, mainBudget, "top"));
 
@@ -427,8 +427,8 @@ export const summationOrderModel: SceneModel = (frame, opts) => {
   if (errSortedNow !== undefined) errs.push(`排序=${formatNumber(errSortedNow, 3)}`);
   if (errs.length > 0) auxLines.push(errs.join("　"));
   const boundsNow: string[] = [];
-  if (boundNaiveNow !== undefined) boundsNow.push(`界 n·u·Σ|x|=${formatNumber(boundNaiveNow, 3)}`);
-  if (boundKahanNow !== undefined) boundsNow.push(`界 (2u+n·u²)·Σ|x|=${formatNumber(boundKahanNow, 3)}`);
+  if (boundNaiveNow !== undefined) boundsNow.push(`界 $n\\,u\\sum|x|=${formatNumber(boundNaiveNow, 3)}$`);
+  if (boundKahanNow !== undefined) boundsNow.push(`界 $(2u+n\\,u^2)\\sum|x|=${formatNumber(boundKahanNow, 3)}$`);
   if (kahanOverNaive !== undefined) boundsNow.push(`补偿/朴素=${formatNumber(kahanOverNaive, 3)}`);
   if (parallelOverSerial !== undefined) boundsNow.push(`本次归约/串行=${formatNumber(parallelOverSerial, 3)}`);
   if (boundsNow.length > 0) auxLines.push(boundsNow.join("　"));

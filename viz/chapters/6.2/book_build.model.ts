@@ -110,7 +110,7 @@ export const bookBuildModel: SceneModel = (frame, opts) => {
       [
         `${fmt(n, 0)} 章 × 6 项；问题格 ${fmt(nIssues, 0)}；排序 ${sort}。`,
         tableNote,
-        "列：笔记/附表/引用/输入/字形/陷阱；1=通过。",
+        "列：笔记/附表/引用/输入/字形/陷阱；$1$=通过。",
       ],
       nIssues > 0 ? pal.warn : pal.muted,
       N.main[1] - 2,
@@ -122,8 +122,8 @@ export const bookBuildModel: SceneModel = (frame, opts) => {
     xlim: [0, 5],
     ylim: [0, Math.max(1, n - 1)],
     xlabel: "",
-    ylabel: axisYlabelOf(SPEC?.axes, "main", ""),
-    title: axisTitleOf(SPEC?.axes, "main", "逐章构建检查（1=通过，0=缺）"),
+    ylabel: axisYlabelOf(SPEC?.axes, "main", "章（行 $0$ 在底部）"),
+    title: axisTitleOf(SPEC?.axes, "main", "逐章构建检查（$1$=通过，$0$=缺）"),
     xticks: [],
     yticks: [],
     grid: false,
@@ -144,7 +144,7 @@ export const bookBuildModel: SceneModel = (frame, opts) => {
       vmin: 0,
       vmax: 1,
       logScale: false,
-      label: "构建检查（1=通过）",
+      label: "构建检查（$1$=通过）",
     }),
   );
 
@@ -191,9 +191,9 @@ export const bookBuildModel: SceneModel = (frame, opts) => {
     const error = makeAxis("error", auxRect, {
       xlim: [0, Math.max(1, n - 1)],
       ylim: [-0.5, maxIssues * 1.12],
-      xlabel: "章（当前排序）",
-      ylabel: axisYlabelOf(SPEC?.axes, "error", "问题数"),
-      title: axisTitleOf(SPEC?.axes, "error", "每章问题数（0=通过；下留白 0.5 仅为显示 0 点）"),
+      xlabel: "$i$（当前排序）",
+      ylabel: axisYlabelOf(SPEC?.axes, "error", "问题数（$0$ 到 $6$）"),
+      title: axisTitleOf(SPEC?.axes, "error", "每章问题数（$0$=通过；下留白 $0.5$ 仅为显示 $0$ 点）"),
       xticks: [],
       yticks: Array.from({ length: Math.floor(maxIssues) + 1 }, (_, i) => i),
       grid: false,
@@ -223,7 +223,7 @@ export const bookBuildModel: SceneModel = (frame, opts) => {
       { lines: [summary, checkNote], color: pal.ink },
       { lines: [tableNote, refNote, glyphNote, pitfallNote], color: pal.muted },
       { lines: [issueNote], color: nIssues > 0 ? pal.warn : pal.curves[1] as string },
-      { lines: [`排序 ${sort}；分部 ${part}。`, "行=章；列=检查项；1=通过。", "问题数=6−行和。"], color: pal.muted },
+      { lines: [`排序 ${sort}；分部 ${part}。`, "行=章；列=检查项；$1$=通过。", "问题数 $=6-\\sum_j v_{ij}$。"], color: pal.muted },
     ]);
   }
 

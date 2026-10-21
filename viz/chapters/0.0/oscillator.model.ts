@@ -139,7 +139,7 @@ export const oscillatorModel: SceneModel = (frame, opts) => {
       xlim: tlim,
       ylim: mainYlim,
       xlabel: "",
-      ylabel: "位移 x",
+      ylabel: "位移 $x$",
       title: "x(t)",
       autoscaled: false,
     }),
@@ -154,8 +154,8 @@ export const oscillatorModel: SceneModel = (frame, opts) => {
   const errorAxis = makeErrorAxis("error", panels.error, {
     xlim: tlim,
     ylim: errorYlim,
-    xlabel: "t（帧时间轴）",
-    ylabel: "|x''+2ζωx'+ω²x|",
+    xlabel: "$t$（帧时间轴）",
+    ylabel: "$|x''+2\\zeta\\omega x'+\\omega^2x|$",
     title: "ODE 残差",
     autoscaled: true,
   });
@@ -168,7 +168,7 @@ export const oscillatorModel: SceneModel = (frame, opts) => {
       lineLayer("main", series([tNow, tNow], [mainYlim[0], mainYlim[1]], pal.cursor, { dash: [3, 3], width: 1 })),
     );
   }
-  const xSeries = segmentedSeries(tt, x, pal.curves[0], { width: 1.8, label: "x(t)（帧内全时段解析解）" });
+  const xSeries = segmentedSeries(tt, x, pal.curves[0], { width: 1.8, label: "$x(t)$（帧内全时段解析解）" });
   if (xSeries.length > 0) scene.layers.push(lineLayer("main", xSeries));
   else degraded.push(`帧数组 x 没有可绘的有限值（${x.length} 个样本全为非有限）：主面板不画曲线`);
   if (xNow !== undefined) {
@@ -204,15 +204,15 @@ export const oscillatorModel: SceneModel = (frame, opts) => {
   else degraded.push(`帧 residual 的 ${residual.length} 个样本没有一个 > 0：对数轴上画不出任何点`);
   if (resSeries.length > 0 && residualMax !== undefined && residualMax > 0) {
     scene.layers.push(
-      lineLayer("error", series(tlim, [residualMax, residualMax], pal.reference, { dash: [5, 4], width: 1, label: "meta.residual_max" })),
+      lineLayer("error", series(tlim, [residualMax, residualMax], pal.reference, { dash: [5, 4], width: 1, label: "`meta.residual_max`" })),
     );
   }
 
   // —— 文本 ——
   const summary = paramSummary(frame, opts, [
-    { name: "omega", label: "ω" },
-    { name: "zeta", label: "ζ" },
-    { name: "n_periods", label: "n_periods" },
+    { name: "omega", label: "$ω$" },
+    { name: "zeta", label: "$ζ$" },
+    { name: "n_periods", label: "`n_periods`" },
   ]);
   degraded.push(...summary.degraded);
   scene.texts.push(

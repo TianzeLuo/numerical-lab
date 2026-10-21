@@ -200,7 +200,7 @@ export const decompTreeModel: SceneModel = (frame, opts) => {
     ],
     title: axisTitleOf(SPEC?.axes, "tree", "系数树（近似 / 细节，按层）"),
     ylabel: axisYlabelOf(SPEC?.axes, "tree", "层基线 + 系数（显示坐标）"),
-    xlabel: "系数下标（每层只画到 coeff_length 为止）",
+    xlabel: "系数下标（每层只画到 $coeff_length$ 为止）",
     autoscaled: false,
     tickTarget: Math.max(3, Math.round(L.topH / 70)),
   });
@@ -361,8 +361,8 @@ export const decompTreeModel: SceneModel = (frame, opts) => {
   // —— 右列文字 ——
   if (L.columns) {
     const head = paramSummary(frame, opts, [
-      { name: "n", label: "n" },
-      { name: "level", label: "J" },
+      { name: "n", label: "$n$" },
+      { name: "level", label: "$J$" },
     ]);
     degraded.push(...head.degraded);
     const lines: string[] = [];

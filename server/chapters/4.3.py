@@ -677,27 +677,33 @@ MANIFEST: dict[str, Any] = {
                     "name": "ic", "label": "初值（Riemann 数据）", "type": "enum",
                     "options": ["shock", "rarefaction", "sine"], "default": "shock",
                     "critical": [], "criticalNote": "",
+                    "help": (
+                        "Riemann 初值：右行激波、跨声速稀疏波或光滑正弦。"
+                        "激波用来对拍 Rankine–Hugoniot 速度，稀疏波用来暴露熵条件，正弦用来观察破散后精确解失效。"
+                        "切换后先看主图是否出现驻定间断，再看误差曲线是否还有参照物；"
+                        "正弦在 $t_b=0.31831$ 之后误差整条作废。"
+                    ),
                 },
                 {
                     "name": "scheme", "label": "数值通量", "type": "enum",
                     "options": ["godunov", "rusanov", "osher", "upwind", "advective"],
                     "default": "godunov", "critical": [], "criticalNote": "",
-                },
+                "help": "数值通量：godunov 用局部 Riemann 解，rusanov 加最大波速耗散，osher 做通量分裂，upwind 按特征方向取样，advective 用中心平均（通常不稳定）。不同通量决定激波的锐度与振荡。"},
                 {
                     "name": "limiter", "label": "限制器（none=一阶）", "type": "enum",
                     "options": ["none", "minmod", "mc", "vanleer"], "default": "none",
                     "critical": [], "criticalNote": "",
-                },
+                "help": "限制器：none 是一阶（很耗散、但无振荡），minmod/mc/vanleer 是二阶 TVD 限制器，能在光滑区提高精度、在激波附近压住过冲。限制越强越稳定，但抹平细节。"},
                 {
                     "name": "n", "label": "单元数 n", "type": "int",
                     "min": 40, "max": 320, "step": 40, "default": 160,
                     "critical": [], "criticalNote": "",
-                },
+                "help": "空间单元数。$n$ 越大，激波过渡带越窄、分辨率越高，但同样的 CFL 下时间步也更小；比较格式误差时要固定 $n$。"},
                 {
                     "name": "cfl", "label": "CFL 数 cfl = dt*max|f'|/dx", "type": "float",
                     "min": 0.1, "max": 1.2, "step": 0.05, "default": 0.4,
                     "critical": [1.0], "criticalNote": _CRIT_NOTE_CFL, "beyond": "above",
-                },
+                "help": "CFL 数 $\\mathrm{CFL}=\\Delta t\\max|f'|/\\Delta x$。显式格式要求 CFL 不超过约 1；越接近 1 效率越高，但激波附近可能更敏感。"},
             ],
             "time": {"mode": "scrub", "tMax": 0.6, "dt": 0.02, "label": "t（真实时间，域长 L=1）"},
             "requiredAux": ["error", "residual"],
@@ -731,11 +737,11 @@ MANIFEST: dict[str, Any] = {
                 "帧把显示截到 $\\pm 2.5$ 并置 overflow；这与「数值黏性大了点」是两回事。"
             ),
             "theory": [
-                "有限体积：$u_j^{n+1}=u_j-\\frac{dt}{dx}(F_{j+1/2}-F_{j-1/2})$，守恒性来自望远镜求和",
-                "Godunov 通量 = 精确 Riemann 解在 $x/t=0$ 处的通量；跨声速稀疏波时它取 $f'(u)=0$ 的临界点（Burgers 给 $F=0$）",
-                "Rankine-Hugoniot：$s=(f(u_L)-f(u_R))/(u_L-u_R)=(u_L+u_R)/2$（Burgers），实测拟合斜率 0.50016",
-                "熵条件：$\\frac{d}{dt}\\int \\eta\\,dx + [q] \\le 0$；正确解在激波处耗散、在光滑稀疏波处趋于 0",
-                "MUSCL-Hancock：限制斜率重构 + 半步预测；limiter=none 时与一阶 Godunov 逐位相同（实测 True）",
+                "**守恒律与特征线。** Burgers 方程 $u_t+(u^2/2)_x=0$ 可以写成 $u_t+u\\,u_x=0$。沿特征线 $dx/dt=u$，$u$ 保持不变；若初值的右侧值小于左侧值，特征线会相交，形成激波。",
+                "**激波速度由 Rankine–Hugoniot 决定。** 跨越激波，守恒律要求 $s(u_R-u_L)=f(u_R)-f(u_L)$，对 $f=u^2/2$ 得 $s=(u_L+u_R)/2$。这是弱解必须满足的跳跃条件，不能只靠特征线相交来判断。",
+                "**有限体积用通量差更新。** 每个单元 $\\bar u_i^{n+1}=\\bar u_i^n-\\frac{\\Delta t}{\\Delta x}(F_{i+1/2}-F_{i-1/2})$。内部通量在求和中望远镜相消，总质量只通过边界改变；数值通量的选择决定激波处的耗散。",
+                "**限制器防止振荡。** 二阶重构在激波附近会产生过冲；TVD 限制器（minmod、MC、van Leer）限制斜率，使总变差不增加。代价是把激波过渡带抹宽，限制越强越宽。",
+                "**CFL 与读图。** 显式格式要求 $\\Delta t\\le\\mathrm{CFL}\\,\\Delta x/\\max|f'|$。图上比较不同通量/限制器时，应固定 $n$ 和 CFL，先看激波位置是否接近 $s=(u_L+u_R)/2$，再看振荡和过渡带宽度。",
             ],
         },
         # ------------------------------------------------------------------ #
@@ -754,17 +760,17 @@ MANIFEST: dict[str, Any] = {
                     "name": "ic", "label": "初值剖面", "type": "enum",
                     "options": ["sine", "gaussian"], "default": "sine",
                     "critical": [], "criticalNote": "",
-                },
+                "help": "初值剖面：sine 光滑，gaussian 局部隆起。它们会产生不同的特征线相交/稀疏模式；sine 在 $\\sin$ 变为负斜率时形成激波。"},
                 {
                     "name": "amplitude", "label": "振幅 A", "type": "float",
                     "min": 0.1, "max": 1.0, "step": 0.05, "default": 0.5,
                     "critical": [], "criticalNote": "",
-                },
+                "help": "初值振幅 $A$。Burgers 通量 $f(u)=u^2/2$ 使波速等于 $u$：振幅越大，正负部分的波速差越大，激波/稀疏扇形成得越快。"},
                 {
                     "name": "n_lines", "label": "特征线条数", "type": "int",
                     "min": 10, "max": 60, "step": 5, "default": 40,
                     "critical": [], "criticalNote": "",
-                },
+                "help": "画多少条特征线。线越密，越容易看清特征线的相交（激波）和发散（稀疏波）；它只改变采样密度，不改变解。"},
             ],
             "time": {"mode": "scrub", "tMax": 0.8, "dt": 0.02, "label": "t（真实时间；tMax=0.8 覆盖破散前后）"},
             "requiredAux": ["error", "residual"],
@@ -797,10 +803,11 @@ MANIFEST: dict[str, Any] = {
                 "把 Burgers 的图直接搬过去会把两类波认反。"
             ),
             "theory": [
-                "Burgers: $f'(u)=u$，特征线 $x=x_0+t\\,u_0(x_0)$ 是直线，斜率就是 $u_0(x_0)$",
-                "破散时间 $t_b=-1/\\min_x u_0'(x)$：sine 给 $1/(2\\pi A)$，gaussian 给 $w\\exp(1/2)/(A\\sqrt{2})$",
-                "$t<t_b$ 时 $x_0+t\\,u_0(x_0)=x$ 单调可逆，回溯唯一；$t>t_b$ 时特征线折到一点，解多值（激波）",
-                "相邻特征线交点 $t_{*}=(x_{i+1}-x_i)/(u_i-u_{i+1})$，只对 $u_i>u_{i+1}$ 有限（发散时给 inf）",
+                "**一阶方程沿特征线变成常微分方程。** 对 $u_t+a(u)u_x=0$，令 $x(t)$ 满足 $\\dot x=a(u)$，则 $\\frac{d}{dt}u(x(t),t)=u_t+a(u)u_x=0$。所以 $u$ 沿每条特征线是常数，特征线是直线 $x=x_0+a(u_0)t$。",
+                "**Burgers 的波速就是 u。** 取 $a(u)=u$，初值 $u_0(x)$ 给出特征线 $x=x_0+u_0(x_0)t$。正的一部分向右跑、负的一部分向左跑；如果左侧值大于右侧值，中间会空出来形成稀疏扇，反之特征线相交形成激波。",
+                "**稀疏波与激波是两种不同的弱解。** 稀疏时特征线发散，解可以连续地展开；激波时特征线相交，必须引入间断面，并用 Rankine–Hugoniot 条件决定速度。熵条件保证选到物理上可实现的激波。",
+                "**振幅决定非线性有多强。** 振幅 $A$ 越大，$u_0$ 的波速差越大，特征线相交/发散得越快，波形畸变越明显；$A\\to0$ 时退化为线性平流，所有特征线平行。",
+                "**读图。** 特征线图上的斜率就是 $1/u$；相交处是激波候选，扇形区域是稀疏波。时间越往后，非线性效应越明显。把特征线和 $u(x,t)$ 对照看，不要只看波形。",
             ],
         },
         # ------------------------------------------------------------------ #
@@ -819,17 +826,17 @@ MANIFEST: dict[str, Any] = {
                     "name": "n", "label": "单元数 n", "type": "int",
                     "min": 40, "max": 320, "step": 40, "default": 160,
                     "critical": [], "criticalNote": "",
-                },
+                "help": "单元数。有限体积格式直接更新单元平均；$n$ 越大，空间分辨率越高，但时间步受 CFL 限制。它不改变守恒的代数结构。"},
                 {
                     "name": "cfl", "label": "CFL 数", "type": "float",
                     "min": 0.1, "max": 0.9, "step": 0.05, "default": 0.4,
                     "critical": [], "criticalNote": "",
-                },
+                "help": "CFL 数。它决定时间步与网格/波速的比例；显式有限体积通常要求 CFL 小于 1，否则信息在一个时间步内跨过多个单元，格式可能失稳。"},
                 {
                     "name": "bc", "label": "边界条件", "type": "enum",
                     "options": ["outflow", "periodic"], "default": "outflow",
                     "critical": [], "criticalNote": "",
-                },
+                "help": "边界条件：outflow 让波离开、总量可变；periodic 把两端接起来、总量应严格守恒。守恒账本的误差在 periodic 下应只剩舍入量级。"},
             ],
             "time": {"mode": "scrub", "tMax": 0.6, "dt": 0.02, "label": "t（真实时间，域长 L=1）"},
             "requiredAux": ["residual"],
@@ -862,11 +869,11 @@ MANIFEST: dict[str, Any] = {
                 "两者都在舍入级；「更准」与「更守恒」是两条独立的账。"
             ),
             "theory": [
-                "守恒格式的总量变化只由边界通量决定：$M(t)-M(0)=-\\int (F_{\\mathrm{out}}-F_{\\mathrm{in}})\\,dt$（望远镜求和）",
-                "Lax-Wendroff：守恒+相容+收敛 $\\Rightarrow$ 收敛到弱解；非守恒格式的极限可以不是弱解",
-                "熵收支：$\\frac{d}{dt}\\int \\eta\\,dx + [q] \\le 0$；Burgers 取 $\\eta=u^2/2$，$q=u^3/3$",
-                "实测：一阶 Godunov 在光滑稀疏波上的熵产 $-7.59\\times 10^{-3} \\to -1.73\\times 10^{-3}$（$n=100\\to 800$，$O(dx)$），"
-                "朴素迎风恒为 $+1.333\\times 10^{-1}$（不随 $dx$ 消失）",
+                "**守恒律的积分形式。** 对 $u_t+f(u)_x=0$ 在单元 $[x_{i-1/2},x_{i+1/2}]$ 上积分，得到 $\\frac{d}{dt}\\int u\\,dx=f(u_{i-1/2})-f(u_{i+1/2})$。单元平均的变化完全由边界通量决定，内部没有“源”。",
+                "**离散通量望远镜相消。** 把每个单元写成 $\\bar u_i^{n+1}=\\bar u_i^n-\\frac{\\Delta t}{\\Delta x}(F_{i+1/2}-F_{i-1/2})$，对所有 $i$ 求和，内部 $F$ 两两抵消，只剩两端边界项。只要同一个通量同时用于相邻单元，总质量在离散层面就严格守恒（到舍入）。",
+                "**边界条件决定总量。** periodic 把两端通量接起来，边界项也抵消，总量严格守恒；outflow 允许质量离开，总量按边界通量变化。账本里的“守恒误差”应该是零（periodic）或等于边界通量积分（outflow），不能是凭空出现。",
+                "**CFL 与时间推进。** 显式更新要求 CFL 足够小，否则一个时间步内信息跨过多个单元，通量格式的假设失效，可能失稳。CFL 不改变守恒的代数结构，但会改变数值解的精度和稳定性。",
+                "**读账本。** 看总量随时间的变化是否与边界通量累计一致；periodic 下若出现明显漂移，通常是边界通量的索引/符号写错了，而不是物理效应。再看局部守恒残差的空间分布，定位问题单元。",
             ],
         },
         # ------------------------------------------------------------------ #
@@ -886,22 +893,22 @@ MANIFEST: dict[str, Any] = {
                     "name": "problem", "label": "标准考题", "type": "enum",
                     "options": ["sod", "lax", "double_rarefaction"], "default": "sod",
                     "critical": [], "criticalNote": "",
-                },
+                "help": "标准 Riemann 考题：sod 左右密度/压强不同，lax 有更强的激波，double_rarefaction 两侧向外稀疏。它们包含接触间断、激波和稀疏波的不同组合。"},
                 {
                     "name": "scheme", "label": "数值通量", "type": "enum",
                     "options": ["hllc", "rusanov", "godunov"], "default": "hllc",
                     "critical": [], "criticalNote": "",
-                },
+                "help": "Riemann 求解器：godunov 精确/近似求解，hllc 区分接触波，rusanov 只加最大波速耗散（较耗散）。选择决定接触间断的锐度。"},
                 {
                     "name": "limiter", "label": "限制器（none=一阶）", "type": "enum",
                     "options": ["none", "minmod", "mc"], "default": "minmod",
                     "critical": [], "criticalNote": "",
-                },
+                "help": "限制器：none 一阶，minmod/mc 二阶 TVD。高阶限制器在光滑区更准，在间断处仍能压住过冲；限制越强，接触面越被抹宽。"},
                 {
                     "name": "n", "label": "单元数 n", "type": "int",
                     "min": 100, "max": 600, "step": 50, "default": 300,
                     "critical": [], "criticalNote": "",
-                },
+                "help": "单元数。$n$ 越大，激波/接触波越锐，但显式 CFL 下步长越小；比较格式时要固定 $n$。"},
             ],
             "time": {"mode": "scrub", "tMax": 0.2, "dt": 0.01, "label": "t（真实时间；t=0 时自相似解未定义，见 t_clamped）"},
             "requiredAux": ["error", "residual"],
@@ -940,13 +947,11 @@ MANIFEST: dict[str, Any] = {
                 "exact_valid=0，此时误差整条无效——把「初始间断」当成「格式精度极高」是经典假象。"
             ),
             "theory": [
-                "精确 Riemann 解：$f_L(p_{*})+f_R(p_{*})+(u_R-u_L)=0$ 单调，二分定 $p_{*}$；"
-                "激波支用 RH、稀疏波支用等熵关系 $(p/p_K)^{(\\gamma-1)/(2\\gamma)}$",
-                "跨激波：$s[U]=[F]$（质量/动量/能量三条），实测最大残差 $1.19\\times 10^{-15}$；"
-                "跨接触间断：$[u]=[p]=0$、$[\\rho]\\ne 0$",
-                "熵 $p/\\rho^\\gamma$：跨激波增大（Sod 实测比值 1.30），跨稀疏波扇面内不变（等熵）",
-                "HLLC：两条声波 + 中间接触波；波速用最朴素的 Davis 估计，"
-                "所以它与精确解的差别（$L^1$ 2.92e-3）就是「波速估计」的代价",
+                "**Riemann 问题是一个间断初值。** 左右两个常数状态 $U_L,U_R$ 被放在 $x=0$ 两侧，守恒律 $U_t+F(U)_x=0$ 的解会自发产生激波、接触间断和稀疏波。它是有限体积格式的基本构件。",
+                "**守恒形式的跳跃条件。** 对任何跨过间断的弱解，Rankine–Hugoniot 给出 $s(U_R-U_L)=F(U_R)-F(U_L)$，$s$ 是间断速度。激波必须满足熵条件；接触间断的速度等于两侧的法向速度，压力连续。",
+                "**数值通量就是一个近似 Riemann 解。** Godunov 通量用精确解取 $x/t=0$ 处的状态；HLLC 在 HLL 的两波基础上加回接触波；Rusanov（局部 Lax–Friedrichs）只用最大波速加耗散，简单但接触面更模糊。",
+                "**高阶重构与限制器。** 在单元界面左右两侧重构 $U^-$、$U^+$，再送入 Riemann 求解器。无限制器是二阶但在激波处振荡；TVD 限制器压住过冲，同时把间断抹宽。",
+                "**读图。** Sod 问题应看到左稀疏扇、接触间断、右激波；Lax 更强，波速更大；double rarefaction 中间是两条稀疏扇。先看波的位置和速度，再看接触面的锐度与振荡。",
             ],
         },
     ],

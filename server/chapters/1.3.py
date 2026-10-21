@@ -80,6 +80,7 @@ MANIFEST: dict[str, Any] = {
                     "default": 40.0,
                     "critical": [],
                     "criticalNote": "",
+                    "help": "右端项 $b$ 在水平面内的方位角。改变它会让 $b$ 扫过不同的方向；再配合天顶角，可以把 $b$ 转到几乎落在列空间里，或者垂直地指向平面。",
                 },
                 {
                     "name": "b_phi",
@@ -91,6 +92,7 @@ MANIFEST: dict[str, Any] = {
                     "default": 55.0,
                     "critical": [],
                     "criticalNote": "",
+                    "help": "右端项 $b$ 与 $+z$ 轴的夹角（天顶角）。$0^\\circ$ 指向正上方，$90^\\circ$ 落在水平面，$180^\\circ$ 指向正下方；调整它可以直接看到夹角如何影响残差。",
                 },
                 {
                     "name": "log10_kappa",
@@ -106,6 +108,7 @@ MANIFEST: dict[str, Any] = {
                         "float64 里已经不存在，列空间在数值上“扁”成一条线，画出来的平面是幻觉。"
                     ),
                     "beyond": "above",
+                    "help": "把矩阵 $A$ 的条件数设为 $10^{\\text{这个值}}$。数值越大，两列越接近共线，列空间在数值上越“扁”；副轴会显示三条求解路线各自的残差和正交性缺陷。",
                 },
                 {
                     "name": "method",
@@ -115,22 +118,23 @@ MANIFEST: dict[str, Any] = {
                     "default": "qr",
                     "critical": [],
                     "criticalNote": "",
+                    "help": "主场景里选中的求解路线，只影响突出显示的数值解与状态，不改数据；副轴始终同时比较正规方程、QR 与 SVD（截断 SVD）三条路线，便于直接对照。",
                 },
             ],
-            "time": {"mode": "scrub", "tMax": 1.0, "dt": 0.05, "label": "分解动画 t"},
+            "time": {"mode": "scrub", "tMax": 1.0, "dt": 0.05, "label": "分解动画 t", "initial": 1.0},
             "requiredAux": ["residual", "error"],
             "axes": [
                 {
                     "id": "scene",
                     "autoscaled": False,
-                    "title": "三维场景（三轴等比例、固定 ±1.8）",
+                    "title": "三维场景（三轴等比例、固定 $\\pm1.8$）",
                     "ylabel": "坐标",
                     "scale": "linear",
                 },
                 {
                     "id": "orthogonality",
                     "autoscaled": True,
-                    "title": "三种解法的正交性缺陷 ‖Aᵀr̂‖/(‖A‖_F‖r̂‖)",
+                    "title": "三种解法的正交性缺陷 $\\|A^{\\mathrm{T}}\\hat r\\|/(\\|A\\|_F\\|\\hat r\\|)$",
                     "ylabel": "无量纲",
                     "scale": "log",
                 },
@@ -145,11 +149,12 @@ MANIFEST: dict[str, Any] = {
                 "只看这张图会得出“这个解很可靠”的错误结论，必须配合 uncertainty_fan 一起看。"
             ),
             "theory": [
-                "投影的刻画：$p=A\\hat{x}$ 是 $b$ 在 $\\operatorname{col}(A)$ 上的正交投影，当且仅当 $A^{\\mathrm{T}}(b-p)=0$（正规方程）",
-                "残差与解的唯一性：$A$ 满列秩时 $\\hat{x}$ 唯一；秩亏时所有解只差一个 $\\operatorname{null}(A)$ 里的向量，"
-                "而残差完全相同（这正是 uncertainty_fan 画的谷底）",
-                "正交变换不改 2-范数与内积：Householder/Givens 只做旋转反射，因此 $\\|Q^{\\mathrm{T}}r\\|=\\|r\\|$，"
-                "QR 解最小二乘不会引入放大",
+                "**先把“无解”变成一个优化问题。** 当 $A\\in\\mathbb{R}^{m\\times n}$ 的行数多于列数时，$Ax=b$ 一般没有精确解。最小二乘退而求其次，寻找让残差平方和最小的 $x$：$x_{\\mathrm{LS}}=\\arg\\min_x\\|Ax-b\\|_2^2.$ 这个目标函数是 $x$ 的二次函数，因此它的最优性可以用一阶条件完整刻画。",
+                "**正规方程是求导得到的，不是背下来的。** 对任意方向 $z$ 展开：$\\|A(x+z)-b\\|^2=\\|Ax-b\\|^2+2z^{\\mathrm T}A^{\\mathrm T}(Ax-b)+\\|Az\\|^2.$ 如果 $x$ 已经最小，那么沿 $z$ 和 $-z$ 走都不能让目标下降，线性项必须为零，即 $A^{\\mathrm T}(Ax-b)=0$。反过来，这一项为零时右端只剩 $\\|Az\\|^2\\ge0$，所以 $x$ 确实最小。",
+                "**几何上，残差必须垂直于列空间。** 记 $p=Ax$、$r=b-p$。正规方程就是 $A^{\\mathrm T}r=0$，也就是 $r$ 与 $A$ 的每一列都正交。于是 $b$ 被拆成“列空间里的投影 $p$”加“垂直于列空间的残差 $r$”，并且有勾股恒等式 $\\|b\\|^2=\\|p\\|^2+\\|r\\|^2$。三维动画在 $t=0$ 只显示 $b$，在 $t=1$ 把 $p$ 与 $r$ 完全分开，就是为了让这件事看得见。",
+                "**满列秩保证解唯一，秩亏则不是。** 如果 $A$ 的列线性无关，$A^{\\mathrm T}A$ 可逆，正规方程给出唯一的 $x_{\\mathrm{LS}}$。如果列相关，所有解只差一个零空间里的向量，而残差完全相同；这时“最小二乘解”还需要额外约定（例如最小范数解）。图中的条件数 $\\kappa$ 越大，列越接近共线，唯一性在数值上越脆弱。",
+                "**三种解法在浮点里并不等价。** 直接解正规方程 $A^{\\mathrm T}Ax=A^{\\mathrm T}b$ 会把条件数平方成 $\\kappa^2$；Householder QR 只做正交变换，不改变 2-范数，通常把误差拉回 $\\kappa u$ 量级；SVD 则提供最稳健的分解，但代价更高。副轴的正交性缺陷 $\\|A^{\\mathrm T}\\hat r\\|/(\\|A\\|_F\\|\\hat r\\|)$ 在三种路线下分别实测，用来暴露“残差看起来垂直”与“解是否可信”是两件事。",
+                "**参数怎样改变画面。** 方位角 $\\theta$ 与天顶角 $\\phi$ 控制 $b$ 指向哪里：$b$ 越接近列空间，残差越小；越接近法方向，残差越大。$\\log_{10}\\kappa$ 控制 $A$ 有多病态：越大，列空间在数值上越扁，三种解法的差异越明显。主场景固定为等比例 $\\pm1.8$ 的坐标，不允许各轴单独拉伸，否则直角会被视觉上扭弯。",
             ],
         },
         # ------------------------------------------------------------------ #
@@ -177,6 +182,7 @@ MANIFEST: dict[str, Any] = {
                         "$\\kappa$ 超过它以后任何解法的前向误差都会饱和到 $O(1)$，曲线不再是幂律。"
                     ),
                     "beyond": "above",
+                    "help": "扫描的条件数上限（对数），从 $10^2$ 一直跑到 $10^{\\text{这个值}}$。调大能看见正规方程更早饱和；曲线是否还服从幂律，要看副轴与斜率窗口。",
                 },
                 {
                     "name": "n",
@@ -187,6 +193,7 @@ MANIFEST: dict[str, Any] = {
                     "default": 10,
                     "critical": [],
                     "criticalNote": "",
+                    "help": "未知数个数。$n$ 越大，构造问题越复杂，不同范数间的 $n$ 因子差异也越明显；计算量随之增加。",
                 },
                 {
                     "name": "m_factor",
@@ -198,6 +205,7 @@ MANIFEST: dict[str, Any] = {
                     "default": 2.0,
                     "critical": [],
                     "criticalNote": "",
+                    "help": "方程个数与未知数个数之比 $m/n$。必须大于 $1$ 才是超定问题；比值越大，残差方向越多，但最小二乘解的正交性结论不变。",
                 },
                 {
                     "name": "refinement",
@@ -207,29 +215,30 @@ MANIFEST: dict[str, Any] = {
                     "default": "one",
                     "critical": [],
                     "criticalNote": "",
+                    "help": "对正规方程做几步迭代精化。精化能减小“解方程”的舍入误差，却修不了 $A^{T}A$ 本身把条件数平方的事实；$\\kappa$ 接近 $1/u$ 后它也会失效。",
                 },
             ],
-            "time": {"mode": "scrub", "tMax": 14.0, "dt": 0.25, "label": "当前 log10 κ"},
+            "time": {"mode": "scrub", "tMax": 14.0, "dt": 0.25, "label": "当前 $\\log_{10}\\kappa$", "initial": 8.4},
             "requiredAux": ["error", "residual"],
             "axes": [
                 {
                     "id": "errors",
                     "autoscaled": False,
-                    "title": "前向误差 vs κ（双对数、固定轴 1e-17..1e2）",
-                    "ylabel": "‖x̂−x*‖/‖x*‖",
+                    "title": "前向误差 vs $\\kappa$（双对数、固定轴 $10^{-17}$ 到 $10^2$）",
+                    "ylabel": "$\\|\\hat x-x^*\\|/\\|x^*\\|$",
                     "scale": "log",
                 },
                 {
                     "id": "residual",
                     "autoscaled": True,
-                    "title": "相对残差 ‖Ax̂−b‖/‖b‖（对数）",
+                    "title": "相对残差 $\\|A\\hat x-b\\|/\\|b\\|$（对数）",
                     "ylabel": "相对残差",
                     "scale": "log",
                 },
                 {
                     "id": "divergence",
                     "autoscaled": False,
-                    "title": "分道扬镳：误差之比 正规方程 / QR（对数）",
+                    "title": "分道扬镳：误差之比（正规方程 / QR，对数）",
                     "ylabel": "比值",
                     "scale": "log",
                 },
@@ -245,11 +254,12 @@ MANIFEST: dict[str, Any] = {
                 "但它修的是“解方程”的误差，修不了 $A^{\\mathrm{T}}A$ 本身的病态，$\\kappa$ 越过 $1/u$ 之后一样失效。"
             ),
             "theory": [
-                "正规方程：$\\kappa(A^{\\mathrm{T}}A)=\\kappa(A)^{2}$，前向误差 $\\sim\\kappa^{2}u$（与实测斜率 $2$ 对应）",
-                "QR 最小二乘：Householder 后向稳定，前向误差 $\\sim\\kappa u+\\kappa^{2}u\\,\\eta$（$\\eta$ 是残差因子；"
-                "相容问题时 $\\eta\\approx 0$，于是只剩 $\\kappa u$）",
-                "残差恒等式：$A^{\\mathrm{T}}\\hat{r}=0$ 在任何 $\\kappa$ 下都成立（实测 $\\|A^{\\mathrm{T}}\\hat{r}\\|\\approx n\\,u\\,\\|A\\|\\,\\|b\\|$），"
-                "所以“残差与列空间垂直”和“解的相对误差”是两件独立的事",
+                "**正规方程把条件数平方了。** 若 $A=U\\Sigma V^{\\mathrm T}$，则 $A^{\\mathrm T}A=V\\Sigma^2V^{\\mathrm T}$，奇异值从 $\\sigma_i$ 变成 $\\sigma_i^2$，所以 $\\kappa_2(A^{\\mathrm T}A)=\\kappa_2(A)^2.$ 这意味着 $\\kappa=10^8$ 的问题，在正规方程里看起来像 $\\kappa=10^{16}$ 的问题，已经接近 double 的分辨极限。",
+                "**误差界随之分道扬镳。** 用正规方程求解时，前向相对误差大致按 $\\kappa^2u$ 增长；QR 只做正交变换，前向误差约为 $\\kappa u+\\kappa^2u\\,\\eta$，其中 $\\eta$ 是残差因子，相容问题时 $\\eta\\approx0$，于是只剩 $\\kappa u$。双对数图上这两条斜率分别为 2 和 1 的直线就是这件事的可视化。",
+                "**QR 为什么能不碰 $A^{\\mathrm T}A$。** Householder 变换用一串正交矩阵 $Q$ 把 $A$ 化成上三角 $R$：$A=QR$。正交变换满足 $\\|Qz\\|=\\|z\\|$，不会放大误差；最小二乘问题变成解 $R x=Q^{\\mathrm T}b$，只需回代一个三角系统。SVD 更进一步，用两组正交基和奇异值直接写出伪逆，但计算量更大。",
+                "**残差小不等于解准。** 对任何满列秩的 $A$，QR 解都让 $A^{\\mathrm T}\\hat r$ 接近机器精度；残差范数也可能一直贴着 $u$。可是当 $\\kappa$ 很大时，$A$ 的两个奇异方向几乎重合，两个完全不同的 $x$ 都能给出几乎相同的 $b$。副轴上的残差曲线与主图的前向误差曲线必须分开读。",
+                "**迭代精化修什么、不修什么。** 精化用当前解计算残差，再解一次修正方程，可以抵消一部分“求解线性系统”产生的舍入误差；但它无法恢复 $A^{\\mathrm T}A$ 已经丢掉的奇异方向。越过 $\\kappa\\approx1/u$ 之后，无论多少步精化，误差都会饱和到 $O(1)$。",
+                "**扫描图的正确读法。** 主轴固定为 $10^{-17}$ 到 $10^{2}$，曲线越过上界时由溢出说明点名；斜率只在未饱和窗口内拟合。图上的实测斜率是量出来的，不是看出来的；$\\kappa$ 用 2-范数实测，目标值只用于构造矩阵。",
             ],
         },
         # ------------------------------------------------------------------ #
@@ -271,6 +281,7 @@ MANIFEST: dict[str, Any] = {
                     "default": "decay",
                     "critical": [],
                     "criticalNote": "",
+                    "help": "选择奇异值的分布形状。衰减谱、断崖谱、平台谱与双簇谱的 Picard 曲线完全不同，因此最优截断阶也不同；切换后请同时看 L 曲线拐点与真实误差。",
                 },
                 {
                     "name": "log10_kappa",
@@ -286,6 +297,7 @@ MANIFEST: dict[str, Any] = {
                         "谱的尾部整个是表示误差——此时“要不要截断”已经不是算法选择而是物理限制。"
                     ),
                     "beyond": "above",
+                    "help": "把矩阵 $A$ 的条件数设为 $10^{\\text{这个值}}$。数值越大，两个奇异方向越接近，解平面上的等残差椭圆越细长；副轴会显示实测不确定度随 $\\kappa$ 的增长。",
                 },
                 {
                     "name": "noise_exp",
@@ -301,6 +313,7 @@ MANIFEST: dict[str, Any] = {
                         "再往下拖，图上的变化全是舍入噪声，不是数据噪声。"
                     ),
                     "beyond": "below",
+                    "help": "右端项里噪声的相对大小（以 10 为底）。噪声越小，尾部奇异方向还可以多信几个；噪声越大，越早截断。低于 $u$ 时噪声在 double 里表示不出来。",
                 },
                 {
                     "name": "n",
@@ -311,6 +324,7 @@ MANIFEST: dict[str, Any] = {
                     "default": 12,
                     "critical": [],
                     "criticalNote": "",
+                    "help": "未知数个数。$n$ 越大，奇异值谱越长，可截断的阶数越多；构造问题的计算量与曲线上的点数也随之增加。",
                 },
                 {
                     "name": "oversample",
@@ -321,30 +335,31 @@ MANIFEST: dict[str, Any] = {
                     "default": 3,
                     "critical": [],
                     "criticalNote": "",
+                    "help": "方程数 $m$ 与未知数 $n$ 的比值。超定程度越高，残差自由度越多，Picard 量的统计意义也越稳定；不建议低于 $1$。",
                 },
             ],
-            "time": {"mode": "scrub", "tMax": 16.0, "dt": 1.0, "label": "截断阶 k"},
+            "time": {"mode": "scrub", "tMax": 16.0, "dt": 1.0, "label": "截断阶 $k$", "initial": 6.4},
             "requiredAux": ["residual", "error"],
             "axes": [
                 {
                     "id": "lcurve",
                     "autoscaled": True,
-                    "title": "L 曲线：‖x_k‖ vs ‖Ax_k−b‖/‖b‖（双对数）",
-                    "ylabel": "解范数 ‖x_k‖",
+                    "title": "L 曲线：$\\|x_k\\|$ 与 $\\|Ax_k-b\\|/\\|b\\|$（双对数）",
+                    "ylabel": "$\\|x_k\\|$",
                     "scale": "log",
                 },
                 {
                     "id": "spectrum",
                     "autoscaled": True,
-                    "title": "奇异值谱与 Picard 量（对数）",
-                    "ylabel": "σ_i 与 |u_iᵀb| 与 |u_iᵀb|/σ_i",
+                    "title": "奇异值谱与 Picard 量 $|u_i^{\\mathrm{T}}b|/\\sigma_i$（对数）",
+                    "ylabel": "$\\sigma_i$、$|u_i^{\\mathrm{T}}b|$、$|u_i^{\\mathrm{T}}b|/\\sigma_i$",
                     "scale": "log",
                 },
                 {
                     "id": "tradeoff",
                     "autoscaled": True,
                     "title": "三个量随截断阶 k 的变化（对数）",
-                    "ylabel": "‖x_k‖ / 残差 / 相对误差",
+                    "ylabel": "$\\|x_k\\|$ / 残差 / 相对误差",
                     "scale": "log",
                 },
             ],
@@ -360,12 +375,12 @@ MANIFEST: dict[str, Any] = {
                 "两条单调曲线本身不告诉你该在哪里停——停在“残差已经很小”的地方通常停得太晚。"
             ),
             "theory": [
-                "截断 SVD 解 $x_k=\\sum_{i\\le k}(u_i^{\\mathrm{T}}b/\\sigma_i)\\,v_i$：$\\|x_k\\|$ 随 $k$ 单调不减、$\\|Ax_k-b\\|$ 随 $k$ 单调不增"
-                "（B 类不变量，本章测试钉住）",
-                "Picard 条件：可解问题要求 $|u_i^{\\mathrm{T}}b|$ 比 $\\sigma_i$ 衰减得更快；噪声让 $|u_i^{\\mathrm{T}}b|$ 在尾部变成常数，"
-                "于是 $|u_i^{\\mathrm{T}}b|/\\sigma_i\\sim 1/\\sigma_i$ 爆炸——这就是必须截断的全部理由",
-                "Eckart–Young–Mirsky：秩 $k$ 截断是所有秩 $\\le k$ 矩阵中 2-范数与 Frobenius 范数意义下的最优逼近，"
-                "所以“截断”不是权宜之计而是最优投影",
+                "**SVD 把问题拆成互不干扰的方向。** 任意矩阵可写成 $A=\\sum_i\\sigma_i u_i v_i^{\\mathrm T}$，其中 $u_i$ 与 $v_i$ 是正交的左右奇异向量，$\\sigma_1\\ge\\cdots\\ge\\sigma_n\\ge0$。最小二乘解可以展开为 $x=\\sum_i\\frac{u_i^{\\mathrm T}b}{\\sigma_i}v_i.$ 每个方向的贡献是“投影系数除以奇异值”。",
+                "**小奇异值会放大噪声。** 如果 $b$ 里混有噪声，$u_i^{\\mathrm T}b$ 在尾部不会继续衰减，而 $1/\\sigma_i$ 越来越大，解会被尾部方向拖走。Picard 条件要求 $|u_i^{\\mathrm T}b|$ 比 $\\sigma_i$ 衰减得更快；噪声破坏了这个条件，所以必须丢掉一部分小奇异方向。",
+                "**截断 SVD 就是只保留前 $k$ 个方向。** 定义 $x_k=\\sum_{i\\le k}(u_i^{\\mathrm T}b/\\sigma_i)v_i$。$k$ 增大时残差 $\\|Ax_k-b\\|$ 下降，但解范数 $\\|x_k\\|$ 与噪声放大同时上升；把 $(\\|x_k\\|,\\|Ax_k-b\\|)$ 画在双对数坐标上，就是 L 曲线。拐角处是“残差已经够小、解还没被噪声接管”的折中点。",
+                "**为什么截断不是权宜之计。** Eckart–Young–Mirsky 定理说：在所有秩不超过 $k$ 的矩阵中，截断 SVD $A_k=\\sum_{i\\le k}\\sigma_i u_i v_i^{\\mathrm T}$ 在 2-范数和 Frobenius 范数下是最优逼近。也就是说，丢掉尾部奇异方向并不是随便砍一刀，而是在给定秩的约束下做最优投影。",
+                "**谱形状决定截断难度。** decay 谱平滑衰减，Picard 曲线也平滑，拐点不明显；cliff 谱有一个明显断崖，最优 $k$ 很接近断崖位置；plateau 谱在中段平坦，难以区分信号与噪声；two_clusters 谱会给出两个候选截断阶。噪声越小，可保留的阶数越多。",
+                "**图上三条曲线怎样对应。** 主图是 L 曲线，副图是奇异值谱与 Picard 量；真实误差只有在知道真解时才算得出，用来检验“L 曲线拐点”和“最优 $k$”是否重合。$k=0$ 的解恒为 0，在对数 L 曲线上没有坐标，因此被排除并说明——这是显示约定，不是丢数据。",
             ],
         },
         # ------------------------------------------------------------------ #
@@ -393,6 +408,7 @@ MANIFEST: dict[str, Any] = {
                         "等残差椭圆退化成一条无法分辨的线段，扇面宽度不再有数值意义。"
                     ),
                     "beyond": "above",
+                    "help": "把矩阵 $A$ 的条件数设为 $10^{\\text{这个值}}$。数值越大，两个奇异方向越接近，解平面上的等残差椭圆越细长；副轴会显示实测不确定度随 $\\kappa$ 的增长。",
                 },
                 {
                     "name": "noise_exp",
@@ -408,6 +424,7 @@ MANIFEST: dict[str, Any] = {
                         "扇面宽度会退化成舍入噪声的形状，与物理无关。"
                     ),
                     "beyond": "below",
+                    "help": "右端项里噪声的相对大小（以 10 为底）。噪声越小，解还能多信几个小奇异方向；噪声越大，尾部方向越不可信。低于 $u\\approx1.1\\times10^{-16}$ 的噪声在 double 里表示不出来。",
                 },
                 {
                     "name": "rho_exp",
@@ -419,6 +436,7 @@ MANIFEST: dict[str, Any] = {
                     "default": -3.0,
                     "critical": [],
                     "criticalNote": "",
+                    "help": "解平面上等残差曲线的水平，相对于 $\\|b\\|$。它决定“谷底”的宽度；调大时等残差椭圆变大，更容易超出固定视窗（此时用中性提示说明裁剪，不是数据错误）。",
                 },
                 {
                     "name": "n_levels",
@@ -429,6 +447,7 @@ MANIFEST: dict[str, Any] = {
                     "default": 4,
                     "critical": [],
                     "criticalNote": "",
+                    "help": "在解平面上画几条等残差椭圆。条数增加会覆盖更多解的可能范围，但画面也更拥挤；每一层对应同一个残差水平。",
                 },
                 {
                     "name": "n_samples",
@@ -439,6 +458,7 @@ MANIFEST: dict[str, Any] = {
                     "default": 48,
                     "critical": [],
                     "criticalNote": "",
+                    "help": "沿噪声方向采多少个角度。采样越密，扇面边界越平滑，也越容易看见最坏方向；它不改变真实的不确定度。",
                 },
             ],
             "time": {"mode": "scrub", "tMax": 360.0, "dt": 5.0, "label": "噪声方向角 θ（度）"},
@@ -448,14 +468,14 @@ MANIFEST: dict[str, Any] = {
                     "id": "plane",
                     "autoscaled": False,
                     "title": "解平面（固定等比例坐标，等残差椭圆族）",
-                    "ylabel": "x₂",
+                    "ylabel": "$x_2$",
                     "scale": "linear",
                 },
                 {
                     "id": "growth",
                     "autoscaled": True,
-                    "title": "实测不确定度 vs κ（双对数）与 κ·δ 参考线",
-                    "ylabel": "‖δx‖/‖x*‖",
+                    "title": "实测不确定度 vs $\\kappa$（双对数）与 $\\kappa\\cdot\\delta$ 参考线",
+                    "ylabel": "$\\|\\delta x\\|/\\|x^*\\|$",
                     "scale": "log",
                 },
             ],
@@ -477,11 +497,12 @@ MANIFEST: dict[str, Any] = {
                 "它为 false 时这张图不该被用来谈“噪声放大”。"
             ),
             "theory": [
-                "等残差集：$\\|A(x-x_{\\mathrm{LS}})\\|^{2}=\\rho^{2}-\\|r_{\\min}\\|^{2}$，是一族半轴为 $\\sqrt{\\rho^{2}-\\|r_{\\min}\\|^{2}}/\\sigma_i$、"
-                "方向为右奇异向量 $v_i$ 的椭圆；长短轴之比 $=\\kappa$",
-                "扰动界：$\\|\\delta x\\|/\\|x\\|\\le\\kappa(A)\\cdot\\|\\delta b\\|/\\|b\\|$，且当 $\\delta b$ 恰好落在 $u_{\\min}$ 方向时取到等号",
-                "相容问题的扇面：$b+\\delta b$ 的最小二乘解 $=x^{*}+A^{+}\\delta b$，所有解共享同一个残差 $\\|\\delta b\\|$"
-                "（浮点下稳到 $\\kappa u\\|x\\|$ 的舍入水平）",
+                "**相容问题里，扰动解是一条直线加出来的。** 设 $A$ 满列秩、$b$ 在列空间内，最小二乘残差为零。给 $b$ 加上噪声 $\\delta b$，新解为 $x=x^*+A^+\\delta b$，其中 $A^+=V\\Sigma^{-1}U^{\\mathrm T}$ 是伪逆。解的移动完全由 $\\delta b$ 在右奇异方向上的分量决定。",
+                "**等残差集是一个椭圆。** 对固定的噪声水平 $\\rho=\\|\\delta b\\|$，所有满足 $\\|A(x-x^*)\\|=\\rho$ 的 $x$ 组成一个椭圆。把 $A$ 按奇异值展开，椭圆沿 $v_i$ 方向的半轴是 $\\rho/\\sigma_i$；最长半轴与最短半轴之比正好是 $\\kappa$。所以“等残差”并不意味着“等解”，解可以在椭圆上跑很远。",
+                "**前向误差界。** 由 $\\delta x=A^+\\delta b$ 得 $\\|\\delta x\\|\\le\\|A^+\\|\\,\\|\\delta b\\|$；又因为 $\\|x^*\\|$ 与 $\\|b\\|$ 通过 $A$ 联系，最终得到 $\\frac{\\|\\delta x\\|}{\\|x^*\\|}\\le\\kappa(A)\\,\\frac{\\|\\delta b\\|}{\\|b\\|}.$ 当 $\\delta b$ 沿着 $u_{\\min}$ 方向时取等号。图中副轴的 $\\kappa\\cdot\\delta$ 参考线就是这个上界。",
+                "**残差对解的移动几乎“失明”。** 每个扰动解都有相同的残差范数 $\\rho$，所以只看残差无法区分它们；但解的变化已经达到 $\\kappa\\rho$ 量级。实验同时给出残差的变化范围与解的变化范围，用来展示这种不对称：残差看起来一动不动，解却已经移动了很多。",
+                "**线性化与数值极限。** 图上的椭圆是线性化结果：只扰动 $b$、不扰动 $A$。如果 $A$ 自身有误差，放大倍数还要再乘上 $A$ 的条件数。另一个极限是 $\\kappa u$：当它大于噪声水平时，扇面量到的其实是舍入误差，不是物理噪声；帧里的 resolvable 就是这条判据，为假时不应把扇面宽度当成噪声放大。",
+                "**固定视窗与裁剪。** 解平面使用等比例固定窗口，才能让椭圆看起来仍然是椭圆；如果让两个坐标轴各自自适应，$\\kappa=10^6$ 的细椭圆会被拉成一个圆，结论直接反转。代价是椭圆常常超出窗口，超出部分被裁掉；这是**显示选择**，用中性的“视窗裁剪”说明，不是数据坏了。",
             ],
         },
     ],
@@ -663,6 +684,11 @@ def _projection_3d(params: Mapping[str, Any], t: float) -> Frame:
             f"这些路线的三个数组值留在地板 {_LOG_FLOOR:.0e}，并用 method_singular=1 标出；"
             "其余路线照常给出实测值"
         )
+    else:
+        note_parts.append(
+            f"三种路线都给出了有限解；当前选中{_method_label(method)}，"
+            f"投影误差 {proj_error[sel]:.3e}，残差 {residual_norms[sel]:.3e}"
+        )
     strings = {
         "selected_method": method,
         "method_order": "normal / qr / svd",
@@ -760,6 +786,11 @@ def _normal_vs_qr(params: Mapping[str, Any], t: float) -> Frame:
     sing_qr = np.minimum(sweep["singular_qr"], 1.0)
     fr.add("singular_normal", sing_normal, label="正规方程是否解不出来（1 = 该 κ 上没有有限解）")
     fr.add("singular_qr", sing_qr, label="QR 是否解不出来（1 = 该 κ 上没有有限解）")
+    sing_svd = np.minimum(sweep["singular_svd"], 1.0)
+    fr.add("singular_svd", sing_svd, label="SVD 是否解不出来（1 = 该 κ 上没有有限解）")
+    if has_ir:
+        sing_ir = np.minimum(sweep["singular_normal_ir"], 1.0)
+        fr.add("singular_normal_ir", sing_ir, label="精化路线是否解不出来（1 = 该 κ 上没有有限解）")
     n_sing_normal = int(np.count_nonzero(sweep["singular_normal"]))
     n_sing_qr = int(np.count_nonzero(sweep["singular_qr"]))
     note = "两条误差曲线在未饱和窗口内才服从幂律；饱和段不参与斜率拟合"

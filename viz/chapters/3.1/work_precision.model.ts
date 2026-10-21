@@ -236,7 +236,7 @@ export const workPrecisionModel: SceneModel = (frame, opts) => {
       series(diagX.length >= 2 ? diagX : [tolRange[0], tolRange[1]], diagY.length >= 2 ? diagY : [tolRange[0], tolRange[1]], pal.reference, {
         width: 1.2,
         dash: [6, 4],
-        label: "y = tol（曲线在它上方 = 实到误差大于请求容差）",
+        label: "$y = tol$（曲线在它上方 = 实到误差大于请求容差）",
       }),
     ),
   );
@@ -251,7 +251,7 @@ export const workPrecisionModel: SceneModel = (frame, opts) => {
   });
   const fixedPts = paired(tolGrid, errorFixed);
   if (fixedPts.x.length > 0) {
-    toSeries.push(series(fixedPts.x, fixedPts.y, pal.reference, { width: 1.4, dash: [7, 4], marker: "s", label: "固定步长 RK4（由误差阶梯反查，不是跑出来的）" }));
+    toSeries.push(series(fixedPts.x, fixedPts.y, pal.reference, { width: 1.4, dash: [7, 4], marker: "s", label: "固定步长 $RK4$（由误差阶梯反查，不是跑出来的）" }));
   }
   if (toSeries.length > 0) scene.layers.push(lineLayer("vs_tol", toSeries));
   else degraded.push("左图一条曲线都画不出来（误差数组全是非正/非有限）");
@@ -294,7 +294,7 @@ export const workPrecisionModel: SceneModel = (frame, opts) => {
   });
   const fixedWork = paired(workFixed, errorFixed);
   if (fixedWork.x.length > 0) {
-    workSeries.push(series(fixedWork.x, fixedWork.y, pal.reference, { width: 1.4, dash: [7, 4], marker: "s", label: "固定步长 RK4" }));
+    workSeries.push(series(fixedWork.x, fixedWork.y, pal.reference, { width: 1.4, dash: [7, 4], marker: "s", label: "固定步长 $RK4$" }));
   }
   if (workSeries.length > 0) scene.layers.push(lineLayer("frontier", workSeries));
 

@@ -312,8 +312,8 @@ export const bsplineLocalModel: SceneModel = (frame, opts) => {
     kind: "line",
     axes: "main",
     series: [
-      { x: xGrid, y: curveOrig, color: pal.curves[1], width: 2, label: "曲线（curve_orig）" },
-      { x: xGrid, y: curveMoved, color: pal.curves[0], width: 2, dash: [6, 4], label: "曲线（curve_moved）" },
+      { x: xGrid, y: curveOrig, color: pal.curves[1], width: 2, label: "曲线（$curve_orig$）" },
+      { x: xGrid, y: curveMoved, color: pal.curves[0], width: 2, dash: [6, 4], label: "曲线（$curve_moved$）" },
     ],
   });
 
@@ -322,7 +322,7 @@ export const bsplineLocalModel: SceneModel = (frame, opts) => {
     kind: "line",
     axes: "main",
     series: [
-      { x: ctrlX, y: ctrlY, color: pal.muted, width: 1.2, dash: [2, 3], marker: "o", label: "控制多边形（ctrl_y）" },
+      { x: ctrlX, y: ctrlY, color: pal.muted, width: 1.2, dash: [2, 3], marker: "o", label: "控制多边形（$ctrl_y$）" },
       {
         x: ctrlX,
         y: ctrlYMoved,
@@ -330,7 +330,7 @@ export const bsplineLocalModel: SceneModel = (frame, opts) => {
         width: 1.2,
         dash: [2, 3],
         marker: "s",
-        label: "多边形（ctrl_y_moved）",
+        label: "多边形（$ctrl_y_moved$）",
       },
     ],
   });
@@ -362,8 +362,8 @@ export const bsplineLocalModel: SceneModel = (frame, opts) => {
           label: "受影响区间",
         }),
       );
-      vLine(scene, mainAxis, lo, pal.curves[0], { label: "t_i" });
-      vLine(scene, mainAxis, hi, pal.curves[0], { label: "t_{i+k+1}" });
+      vLine(scene, mainAxis, lo, pal.curves[0], { label: "`t_i`" });
+      vLine(scene, mainAxis, hi, pal.curves[0], { label: "$t_{i+k+1}$" });
     }
   }
 
@@ -372,8 +372,8 @@ export const bsplineLocalModel: SceneModel = (frame, opts) => {
     const x = insertMarker[0] as number;
     const y = insertMarker[1] as number;
     if (Number.isFinite(x) && Number.isFinite(y)) {
-      scene.layers.push(scatterLayer("main", [x], [y], { r: 4.5, color: pal.exact, label: "插入点 (u,C(u))" }));
-      vLine(scene, mainAxis, x, pal.exact, { label: "插入参数 u" });
+      scene.layers.push(scatterLayer("main", [x], [y], { r: 4.5, color: pal.exact, label: "插入点 $(u,C(u))$" }));
+      vLine(scene, mainAxis, x, pal.exact, { label: "插入参数 $u$" });
     }
   }
 
@@ -381,19 +381,19 @@ export const bsplineLocalModel: SceneModel = (frame, opts) => {
   scene.layers.push({
     kind: "line",
     axes: "invariance",
-    series: [{ x: xGrid, y: invariance, color: pal.residual, width: 1.6, label: "|ΔC|（error）" }],
+    series: [{ x: xGrid, y: invariance, color: pal.residual, width: 1.6, label: "$|ΔC|$（error）" }],
   });
-  hLine(scene, invarAxis, FLOOR, pal.note, { label: "u/2" });
+  hLine(scene, invarAxis, FLOOR, pal.note, { label: "$u/2$" });
   scene.layers.push({
     kind: "line",
     axes: "support",
-    series: [{ x: basisIndex, y: supportRes, color: pal.curves[0], width: 1.4, marker: "o", label: "支撑外 max|B_i|（residual）" }],
+    series: [{ x: basisIndex, y: supportRes, color: pal.curves[0], width: 1.4, marker: "o", label: "支撑外 $max|B_i|$（residual）" }],
   });
-  hLine(scene, supportAxis, FLOOR, pal.note, { label: "u/2" });
+  hLine(scene, supportAxis, FLOOR, pal.note, { label: "$u/2$" });
   scene.layers.push({
     kind: "line",
     axes: "changed",
-    series: [{ x: xGrid, y: changed, color: pal.curves[1], width: 1.6, label: "|ΔC|（changed）" }],
+    series: [{ x: xGrid, y: changed, color: pal.curves[1], width: 1.6, label: "$|ΔC|$（changed）" }],
   });
   hLine(scene, changedAxis, 0, pal.reference, { label: "0" });
   // 受影响区间的两条边界在三格副轴上同样画出来：一眼看出"改动只发生在这个窗口里"。
@@ -414,10 +414,10 @@ export const bsplineLocalModel: SceneModel = (frame, opts) => {
   const wide = rightColumnFits(width);
   const summary = paramSummary(frame, opts, [
     { name: "n_ctrl", label: "控制点" },
-    { name: "degree", label: "k" },
+    { name: "degree", label: "$k$" },
     { name: "move_index", label: "移动 #" },
-    { name: "move_delta", label: "Δ", digits: 3 },
-    { name: "insert_at", label: "u", digits: 3 },
+    { name: "move_delta", label: "$Δ$", digits: 3 },
+    { name: "insert_at", label: "$u$", digits: 3 },
   ]);
   degraded.push(...summary.degraded);
 

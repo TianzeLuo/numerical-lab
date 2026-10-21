@@ -623,9 +623,12 @@ test("2.2/smoothness：requiredAux（residual / error）都有可见图层", () 
   assert.deepEqual(SPEC.smooth.requiredAux, ["residual", "error"]);
   const scene = smoothnessModel(SMOOTH, OPTS);
   const jump = lineSeries(scene, "jump");
-  assert.ok(jump.some((s) => String(s.label ?? "").includes("residual")), "residual 在跳变轴上");
+  assert.ok(jump.some((s) => String(s.label ?? "").replace(/\$/g, "").includes("residual")), "residual 在跳变轴上");
   assert.ok(
-    jump.some((s) => String(s.label ?? "").includes("jump_d1_lin") || String(s.label ?? "").includes("dS'")),
+    jump.some((s) => {
+      const label = String(s.label ?? "").replace(/\$/g, "");
+      return label.includes("jump_d1_lin") || label.includes("dS'");
+    }),
     "折线的一阶导跳变也要在（error 的量化）",
   );
 });

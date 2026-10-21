@@ -262,27 +262,27 @@ test("文本角色受限，坐标必须有限", () => {
 test("criticalBadge 在越过理论临界值时给出警告（方向由调用方声明）", () => {
   const inside = criticalBadge("ρ", 0.9, 1.0);
   assert.equal(inside.kind, "critical");
-  assert.doesNotMatch(inside.text, /越界/);
+  assert.doesNotMatch(inside.text, /已超过临界/);
   assert.match(inside.text, /1\.000/);
   assert.doesNotMatch(inside.text, /1\.000\*/); // 只有一条阈值时不打星号（星号无处解释）
   const outside = criticalBadge("Δt", 0.6, [0.5, 0.25]);
   assert.match(outside.text, /理论临界/);
-  assert.match(outside.text, /越界/);
+  assert.match(outside.text, /已超过临界/);
   assert.match(outside.text, /0\.2500\*/); // 最紧的那条先被突破
 });
 
 test("criticalBadge 支持下界型与绝对值型约束", () => {
   const above = criticalBadge("ν", 0.005, [0.01, 0.1, 1]);
-  assert.doesNotMatch(above.text, /越界/);
+  assert.doesNotMatch(above.text, /已超过临界/);
   const aboveBad = criticalBadge("ν", 0.02, [0.01, 0.1, 1]);
-  assert.match(aboveBad.text, /越界/);
+  assert.match(aboveBad.text, /已超过临界/);
   const below = criticalBadge("ζ", 0.05, [0.1, 0.5], { beyond: "below" });
-  assert.match(below.text, /越界/);
+  assert.match(below.text, /已超过临界/);
   assert.match(below.text, /0\.5000\*/); // 下界型：最大的那条是支配约束
   const mag = criticalBadge("ρ(J)", -1.2, 1.0, { beyond: "magnitude" });
-  assert.match(mag.text, /越界/);
+  assert.match(mag.text, /已超过临界/);
   const magOk = criticalBadge("ρ(J)", -0.8, 1.0, { beyond: "magnitude" });
-  assert.doesNotMatch(magOk.text, /越界/);
+  assert.doesNotMatch(magOk.text, /已超过临界/);
   const unknown = criticalBadge("x", Number.NaN, 1);
   assert.match(unknown.text, /无可比临界值/);
 });
@@ -366,6 +366,8 @@ test("placeBadge 把过长角标裁到列宽，使两列角标不再互相压住
   placeBadge(long, 2, 960);
   assert.ok(textWidthUnits(long.text) <= budget, `裁剪后仍超出列宽预算：${textWidthUnits(long.text)} > ${budget}`);
   assert.ok(long.text.endsWith("…"), "被裁剪的文案必须以省略号收尾（不能静默丢字）");
+  assert.equal(long.detail, "副轴：自适应（" + "宽".repeat(53), "完整原文必须保留在 detail 里（网页悬停显示）");
+  assert.ok((long.detail ?? "").length > long.text.length, "detail 必须比角标正文长");
   // 短文案原样保留
   const short = badge("source", "数据：后端 .nlf 帧", 8, 8);
   placeBadge(short, 0, 960);

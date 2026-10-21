@@ -195,7 +195,7 @@ export const qrSchurModel: SceneModel = (frame, opts) => {
     makeAxis("main", heatRect, {
       xlim: [-0.5, xMax + 0.5],
       ylim: [-0.5, nRows - 0.5],
-      xlabel: "QR 迭代步 k",
+      xlabel: "QR 迭代步 $k$",
       ylabel: axisYlabelOf(AXES, "main", "次对角元下标 i"),
       title: axisTitleOf(AXES, "main", "log10|次对角元|（行 = i，列 = 迭代步）"),
       autoscaled: false,
@@ -239,7 +239,7 @@ export const qrSchurModel: SceneModel = (frame, opts) => {
       xlim: [0, xMax],
       ylim: auxYlim,
       yscale: "log",
-      xlabel: "QR 迭代步 k（不是物理时间；拖到头会被夹住）",
+      xlabel: "QR 迭代步 $k$（不是物理时间；拖到头会被夹住）",
       ylabel: axisYlabelOf(AXES, "aux", "max_i min_j |θ_i − λ_j|"),
       title: axisTitleOf(AXES, "aux", "Ritz 值到真谱的距离"),
       autoscaled: true,
@@ -271,7 +271,7 @@ export const qrSchurModel: SceneModel = (frame, opts) => {
   // —— 文本 ——
   // 只把**数值**参数交给 paramSummary：`family`/`shift` 是帧的 `strings`（枚举），
   // 拿它们去 meta/请求参数里找会得到 "?"，那是把"没找到"当成"没这个参数"。
-  const summary = paramSummary(frame, opts, [{ name: "n", label: "n" }]);
+  const summary = paramSummary(frame, opts, [{ name: "n", label: "$n$" }]);
   degraded.push(...summary.degraded);
   const familyShift = `族=${family ?? "?"}　位移=${shift ?? "?"}`;
 

@@ -178,7 +178,7 @@ export const gridIndependenceModel: SceneModel = (frame, opts) => {
     ylim: [0, 1.05],
     xscale: "log",
     xticks: Array.from(nSeq),
-    xlabel: "n = 2^L − 1（对数横轴）",
+    xlabel: "$n=2^{L}-1$（对数横轴）",
     title: axisTitleOf(SPEC?.axes, "factors", "收敛因子（固定窗口 0-1.05，对数横轴）"),
     ylabel: axisYlabelOf(SPEC?.axes, "factors", "rho"),
     autoscaled: false,
@@ -234,7 +234,7 @@ export const gridIndependenceModel: SceneModel = (frame, opts) => {
     xscale: "log",
     yscale: "log",
     xticks: Array.from(nSeq),
-    xlabel: "n = 2^L − 1（对数横轴）",
+    xlabel: "$n=2^{L}-1$（对数横轴）",
     title: axisTitleOf(SPEC?.axes, "iterations", "降到目标精度所需次数（对数轴）"),
     ylabel: axisYlabelOf(SPEC?.axes, "iterations", "次数"),
     autoscaled: true,
@@ -265,7 +265,7 @@ export const gridIndependenceModel: SceneModel = (frame, opts) => {
     xscale: "log",
     yscale: "log",
     xticks: Array.from(nSeq),
-    xlabel: "n（对数横轴）",
+    xlabel: "$n$（对数横轴）",
     title: "代价（最细层等价单位）",
     ylabel: "work",
     autoscaled: true,
@@ -287,8 +287,8 @@ export const gridIndependenceModel: SceneModel = (frame, opts) => {
   if (L.columns) {
     const budget = unitBudget(L.rightW);
     const head = paramSummary(frame, opts, [
-      { name: "levels_max", label: "L_max" },
-      { name: "nu", label: "ν" },
+      { name: "levels_max", label: "`L_max`" },
+      { name: "nu", label: "$ν$" },
     ]);
     degraded.push(...head.degraded);
     const fmtList = (a: ArrayLike<number>, digits = 4): string =>

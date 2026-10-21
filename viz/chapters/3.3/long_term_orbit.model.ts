@@ -178,7 +178,7 @@ export const longTermOrbitModel: SceneModel = (frame, opts) => {
   const main = makeAxis("main", [mainX, L.topY, side, side], {
     xlim: [-win, win],
     ylim: [-win, win],
-    xlabel: "x",
+    xlabel: "$x$",
     title: mainTitle,
     ylabel: axisYlabelOf(SPEC?.axes, "main", "y"),
     autoscaled: false,

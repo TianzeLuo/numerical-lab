@@ -189,7 +189,7 @@ export const spyOrderingModel: SceneModel = (frame, opts) => {
     xlim: lim,
     ylim: lim,
     xlabel: "",
-    ylabel: "行 i（0 在上）",
+    ylabel: "行 $i$（0 在上）",
     title: axisTitle("main", "矩阵结构（行 0 在上）"),
     autoscaled: false,
     xticks: indexTicks(n),
@@ -246,7 +246,7 @@ export const spyOrderingModel: SceneModel = (frame, opts) => {
         r: Math.max(0.9, rOriginal * 0.62),
         color: pal.reference,
         alpha: 0.42,
-        label: "后续还会产生的填充（帧 pending_*）",
+        label: "后续还会产生的填充（帧 $pending_*$）",
       }),
     );
   }
@@ -257,7 +257,7 @@ export const spyOrderingModel: SceneModel = (frame, opts) => {
         r: rOriginal,
         color: pal.muted,
         alpha: 0.95,
-        label: "原矩阵非零（帧 orig_*）",
+        label: "原矩阵非零（帧 $orig_*$）",
       }),
     );
   }
@@ -268,7 +268,7 @@ export const spyOrderingModel: SceneModel = (frame, opts) => {
         r: Math.max(1.2, rOriginal * 0.85),
         color: pal.marker,
         alpha: 0.8,
-        label: "已经产生的填充（帧 fill_*）",
+        label: "已经产生的填充（帧 $fill_*$）",
       }),
     );
   }
@@ -298,13 +298,13 @@ export const spyOrderingModel: SceneModel = (frame, opts) => {
   const mx = errorMarkX.length > 0 ? errorMarkX[0] : undefined;
   const my = errorMark.length > 0 ? errorMark[0] : undefined;
   if (mx !== undefined && my !== undefined && Number.isFinite(mx) && Number.isFinite(my) && my > 0) {
-    scene.layers.push(scatterLayer("aux", [mx], [my], { r: 5, color: pal.marker, label: "当前排序的残差（error_mark）" }));
+    scene.layers.push(scatterLayer("aux", [mx], [my], { r: 5, color: pal.marker, label: "当前排序的残差（$error_mark$）" }));
   } else {
     degraded.push(`帧 error_mark/error_mark_x 不可画（不可画 = 非有限或 ≤0）：当前排序没有高亮点`);
   }
 
   // —— 文本（一行一个 text 层：render2d 不拆 \n）——
-  const summary = paramSummary(frame, opts, [{ name: "grid", label: "网格 k" }]);
+  const summary = paramSummary(frame, opts, [{ name: "grid", label: "网格 $k$" }]);
   degraded.push(...summary.degraded);
   const head: string[] = [summary.text, `n=${n}`, "列 j 已按当前顺序重排"];
   if (k !== undefined) {

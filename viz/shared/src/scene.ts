@@ -167,7 +167,9 @@ export interface TextSpec {
   maxWidth?: number;
 }
 
-export type BadgeKind = "source" | "autoscale" | "overflow" | "preview" | "critical" | "status";
+export type BadgeKind = "source" | "autoscale" | "overflow" | "clip" | "preview" | "critical" | "status";
+
+export type BadgeTone = "danger" | "warning" | "info";
 
 export interface Badge {
   x: number;
@@ -175,6 +177,9 @@ export interface Badge {
   text: string;
   kind: BadgeKind;
   color?: string;
+  /** 未截断的完整文案（`placeBadge` 会保留；网页角标悬停/聚焦时显示全文）。 */
+  detail?: string;
+  tone?: BadgeTone;
 }
 
 export interface Scene {
@@ -190,7 +195,7 @@ export interface Scene {
   texts: TextSpec[];
   badges: Badge[];
   /** 规则 1：越界必须显式标记，不得靠裁剪掩盖。 */
-  overflow: { flag: boolean; note: string };
+  overflow: { flag: boolean; note: string; severity?: "data" | "clip" };
   /** 规则 7：它会怎样骗你（非空）。 */
   pitfalls: string;
   /** 规则 5：数据来源（backend / backend+preview / precomputed…）。 */
@@ -369,7 +374,7 @@ export function axisDecoBands(
 // --------------------------------------------------------------------------- //
 const KNOWN_KINDS = new Set(["line", "band", "scatter", "heat", "contour", "bars", "vectorfield", "loglogfit"]);
 const KNOWN_CMAPS = new Set(["viridis", "magma", "coolwarm", "gray", "rdbu"]);
-const KNOWN_BADGES = new Set(["source", "autoscale", "overflow", "preview", "critical", "status"]);
+const KNOWN_BADGES = new Set(["source", "autoscale", "overflow", "clip", "preview", "critical", "status"]);
 const KNOWN_ROLES = new Set(["title", "label", "note", "axis", "pitfall"]);
 
 function len(a: ArrayLike<number> | undefined): number {
@@ -928,9 +933,32 @@ export function axisModeBadge(autoscaled: boolean, x = 8, y = 26): Badge {
   };
 }
 
-/** 规则 1 的溢出徽标。 */
-export function overflowBadge(note: string, x = 8, y = 44): Badge {
-  return { kind: "overflow", text: `溢出：${note}`, x, y, color: "#c53030" };
+/**
+ * 规则 1 的范围徽标。
+ *
+ * `tone="danger"`：数据出现非有限值/真正的异常溢出；
+ * `tone="warning"`：固定视窗的裁剪或地板说明——必须报告，但不应伪装成“算坏了”。
+ * 网页据此把 warning 显示成中性的“显示范围”，danger 才显示红色“溢出”。
+ */
+export function overflowBadge(note: string, x = 8, y = 44, tone: "danger" | "warning" = "danger"): Badge {
+  return {
+    kind: "overflow",
+    text: `溢出：${note}`,
+    x,
+    y,
+    color: tone === "danger" ? "#c53030" : "#b7791f",
+    tone,
+  };
+}
+
+/**
+ * 固定视窗的裁剪说明（**不是错误**）。
+ *
+ * 有些图故意只画窗口内的那一段（例如 1.3 的解平面要看清谷底），窗外数据被裁掉是
+ * 显示选择而不是数据坏了。它仍必须被说明，但不该用红色「溢出」吓人。
+ */
+export function clipBadge(note: string, x = 8, y = 62): Badge {
+  return { kind: "clip", text: `视窗裁剪：${note}`, x, y, color: "#b7791f", tone: "warning" };
 }
 
 /**
@@ -973,10 +1001,11 @@ export function criticalBadge(
     .join(" / ");
   return {
     kind: "critical",
-    text: `${name} = ${value.toPrecision(4)}${opts.unit ?? ""}　理论临界 ${shown}${crossed ? "　⚠ 已越界" : ""}`,
+    text: `${name} = ${value.toPrecision(4)}${opts.unit ?? ""}　理论临界 ${shown}${crossed ? "　已超过临界" : ""}`,
     x: 8,
     y: 62,
-    color: crossed ? "#c53030" : "#2f855a",
+    color: crossed ? "#b7791f" : "#2f855a",
+    ...(crossed ? { tone: "warning" as const } : {}),
   };
 }
 

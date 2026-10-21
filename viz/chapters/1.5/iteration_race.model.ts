@@ -242,7 +242,7 @@ export const iterationRaceModel: SceneModel = (frame, opts) => {
   const planeAxis = makeAxis("plane", planeRect, {
     xlim,
     ylim,
-    xlabel: "x1",
+    xlabel: "$x1$",
     ylabel: axisYlabel("plane", "x2"),
     title: axisTitle("plane", "等高线与迭代轨迹（物理坐标，固定轴）"),
     autoscaled: false,
@@ -266,7 +266,7 @@ export const iterationRaceModel: SceneModel = (frame, opts) => {
     xlim: [0, stepMax],
     ylim: convYlim,
     yscale: "log",
-    xlabel: "迭代步 k",
+    xlabel: "迭代步 $k$",
     ylabel: axisYlabel("convergence", "相对残差"),
     title: axisTitle("convergence", "各方法的相对残差 ‖r_k‖/‖r_0‖"),
     autoscaled: true,
@@ -321,7 +321,7 @@ export const iterationRaceModel: SceneModel = (frame, opts) => {
 
   // —— 图层 4~5：精确解与当前步的位置 ——
   if (xStar !== undefined && xStar.length >= 2) {
-    scene.layers.push(scatterLayer("plane", [xStar[0]], [xStar[1]], { r: 4.5, color: pal.exact, label: "精确解 x*" }));
+    scene.layers.push(scatterLayer("plane", [xStar[0]], [xStar[1]], { r: 4.5, color: pal.exact, label: "精确解 $x*$" }));
   }
   if (methodIdx !== undefined && markX !== undefined && markY !== undefined && markX.length > 0 && markY.length > 0) {
     scene.layers.push(
@@ -429,7 +429,7 @@ export const iterationRaceModel: SceneModel = (frame, opts) => {
       lineLayer("convergence", [series([cut, cut], [convYlim[0], convYlim[1]], pal.cursor, { dash: [3, 3], width: 1 })]),
     );
     scene.layers.push(
-      scatterLayer("convergence", snapshotX, snapshotY, { r: 3.2, color: pal.marker, label: "第 k 步五条残差的快照" }),
+      scatterLayer("convergence", snapshotX, snapshotY, { r: 3.2, color: pal.marker, label: "第 $k$ 步五条残差的快照" }),
     );
   }
 

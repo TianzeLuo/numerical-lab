@@ -1737,9 +1737,27 @@ html[data-theme="dark"] .nl-btn-primary:hover {
   color: var(--danger);
 }
 
-.nl-state-preview {
+.nl-state-preview,
+.nl-state-clip,
+.nl-state-chip[data-tone="warning"] {
   background: var(--warm-soft);
   color: var(--warm);
+}
+
+.nl-state-chip[tabindex="0"] {
+  cursor: help;
+}
+
+.nl-state-chip:focus-visible {
+  outline: 2px solid var(--accent, #2b6cb0);
+  outline-offset: 2px;
+}
+
+.nl-state-more {
+  flex: none;
+  opacity: 0.72;
+  font-size: 9px;
+  border-bottom: 1px dotted currentColor;
 }
 
 /* 时间轴 ---------------------------------------------------------------- */
@@ -2608,6 +2626,29 @@ html[data-theme="dark"] .nl-btn-primary:hover {
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+.nl-theory-steps {
+  counter-reset: theory-step;
+}
+
+.nl-theory-steps li {
+  counter-increment: theory-step;
+}
+
+.nl-theory-steps li::before {
+  content: counter(theory-step);
+  top: 10px;
+  left: 0;
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  background: none;
+  color: var(--accent-ink, #2b6cb0);
+  font-size: 10px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
 }
 
 .nl-theory-list li {

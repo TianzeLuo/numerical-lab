@@ -160,17 +160,20 @@ export function overflowBadgeFor(
   nBad: number,
   extra: string[],
   opts: { slot: number; width: number },
-  cleanNote = "本帧所有采样点都落在窗口内",
 ): void {
   applyOverflow(scene, nBad, { slot: opts.slot, width: opts.width });
-  // 顺序有意：调用方的 `extra` 是**本帧特有**的原因（哪条路线没有有限解、哪个值非有限），
-  // `applyOverflow` 的 note 是通用范围提示。角标超宽会从尾部截断，所以具体的放前面。
+  // 「没有越界」是一种正常状态，不该占一枚红色角标。只有真的丢了数据才挂 overflow；
+  // 调用方的 `extra` 必须是**本帧特有**的数据问题（哪条路线没有有限解、哪个值非有限），
+  // 不能把「地板点没有画进对数轴」这种显示约定塞进来。
+  if (!scene.overflow.flag) {
+    scene.overflow = { flag: false, note: "" };
+    return;
+  }
+  // 顺序有意：具体原因在前，通用范围提示在后；角标超宽会从尾部截断。
   const detail = [...extra, scene.overflow.note].filter((t) => t.length > 0).join("；");
-  const clean = nBad === 0 && extra.length === 0;
-  const note = clipBadgeText(clean ? `${cleanNote}（没有点被丢掉）` : detail);
-  scene.overflow = { flag: !clean, note };
+  scene.overflow = { flag: true, note: detail };
   const idx = scene.badges.findIndex((b) => b.kind === "overflow");
-  const node = placeBadge(badge("overflow", clean ? `溢出/地板：${note}` : `溢出：${note}`, 8, 8), opts.slot, opts.width);
+  const node = placeBadge(badge("overflow", clipBadgeText(`溢出：${detail}`), 8, 8), opts.slot, opts.width);
   if (idx >= 0) scene.badges[idx] = node;
   else scene.badges.push(node);
 }

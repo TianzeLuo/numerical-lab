@@ -74,6 +74,25 @@ def _at_least_one(t: float, n_max: int) -> int:
     return max(1, _step_of(t, n_max))
 
 
+def _fmt_kappa(value: float) -> str:
+    return f"{value:.3g}" if np.isfinite(value) else "无有限值"
+
+
+def _safe_vector_solve(solve: Any) -> tuple[np.ndarray, float, str]:
+    """解一个 2×2 线性系统；失败时返回占位向量 + defined=0 + 人类可读原因。
+
+    不能把 ``NaN`` 直接写进数组：NLF 的数组段会原样编码 NaN，前端拿到的是一条
+    "凭空消失"的曲线。这里把"没有有限解"变成**显式状态**，由 model 跳过箭头并写进图注。
+    """
+    try:
+        v = np.asarray(solve(), dtype=float).reshape(2)
+    except (ZeroDivisionError, ValueError, FloatingPointError) as exc:
+        return np.zeros(2), 0.0, str(exc) or "线性求解失败"
+    if not np.all(np.isfinite(v)):
+        return np.zeros(2), 0.0, "解的分量不是有限数（尺度超出 double）"
+    return v, 1.0, ""
+
+
 # =========================================================================== #
 # MANIFEST：四个可视化的契约（真源）
 # =========================================================================== #
@@ -111,6 +130,7 @@ MANIFEST: dict[str, Any] = {
                     "default": "0.3（加法）",
                     "critical": [],
                     "criticalNote": "",
+                    "help": "决定把数轴放大到哪一段。「0.3（加法）」解释 $0.1+0.2$ 为什么落在 0.3 旁边；「0.25（2 的幂）」看跨越 2 的幂时格点间距如何变化。切换后蓝点、红点与间距括号都会重新定位。",
                 },
                 {
                     "name": "window_ulps",
@@ -123,22 +143,23 @@ MANIFEST: dict[str, Any] = {
                     "unit": "ulp",
                     "critical": [],
                     "criticalNote": "",
+                    "help": "以窗口中心的一个 ulp 为尺子，左右各显示多少个格点。调大能看到更多相邻 double；调小则把 $0.1+0.2$ 与 0.3 的差异放大到像素级。它只改变观察窗口宽度，不改变真实数据。",
                 },
             ],
-            "time": {"mode": "scrub", "tMax": 64.0, "dt": 1.0, "label": "0.1 的累加次数 k"},
+            "time": {"mode": "scrub", "tMax": 64.0, "dt": 1.0, "label": "$0.1$ 的累加次数 $k$", "initial": 64.0},
             "requiredAux": ["residual"],
             "axes": [
                 {
                     "id": "ladder",
                     "autoscaled": False,
-                    "title": "浮点格点：横轴是与窗口中心的距离，每个圆点是一个可表示的 double",
-                    "ylabel": "浮点格点（示意行）",
+                    "title": "浮点格点：横轴是与窗口中心的距离（单位 $\\mathrm{ulp}$），每个圆点是一个可表示的 double",
+                    "ylabel": "浮点格点（示意行，无数值）",
                 },
                 {
                     "id": "residual",
                     "autoscaled": True,
-                    "title": "把 0.1 累加 k 次后，结果与数学值 k/10 的差（对数轴）",
-                    "ylabel": "绝对误差",
+                    "title": "$\\mathrm{fl}(0.1)$ 累加 $k$ 次后，结果与 $k/10$ 的差（对数轴）",
+                    "ylabel": "$|s_k-k/10|$",
                     "scale": "log",
                 },
             ],
@@ -150,9 +171,12 @@ MANIFEST: dict[str, Any] = {
                 "下图是误差的对数轴：误差恰好为 0 的步会被抬到地板高度显示，不能读成“误差不为零”。"
             ),
             "theory": [
-                "$\\mathrm{fl}(x)$ 表示离实数 $x$ 最近的 double；相邻两个 double 的距离记作 $\\mathrm{ulp}(x)$，在区间 $[2^e,2^{e+1})$ 内固定为 $2^{e-52}$。",
-                "$\\mathrm{fl}(0.1)+\\mathrm{fl}(0.2)=0.30000000000000004$，而 $0.3$ 的最近 double 是 $0.2999999999999999889\\ldots$；两者相邻，差 $1$ 个 ulp。",
-                "把 0.1 累加 $k$ 次的误差随 $k$ 线性增长，尺度约为 $k\\,u/2$，其中 $u=2^{-53}$ 是单位舍入。",
+                "**先把数轴变成离散的。** 二进制的 double 用 1 位符号、11 位指数和 52 位尾数表示一个数。把指数固定在一个区间 $[2^e,2^{e+1})$ 内，尾数每加 1，数值就前进 $2^{e-52}$；这正是相邻两个可表示数的距离，记作 $\\mathrm{ulp}(x)$。所以浮点数不是“实数的一个近似值”，而是间距由指数决定的一串格点。",
+                "**舍入就是选最近的格点。** 定义 $\\mathrm{fl}(x)$ 为离实数 $x$ 最近的 double（恰好在中点时按偶尾数取舍）。最坏情况下绝对误差不超过半个格点：$|\\mathrm{fl}(x)-x|\\le\\tfrac12\\mathrm{ulp}(x)$。把它除以 $|x|$，得到相对误差界 $u=2^{-53}\\approx1.11\\times10^{-16}$，这就是后文反复出现的单位舍入。",
+                "**0.1 和 0.2 从一开始就不在格点上。** 十进制 $0.1$ 的二进制展开无限循环，double 只能保留前 53 位，因此 $\\mathrm{fl}(0.1)$ 与 $0.1$ 相差约 $5.55\\times10^{-18}$；$0.2$ 同理。两个近似值相加后再舍入一次，得到 $0.30000000000000004$；而 $0.3$ 的最近 double 是 $0.2999999999999999889\\ldots$，两者恰好相差 $1$ 个 ulp。红点和蓝点不是算错了，而是两条不同的舍入路径。",
+                "**跨过 2 的幂，格点会变密或变疏。** 在 $[2^e,2^{e+1})$ 内间距固定为 $2^{e-52}$；一到 $2^{e+1}$，指数加一、间距翻倍。反过来看 $0.25=2^{-2}$：它左侧属于 $[2^{-3},2^{-2})$，间距是 $2^{-55}$；右侧是 $2^{-54}$，所以左半边的点更密。把观察位置切到 0.25，两个括号会分别量出左右两个不同的 ulp。",
+                "**累加误差为什么会越走越远。** 设第 $k$ 步的部分和为 $s_k$，数学真值为 $k/10$。每一步只保证 $|\\mathrm{fl}(s_{k-1}+0.1)-(s_{k-1}+0.1)|\\le u|s_{k-1}+0.1|$。把各步误差相加，最坏情况是 $|s_k-k/10|\\le k\\,u/2$；实际符号有正有负，通常小于这个线性界，但趋势仍随 $k$ 增长。下图把恰好为零的残差抬到地板 $u/2$，那只表示“在 log 轴上画得出来”，不代表误差等于地板。",
+                "**读图时不要越过数据下结论。** 圆点只展示窗口内的几十个 double，窗口外还有无数个；横轴的单位是“中心处的一个 ulp”，跨到 2 的幂另一侧后，同样的横向距离对应的绝对差可能已经变了。蓝点、红点和间距括号都能悬停读出完整的十进制值——先核对它们，再谈“0.1+0.2 为什么不是 0.3”。",
             ],
         },
         # ------------------------------------------------------------------ #
@@ -179,6 +203,7 @@ MANIFEST: dict[str, Any] = {
                     "default": 1.0,
                     "critical": [],
                     "criticalNote": "",
+                    "help": "被减数。它与 $b$ 越接近，相减后剩下的有效位数越少。滑轨用于快速扫；要精确复现实验，点右侧数字框输入（例如 $1.000001$）。",
                 },
                 {
                     "name": "b",
@@ -190,6 +215,7 @@ MANIFEST: dict[str, Any] = {
                     "default": 0.999999,
                     "critical": [],
                     "criticalNote": "",
+                    "help": "减数。把它调到与 $a$ 只差几个 ulp，就能看到输入误差被放大成百分之几十甚至更大。两数完全相等时程序会换成相邻的 double 并明确标注。",
                 },
                 {
                     "name": "input_digits",
@@ -204,6 +230,7 @@ MANIFEST: dict[str, Any] = {
                         "把 d 调到它以下，图上的「剩余位数」与理论上界会同步变差。"
                     ),
                     "beyond": "below",
+                    "help": "假设每个输入在十进制里有 $d$ 位可信数字，对应的相对不确定度约为 $\\tfrac12 10^{1-d}$。$d$ 越小，输入本身越不可信，相减后爆炸得越早。$16$ 附近已接近 double 能可靠表达的上限 $\\log_{10}(2^{53})\\approx15.95$。",
                 },
                 {
                     "name": "perturb_ulps",
@@ -214,6 +241,7 @@ MANIFEST: dict[str, Any] = {
                     "default": 1,
                     "critical": [],
                     "criticalNote": "",
+                    "help": "实测放大比时，把 $a$ 向上、$b$ 向下各推开多少个 ulp。$0$ 表示不扰动（只显示先验估计）；调大后，输入里那点被放大的误差会变成看得见的相对误差。",
                 },
             ],
             "time": {"mode": "none"},
@@ -222,13 +250,13 @@ MANIFEST: dict[str, Any] = {
                 {
                     "id": "digits",
                     "autoscaled": False,
-                    "title": "还剩多少位十进制有效数字（横轴 = 抵消掉多少位，记作 t）",
+                    "title": "还剩多少位十进制有效数字（横轴 = 抵消掉多少位，记作 $t$）",
                     "ylabel": "剩余位数",
                 },
                 {
                     "id": "error",
                     "autoscaled": True,
-                    "title": "实测相对误差与理论上界（横轴 = 损失位数 t）",
+                    "title": "实测相对误差与理论上界（横轴 = 损失位数 $t$）",
                     "ylabel": "相对误差",
                     "scale": "log",
                 },
@@ -239,9 +267,12 @@ MANIFEST: dict[str, Any] = {
                 "把 b 调到与 a 完全相等时，程序会改用相邻的一个 ulp，避免取对数；这时标出的点是退化情况，不能当一般结论。"
             ),
             "theory": [
-                "减法的条件数 $\\operatorname{cond}(a-b)=\\frac{|a|+|b|}{|a-b|}$；相对误差约被放大同样倍数。",
-                "Sterbenz 引理：当 $b/2\\le a\\le 2b$ 时，$\\mathrm{fl}(a-b)$ 是精确的，误差全部来自输入。",
-                "剩余有效位数约为 $\\log_{10}\\!\\left(|a-b|/(\\delta_{\\mathrm{in}}\\max(|a|,|b|))\\right)$；每抵消 10 倍，少一位。",
+                "**给输入一个可比较的误差模型。** 如果十进制输入保留 $d$ 位有效数字，它的相对不确定度约为 $\\delta_{\\mathrm{in}}=\\tfrac12 10^{1-d}$。例如 $d=16$ 时 $\\delta_{\\mathrm{in}}=5\\times10^{-16}$，与 double 的单位舍入同量级。实验把 $a$、$b$ 都看作“真值 ± 相对误差 $\\delta_{\\mathrm{in}}$”，而不是假装它们精确。",
+                "**减法怎样放大误差。** 设绝对误差满足 $|\\delta a|\\le\\delta_{\\mathrm{in}}|a|$、$|\\delta b|\\le\\delta_{\\mathrm{in}}|b|$，则 $a-b$ 的绝对误差最多是这两个误差之和。除以结果本身，得到相对误差界 $\\frac{|\\delta(a-b)|}{|a-b|}\\le\\delta_{\\mathrm{in}}\\frac{|a|+|b|}{|a-b|}.$ 因子 $(|a|+|b|)/|a-b|$ 就是减法的条件数：两数越接近，分母越小，输入的相对误差被放大得越厉害。",
+                "**减法本身通常是精确的。** Sterbenz 引理说：当 $b/2\\le a\\le 2b$ 时，浮点差 $\\mathrm{fl}(a-b)$ 精确等于 $a-b$（两个相邻格点之间的差仍然落在格点上）。所以图中那条“减法自身舍入误差”恒为 0 不是程序偷懒；爆炸的是输入原本携带的误差，不是减号。",
+                "**损失多少位，可以数出来。** 记 $M=\\max(|a|,|b|)$、$t=\\log_{10}(M/|a-b|)$，则 $|a-b|=M\\cdot10^{-t}$。代入上面的界，相对误差约被放大 $10^t$ 倍；如果输入还有 $d$ 位可信，相减后大约只剩 $d-t$ 位。这就是上图那条斜率 $-1$ 的直线：每抵消一个十进制位，少一位有效数字。$t$ 接近 $\\log_{10}(2^{53})\\approx15.95$ 时，连 double 自身都分不清了。",
+                "**实测是怎样做的。** 程序把 $a$ 向上、$b$ 向下各推 $k$ 个 ulp（最坏扰动方向），精确计算新的差与原差的相对变化，得到“实测放大比”；再乘上输入的相对不确定度 $\\delta_{\\mathrm{in}}$，就是下图红线的相对误差。理论上界用连续模型 $\\delta_{\\mathrm{in}}(|a|+|b|)/|a-b|$ 画成橙色虚线。实测点可以略高于或低于上界，因为 ulp 是离散的，而连续模型是平滑近似。",
+                "**读图时注意两件事。** 第一，横轴最右端的目标差可能小于一个 ulp，此时程序改用“最近但确实不同”的 double 计算，并在帧 note 里注明，不能把末端读成“差真的这么小”。第二，把 $b$ 设成与 $a$ 完全相等时，程序会取相邻的一个 ulp 代替 $b$，否则 $\\log(0)$ 没有定义；这一点也会明确标注。",
             ],
         },
         # ------------------------------------------------------------------ #
@@ -264,6 +295,7 @@ MANIFEST: dict[str, Any] = {
                     "default": "shear",
                     "critical": [],
                     "criticalNote": "",
+                    "help": "选择矩阵长什么样：shear 先剪切再拉伸；diagonal 只沿坐标轴拉伸；rotation 只旋转（$\\kappa=1$）；graded 让两行几乎相同；triangular 是上三角。族不同，目标 $\\kappa$ 与实测 $\\kappa$ 会不同，椭圆形状也不同。",
                 },
                 {
                     "name": "shear",
@@ -275,6 +307,7 @@ MANIFEST: dict[str, Any] = {
                     "default": 0.8,
                     "critical": [],
                     "criticalNote": "",
+                    "help": "只对 shear 族生效。$s$ 控制剪切矩阵 $S$（把点 $(x_1,x_2)$ 变成 $(x_1+s x_2,\\,x_2)$） 的强度：$s=0$ 时拉伸轴与坐标轴对齐；$s$ 越大，椭圆越倾斜，但行列式（面积缩放）不变。",
                 },
                 {
                     "name": "delta_b",
@@ -290,6 +323,7 @@ MANIFEST: dict[str, Any] = {
                         "实测放大比会退化成舍入噪声；滑块下限取 u 量级正是为了让这件事可见。"
                     ),
                     "beyond": "below",
+                    "help": "右端项 $b$ 的相对扰动大小。它决定数值解 $\\hat{x}$ 与扰动解 $\\hat{x}'$ 差多少。低于 $u\\approx1.11\\times10^{-16}$ 的扰动在 double 里无法表示，实测放大比会只剩舍入噪声。",
                 },
                 {
                     "name": "b_angle",
@@ -301,6 +335,7 @@ MANIFEST: dict[str, Any] = {
                     "default": 30.0,
                     "critical": [],
                     "criticalNote": "",
+                    "help": "右端项 $b$ 在平面里的方向（从 $x_1$ 轴逆时针量）。最坏方向的放大比接近 $\\kappa$；某些方向远低于 $\\kappa$，这正说明 $\\kappa$ 是“所有方向的上界”，不是每个方向的预测。",
                 },
                 {
                     "name": "norm",
@@ -310,21 +345,22 @@ MANIFEST: dict[str, Any] = {
                     "default": "2",
                     "critical": [],
                     "criticalNote": "",
+                    "help": "选择用哪种矩阵范数计算条件数。$1$、$2$、$\\infty$、F 范数之间可能差一个 $n$ 的因子；图上的椭圆半轴比始终对应 2-范数 $\\kappa_2$，其他范数只出现在数值与上界里。",
                 },
             ],
-            "time": {"mode": "scrub", "tMax": 16.0, "dt": 0.25, "label": "log10 κ（目标）"},
+            "time": {"mode": "scrub", "tMax": 16.0, "dt": 0.25, "label": "$\\log_{10}\\kappa$（目标）"},
             "requiredAux": ["error"],
             "axes": [
                 {
                     "id": "geometry",
                     "autoscaled": False,
-                    "title": "单位圆与 A 作用后的椭圆",
-                    "ylabel": "x₂",
+                    "title": "单位圆与 $A$ 作用后的椭圆",
+                    "ylabel": "$x_2$",
                 },
                 {
                     "id": "error",
                     "autoscaled": True,
-                    "title": "实测放大比与最坏情况上界 κ(A)",
+                    "title": "实测放大比与最坏情况上界 $\\kappa(A)$",
                     "ylabel": "放大比",
                     "scale": "log",
                 },
@@ -336,9 +372,12 @@ MANIFEST: dict[str, Any] = {
                 "后面的曲线主要由舍入噪声决定。"
             ),
             "theory": [
-                "单位球在 $A$ 下的像，半轴是 $\\sigma_{\\min}$ 与 $\\sigma_{\\max}$，半轴之比为 $\\kappa_2(A)=\\|A\\|_2\\|A^{-1}\\|_2$。",
-                "前向误差界：$\\frac{\\|\\Delta x\\|}{\\|x\\|}\\le\\kappa(A)\\frac{\\delta A+\\delta b}{1-\\kappa\\,\\delta A}$；本图取 $\\delta A=0$。",
-                "$\\kappa_1,\\kappa_2,\\kappa_\\infty,\\kappa_F$ 可以相差一个 $n$ 因子，所以读条件数时必须同时看范数。",
+                "**条件数衡量的是一道“题”有多敏感。** 对线性方程组 $Ax=b$，如果右端项有很小的扰动 $\\delta b$，解会变成 $x+\\delta x$，且 $A\\,\\delta x=\\delta b$。两边取范数：$\\|\\delta x\\|\\le\\|A^{-1}\\|\\,\\|\\delta b\\|$。再把 $\\|b\\|\\le\\|A\\|\\,\\|x\\|$ 用上，就得到相对误差界 $\\frac{\\|\\delta x\\|}{\\|x\\|}\\le\\kappa(A)\\,\\frac{\\|\\delta b\\|}{\\|b\\|},\\qquad \\kappa(A)=\\|A\\|\\,\\|A^{-1}\\|.$ 这个 $\\kappa$ 与求解算法无关，只由矩阵本身决定。",
+                "**为什么单位圆会变成椭圆。** 所有长度为 1 的向量组成单位圆。矩阵 $A$ 把它线性地压扁、拉伸，像是一条椭圆；椭圆的半轴长正好是 $A$ 的两个奇异值 $\\sigma_{\\max}\\ge\\sigma_{\\min}$，方向是左右奇异向量。半轴比 $\\sigma_{\\max}/\\sigma_{\\min}$ 就是 2-范数条件数 $\\kappa_2(A)$。椭圆越扁，某些方向上的解对输入越敏感。",
+                "**上界与某个具体方向不是一回事。** 上面的界对所有 $\\delta b$ 方向都成立，但最坏方向才能取到等号。图上的“实测放大比”把当前方向的相对解变化除以相对 $b$ 扰动：$\\mathrm{amp}=\\frac{\\|\\delta x\\|/\\|x\\|}{\\|\\delta b\\|/\\|b\\|}.$ 它一般低于 $\\kappa$；只有 $\\delta b$ 沿着最小奇异值方向时，才接近 $\\kappa$。看到实测值远小于上界，不代表上界错了。",
+                "**矩阵族与剪切参数。** 五个族用不同方式构造出目标条件数：shear 先剪切再各向异性拉伸；diagonal 只沿坐标轴拉伸；rotation 是正交矩阵，$\\kappa_2=1$；graded 让两行几乎相同；triangular 是上三角。shear 族的矩阵写作 $A=R^{\\mathrm T}\\,\\mathrm{diag}(1,1/\\kappa)\\,R\\,S$，其中 $S$ 把点 $(x_1,x_2)$ 变成 $(x_1+s x_2,x_2)$；$s$ 改变椭圆朝向和形状，但 $\\det A=1/\\kappa$ 与 $s$ 无关。",
+                "**目标 $\\kappa$ 与实测 $\\kappa$ 为什么不同。** 参数只规定“想要多大的条件数”，具体矩阵族实现出来的谱条件数会有偏差；图上同时标出目标值和实测值，读数时必须用实测值。不同范数 $\\kappa_1,\\kappa_2,\\kappa_\\infty,\\kappa_F$ 还能差一个与维数 $n$ 有关的常数因子，所以“条件数”必须连同范数一起读。",
+                "**数值上什么时候不能再信这张图。** 当 $\\kappa u\\ge1$ 时，$A$ 在 double 里已经和奇异矩阵无法区分；此时解向量可能超出画面，程序把箭头按方向裁到 $\\pm3$ 显示，并在溢出说明里给出真实端点。看不到完整箭头不等于它不存在，更不代表解“很温和”。",
             ],
         },
         # ------------------------------------------------------------------ #
@@ -348,8 +387,9 @@ MANIFEST: dict[str, Any] = {
             "description": (
                 "同样一组数，换个加法顺序，结果可能不同。上图依次列出大项与小项；"
                 "下图比较朴素求和、Kahan 补偿求和、成对求和与排序求和的误差。"
+                "默认的 big 是 $2^{53}-1$（刚好低于 1/u），第一次加 1 到达 $2^{53}$，之后每个 1 都落在半个 ulp 内、被整项丢掉；"
                 "Kahan 把每一步的舍入损失记下来再加回去，所以通常更准；但把它分段并行、"
-                "段间再用朴素加法合并，误差会重新变大。把小项调小、项数调多，差异最明显。"
+                "段间再用朴素加法合并，误差会重新变大。把 big 调到 $2^{53}$ 以上，红色临界提示会出现，差异也更极端。"
             ),
             "dataSource": "backend",
             "params": [
@@ -360,13 +400,15 @@ MANIFEST: dict[str, Any] = {
                     "min": 1.0,
                     "max": 1e16,
                     "step": 1.0,
-                    "default": 1e16,
+                    "default": 1.0 / U - 1.0,
                     "critical": [1.0 / U],
                     "criticalNote": (
-                        "big > 1/u ≈ 9.0e15 时，1.0 这个「小项」已经落在 big 的半个 ulp 之内，"
-                        "朴素求和会把它整项丢掉；这正是 1e16+1+1+… 的经典场景。"
+                        "big ≥ 1/u = 2^53 ≈ 9.0e15 时，1.0 这个「小项」已经落在 big 的半个 ulp 之内，"
+                        "朴素求和会把它整项丢掉。默认值取 2^53−1：第一次加 1 恰好到边界，之后每个 1 都被丢掉，"
+                        "既演示了问题，又不会一打开就亮红色越界提示。"
                     ),
                     "beyond": "above",
+                    "help": "最大的一项。默认取 $2^{53}-1$：第一次加 1 就到达 $2^{53}$，之后每个 1 都小于半个 ulp，朴素加法会把它整项吞掉。超过 $2^{53}$ 后红色临界提示会亮起。",
                 },
                 {
                     "name": "small",
@@ -378,6 +420,7 @@ MANIFEST: dict[str, Any] = {
                     "default": 1.0,
                     "critical": [],
                     "criticalNote": "",
+                    "help": "其余 $n-1$ 项的大小。把它调得比 big 的 ulp 还小，朴素求和与补偿求和的差别最明显；调大后所有方法都会更接近精确值。",
                 },
                 {
                     "name": "n_terms",
@@ -388,6 +431,7 @@ MANIFEST: dict[str, Any] = {
                     "default": 512,
                     "critical": [],
                     "criticalNote": "",
+                    "help": "一共加多少项（第一项是 big，其余是 small）。项数越多，朴素求和的累计舍入损失越大；Kahan、成对求和与排序求和的误差增长慢得多。",
                 },
                 {
                     "name": "compensated",
@@ -397,22 +441,23 @@ MANIFEST: dict[str, Any] = {
                     "default": "serial",
                     "critical": [],
                     "criticalNote": "",
+                    "help": "选择补偿求和的归约方式：serial 是完整串行 Kahan；shuffled 先做确定性置换；parallel8/64 分成 8/64 段、段内 Kahan、段间朴素合并。对比可看到“Kahan 能不能并行”的关键差别。",
                 },
             ],
-            "time": {"mode": "scrub", "tMax": 4096.0, "dt": 16.0, "label": "部分和长度 k"},
+            "time": {"mode": "scrub", "tMax": 4096.0, "dt": 16.0, "label": "部分和长度 $k$", "initial": 4096.0},
             "requiredAux": ["error"],
             "axes": [
                 {
                     "id": "terms",
                     "autoscaled": True,
-                    "title": "被相加的项（横轴 = 项序号 i；最大项在前）",
-                    "ylabel": "xᵢ",
+                    "title": "被相加的项（横轴 = 项序号 $i$；最大项在前）",
+                    "ylabel": "$x_i$",
                 },
                 {
                     "id": "error",
                     "autoscaled": True,
                     "title": "各求和顺序的绝对误差与两条理论上界",
-                    "ylabel": "绝对误差",
+                    "ylabel": "$|s_k-k/10|$",
                     "scale": "log",
                 },
             ],
@@ -423,10 +468,12 @@ MANIFEST: dict[str, Any] = {
                 "判断方法是否更好，要看曲线相对理论上界的位置，而不是它离图底多近。"
             ),
             "theory": [
-                "朴素从左到右相加：$|\\Delta|\\le n\\,u\\sum_i|x_i|$，误差随项数线性增长。",
-                "Kahan 补偿：$|\\Delta|\\le\\left(2u+O(nu^2)\\right)\\sum_i|x_i|$；界与 $n$、与顺序都无关，但不能分段后再朴素合并。",
-                "成对求和：$|\\Delta|\\le u\\lceil\\log_2 n\\rceil\\sum_i|x_i|$；排序后再朴素求和有同量级的界。",
-                "并行分段补偿：误差退化为 $P\\,u\\sum|\\text{段和}|$，段与段之间那一次朴素加法是瓶颈。",
+                "**浮点加法只保证一个小相对误差。** 对任意两个浮点数 $x,y$，实际计算满足 $\\mathrm{fl}(x+y)=(x+y)(1+\\varepsilon)$，其中 $|\\varepsilon|\\le u$。从左到右朴素相加 $n$ 项时，每一步的误差都会进入后面的部分和；最坏情况累加起来，得到 $|\\Delta_{\\mathrm{naive}}|\\le (n-1)u\\sum_i|x_i|+O(u^2).$ 误差随项数线性增长，而且大项会把小项直接吞掉。",
+                "**Kahan 补偿做了两件事。** 它用 $c$ 记住“刚才这一步舍入丢掉了多少”，下一次加法前先把 $c$ 从输入里减掉，再把新的损失写回 $c$：$y=x_k-c,\\quad t=s+y,\\quad c=(t-s)-y,\\quad s=t.$ 因为 $t-s$ 精确等于实际发生的舍入量，$c$ 就积累着尚未加回的损失。于是误差界变成 $|\\Delta_{\\mathrm{Kahan}}|\\le 2u\\sum_i|x_i|+O(nu^2)$，几乎与 $n$ 无关。",
+                "**成对求和靠的是树的高度。** 把 $n$ 项两两相加，再对得到的 $n/2$ 个和两两相加，递归进行。每个元素只经过约 $\\lceil\\log_2 n\\rceil$ 次加法，所以 $|\\Delta_{\\mathrm{pairwise}}|\\le u\\lceil\\log_2 n\\rceil\\sum_i|x_i|+O(u^2).$ 排序后再朴素相加也有同量级的效果：先把量级相近的项放在一起，避免“大数反复吞小数”。",
+                "**Kahan 不是“永远准确”。** 它仍然会积累误差，只是常数更小；当某一项本身小于当前部分和的半个 ulp 时，它也救不回来。更重要的是，Kahan 的误差界依赖“从头到尾按顺序传播补偿量”这个结构，不能随意拆开。",
+                "**为什么分段并行会退回朴素量级。** 把 $n$ 项分成 $P$ 段，每段内部用 Kahan，段和之间再用普通加法合并。段内误差仍小，但合并 $P$ 个段和时，小段会被大段吞掉；误差变成 $O(Pu\\sum|s_j|)$，也就是“段数 × 朴素合并的放大”。这不是实现细节，而是补偿算法与并行归约的结构冲突。",
+                "**图上到底量的是什么。** 下图画的是每种方法的部分和与高精度参考值之差的绝对值，附两条理论上界 $n u\\sum|x_i|$ 与 $(2u+nu^2)\\sum|x_i|$。默认 big 取 $2^{53}-1$，第一次加 1 到达 $2^{53}$，之后每个 1 都小于 half-ulp，朴素求和把它们整项丢掉——这就是两条曲线拉开的原因。对数轴上恰好为零的误差被抬到地板显示，不能读成“误差等于地板”。",
             ],
         },
     ],
@@ -622,9 +669,17 @@ def _cancellation(params: Mapping[str, Any], t: float) -> Frame:
     error_grid = np.zeros_like(t_grid)
     theory_grid = np.zeros_like(t_grid)
     round_grid = np.zeros_like(t_grid)
+    clamped_steps = 0
     for i, tt in enumerate(t_grid):
         gap_t = mag * 10.0 ** (-float(tt))
         b_t = a - sign * gap_t
+        # 当目标差小于 a 的半个 ulp 时，`a - gap_t` 会四舍五入回 a 本身，
+        # 后面的相对误差就是 0/0。这里改用「离 a 最近、但确实不同的 double」，
+        # 并让理论曲线也用这个真实可表示的差——不假装能表示更小的间隔。
+        if b_t == a:
+            b_t = fp.next_float(a, direction=-sign)
+            gap_t = abs(a - b_t)
+            clamped_steps += 1
         digits_grid[i] = fp.remaining_digits(gap_t, mag, u=delta_in)
         error_grid[i] = fp.perturbation_amplification(a, b_t, ulps=max(ulps, 1))
         theory_grid[i] = delta_in * (abs(a) + abs(b_t)) / gap_t
@@ -667,10 +722,17 @@ def _cancellation(params: Mapping[str, Any], t: float) -> Frame:
         error_floor=error_floor,
         roundoff_exact_zero_steps=n_exact_zero,
         degenerate=degenerate,
+        grid_clamped_steps=clamped_steps,
         overflow=bool(not np.isfinite(error_mark) or error_mark > 1.0),
     )
     fr.set_strings(
-        note=_cancel_note(a, b, gap, digits_mark, error_mark, round_mark, delta_in, degenerate),
+        note=_cancel_note(a, b, gap, digits_mark, error_mark, round_mark, delta_in, degenerate)
+        + (
+            f"；曲线最右端有 {clamped_steps} 个采样点的目标差已经小于 double 能分辨的间隔，"
+            "这些点按当前数字间实际最小的可表示差计算，不能读成「差真的那么小」。"
+            if clamped_steps > 0
+            else ""
+        ),
         exact_a=fp.exact_decimal(a, digits=25),
         exact_b=fp.exact_decimal(b, digits=25),
         sterbenz_note=(
@@ -732,31 +794,53 @@ def _cond_ellipsoid(params: Mapping[str, Any], t: float) -> Frame:
     th = np.deg2rad(b_angle)
     b = np.array([np.cos(th), np.sin(th)])
     db = delta_b * np.array([-np.sin(th), np.cos(th)])
-    try:
-        x_exact = exact_solve(A, b)
-    except ZeroDivisionError:
-        x_exact = np.array([np.nan, np.nan])
+    # 奇异或数值上解不动时，数组里**不能放 NaN/∞**（PROTOCOLS §1.3：裸 NaN 会让
+    # 整帧被拒收）。占位 0 + 一维 defined 掩码，前端据此跳过对应箭头并在图注里点名。
+    x_exact, x_exact_defined, exact_error = _safe_vector_solve(lambda: exact_solve(A, b))
     res = lu_partial(A)
-    x_num = solve_lu(res, b) if not res.singular else np.array([np.nan, np.nan])
-    try:
-        x_pert = cond.perturbed_solution(A, b, db)
-    except ZeroDivisionError:
-        x_pert = np.array([np.nan, np.nan])
+    if res.singular:
+        x_num, x_num_defined, num_error = np.zeros(2), 0.0, "LU 分解发现矩阵奇异"
+    else:
+        x_num, x_num_defined, num_error = _safe_vector_solve(lambda: solve_lu(res, b))
+    x_pert, x_pert_defined, pert_error = _safe_vector_solve(lambda: cond.perturbed_solution(A, b, db))
+    undefined_names = [
+        name
+        for name, flag in (
+            ("精确解 $x$", x_exact_defined),
+            ("数值解 $\\hat{x}$", x_num_defined),
+            ("扰动解 $\\hat{x}'$", x_pert_defined),
+        )
+        if not flag
+    ]
 
-    denom = float(np.max(np.abs(x_exact))) if np.all(np.isfinite(x_exact)) else 0.0
-    fwd = float(np.max(np.abs(x_num - x_exact))) / denom if denom > 0.0 else float("nan")
+    denom = float(np.max(np.abs(x_exact))) if x_exact_defined else 0.0
+    fwd = (
+        float(np.max(np.abs(x_num - x_exact))) / denom
+        if denom > 0.0 and x_num_defined
+        else float("nan")
+    )
     try:
         amp_now = cond.rhs_amplification_measured(A, b, db, p=norm_key)
     except (ZeroDivisionError, ValueError):
         amp_now = float("nan")
 
+    # 条件数函数在 A 数值奇异时会抛错（graded 族在 κ≳1e16 时真的会把矩阵压成 [[1,1],[1,1]]）。
+    # 这不是程序错误，而是本图要展示的结论；把"没有有限条件数"写进 note/None，而不是让请求 500。
+    def _cond_or_nan(fn: Any) -> float:
+        try:
+            value = float(fn(A))
+        except (ZeroDivisionError, ValueError, FloatingPointError):
+            return float("nan")
+        return value if np.isfinite(value) else float("nan")
+
     kappas = {
-        "1": cond.condition_1(A),
-        "2": cond.condition_2(A),
-        "inf": cond.condition_inf(A),
-        "fro": cond.condition_fro(A),
+        "1": _cond_or_nan(cond.condition_1),
+        "2": _cond_or_nan(cond.condition_2),
+        "inf": _cond_or_nan(cond.condition_inf),
+        "fro": _cond_or_nan(cond.condition_fro),
     }
     kappa_measured = kappas[norm_label]
+    kappa_u = kappa_measured * U if np.isfinite(kappa_measured) else float("nan")
     smin, smax = cond.ellipse_semi_axes(A)
     det_a = float(A[0, 0] * A[1, 1] - A[0, 1] * A[1, 0])
 
@@ -782,6 +866,10 @@ def _cond_ellipsoid(params: Mapping[str, Any], t: float) -> Frame:
     fr.add("x_exact", np.array([0.0, x_exact[0], 0.0, x_exact[1]]), unit="1", label="精确解 x")
     fr.add("x_num", np.array([0.0, x_num[0], 0.0, x_num[1]]), unit="1", label="数值解 x̂")
     fr.add("x_pert", np.array([0.0, x_pert[0], 0.0, x_pert[1]]), unit="1", label="扰动后的解 x̂′")
+    fr.add("x_exact_defined", np.array([x_exact_defined]), unit="1", label="精确解是否存在（1/0）")
+    fr.add("x_num_defined", np.array([x_num_defined]), unit="1", label="数值解是否存在（1/0）")
+    fr.add("x_pert_defined", np.array([x_pert_defined]), unit="1", label="扰动解是否存在（1/0）")
+    fr.add("matrix_A", A.reshape(-1), unit="1", label="当前矩阵 A（行优先 2×2）")
     fr.add("kappa_grid", grid, unit="1", label="log10 κ（目标）")
     fr.add("error", np.maximum(error, ERROR_FLOOR), unit="1", label="实测放大比（0 以 u/2 显示）")
     fr.add("error_bound", bound, unit="1", label="理论上界 κ")
@@ -791,23 +879,32 @@ def _cond_ellipsoid(params: Mapping[str, Any], t: float) -> Frame:
         shear=shear,
         log10_kappa=log_kappa,
         kappa_target=kappa_target,
-        kappa_measured=kappa_measured,
-        kappa_1=kappas["1"],
-        kappa_2=kappas["2"],
-        kappa_inf=kappas["inf"],
-        kappa_fro=kappas["fro"],
+        kappa_measured=_scalar(kappa_measured),
+        kappa_1=_scalar(kappas["1"]),
+        kappa_2=_scalar(kappas["2"]),
+        kappa_inf=_scalar(kappas["inf"]),
+        kappa_fro=_scalar(kappas["fro"]),
         sigma_min=smin,
         sigma_max=smax,
         det_a=det_a,
         delta_b=delta_b,
         b_angle=b_angle,
         amplification_measured=_scalar(amp_now),
-        amplification_over_kappa=_scalar(amp_now / kappa_measured) if kappa_measured > 0 else None,
+        amplification_over_kappa=(
+            _scalar(amp_now / kappa_measured) if np.isfinite(kappa_measured) and kappa_measured > 0 else None
+        ),
         forward_error=_scalar(fwd),
-        backward_error=_scalar(backward_error(A, x_num, b)) if np.all(np.isfinite(x_num)) else None,
-        residual=_scalar(residual_norm(A, x_num, b)) if np.all(np.isfinite(x_num)) else None,
-        bound_rhs=_scalar(kappa_measured * delta_b),
-        kappa_u=_scalar(kappa_measured * U),
+        backward_error=_scalar(backward_error(A, x_num, b)) if x_num_defined else None,
+        residual=_scalar(residual_norm(A, x_num, b)) if x_num_defined else None,
+        x_exact_defined=x_exact_defined,
+        x_num_defined=x_num_defined,
+        x_pert_defined=x_pert_defined,
+        matrix_a00=float(A[0, 0]),
+        matrix_a01=float(A[0, 1]),
+        matrix_a10=float(A[1, 0]),
+        matrix_a11=float(A[1, 1]),
+        bound_rhs=_scalar(kappa_measured * delta_b) if np.isfinite(kappa_measured) else None,
+        kappa_u=_scalar(kappa_u),
         n_theta=361,
         error_floor=ERROR_FLOOR,
         overflow=bool(np.max(np.abs(np.concatenate([ix, iy]))) > ELLIPSE_HALF_WIDTH),
@@ -815,10 +912,17 @@ def _cond_ellipsoid(params: Mapping[str, Any], t: float) -> Frame:
     fr.set_strings(
         family=family,
         norm=norm_label,
-        note=_ellipse_note(family, norm_label, kappa_measured, kappa_target, amp_now, float(kappa_measured * U)),
+        note=_ellipse_note(family, norm_label, kappa_measured, kappa_target, amp_now, kappa_u).rstrip("。")
+        + f"；当前矩阵 A=[{A[0, 0]:.3g} {A[0, 1]:.3g}; {A[1, 0]:.3g} {A[1, 1]:.3g}]"
+        + (
+            "；" + "、".join(undefined_names) + " 没有有限解（矩阵在 double 里奇异或超出表示范围），对应的箭头不画，其余量照常显示。"
+            if undefined_names
+            else ""
+        ),
         norm_note=(
-            f"本帧的 κ 用 <{norm_label}> 范数：κ₁={kappas['1']:.3g}、κ₂={kappas['2']:.3g}、"
-            f"κ∞={kappas['inf']:.3g}、κ_F={kappas['fro']:.3g}——不同范数可以差一个 n 因子，"
+            f"本帧的 κ 用 <{norm_label}> 范数：κ₁={_fmt_kappa(kappas['1'])}、"
+            f"κ₂={_fmt_kappa(kappas['2'])}、κ∞={_fmt_kappa(kappas['inf'])}、"
+            f"κ_F={_fmt_kappa(kappas['fro'])}——不同范数可以差一个 n 因子，"
             "图上任何「条件数」都要连范数一起读。"
         ),
         floor_note="副轴是对数轴：实测放大比小于 u/2 时按地板 u/2 显示（不会出现 log(0)）。",
@@ -829,10 +933,20 @@ def _cond_ellipsoid(params: Mapping[str, Any], t: float) -> Frame:
 def _ellipse_note(
     family: str, norm_label: str, kappa: float, target: float, amp: float, kappa_u: float
 ) -> str:
+    if not np.isfinite(kappa):
+        return (
+            f"{family} 族：目标 κ={target:.3g}。在 double 里 A 已经被舍入成奇异矩阵"
+            "（例如两行完全重合），条件数没有有限值；此时不谈“放大多少倍”，只能看到它已经不可解。"
+        )
     if kappa_u >= 1.0:
         return (
             f"κu = {kappa_u:.2e} ≥ 1：A 在 float64 里已经和奇异矩阵无法区分，"
             "此时椭圆与实测曲线都只是舍入的产物，不要再读具体数字。"
+        )
+    if not np.isfinite(amp):
+        return (
+            f"{family} 族：目标 κ={target:.3g}，实测 κ_{norm_label}={kappa:.3g}；"
+            "这个方向上扰动被奇异方向吞掉，放大比没有有限值。"
         )
     return (
         f"{family} 族：目标 κ={target:.3g}，实测 κ_{norm_label}={kappa:.3g}，"
@@ -945,9 +1059,16 @@ def _summation_order(params: Mapping[str, Any], t: float) -> Frame:
 def _sum_note(big: float, small: float, n: int, k: int, traj: Any, idx: int, scheme: str, err_scheme: float) -> str:
     ratio = float(err_scheme / traj.error_naive[idx]) if traj.error_naive[idx] > 0.0 else 1.0
     par = float(err_scheme / traj.error_kahan[idx]) if traj.error_kahan[idx] > 0.0 else 1.0
+
+    def err_text(value: float) -> str:
+        return f"{value:.3e}" if value != 0.0 else "0"
+
+    def exact_suffix(value: float) -> str:
+        return "；double 里精确为 0" if value == 0.0 else ""
+
     return (
         f"big={big:.3g}, small={small:.3g}, n={n}, 补偿方式 {scheme}：k={k} 时朴素误差 "
-        f"{traj.error_naive[idx]:.3e}、补偿 {err_scheme:.3e}（相对朴素 {ratio:.3g}）、"
-        f"串行 Kahan {traj.error_kahan[idx]:.3e}（本次归约 / 串行 = {par:.3g}）、"
-        f"成对 {traj.error_pairwise[idx]:.3e}"
+        f"{err_text(traj.error_naive[idx])}、补偿 {err_text(err_scheme)}（相对朴素 {ratio:.3g}{exact_suffix(err_scheme)}）、"
+        f"串行 Kahan {err_text(traj.error_kahan[idx])}（本次归约 / 串行 = {par:.3g}{exact_suffix(traj.error_kahan[idx])}）、"
+        f"成对 {err_text(traj.error_pairwise[idx])}{exact_suffix(traj.error_pairwise[idx])}"
     )

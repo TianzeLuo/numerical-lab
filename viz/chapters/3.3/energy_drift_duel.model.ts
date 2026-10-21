@@ -329,12 +329,12 @@ export const energyDriftDuelModel: SceneModel = (frame, opts) => {
 
   // —— 副轴：带宽 / 趋势 / 短期误差的“量级对照”（同一对数刻度）——
   const entries: Array<{ label: string; value: number | undefined; color: string }> = [
-    { label: "带宽·辛", value: bandSMeta, color: pal.curves[0] as string },
-    { label: "带宽·对照", value: bandBMeta, color: pal.exact },
-    { label: "趋势·辛", value: trendSMeta, color: pal.curves[0] as string },
-    { label: "趋势·对照", value: trendBMeta, color: pal.exact },
-    { label: "短期·辛", value: shortSMeta, color: pal.curves[0] as string },
-    { label: "短期·对照", value: shortBMeta, color: pal.exact },
+    { label: "带宽$·$辛", value: bandSMeta, color: pal.curves[0] as string },
+    { label: "带宽$·$对照", value: bandBMeta, color: pal.exact },
+    { label: "趋势$·$辛", value: trendSMeta, color: pal.curves[0] as string },
+    { label: "趋势$·$对照", value: trendBMeta, color: pal.exact },
+    { label: "短期$·$辛", value: shortSMeta, color: pal.curves[0] as string },
+    { label: "短期$·$对照", value: shortBMeta, color: pal.exact },
   ].map((e) => ({ ...e, value: e.value === undefined ? undefined : Math.abs(e.value) }));
   const defined = entries.filter((e) => e.value !== undefined && Number.isFinite(e.value));
   let ledHi = FLOOR;

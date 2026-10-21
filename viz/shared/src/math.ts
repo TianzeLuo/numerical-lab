@@ -234,6 +234,7 @@ const SYMBOLS: Readonly<Record<string, string>> = {
   "|": "‖", "{": "{", "}": "}", langle: "⟨", rangle: "⟩",
   lfloor: "⌊", rfloor: "⌋", lceil: "⌈", rceil: "⌉",
   lvert: "|", rvert: "|", lVert: "‖", rVert: "‖", Vert: "‖",
+  ell: "ℓ", prime: "′", mid: "|", "%": "%",
 };
 
 const SPACES: Readonly<Record<string, string>> = {
@@ -572,6 +573,8 @@ class TexParser {
   private parseCommand(name: string): Atom {
     switch (name) {
       case "frac":
+      case "dfrac":
+      case "tfrac":
         return { node: this.parseFraction() };
       case "sqrt":
         return { node: this.parseRoot() };

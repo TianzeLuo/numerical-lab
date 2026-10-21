@@ -109,7 +109,7 @@ export const pceSpectrumModel: SceneModel = (frame, opts) => {
   const main = makeAxis("main", [L.left, L.topY, L.leftW, L.topH], {
     xlim: [0, Math.max(1, degree[degree.length - 1] as number)],
     ylim: [-18, 1],
-    xlabel: "阶 k",
+    xlabel: "阶 $k$",
     ylabel: axisYlabelOf(SPEC?.axes, "main", "log10 系数 RMS"),
     title: axisTitleOf(SPEC?.axes, "main", "log10 逐阶系数 RMS（地板 −17）"),
     autoscaled: true,
@@ -117,7 +117,7 @@ export const pceSpectrumModel: SceneModel = (frame, opts) => {
   const aux = makeAxis("aux", [L.left, L.botY, L.leftW, L.botH], {
     xlim: [1, Math.max(2, orderCurve[orderCurve.length - 1] as number)],
     ylim: [-18, 1],
-    xlabel: "截断阶 p",
+    xlabel: "截断阶 $p$",
     ylabel: axisYlabelOf(SPEC?.axes, "aux", "log10 相对误差"),
     title: axisTitleOf(SPEC?.axes, "aux", "log10 误差 vs 截断阶（训练/留出）"),
     autoscaled: true,
@@ -173,7 +173,7 @@ export const pceSpectrumModel: SceneModel = (frame, opts) => {
       xlim: [extrapX[0] as number, extrapX[extrapX.length - 1] as number],
       ylim: [-18, 2],
       xlabel: "外推倍率",
-      ylabel: "log10 误差",
+      ylabel: "$\\log_{10}$ 误差",
       title: "外推：误差随倍率",
       autoscaled: true,
     });

@@ -359,7 +359,7 @@ test("oscillator：轴 —— 主面板固定线性、误差面板对数且自�
   assert.equal(error.yscale, "log");
   assert.ok(error.ylim[0] > 0, "对数轴下界必须 > 0");
   assert.equal(error.title, "ODE 残差");
-  assert.equal(error.ylabel, "|x''+2ζωx'+ω²x|");
+  assert.equal(error.ylabel, "$|x''+2\\zeta\\omega x'+\\omega^2x|$");
 });
 
 test("oscillator：图层顺序 = 游标 / 全曲线 / 当前标记 / 残差 / 参考线", () => {
@@ -479,7 +479,7 @@ test("oscillator：徽标齐备 —— 来源 / 轴模式 / 误差轴自适应 /
   assert.equal(critical.length, 1);
   assert.match(critical[0], /ζ = 0\.05000/);
   assert.match(critical[0], /理论临界 1\.000/);
-  assert.ok(!critical[0].includes("已越界"), "ζ=0.05 < 1 不应标越界");
+  assert.ok(!critical[0].includes("已超过临界"), "ζ=0.05 < 1 不应标越界");
 });
 
 test("oscillator：临界值取自帧 critical（与 manifest 声明一致时回落值相同）", async () => {
@@ -767,16 +767,16 @@ test("heat_ftcs：r 临界徽标（未越界）+ 稳定性角标来自 strings.s
   assert.equal(critical.length, 1);
   assert.match(critical[0], /r = 0\.4000/);
   assert.match(critical[0], /理论临界 0\.5000/);
-  assert.ok(!critical[0].includes("已越界"));
+  assert.ok(!critical[0].includes("已超过临界"));
   assert.match(badgesOf(scene, "status").join("；"), /稳定性：stable/);
 });
 
-test("heat_ftcs：r 越过 1/2 → 徽标写「已越界」，稳定性角标写 unstable", async () => {
+test("heat_ftcs：r 越过 1/2 → 徽标写「已超过临界」，稳定性角标写 unstable", async () => {
   const frame = await heatFrame({ meta: { r: 0.7 }, strings: { stability: "unstable" } });
   const scene = heatFtcsModel(frame, heatOpts({ params: { nx: 11, r: 0.7, t_end: 0.05 } }));
   const critical = badgesOf(scene, "critical")[0];
   assert.match(critical, /r = 0\.7000/);
-  assert.match(critical, /已越界/);
+  assert.match(critical, /已超过临界/);
   assert.match(badgesOf(scene, "status").join("；"), /unstable/);
   assertValid(scene);
 });
@@ -1030,12 +1030,12 @@ test("真实帧：heat 默认帧——无 t_actual 提示、稳定性 stable、�
   assert.ok(textsOf(scene).includes("|误差| 41 点"), `应报出误差点数与 0 点个数：${textsOf(scene)}`);
 });
 
-test("真实帧：heat r=0.7（后端实测不稳定）——溢出 + 已越界 + t_actual 提示齐现", realOptions, () => {
+test("真实帧：heat r=0.7（后端实测不稳定）——溢出 + 已超过临界 + t_actual 提示齐现", realOptions, () => {
   const frame = frameOrFail(REAL_HEAT_UNSTABLE, "heat_ftcs__unstable");
   const scene = heatFtcsModel(frame, heatOpts({ t: 0.05, params: { nx: 41, r: 0.7, t_end: 0.05 } }));
   assertValid(scene);
   assert.equal(scene.overflow.flag, true, "r>1/2 的真实帧会冲出固定纵轴");
-  assert.match(badgesOf(scene, "critical")[0], /已越界/);
+  assert.match(badgesOf(scene, "critical")[0], /已超过临界/);
   assert.match(badgesOf(scene, "status").join("；"), /unstable/);
   assert.match(textsOf(scene), /t_actual=0\.05031/);
   assert.match(textsOf(scene), /不是请求时刻/);

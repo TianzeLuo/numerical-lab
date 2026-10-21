@@ -168,7 +168,7 @@ export const vcycleHierarchyModel: SceneModel = (frame, opts) => {
   const profile = makeAxis("profile", [L.left, L.topY, L.leftW, L.topH], {
     xlim: [0, 1],
     xticks: [0, 0.25, 0.5, 0.75, 1],
-    xlabel: "x（内点位置；粗层按其 h 还原）",
+    xlabel: "$x$（内点位置；粗层按其 $h$ 还原）",
     title: axisTitleOf(SPEC?.axes, "profile", "误差形态（细网格与各层的限制结果）"),
     ylabel: axisYlabelOf(SPEC?.axes, "profile", "e(x)"),
     autoscaled: true,
@@ -254,7 +254,7 @@ export const vcycleHierarchyModel: SceneModel = (frame, opts) => {
     ),
     yscale: "log",
     xticks: Array.from(new Set([0, Math.max(0, Math.round((errHist.length - 1) / 2)), Math.max(0, errHist.length - 1)])),
-    xlabel: "周期 c",
+    xlabel: "周期 $c$",
     title: "同一层的逐周期范数（跨周期可比）",
     ylabel: "比值 / 初值",
     autoscaled: true,
@@ -297,7 +297,7 @@ export const vcycleHierarchyModel: SceneModel = (frame, opts) => {
   const contentName = contentIdx !== undefined ? CONTENTS[Math.round(contentIdx)] ?? "?" : "?";
   if (L.columns) {
     const budget = unitBudget(L.rightW);
-    const head = paramSummary(frame, opts, [{ name: "n_fine", label: "n" }]);
+    const head = paramSummary(frame, opts, [{ name: "n_fine", label: "$n$" }]);
     degraded.push(...head.degraded);
     // 每行都**实测**过宽度（`textWidthUnits` ≤ 41 = 右列预算）：1 个事实 = 1 行，
     // 渲染层不会再折行；超出的行会被 `textBlock` 截断并标注"另有 N 行未画"。

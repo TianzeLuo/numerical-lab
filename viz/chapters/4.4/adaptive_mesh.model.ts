@@ -233,7 +233,7 @@ export const adaptiveMeshModel: SceneModel = (frame, opts) => {
   const meshAxis = makeAxis("mesh", [L.left, L.topY, mainW, topH], {
     xlim: [0, 1],
     ylim: [0, 1],
-    xlabel: "x（单元位置）",
+    xlabel: "$x$（单元位置）",
     title: axisTitleOf(SPEC?.axes, "mesh", "当前网格与指示子 η_K（固定 0–1）"),
     ylabel: axisYlabelOf(SPEC?.axes, "mesh", "η_K 归一"),
     autoscaled: false,
@@ -282,11 +282,18 @@ export const adaptiveMeshModel: SceneModel = (frame, opts) => {
 
   // —— 左下：η_K 与真误差（对数）——
   if (!narrow && !short) {
+    // 指示子允许超过 1（超过阈值就细分）；固定顶到 1 会把“确实超过阈值”的点裁掉。
+    // 这里按本帧数据把顶抬到 2 的幂，仍保持对数轴与固定窗口的可比性。
+    let indicatorPeak = 1;
+    for (const arr of [eta, trueErr]) {
+      for (const v of Array.from(arr)) if (Number.isFinite(v) && v > indicatorPeak) indicatorPeak = v;
+    }
+    const indicatorTop = Math.pow(10, Math.ceil(Math.log10(indicatorPeak * 1.02)));
     const indicator = makeAxis("indicator", [L.left, L.botY, L.leftW, L.botH], {
       xlim: [0, 1],
-      ylim: [floor, 1],
+      ylim: [floor, indicatorTop],
       yscale: "log",
-      xlabel: "单元中心 x",
+      xlabel: "单元中心 $x$",
       title: axisTitleOf(SPEC?.axes, "indicator", "η_K 与真误差（对数，地板 1e-17）"),
       ylabel: axisYlabelOf(SPEC?.axes, "indicator", "误差/指示子"),
       autoscaled: false,
@@ -296,7 +303,7 @@ export const adaptiveMeshModel: SceneModel = (frame, opts) => {
       lineLayer("indicator", series([0, 1], [floor, floor], pal.reference, { width: 1, dash: [3, 3], label: "地板" })),
     );
     if (mid.length > 0) {
-      const etaSeries = maskedSeries(mid, eta, undefined, pal.curves[0], { width: 1.9, marker: "o", label: "指示子 η_K" });
+      const etaSeries = maskedSeries(mid, eta, undefined, pal.curves[0], { width: 1.9, marker: "o", label: "指示子 $η_K$" });
       const errSeries = maskedSeries(mid, trueErr, undefined, pal.exact, { width: 1.7, marker: "s", dash: [5, 3], label: "真误差" });
       if (etaSeries.length > 0) scene.layers.push(lineLayer("indicator", etaSeries));
       if (errSeries.length > 0) scene.layers.push(lineLayer("indicator", errSeries));
@@ -327,7 +334,7 @@ export const adaptiveMeshModel: SceneModel = (frame, opts) => {
       ylim: [floor, 10],
       xscale: "log",
       yscale: "log",
-      xlabel: "自由度 N（对数）",
+      xlabel: "自由度 $N$（对数）",
       title: axisTitleOf(SPEC?.axes, "history", "能量误差 vs 自由度（双对数）"),
       ylabel: axisYlabelOf(SPEC?.axes, "history", "能量误差"),
       autoscaled: false,
@@ -407,8 +414,8 @@ export const adaptiveMeshModel: SceneModel = (frame, opts) => {
 
   if (L.columns && !short && L.floor > L.textTop + 8) {
     const head = paramSummary(frame, opts, [
-      { name: "theta", label: "θ" },
-      { name: "ratio", label: "a₂/a₁" },
+      { name: "theta", label: "$θ$" },
+      { name: "ratio", label: "$a_2/a_1$" },
     ]);
     degraded.push(...head.degraded);
     const lines: string[] = [];

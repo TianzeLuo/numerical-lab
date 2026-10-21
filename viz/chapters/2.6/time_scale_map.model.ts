@@ -244,8 +244,8 @@ export const timeScaleMapModel: SceneModel = (frame, opts) => {
   // —— 右列文字 ——
   if (L.columns) {
     const head = paramSummary(frame, opts, [
-      { name: "n", label: "n" },
-      { name: "level", label: "J" },
+      { name: "n", label: "$n$" },
+      { name: "level", label: "$J$" },
     ]);
     degraded.push(...head.degraded);
     const lines: string[] = [];

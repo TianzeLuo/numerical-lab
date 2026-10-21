@@ -126,18 +126,18 @@ export const pointFillModel: SceneModel = (frame, opts) => {
   const main = makeAxis("main", [L.left, L.topY, L.leftW, L.topH], {
     xlim: [0, 1],
     ylim: [0, 1],
-    xlabel: "x_1",
-    ylabel: axisYlabelOf(SPEC?.axes, "main", "x_2"),
-    title: axisTitleOf(SPEC?.axes, "main", "点集（蓝=MC / 橙=Sobol / 绿=格点）"),
+    xlabel: "`x_1`",
+    ylabel: axisYlabelOf(SPEC?.axes, "main", "$x_2$"),
+    title: axisTitleOf(SPEC?.axes, "main", "点集（单位正方形；$x_1$–$x_2$ 平面；蓝=MC / 橙=Sobol' / 绿=格点）"),
     autoscaled: false,
   });
   const aux = makeAxis("aux", [L.left, L.botY, L.leftW, L.botH], {
     xlim: [nAxis[0] as number, nAxis[nAxis.length - 1] as number],
     ylim: [-10, 0],
     xscale: "log",
-    xlabel: "点数 N（对数）",
-    ylabel: axisYlabelOf(SPEC?.axes, "aux", "log10 误差"),
-    title: axisTitleOf(SPEC?.axes, "aux", "log10 误差 vs N（参考 σ/√N）"),
+    xlabel: "$N$（对数）",
+    ylabel: axisYlabelOf(SPEC?.axes, "aux", "$\\log_{10}$ 误差"),
+    title: axisTitleOf(SPEC?.axes, "aux", "$\\log_{10}$ 误差 vs $N$（参考 $\\sigma/\\sqrt{N}$）"),
     autoscaled: true,
   });
   scene.axes.push(main, aux);
@@ -161,7 +161,7 @@ export const pointFillModel: SceneModel = (frame, opts) => {
       }
     }
     if (bx.length >= 2) {
-      scene.layers.push(bandLayer("aux", { x: bx, ylo: blo, yhi: bhi, color: pal.exact, alpha: 0.22, label: "随机化复制均值标准误带" }));
+      scene.layers.push(bandLayer("aux", { x: bx, ylo: blo, yhi: bhi, color: pal.exact, alpha: 0.22, label: "$R$ 个随机化复制的均值标准误带" }));
     }
   }
   const curveDefs = [
@@ -193,46 +193,48 @@ export const pointFillModel: SceneModel = (frame, opts) => {
     };
     push(
       [
-        `k=${formatNumber(nShown, 0)}/${formatNumber(nMax, 0)}（当前 ${methodName}）`,
+        `$k=${formatNumber(nShown, 0)}/${formatNumber(nMax, 0)}$（当前 ${methodName}）`,
         `被积函数：${integrandName}`,
         ...(integrandExpr !== "" ? [`f = ${integrandExpr}`] : []),
-        sigma !== undefined ? `σ=${formatNumber(sigma, 3)}；参考斜率 ${formatNumber(slopeRef ?? Number.NaN, 3)}。` : `参考斜率 ${formatNumber(slopeRef ?? Number.NaN, 3)}。`,
+        sigma !== undefined
+          ? `$\\sigma=${formatNumber(sigma, 3)}$；参考斜率 $s=${formatNumber(slopeRef ?? Number.NaN, 3)}$。`
+          : `参考斜率 $s=${formatNumber(slopeRef ?? Number.NaN, 3)}$。`,
       ],
       pal.ink,
     );
     push(
       [
-        "蓝=MC，橙=Sobol'，绿=格点，紫=张量格点。",
-        "灰虚=σ/√N；只对 MC 是理论。",
+        "蓝=MC，橙=Sobol'，绿=格点，紫=张量格点（$x_1,x_2\\in[0,1)$）。",
+        "灰虚=σ/√N；只对 MC 是理论（$\\sigma/\\sqrt{N}$ 的斜率是 $-1/2$）。",
       ],
       pal.muted,
     );
     push(
       [
-        `斜率（log-log）：MC ${formatNumber(slopes.mc ?? Number.NaN, 3)}、Sobol ${formatNumber(slopes.sobol ?? Number.NaN, 3)}`,
+        `斜率（$\\log$–$\\log$）：MC ${formatNumber(slopes.mc ?? Number.NaN, 3)}、Sobol ${formatNumber(slopes.sobol ?? Number.NaN, 3)}`,
         `格点 ${formatNumber(slopes.lattice ?? Number.NaN, 3)}、张量格点 ${formatNumber(slopes.grid ?? Number.NaN, 3)}。`,
         `当前方法 ${methodName} 的斜率 ${formatNumber(slopeSel ?? Number.NaN, 3)}；`,
-        `N 最大时误差是 MC 的 ${formatNumber(ratioMc ?? Number.NaN, 2)}×。`,
+        `$N$ 最大时误差是 MC 的 ${formatNumber(ratioMc ?? Number.NaN, 2)}$\\times$。`,
       ],
       pal.muted,
     );
     push(
       bandAvail && bandValid !== undefined
         ? [
-            "误差带：R 个随机化复制均值的标准误",
+            "误差带：$R$ 个随机化复制均值的标准误",
             "（对数轴上下沿），是可用的误差估计。",
-            "参考线 σ/√N 只对 MC 是理论；",
-            "QMC 更陡是事实，但别外推到无穷 N。",
+            "参考线 $\\sigma/\\sqrt{N}$ 只对 MC 是理论；",
+            "QMC 更陡是事实，但别外推到无穷 $N$。",
             "左图点集的“均匀”与右图的收敛率是两件事；",
-            "均匀性要用 D*_N 量。",
+            "均匀性要用 $D_N^{*}$ 量。",
           ]
         : [
             "误差带不存在（band_valid=0）：确定性复制",
-            "的标准差恒为 0，0 不等于误差小。",
-            "参考线 σ/√N 只对 MC 是理论；",
-            "QMC 更陡是事实，但别外推到无穷 N。",
+            "的标准差恒为 $0$，$0$ 不等于误差小。",
+            "参考线 $\\sigma/\\sqrt{N}$ 只对 MC 是理论；",
+            "QMC 更陡是事实，但别外推到无穷 $N$。",
             "左图点集的“均匀”与右图的收敛率是两件事；",
-            "均匀性要用 D*_N 量。",
+            "均匀性要用 $D_N^{*}$ 量。",
           ],
       pal.muted,
     );

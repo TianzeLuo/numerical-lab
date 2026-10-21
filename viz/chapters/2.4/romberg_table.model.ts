@@ -136,7 +136,7 @@ export const rombergTableModel: SceneModel = (frame, opts) => {
     pitfalls,
   });
 
-  const stepInfo = currentStep(frame, opts, { lo: 1, hi: Math.max(1, Math.round(levelsParam ?? level.length)), label: "层数 k" });
+  const stepInfo = currentStep(frame, opts, { lo: 1, hi: Math.max(1, Math.round(levelsParam ?? level.length)), label: "层数 $k$" });
   const revealed = Math.max(1, Math.min(k, evals.length));
 
   /* ------------------------------ 左列：各列误差 ------------------------------ */
@@ -263,7 +263,7 @@ export const rombergTableModel: SceneModel = (frame, opts) => {
   const orderAxis = makeAxis("order", layout.right, {
     xlim: [0, Math.max(1, revealed - 1)],
     ylim: orderRange(orderMeasured, orderTheory),
-    xlabel: "列号 j",
+    xlabel: "列号 $j$",
     ylabel: axisYlabel(VIZ, "order", "阶 p_j"),
     title: axisTitle(VIZ, "order", "每一列的实测阶 vs 列号"),
     autoscaled: true,
@@ -278,7 +278,7 @@ export const rombergTableModel: SceneModel = (frame, opts) => {
   }
   if (orderTheory.length > 0) {
     scene.layers.push(
-      lineLayer("order", series(orderJ, orderTheory, pal.reference, { width: 1.4, dash: [6, 4], label: "理论阶 2j+2" })),
+      lineLayer("order", series(orderJ, orderTheory, pal.reference, { width: 1.4, dash: [6, 4], label: "理论阶 $2j+2$" })),
     );
   }
 

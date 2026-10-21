@@ -143,9 +143,9 @@ export const sobolBarsModel: SceneModel = (frame, opts) => {
   const main = makeAxis("main", [L.left, L.topY, L.leftW, L.topH], {
     xlim: [0.5, dim + 0.5],
     ylim: [yLo < 0 ? yLo * 1.1 : 0, yHi * 1.08],
-    xlabel: "参数 i",
-    ylabel: axisYlabelOf(SPEC?.axes, "main", "S_i / S_Ti"),
-    title: axisTitleOf(SPEC?.axes, "main", "Sobol 指数（柱=一阶/总效应，须线=bootstrap）"),
+    xlabel: "参数 $i$",
+    ylabel: axisYlabelOf(SPEC?.axes, "main", "$S_i$ / $S_{T_i}$"),
+    title: axisTitleOf(SPEC?.axes, "main", "Sobol 指数（柱=一阶 $S_i$ / 总效应 $S_{T_i}$，须线=重抽样区间）"),
     autoscaled: true,
   });
   let dLo = Number.POSITIVE_INFINITY;
@@ -164,9 +164,9 @@ export const sobolBarsModel: SceneModel = (frame, opts) => {
     xlim: [driftN[0] as number, driftN[driftN.length - 1] as number],
     ylim: [dLo - 0.1, dHi + 0.1],
     xscale: "log",
-    xlabel: "N（对数）",
-    ylabel: axisYlabelOf(SPEC?.axes, "aux", "ΣS_i(N)"),
-    title: axisTitleOf(SPEC?.axes, "aux", "估计器漂移：ΣS_i(N) 与 ΣS_Ti(N)"),
+    xlabel: "$N$（对数）",
+    ylabel: axisYlabelOf(SPEC?.axes, "aux", "$\\sum_i S_i(N)$"),
+    title: axisTitleOf(SPEC?.axes, "aux", "估计器漂移：$\\sum_i S_i(N)$ 与 $\\sum_i S_{T_i}(N)$"),
     autoscaled: true,
   });
   scene.axes.push(main, aux);
@@ -174,8 +174,8 @@ export const sobolBarsModel: SceneModel = (frame, opts) => {
   const firstX = xs.map((x) => x - 0.19);
   const totalX = xs.map((x) => x + 0.19);
   scene.layers.push(
-    barsLayer("main", firstX, first, { width: 0.3, color: pal.curves[0] as string, errors: errFirst, label: "一阶 S_i" }),
-    barsLayer("main", totalX, total, { width: 0.3, color: pal.exact, errors: errTotal, label: "总效应 S_Ti" }),
+    barsLayer("main", firstX, first, { width: 0.3, color: pal.curves[0] as string, errors: errFirst, label: "一阶 $S_i$" }),
+    barsLayer("main", totalX, total, { width: 0.3, color: pal.exact, errors: errTotal, label: "总效应 $S_Ti$" }),
   );
   // 相关输入下的替代分解：只画点，不塞进柱宽；corr_valid=0 时整块不画。
   if (corrValid !== undefined && betweenCond !== undefined && firstIndep !== undefined) {
@@ -192,8 +192,8 @@ export const sobolBarsModel: SceneModel = (frame, opts) => {
     }
     if (bx.length > 0) {
       scene.layers.push(
-        scatterLayer("main", bx, by, { r: 3.6, color: pal.residual, label: "条件方差口径 Var(E[Y|Xi])/V" }),
-        scatterLayer("main", ix, iy, { r: 3.2, color: pal.curves[1] as string, label: "打散相关后的 pick-freeze" }),
+        scatterLayer("main", bx, by, { r: 3.6, color: pal.residual, label: "条件方差口径 $Var(E[Y|Xi])/V$" }),
+        scatterLayer("main", ix, iy, { r: 3.2, color: pal.curves[1] as string, label: "打散相关后的 $pick-freeze$" }),
       );
     }
   }
@@ -202,10 +202,10 @@ export const sobolBarsModel: SceneModel = (frame, opts) => {
   );
 
   scene.layers.push(
-    lineLayer("aux", { x: driftN, y: driftFirst, color: pal.curves[0] as string, width: 2, label: "ΣS_i(N)" }),
-    lineLayer("aux", { x: driftN, y: driftTotal, color: pal.exact, width: 2, label: "ΣS_Ti(N)" }),
-    lineLayer("aux", { x: driftN, y: driftAnaFirst, color: pal.curves[0] as string, width: 1.1, dash: [5, 3], label: "解析 ΣS_i" }),
-    lineLayer("aux", { x: driftN, y: driftAnaTotal, color: pal.exact, width: 1.1, dash: [5, 3], label: "解析 ΣS_Ti" }),
+    lineLayer("aux", { x: driftN, y: driftFirst, color: pal.curves[0] as string, width: 2, label: "$ΣS_i(N)$" }),
+    lineLayer("aux", { x: driftN, y: driftTotal, color: pal.exact, width: 2, label: "$ΣS_Ti(N)$" }),
+    lineLayer("aux", { x: driftN, y: driftAnaFirst, color: pal.curves[0] as string, width: 1.1, dash: [5, 3], label: "解析 $ΣS_i$" }),
+    lineLayer("aux", { x: driftN, y: driftAnaTotal, color: pal.exact, width: 1.1, dash: [5, 3], label: "解析 $ΣS_Ti$" }),
   );
 
   const budget = unitBudget(L.rightW);

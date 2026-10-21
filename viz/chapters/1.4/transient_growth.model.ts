@@ -186,7 +186,7 @@ export const transientGrowthModel: SceneModel = (frame, opts) => {
       xlim: [0, xMax],
       ylim: mainYlim,
       yscale: "log",
-      xlabel: "幂次 k",
+      xlabel: "幂次 $k$",
       ylabel: axisYlabelOf(AXES, "main", "倍数"),
       title: axisTitleOf(AXES, "main", "增长倍数 ‖A^k‖ / ρ(A)^k"),
       autoscaled: true,
@@ -235,7 +235,7 @@ export const transientGrowthModel: SceneModel = (frame, opts) => {
       xlim: [0, xMax],
       ylim: normYlim,
       yscale: "log",
-      xlabel: "幂次 k",
+      xlabel: "幂次 $k$",
       ylabel: axisYlabelOf(AXES, "aux", "2-范数"),
       title: axisTitleOf(AXES, "aux", "‖A^k‖₂ 与 ρ(A)^k"),
       autoscaled: true,
@@ -259,8 +259,8 @@ export const transientGrowthModel: SceneModel = (frame, opts) => {
       xlim: [0, xMax],
       ylim: errYlim,
       yscale: "log",
-      xlabel: "幂次 k",
-      ylabel: "|‖A^k‖ − ρ^k|",
+      xlabel: "幂次 $k$",
+      ylabel: "$|\\|A^k\\|-\\rho^k|$",
       // 不设 title：右列两块是竖直切分的，标题带会压到上面那块的轴名带上（见 pseudospectrum 的说明）
       autoscaled: true,
       xticks: integerTicks(errRect[2], steps.length),
@@ -279,9 +279,9 @@ export const transientGrowthModel: SceneModel = (frame, opts) => {
 
   // —— 文本 ——
   const summary = paramSummary(frame, opts, [
-    { name: "n", label: "n" },
-    { name: "nonnormal", label: "非正规度 s" },
-    { name: "k_max", label: "k_max" },
+    { name: "n", label: "$n$" },
+    { name: "nonnormal", label: "非正规度 $s$" },
+    { name: "k_max", label: "`k_max`" },
   ]);
   degraded.push(...summary.degraded);
 
