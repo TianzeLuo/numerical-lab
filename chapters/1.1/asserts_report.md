@@ -38,7 +38,7 @@
 | B | 补偿归约误差（serial/shuffled/parallel8/parallel64） | 前两者 ≤ 2u·Σ\|x\|=2.22；后两者 ≤ n·u·Σ\|x\|=4.55e+03 且 ≫ 串行 | serial=0.095, shuffled=0.095, parallel8=4.09, parallel64=4.09 | 各自界内 + 并行 > 10×串行 | ✅ |
 | B | 置换 Kahan 误差 / 串行 Kahan 误差 | 量级不变（个位数倍） | 最大比值 1.000（6 个种子；串行误差 1） | ≤ 4 | ✅ |
 | B | 网格构造器自洽性 | 相邻点 ulp 距离恒为 1；超上限抛错 | 4 个中心点全通过；max_points 截断保护生效 | 全 True | ✅ |
-| B | 1.1 章帧契约 | 每个 viz 的 requiredAux 齐备、meta 全标量、数组非空 | float_zoom: 13 数组；cancellation: 12 数组；cond_ellipsoid: 15 数组；summation_order: 14 数组 | 全通过 | ✅ |
+| B | 1.1 章帧契约 | 每个 viz 的 requiredAux 齐备、meta 全标量、数组非空 | float_zoom: 13 数组；cancellation: 12 数组；cond_ellipsoid: 19 数组；summation_order: 14 数组 | 全通过 | ✅ |
 
 <details><summary>逐条细节（拟合窗口、数据点数、残差量级等）</summary>
 

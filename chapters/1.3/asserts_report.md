@@ -29,7 +29,7 @@
 | B | max\|P²−P\|、max\|Pᵀ−P\|、max‖Pv‖/‖v‖ | ≤ c·κu（κ=1e6 时实测 1.1e-11）、0、≤ 1 | 1.06e-11、1.49e-11、0.756856 | ≤ 1e-9、≤ 1e-9、≤ 1+1e-12 | ✅ |
 | B | 端点误差 | t=0: (p_t,r_t)=(p,r_LS)；t=1: ‖r_t‖=0、p_t=b；任意 t: ‖p_t+r_t−b‖ ≤ u‖b‖ | t=0 ‖r_t−(b−p_LS)‖=0.000e+00；t=1 ‖r_t‖=0.000e+00、‖p_t−b‖=0.000e+00；t=0.5 合成误差 1.241e-16 | ≤ 1e-15 | ✅ |
 | B | 实测 κ / 目标 κ − 1；四种谱 | ≤ 1e-6（σ_min 只精确到 ~κu） | 4.56e-08；decay:σ_min=1.0e-08；cliff:σ_min=1.0e-08；plateau:σ_min=1.0e-08；two_clusters:σ_min=1.0e-08 | 1e-6 | ✅ |
-| B | 通过自检的 (viz, t) 组合数 | 4 个可视化 × 各自的时间采样点 | 12；projection_3d:15数组/18meta；normal_vs_qr:18数组/32meta；svd_truncation:17数组/22meta；uncertainty_fan:17数组/25meta | 全部 | ✅ |
+| B | 通过自检的 (viz, t) 组合数 | 4 个可视化 × 各自的时间采样点 | 12；projection_3d:15数组/18meta；normal_vs_qr:20数组/32meta；svd_truncation:17数组/22meta；uncertainty_fan:17数组/25meta | 全部 | ✅ |
 | B | 实测 κ 与网格的相对差（κ 本身只能精确到 ~κu） | ≤ 1.00000e-06 | 1.551e-08 | +0 | ✅ |
 | B | 曲线有限性 /(地板 u) 与 κ 一致性 | 全部有限且 ≥ u = 1.1e-16 | κ 相对差 1.55e-08；11 条曲线全部有限；地板 1.110e-16 | 1e-6 / 有限 | ✅ |
 | B | GCV 残差随 λ 非减 | nondecreasing | 违反 0 处 | 2.19847e-14 | ✅ |

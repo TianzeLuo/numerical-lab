@@ -133,7 +133,7 @@
 | B | decomp_tree dataSource = backend | 1 | 1 | ±(0·\|t\|+0) | ✅ |
 | B | decomp_tree pitfalls 非空 | ≤ 1.00000e+09 | 140 | +0 | ✅ |
 | B | decomp_tree pitfalls 长度 >= 60 字 | ≤ 140 | 60 | +0 | ✅ |
-| B | decomp_tree theory 至少 1 条 | ≤ 4 | 1 | +0 | ✅ |
+| B | decomp_tree theory 至少 1 条 | ≤ 5 | 1 | +0 | ✅ |
 | B | decomp_tree.tree 显式声明 autoscaled | 1 | 1 | ±(0·\|t\|+0) | ✅ |
 | B | decomp_tree.recon 显式声明 autoscaled | 1 | 1 | ±(0·\|t\|+0) | ✅ |
 | B | decomp_tree.error 显式声明 autoscaled | 1 | 1 | ±(0·\|t\|+0) | ✅ |
@@ -159,7 +159,7 @@
 | B | time_scale_map dataSource = backend | 1 | 1 | ±(0·\|t\|+0) | ✅ |
 | B | time_scale_map pitfalls 非空 | ≤ 1.00000e+09 | 153 | +0 | ✅ |
 | B | time_scale_map pitfalls 长度 >= 60 字 | ≤ 153 | 60 | +0 | ✅ |
-| B | time_scale_map theory 至少 1 条 | ≤ 4 | 1 | +0 | ✅ |
+| B | time_scale_map theory 至少 1 条 | ≤ 5 | 1 | +0 | ✅ |
 | B | time_scale_map.scale 显式声明 autoscaled | 1 | 1 | ±(0·\|t\|+0) | ✅ |
 | B | time_scale_map.stft 显式声明 autoscaled | 1 | 1 | ±(0·\|t\|+0) | ✅ |
 | B | time_scale_map.error 显式声明 autoscaled | 1 | 1 | ±(0·\|t\|+0) | ✅ |
@@ -188,7 +188,7 @@
 | B | denoise_threshold dataSource = backend | 1 | 1 | ±(0·\|t\|+0) | ✅ |
 | B | denoise_threshold pitfalls 非空 | ≤ 1.00000e+09 | 165 | +0 | ✅ |
 | B | denoise_threshold pitfalls 长度 >= 60 字 | ≤ 165 | 60 | +0 | ✅ |
-| B | denoise_threshold theory 至少 1 条 | ≤ 4 | 1 | +0 | ✅ |
+| B | denoise_threshold theory 至少 1 条 | ≤ 5 | 1 | +0 | ✅ |
 | B | denoise_threshold.signals 显式声明 autoscaled | 1 | 1 | ±(0·\|t\|+0) | ✅ |
 | B | denoise_threshold.curves 显式声明 autoscaled | 1 | 1 | ±(0·\|t\|+0) | ✅ |
 | B | denoise_threshold.error 显式声明 autoscaled | 1 | 1 | ±(0·\|t\|+0) | ✅ |
@@ -220,7 +220,7 @@
 | B | vanishing_moments dataSource = backend | 1 | 1 | ±(0·\|t\|+0) | ✅ |
 | B | vanishing_moments pitfalls 非空 | ≤ 1.00000e+09 | 154 | +0 | ✅ |
 | B | vanishing_moments pitfalls 长度 >= 60 字 | ≤ 154 | 60 | +0 | ✅ |
-| B | vanishing_moments theory 至少 1 条 | ≤ 4 | 1 | +0 | ✅ |
+| B | vanishing_moments theory 至少 1 条 | ≤ 5 | 1 | +0 | ✅ |
 | B | vanishing_moments.poly 显式声明 autoscaled | 1 | 1 | ±(0·\|t\|+0) | ✅ |
 | B | vanishing_moments.ratio 显式声明 autoscaled | 1 | 1 | ±(0·\|t\|+0) | ✅ |
 | B | vanishing_moments.error 显式声明 autoscaled | 1 | 1 | ±(0·\|t\|+0) | ✅ |
@@ -1014,7 +1014,7 @@
 - **decomp_tree dataSource = backend**：|实测−理论| = 0，容差 rtol=0, atol=0
 - **decomp_tree pitfalls 非空**：松弛 rtol=0, atol=0，余量 = 1.00000e+09；140 字（要求 >= 60）
 - **decomp_tree pitfalls 长度 >= 60 字**：松弛 rtol=0, atol=0，余量 = 80
-- **decomp_tree theory 至少 1 条**：松弛 rtol=0, atol=0，余量 = 3
+- **decomp_tree theory 至少 1 条**：松弛 rtol=0, atol=0，余量 = 4
 - **decomp_tree.tree 显式声明 autoscaled**：|实测−理论| = 0，容差 rtol=0, atol=0
 - **decomp_tree.recon 显式声明 autoscaled**：|实测−理论| = 0，容差 rtol=0, atol=0
 - **decomp_tree.error 显式声明 autoscaled**：|实测−理论| = 0，容差 rtol=0, atol=0
@@ -1040,7 +1040,7 @@
 - **time_scale_map dataSource = backend**：|实测−理论| = 0，容差 rtol=0, atol=0
 - **time_scale_map pitfalls 非空**：松弛 rtol=0, atol=0，余量 = 1.00000e+09；153 字（要求 >= 60）
 - **time_scale_map pitfalls 长度 >= 60 字**：松弛 rtol=0, atol=0，余量 = 93
-- **time_scale_map theory 至少 1 条**：松弛 rtol=0, atol=0，余量 = 3
+- **time_scale_map theory 至少 1 条**：松弛 rtol=0, atol=0，余量 = 4
 - **time_scale_map.scale 显式声明 autoscaled**：|实测−理论| = 0，容差 rtol=0, atol=0
 - **time_scale_map.stft 显式声明 autoscaled**：|实测−理论| = 0，容差 rtol=0, atol=0
 - **time_scale_map.error 显式声明 autoscaled**：|实测−理论| = 0，容差 rtol=0, atol=0
@@ -1069,7 +1069,7 @@
 - **denoise_threshold dataSource = backend**：|实测−理论| = 0，容差 rtol=0, atol=0
 - **denoise_threshold pitfalls 非空**：松弛 rtol=0, atol=0，余量 = 1.00000e+09；165 字（要求 >= 60）
 - **denoise_threshold pitfalls 长度 >= 60 字**：松弛 rtol=0, atol=0，余量 = 105
-- **denoise_threshold theory 至少 1 条**：松弛 rtol=0, atol=0，余量 = 3
+- **denoise_threshold theory 至少 1 条**：松弛 rtol=0, atol=0，余量 = 4
 - **denoise_threshold.signals 显式声明 autoscaled**：|实测−理论| = 0，容差 rtol=0, atol=0
 - **denoise_threshold.curves 显式声明 autoscaled**：|实测−理论| = 0，容差 rtol=0, atol=0
 - **denoise_threshold.error 显式声明 autoscaled**：|实测−理论| = 0，容差 rtol=0, atol=0
@@ -1101,7 +1101,7 @@
 - **vanishing_moments dataSource = backend**：|实测−理论| = 0，容差 rtol=0, atol=0
 - **vanishing_moments pitfalls 非空**：松弛 rtol=0, atol=0，余量 = 1.00000e+09；154 字（要求 >= 60）
 - **vanishing_moments pitfalls 长度 >= 60 字**：松弛 rtol=0, atol=0，余量 = 94
-- **vanishing_moments theory 至少 1 条**：松弛 rtol=0, atol=0，余量 = 3
+- **vanishing_moments theory 至少 1 条**：松弛 rtol=0, atol=0，余量 = 4
 - **vanishing_moments.poly 显式声明 autoscaled**：|实测−理论| = 0，容差 rtol=0, atol=0
 - **vanishing_moments.ratio 显式声明 autoscaled**：|实测−理论| = 0，容差 rtol=0, atol=0
 - **vanishing_moments.error 显式声明 autoscaled**：|实测−理论| = 0，容差 rtol=0, atol=0
