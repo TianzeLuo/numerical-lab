@@ -65,8 +65,8 @@
 | B | bias_variance/dof 全有限 | 0 个非有限值 | 0 | 0 | ✅ |
 | B | bias_variance/local_slope 全有限 | 0 个非有限值 | 0 | 0 | ✅ |
 | B | bias_variance/local_slope_variance 全有限 | 0 个非有限值 | 0 | 0 | ✅ |
-| A | 四个可视化的数组数 / 构建耗时 / JSON 合法性 | pack_frame 要求 meta 只有 number/bool/null、数组全有限、字符串走 strings | lcurve_tradeoff: 17 数组 / 44 meta / 0.01s；filter_shapes: 16 数组 / 30 meta / 0.04s；image_deconvolution: 11 数组 / 27 meta / 0.23s；bias_variance: 13 数组 / 27 meta / 0.04s（最慢 0.23s） | 全部通过，且最慢 <= 5s | ✅ |
-| A | 参数角点 + t 端点的帧数与最慢单帧耗时 / 非有限 meta 数 | 奇异状态必须变成可显示的值（None + strings 说明），不能是 NaN/Inf | 67 帧全部通过 pack_frame；最慢单帧 0.41s；非有限 meta 0 个 | 非有限 meta = 0，且最慢单帧 <= 5s | ✅ |
+| A | 四个可视化的数组数 / 构建耗时 / JSON 合法性 | pack_frame 要求 meta 只有 number/bool/null、数组全有限、字符串走 strings | lcurve_tradeoff: 17 数组 / 44 meta / 0.01s；filter_shapes: 16 数组 / 30 meta / 0.05s；image_deconvolution: 11 数组 / 27 meta / 0.29s；bias_variance: 13 数组 / 27 meta / 0.06s（最慢 0.29s） | 全部通过，且最慢 <= 5s | ✅ |
+| A | 参数角点 + t 端点的帧数与最慢单帧耗时 / 非有限 meta 数 | 奇异状态必须变成可显示的值（None + strings 说明），不能是 NaN/Inf | 67 帧全部通过 pack_frame；最慢单帧 0.53s；非有限 meta 0 个 | 非有限 meta = 0，且最慢单帧 <= 5s | ✅ |
 | A | 帧 meta 与内核重算的最大相对差 | 帧的每个读数都由内核函数直接给出，帧层不做第二套计算 | max rel diff = 0.000e+00；log10_lam_oracle: -1.8；log10_lam_lcurve: -3.13333；log10_lam_gcv: -2.33333；error_oracle: 0.00772735 | <= 1e-12 | ✅ |
 | A | 同自由度（dof = k_TSVD）下的三方误差与赢家 | 形状不同不等于精度不同：必须在同一条自由度轴上比误差 | matched_dof = 8；tsvd 0.00350，tikhonov 0.00283，landweber 0.09240 | winner 就是三个数里的最小者 | ✅ |
 | A | 误差-自由度曲线的形状：TSVD 是离散点、Tikhonov 是连续曲线 | TSVD 的自由度只能取整数 k；Tikhonov 的 lambda 连续 => 自由度连续 | TSVD 曲线 20 点（自由度 1..20）；Tikhonov 曲线 61 点（自由度 0.01..19.99） | 两条曲线都非空且自由度落在 [0, n] | ✅ |
@@ -114,7 +114,7 @@
 | B | image_deconvolution/blur_sigma critical <= max | ≤ 0 | 0 | +0 | ✅ |
 | B | bias_variance/log10_lam critical >= min | ≤ 0 | 0 | +0 | ✅ |
 | B | bias_variance/log10_lam critical <= max | ≤ 0 | 0 | +0 | ✅ |
-| C | 最贵参数组合下的单帧耗时 | 交互式可视化要求单帧 <= 5s（预算），帧层不得有隐藏的 O(n^3) 重算 | lcurve_tradeoff 0.01s；filter_shapes 0.04s；image_deconvolution 0.50s；bias_variance 0.24s（最慢 0.50s） | <= 5s | ✅ |
+| C | 最贵参数组合下的单帧耗时 | 交互式可视化要求单帧 <= 5s（预算），帧层不得有隐藏的 O(n^3) 重算 | lcurve_tradeoff 0.01s；filter_shapes 0.06s；image_deconvolution 0.67s；bias_variance 0.40s（最慢 0.67s） | <= 5s | ✅ |
 | A | 曲率拐点下标（本模块 vs 1.3 lcurve_corner） | 同一离散曲率公式（相邻三点中心差分）=> 下标必须逐位相同 | noise=1e-2: 37 vs 37；noise=1e-3: 29 vs 29；noise=1e-4: 22 vs 22；noise=1e-5: 14 vs 14；noise=1e-6: 4 vs 4 | 5 组全部一致 | ✅ |
 | A | 三个拐点判据的 lambda 极差 / 下标跨度 | 曲率、两段直线交点、离散二阶差分是三个不同启发式，没有理由给出同一个数 | kappa=1e3: lambda 极差 681 倍、下标跨度 34（曲率 idx 5，两段直线 idx 39，二阶差分 idx 26）；kappa=1e4: lambda 极差 126 倍、下标跨度 21（曲率 idx 20，两段直线 idx 41，二阶差分 idx 32）；kappa=1e5: lambda 极差 33 倍、下标跨度 13（曲率 idx 24，两段直线 idx 31，二阶差分 idx 37）；kappa=1e6: lambda 极差 40 倍、下标跨度 12（曲率 idx 29，两段直线 idx 41，二阶差分 idx 40）；kappa=1e7: lambda 极差 63 倍、下标跨度 12（曲率 idx 33，两段直线 idx 45，二阶差分 idx 42） | 每一组配置的 lambda 极差都 >= 5 倍（实测最小 33 倍） | ✅ |
 | A | 无约束 vs 有约束两段直线拟合：一致组数 / 最大偏离倍数（18 组配置） | 无约束时段越短拟合残差越小 => 切点无规律漂移；约束把切点限制在 [25%, 75%] 且交点必须落在包围盒内 | 一致 7/18 组；其余偏离最大 125.9 倍（中位 1.39） | 一致组数 <= 12/18（即至少 1/3 不一致），且最大偏离 >= 5 倍 | ✅ |
