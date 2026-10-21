@@ -1171,7 +1171,7 @@ MANIFEST: dict[str, Any] = {
                     "id": "mass",
                     "autoscaled": False,
                     "title": "总热量漂移 H(t)−H(0)（窗口固定 −0.7–0.1）",
-                    "ylabel": "ΔH",
+                    "ylabel": "$\\Delta H$",
                 },
             ],
             "pitfalls": (

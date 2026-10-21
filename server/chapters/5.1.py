@@ -455,7 +455,7 @@ MANIFEST: dict[str, Any] = {
             "requiredAux": ["residual"],
             "axes": [
                 {"id": "main", "autoscaled": False, "title": "Rosenbrock 等高线与信赖域圆", "ylabel": "y"},
-                {"id": "aux", "autoscaled": True, "title": "半径 Δ_k、比值 ρ_k 与梯度范数", "ylabel": "$\\Delta_k/\\rho_k/\\|\\nabla f\\|$", "scale": "log"},
+                {"id": "aux", "autoscaled": True, "title": "半径 $\\Delta_k$、比值 $\\rho_k$ 与梯度范数", "ylabel": "$\\Delta_k/\\rho_k/\\|\\nabla f\\|$", "scale": "log"},
             ],
             "pitfalls": (
                 "「半径在自适应」这句话本身不是证据：$\\rho_k>0.75$ 只在步**撞到边界**时才扩张，"

@@ -276,7 +276,7 @@ export const manifest: ChapterManifestJson = {
           "autoscaled": true,
           "id": "aux",
           "scale": "log",
-          "title": "半径 Δ_k、比值 ρ_k 与梯度范数",
+          "title": "半径 $\\Delta_k$、比值 $\\rho_k$ 与梯度范数",
           "ylabel": "$\\Delta_k/\\rho_k/\\|\\nabla f\\|$",
         },
       ],
