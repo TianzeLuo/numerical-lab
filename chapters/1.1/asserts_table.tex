@@ -1,6 +1,6 @@
 % 本文件由 tools/build_book.py 从 dist/reports/assertions.json 生成，请勿手改。
 \begin{longtable}{@{}p{0.06\textwidth}p{0.32\textwidth}p{0.22\textwidth}p{0.16\textwidth}@{}}
-\caption{章节 1.1 数值断言（生成时间 2026-10-20T13:38:26-0400）}\\
+\caption{章节 1.1 数值断言（生成时间 2026-10-21T12:06:46-0400）}\\
 \toprule
 类别 & 断言 & 理论值 & 实测值 \\
 \midrule
@@ -42,5 +42,5 @@ B & 区间宽度 / (2b + 端点 ulp) & $\le$ 1(\allowbreak{}区间必含精确�
 B & 补偿归约误差(serial/shuffled/parallel8/parallel64) & 前两者 $\le$ 2u$\cdot$$\Sigma$|x|=\allowbreak{}2.22；后两者 $\le$ n$\cdot$u$\cdot$$\Sigma$|x|=\allowbreak{}4.55e+03 且 $\gg$ 串行 & serial=\allowbreak{}0.095,\allowbreak{} shuffled=\allowbreak{}0.095,\allowbreak{} parallel8=\allowbreak{}4.09,\allowbreak{} parallel64=\allowbreak{}4.09 \checkmark \\
 B & 置换 Kahan 误差 / 串行 Kahan 误差 & 量级不变(\allowbreak{}个位数倍) & 最大比值 1.000(\allowbreak{}6 个种子；串行误差 1) \checkmark \\
 B & 网格构造器自洽性 & 相邻点 ulp 距离恒为 1；超上限抛错 & 4 个中心点全通过；max\_points 截断保护生效 \checkmark \\
-B & 1.1 章帧契约 & 每个 viz 的 requiredAux 齐备、\allowbreak{}meta 全标量、\allowbreak{}数组非空 & float\_zoom: 13 数组；cancellation: 12 数组；cond\_ellipsoid: 15 数组；summation\_order: 14 数组 \checkmark \\
+B & 1.1 章帧契约 & 每个 viz 的 requiredAux 齐备、\allowbreak{}meta 全标量、\allowbreak{}数组非空 & float\_zoom: 13 数组；cancellation: 12 数组；cond\_ellipsoid: 19 数组；summation\_order: 14 数组 \checkmark \\
 \end{longtable}
